@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "command": "bash",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Go_Build",
+            "problemMatcher": [
+                "$go"
+            ],
+            "command": "make",
+            "args": [
+                "--directory=${workspaceFolder}"
+            ]
+        },
+    ]
+}
