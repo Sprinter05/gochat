@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/src/main.go",
-            "preLaunchTask": "Go_Build"
+            //"preLaunchTask": "Go_Build"
         }
     ]
 }
