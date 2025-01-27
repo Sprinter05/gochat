@@ -1,14 +1,14 @@
-# Protocol Specification
+# Specification
 ## Common Replies
 
 ### Server replies
 - Server error reply: `ERR <error_code>`
-- Server acknowledgment: `OK <action_code>`
+- Server acknowledgment: `OK`
 - Inminent server shutdown: `SHTDWN <unix_stamp>`
 
 ### Client replies
 - Client error reply: `ERR <error_code>`
-- Client acknowledgment: `OK <action_code>`
+- Client acknowledgment: `OK`
 
 ## Connection
 ### Registering a user
