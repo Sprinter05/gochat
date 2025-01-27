@@ -1,4 +1,4 @@
-# GoChat Protocol Specification
+# Protocol Specification
 ## Common Replies
 
 ### Server replies
