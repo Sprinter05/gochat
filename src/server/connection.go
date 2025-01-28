@@ -35,15 +35,24 @@ func handleClient(client *Client) {
 	defer client.conn.Close()
 
 	// Check the header and size
-	buffer := make([]byte, 4)
-	_, err := client.conn.Read(buffer)
-	if err != nil {
-		log.Print(err)
-		return
+	buffer := [prot.HeaderSize + prot.LengthSize]byte{}
+	for {
+		n, err := client.conn.Read(buffer[:])
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		// Repeat until its properly sized
+		if n < (prot.HeaderSize + prot.LengthSize) {
+			continue
+		} else {
+			break
+		}
 	}
 
 	// Check the header
-	hdr := prot.GetHeader(buffer)
+	hdr := prot.GetHeader(buffer[:])
 	if err := checkHeader(hdr); err != nil {
 		log.Print(err)
 	}
