@@ -6,11 +6,6 @@ import (
 	"net"
 )
 
-type Client struct {
-	conn net.Conn
-	//addr net.IP
-}
-
 func main() {
 	// Create a new server listening on the adress
 	l, err := net.Listen("tcp", "127.0.0.1:6969")

@@ -2,26 +2,35 @@ package main
 
 import (
 	"log"
+	"net"
 
 	prot "github.com/Sprinter05/gochat/protocol"
 )
 
-func checkHeader(h []byte) error {
-	hdr := prot.GetHeader(h[:prot.HeaderSize])
+// Identifies a client in the server
+type Client struct {
+	conn net.Conn
+}
 
+// Checks that the header contains valid data
+func checkHeader(h prot.Header) error {
 	// Check version
-	if hdr.Version != prot.Version {
+	if h.Version != prot.Version {
 		return prot.ErrorVersion
 	}
 
 	// Check action code is valid
-	if prot.GetClientActionCode(hdr.Action) == "" {
+	if prot.GetClientActionCode(h.Action) == "" {
 		return prot.ErrorInvalid
 	}
 
 	return nil
 }
 
+/*
+Handles a connection with a client by verifying the
+connection and then reading from it until closed
+*/
 func handleClient(client *Client) {
 	defer client.conn.Close()
 
@@ -34,7 +43,8 @@ func handleClient(client *Client) {
 	}
 
 	// Check the header
-	if err := checkHeader(buffer); err != nil {
+	hdr := prot.GetHeader(buffer)
+	if err := checkHeader(hdr); err != nil {
 		log.Print(err)
 	}
 }

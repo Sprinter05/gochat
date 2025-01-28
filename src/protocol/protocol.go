@@ -4,14 +4,14 @@ import (
 	"errors"
 )
 
-// VERSION
-
+// Version of the protocol being used
 const Version = 1
 
-// FIXED SIZES
+// Size of the header in bytes
+const HeaderSize int = 2
 
-const HeaderSize int = 2 // bytes
-const LengthSize int = 2 // bytes
+// Size of the payload length in bytes
+const LengthSize int = 2
 
 // ACTION CODES
 
@@ -38,6 +38,7 @@ var clientActionCodes map[uint8]string = map[uint8]string{
 	0x0A: "DEREG",
 }
 
+// Returns the operation string code or an empty string if it does not exist
 func GetServerActionCode(i uint8) string {
 	v, ok := serverActionCodes[i]
 	if !ok {
@@ -46,6 +47,7 @@ func GetServerActionCode(i uint8) string {
 	return v
 }
 
+// Returns the operation string code or an empty string if it does not exist
 func GetClientActionCode(i uint8) string {
 	v, ok := clientActionCodes[i]
 	if !ok {
@@ -56,10 +58,17 @@ func GetClientActionCode(i uint8) string {
 
 // ERROR CODES
 
+// Determines a generic undefined error
 var ErrorUndefined error = errors.New("ERR_UNDEFINED")
+
+// Invalid operation performed
 var ErrorInvalid error = errors.New("ERR_INVALID")
+
+// Versions do not match
 var ErrorVersion error = errors.New("ERR_VERSION")
-var ErrorNoConnection error = errors.New("ERR_NOCONN")
+
+// Content could not be found
 var ErrorNotFound error = errors.New("ERR_NOTFOUND")
+
+// Verification handshake failed
 var ErrorHandshake error = errors.New("ERR_HANDSHAKE")
-var ErrorBrokenMsg error = errors.New("ERR_BROKENMSG")
