@@ -12,26 +12,28 @@ Both server and client headers share the following header format, which occupies
 - **Reply Information** | `6 bits`: Additional information provided by specific instructions such as `ERR` codes.
 
 ## Codes
+`0x0` is reserved as an invalid value.
+
 ### Server Action Codes
-- `OK` = 0x00
-- `ERR` = 0x01
-- `SHTDWN` = 0x02
-- `VERIF` = 0x03
-- `REQ` = 0x04
-- `USRS` = 0x05
-- `RECIV` = 0x06
+- `OK` = 0x01
+- `ERR` = 0x02
+- `SHTDWN` = 0x03
+- `VERIF` = 0x04
+- `REQ` = 0x05
+- `USRS` = 0x06
+- `RECIV` = 0x07
 
 ### Client Action Codes
-- `OK` = 0x00
-- `ERR` = 0x01
-- `REG` = 0x02
-- `VERIF` = 0x03
-- `REQ` = 0x04
-- `USRS` = 0x05
-- `CONN` = 0x06
-- `MSG` = 0x07
-- `DISCN` = 0x08
-- `DEREG` = 0x09
+- `OK` = 0x01
+- `ERR` = 0x02
+- `REG` = 0x03
+- `VERIF` = 0x04
+- `REQ` = 0x05
+- `USRS` = 0x06
+- `CONN` = 0x07
+- `MSG` = 0x08
+- `DISCN` = 0x09
+- `DEREG` = 0x0A
 
 ## Reply Info
 

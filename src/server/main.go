@@ -6,6 +6,10 @@ import (
 	"net"
 )
 
+type Client struct {
+	conn net.Conn
+}
+
 func main() {
 	// Create a new server listening on the adress
 	l, err := net.Listen("tcp", "127.0.0.1:6969")
@@ -18,8 +22,8 @@ func main() {
 		c, err := l.Accept()
 		if err != nil {
 			fmt.Println(err)
-			return
+			continue // Keep seeking clients
 		}
-		go handleClient(c)
+		go handleClient(&Client{c})
 	}
 }
