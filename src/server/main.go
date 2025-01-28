@@ -8,6 +8,7 @@ import (
 
 type Client struct {
 	conn net.Conn
+	//addr net.IP
 }
 
 func main() {
@@ -24,6 +25,6 @@ func main() {
 			fmt.Println(err)
 			continue // Keep seeking clients
 		}
-		go handleClient(&Client{c})
+		go handleClient(&Client{conn: c})
 	}
 }
