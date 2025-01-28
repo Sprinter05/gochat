@@ -7,15 +7,15 @@ import (
 )
 
 func checkHeader(h []byte) error {
-	hdr := GetHeader(h[:prot.HeaderSize])
+	hdr := prot.GetHeader(h[:prot.HeaderSize])
 
 	// Check version
-	if hdr.version != prot.Version {
+	if hdr.Version != prot.Version {
 		return prot.ErrorVersion
 	}
 
 	// Check action code is valid
-	if prot.GetClientActionCode(hdr.action) == "" {
+	if prot.GetClientActionCode(hdr.Action) == "" {
 		return prot.ErrorInvalid
 	}
 

@@ -1,13 +1,13 @@
-package main
+package protocol
 
 import (
 	"encoding/binary"
 )
 
 type Header struct {
-	version uint8
-	action  uint8
-	info    uint8
+	Version uint8
+	Action  uint8
+	Info    uint8
 }
 
 func versionBitMask(v uint16) uint8 { return uint8(v >> 13) }
