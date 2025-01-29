@@ -36,18 +36,3 @@ func NewHeader(hdr []byte) Header {
 func NewLength(len []byte) Length {
 	return Length(binary.BigEndian.Uint16(len[:LengthSize]))
 }
-
-// Returns a byte array with the fields of the header
-func NewByteHeader(hdr Header) []byte {
-	p := (uint16(hdr.Version) << 13) | (uint16(hdr.Action) << 6) | uint16(hdr.Info)
-	var b [HeaderSize]byte
-	binary.BigEndian.PutUint16(b[:], p)
-	return b[:]
-}
-
-// Returns a byte array with the length of the payload
-func NewByteLength(len Length) []byte {
-	var b [LengthSize]byte
-	binary.BigEndian.PutUint16(b[:], uint16(len))
-	return b[:]
-}
