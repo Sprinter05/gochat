@@ -10,9 +10,6 @@ default: $(BUILD)/program
 $(BUILD):
 	if ! [ -d "./$(BUILD)" ]; then mkdir $(BUILD); fi
 
-$(BUILD)/program:
-	$(CC) build -o build/program $(PKG)/main.go
-
 # Clean build folder
 clean: $(BUILD)
 	rm -r $(BUILD)

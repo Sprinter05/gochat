@@ -1,15 +1,17 @@
 # Implementation
 ## Header Format
-Both server and client headers share the following header format, which occupies **2 bytes**:
+Both server and client headers share the following header format, which occupies **4 bytes**:
 
-    0         3             10           15
-    +---------+-------------+------------+
-    | Version | Action Code | Reply Info |
-    +---------+-------------+------------+
+    0         4             12           20     22               32
+    +---------+-------------+------------+------+----------------+
+    | Version | Action Code | Reply Info | Args | Payload Length |
+    +---------+-------------+------------+------+----------------+
 
-- **Protocol Version** | `3 bits`: Ensures that both client and server share the same protocol format. Communication between the client application and the server cannot happen if the versions differ.
-- **Action Code** | `7 bits`: Instruction code that determines the action code that must be performed. Both client and server have their own, independent codes.
-- **Reply Information** | `6 bits`: Additional information provided by specific instructions such as `ERR` codes.
+- **Protocol Version** | `4 bits`: Ensures that both client and server share the same protocol format. Communication between the client application and the server cannot happen if the versions differ.
+- **Action Code** | `8 bits`: Instruction code that determines the action code that must be performed. Both client and server have their own, independent codes.
+- **Reply Information** | `8 bits`: Additional information provided by specific instructions such as `ERR` codes.
+- **Arguments** | `2 bits` : Amount of arguments to be read.
+- **Length** | `10 bits`: Indicates the size of the payload in bytes.
 
 ## Codes
 `0x0` is reserved as an invalid value.
@@ -17,11 +19,11 @@ Both server and client headers share the following header format, which occupies
 ### Server Action Codes
 - `OK` = 0x01
 - `ERR` = 0x02
-- `SHTDWN` = 0x03
 - `VERIF` = 0x04
 - `REQ` = 0x05
 - `USRS` = 0x06
 - `RECIV` = 0x07
+- `SHTDWN` = 0x0C
 
 ### Client Action Codes
 - `OK` = 0x01
@@ -30,14 +32,14 @@ Both server and client headers share the following header format, which occupies
 - `VERIF` = 0x04
 - `REQ` = 0x05
 - `USRS` = 0x06
-- `CONN` = 0x07
-- `MSG` = 0x08
-- `DISCN` = 0x09
-- `DEREG` = 0x0A
+- `CONN` = 0x08
+- `MSG` = 0x09
+- `DISCN` = 0x0A
+- `DEREG` = 0x0B
 
 ## Reply Info
 
-If the action to perform requires no additional information the "**Reply Info**" field should be `111111`. Otherwise it should be any of the following:
+If the action to perform requires no additional information the "**Reply Info**" field should be `0xFF`. Otherwise it should be any of the following:
 
 > **NOTE**: Behaviour when the information value is incorrect is undefined.
 
@@ -49,8 +51,6 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_HANDSHAKE` (0x04): Handshake process has failed.
 
 ## Body
-### Length
-After the header comes the **length**, which occupies another **2 bytes** that compose an unsigned integer of type `uint16`, which specifies the maximum length in bytes the payload can have.
 
 ### Payload
-The payload will start being read right after the length and arguments will be separated by **CRLF** (`\r\n`). The server is not responsible for reading extra bytes, that should be handled by the client application by specifying an adequate length. Said arguments will be processed as an string.
+The payload will start being read right after the header until **CRLF** (`\r\n`) is read. The server may handle the read bytes according to the supplied length in the header. If the payload has several arguments as specified by the header it will be read again.
