@@ -14,7 +14,7 @@ type Client struct {
 
 // Checks that the header contains valid data
 func checkHeader(h gcspec.Header) error {
-	if h.Version != gcspec.Version {
+	if h.Version != gcspec.SpecVersion {
 		return gcspec.ErrorVersion
 	}
 

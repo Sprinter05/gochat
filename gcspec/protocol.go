@@ -5,7 +5,7 @@ import (
 )
 
 // Version of the protocol being used
-const Version = 1
+const SpecVersion = 1
 
 // Size of the header in bytes
 const HeaderSize int = 2

@@ -11,9 +11,6 @@ type Header struct {
 	Info    uint8
 }
 
-// Specifies the size of the length
-type Length uint16
-
 func versionBits(v uint16) uint8 {
 	return uint8(v >> 13)
 }
@@ -33,6 +30,6 @@ func NewHeader(hdr []byte) Header {
 }
 
 // Returns the size in bytes corresponding to the payload
-func NewLength(len []byte) Length {
-	return Length(binary.BigEndian.Uint16(len[:LengthSize]))
+func NewLength(len []byte) uint16 {
+	return binary.BigEndian.Uint16(len[:LengthSize])
 }
