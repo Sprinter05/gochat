@@ -9,7 +9,7 @@ type Header struct {
 	Version uint8
 	Action  uint8
 	Info    uint8
-	Flags   uint8
+	Args    uint8
 	Length  uint16
 }
 
@@ -27,7 +27,7 @@ func NewHeader(hdr []byte) Header {
 		Version: uint8(h >> 28),
 		Action:  uint8(h >> 20),
 		Info:    uint8(h >> 12),
-		Flags:   (uint8(h >> 10)) &^ 0xFC,
+		Args:    (uint8(h >> 10)) &^ 0xFC,
 		Length:  uint16(h) &^ 0xFC00,
 	}
 }
