@@ -13,6 +13,9 @@ const HeaderSize int = 2
 // Size of the payload length in bytes
 const LengthSize int = 2
 
+// Empty information field
+const EmptyInfo uint8 = 0b00111111
+
 // ACTION CODES
 
 var serverActionCodes map[uint8]string = map[uint8]string{
@@ -64,11 +67,28 @@ var ErrorUndefined error = errors.New("undefined problem")
 // Invalid operation performed
 var ErrorInvalid error = errors.New("invalid operation performed")
 
-// Versions do not match
-var ErrorVersion error = errors.New("versions do not match")
-
 // Content could not be found
 var ErrorNotFound error = errors.New("content not found")
 
+// Versions do not match
+var ErrorVersion error = errors.New("versions do not match")
+
 // Verification handshake failed
 var ErrorHandshake error = errors.New("handshake failed")
+
+var errorCodes map[error]uint8 = map[error]uint8{
+	ErrorUndefined: 0x00,
+	ErrorInvalid:   0x01,
+	ErrorNotFound:  0x02,
+	ErrorVersion:   0x03,
+	ErrorHandshake: 0x04,
+}
+
+// Returns the error code or the empty information field if not found
+func ErrorCode(err error) uint8 {
+	v, ok := errorCodes[err]
+	if !ok {
+		return EmptyInfo
+	}
+	return v
+}
