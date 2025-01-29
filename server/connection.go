@@ -31,23 +31,24 @@ func handleClient(client *Client) {
 	defer client.conn.Close()
 
 	// Check the header and size according to the spec
-	buf := [gcspec.HeaderSize + gcspec.LengthSize]byte{}
+	siz := gcspec.HeaderSize + gcspec.LengthSize
+	buf := make([]byte, 0, siz)
 	for {
-		n, err := client.conn.Read(buf[:])
+		n, err := client.conn.Read(buf)
 		if err != nil {
 			log.Print(err)
 			return
 		}
 
 		// Repeat until its properly sized
-		if n < (gcspec.HeaderSize + gcspec.LengthSize) {
+		if n < siz {
 			continue
 		}
 		break
 	}
 
 	// Return an error packet when necessary
-	hdr := gcspec.NewHeader(buf[:])
+	hdr := gcspec.NewHeader(buf)
 	if err := checkHeader(hdr); err != nil {
 		log.Print(err)
 	}
