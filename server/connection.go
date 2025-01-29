@@ -14,6 +14,6 @@ type Client struct {
 
 // Handles a connection with a client by verifying the
 // connection and then reading from it until closed
-func readHeader(cl *Client) {
+func (cl *Client) readHeader() {
 	defer cl.conn.Close()
 }
