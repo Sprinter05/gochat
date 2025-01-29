@@ -1,4 +1,4 @@
-package protocol
+package gcspec
 
 import (
 	"errors"
@@ -39,7 +39,7 @@ var clientActionCodes map[uint8]string = map[uint8]string{
 }
 
 // Returns the operation string code or an empty string if it does not exist
-func GetServerActionCode(i uint8) string {
+func ServerActionCode(i uint8) string {
 	v, ok := serverActionCodes[i]
 	if !ok {
 		return ""
@@ -48,7 +48,7 @@ func GetServerActionCode(i uint8) string {
 }
 
 // Returns the operation string code or an empty string if it does not exist
-func GetClientActionCode(i uint8) string {
+func ClientActionCode(i uint8) string {
 	v, ok := clientActionCodes[i]
 	if !ok {
 		return ""
@@ -59,16 +59,16 @@ func GetClientActionCode(i uint8) string {
 // ERROR CODES
 
 // Determines a generic undefined error
-var ErrorUndefined error = errors.New("ERR_UNDEFINED")
+var ErrorUndefined error = errors.New("undefined problem")
 
 // Invalid operation performed
-var ErrorInvalid error = errors.New("ERR_INVALID")
+var ErrorInvalid error = errors.New("invalid operation performed")
 
 // Versions do not match
-var ErrorVersion error = errors.New("ERR_VERSION")
+var ErrorVersion error = errors.New("versions do not match")
 
 // Content could not be found
-var ErrorNotFound error = errors.New("ERR_NOTFOUND")
+var ErrorNotFound error = errors.New("content not found")
 
 // Verification handshake failed
-var ErrorHandshake error = errors.New("ERR_HANDSHAKE")
+var ErrorHandshake error = errors.New("handshake failed")
