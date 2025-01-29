@@ -41,16 +41,12 @@ If the action to perform requires no additional information the "**Reply Info**"
 
 > **NOTE**: Behaviour when the information value is incorrect is undefined.
 
-### Server Error Reply Codes
+### Error Codes
 - `ERR_UNDEFINED` (0x00): Undefined generic error.
-- `ERR_NOCONN` (0x01): Client cannot be reached.
+- `ERR_INVALID` (0x01): Invalid operation performed.
 - `ERR_NOTFOUND` (0x02): Requested content not found.
-- `ERR_HANDSHAKE` (0x03): Handshake process has failed.
-
-### Client Error Reply Codes
-- `ERR_UNDEFINED` (0x00): Undefined generic error.
-- `ERR_NOCONN` (0x01): Requested server cannot be reached.
-- `ERR_BROKENMSG` (0x02): Message has been incorrectly received.
+- `ERR_VERSION` (0x03): Versions do not match.
+- `ERR_HANDSHAKE` (0x04): Handshake process has failed.
 
 ## Body
 ### Length
