@@ -98,11 +98,14 @@ var ErrorVersion error = errors.New("Versions do not match")
 // Verification handshake failed
 var ErrorHandshake error = errors.New("Handshake failed")
 
-// Invalid argument field
+// Invalid arguments given
 var ErrorArguments error = errors.New("Invalid arguments")
 
 // Payload size too big
 var ErrorMaxSize error = errors.New("Payload size too big")
+
+// User is not logged in
+var ErrorNoSession error = errors.New("User is not connected")
 
 var errorCodes map[error]byte = map[error]byte{
 	ErrorUndefined: 0x00,

@@ -9,7 +9,7 @@ import (
 // Identifies a client in the server
 type Client struct {
 	conn net.Conn
-	req  chan gcspec.Command // Send only
+	req  chan gcspec.Command
 }
 
 // Handles a connection with a client by verifying the
