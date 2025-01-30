@@ -53,4 +53,4 @@ If the action to perform requires no additional information the "**Reply Info**"
 ## Body
 
 ### Payload
-The payload will start being read right after the header until **CRLF** (`\r\n`) is read. The server may handle the read bytes according to the supplied length in the header. If the payload has several arguments as specified by the header it will be read again.
+The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A total of *n* reads will be performed, corresponding to the amount of arguments specified by the header. Each read will stop when **CRLF** is found. If the last read argument goes over the maximum payload size, it will be ignored and if there are any pending reads, they will not be performed.
