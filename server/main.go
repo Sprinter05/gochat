@@ -15,11 +15,17 @@ func main() {
 
 	// Endless loop to listen for connections
 	for {
-		_, err := l.Accept()
+		c, err := l.Accept()
 		if err != nil {
 			fmt.Println(err)
 			continue // Keep seeking clients
 		}
-		//go readHeader(&Client{conn: c})
+
+		cl := &Client{
+			conn: c,
+			req:  nil,
+		}
+
+		go cl.readHeader()
 	}
 }

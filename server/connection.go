@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"log"
 	"net"
 
 	"github.com/Sprinter05/gochat/gcspec"
@@ -16,4 +19,12 @@ type Client struct {
 // connection and then reading from it until closed
 func (cl *Client) readHeader() {
 	defer cl.conn.Close()
+
+	for {
+		b, err := bufio.NewReader(cl.conn).ReadBytes('\n')
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s", b)
+	}
 }

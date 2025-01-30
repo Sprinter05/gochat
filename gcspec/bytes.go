@@ -7,7 +7,7 @@ import (
 // Identifies a header split into its fields as single bytes
 type Header struct {
 	Version uint8
-	Action  uint8
+	Action  ID
 	Info    uint8
 	Args    uint8
 	Length  uint16
@@ -23,7 +23,7 @@ func NewHeader(hdr []byte) Header {
 	h := binary.BigEndian.Uint32(hdr[:HeaderSize])
 	return Header{
 		Version: uint8(h >> 28),
-		Action:  uint8(h >> 20),
+		Action:  CodeToID(uint8(h >> 20)),
 		Info:    uint8(h >> 12),
 		Args:    (uint8(h >> 10)) &^ 0xFC,
 		Length:  uint16(h) &^ 0xFC00,
