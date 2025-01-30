@@ -56,7 +56,7 @@ func NewPacket(id ID, inf byte, arg []string) ([]byte, error) {
 	p := make([]byte, 0, HeaderSize+tot+2)
 
 	// Set all header bits
-	b := (uint32(SpecVersion) << 28) |
+	b := (uint32(ProtocolVersion) << 28) |
 		(uint32(IDToCode(id)) << 20) |
 		(uint32(inf) << 12) |
 		(uint32(l) << 10) |
