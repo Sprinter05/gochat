@@ -2,7 +2,9 @@ package gcspec
 
 type ID uint8
 
-const null ID = 0
+const NullID ID = 0
+
+const EmptyInfo byte = 0xFF
 
 const (
 	OK ID = iota + 1
