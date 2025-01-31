@@ -13,6 +13,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Run hun that processes commands
+	hub := Hub{
+		comm: make(chan Client),
+	}
+	hub.Run()
+
 	// Endless loop to listen for connections
 	for {
 		c, err := l.Accept()
@@ -25,6 +31,6 @@ func main() {
 			conn: c,
 		}
 
-		go cl.listen()
+		go cl.listen(hub.comm)
 	}
 }

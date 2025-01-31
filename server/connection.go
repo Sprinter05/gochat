@@ -15,16 +15,15 @@ import (
 type Client struct {
 	conn net.Conn
 	rd   *bufio.Reader
-	req  chan Command
+	req  Command
 }
 
-func (cl *Client) listen() {
+func (cl *Client) listen(hub chan Client) {
 	// Close connection when exiting
 	defer cl.conn.Close()
 
 	// Create channel and reader
 	cl.rd = bufio.NewReader(cl.conn)
-	cl.req = make(chan Command)
 
 	for {
 		cmd := Command{}
@@ -64,7 +63,8 @@ func (cl *Client) listen() {
 		}
 
 		// Send command to the hub
-		cl.req <- cmd
+		cl.req = cmd
+		hub <- *cl
 	}
 
 }
