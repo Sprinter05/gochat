@@ -73,7 +73,7 @@ func NewPacket(id ID, inf byte, arg []string) ([]byte, error) {
 	tot := 0
 	if l != 0 {
 		for _, v := range arg {
-			tot += len(v)
+			tot += len(v) + 2 // CRLF is 2 bytes
 		}
 		if tot > MaxPayload {
 			return nil, ErrorMaxSize

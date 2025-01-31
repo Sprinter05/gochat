@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -63,6 +64,7 @@ func (cl *Client) Listen(hub chan<- Client) {
 			continue
 		}
 
+		// TODO: Send OK response to client
 		// Send command to the hub
 		cl.cmd = cmd
 		hub <- *cl
@@ -107,6 +109,9 @@ func (cl *Client) listenPayload(cmd *Command) error {
 		//? Check if the reader keeps the previous contents
 		b, err := cl.rd.ReadBytes('\n')
 		if err != nil {
+			if err == io.EOF {
+				return ErrorArguments
+			}
 			return err
 		}
 
@@ -131,6 +136,13 @@ func (cl *Client) listenPayload(cmd *Command) error {
 			buf.Reset() // Empty the buffer
 			i++         // Next argument
 		}
+	}
+
+	// Payload length incorrect
+	if tot != int(cmd.HD.Len) {
+		fmt.Println(tot)
+		fmt.Println(cmd.HD.Len)
+		return ErrorArguments
 	}
 
 	// Payload processed
