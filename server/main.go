@@ -31,6 +31,6 @@ func main() {
 			conn: c,
 		}
 
-		go cl.listen(hub.comm)
+		go cl.Listen(hub.comm)
 	}
 }

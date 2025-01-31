@@ -18,7 +18,8 @@ type Client struct {
 	req  Command
 }
 
-func (cl *Client) listen(hub chan Client) {
+// Listens from a client and sends itself trough a channel for the hub to process
+func (cl *Client) Listen(hub chan<- Client) {
 	// Close connection when exiting
 	defer cl.conn.Close()
 
