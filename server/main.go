@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
@@ -24,10 +23,8 @@ func main() {
 
 		cl := &Client{
 			conn: c,
-			rd:   bufio.NewReader(c),
-			req:  nil,
 		}
 
-		go cl.listenHeader()
+		go cl.listen()
 	}
 }

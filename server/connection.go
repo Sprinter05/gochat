@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"io"
 	"log"
 	"net"
+	"strings"
 
 	. "github.com/Sprinter05/gochat/gcspec"
 )
@@ -15,52 +18,114 @@ type Client struct {
 	req  chan Command
 }
 
-// Reads the header of a connection and verifies it is correct
-func (cl *Client) listenHeader() {
-	cmd := Command{}
+func (cl *Client) listen() {
+	// Close connection when exiting
+	defer cl.conn.Close()
 
-	// Header processing
+	// Create channel and reader
+	cl.rd = bufio.NewReader(cl.conn)
+	cl.req = make(chan Command)
+
 	for {
-		// Read from the wire
-		b, err := cl.rd.ReadBytes('\n')
-		if err != nil {
-			cl.conn.Close()
-			log.Fatal(err)
-			return
-		}
-
-		// Make sure the size is appropaite
-		if len(b) < HeaderSize {
-			pak, err := NewPacket(ERR, ErrorCode(ErrorHeader), nil)
-			if err == nil {
-				cl.conn.Write(pak)
+		cmd := Command{}
+		// Read header from the wire
+		if err := cl.listenHeader(&cmd); err != nil {
+			log.Print(err)
+			// Connection closed by client
+			if err == io.EOF {
+				return
 			}
 			continue
 		}
 
-		// Create and check the header
-		cmd.HD = NewHeader(b)
-		if err := cmd.HD.Check(); err != nil {
+		// Read payload from the wire
+		if err := cl.listenPayload(&cmd); err != nil {
 			log.Print(err)
+			// Connection closed by client
+			if err == io.EOF {
+				return
+			}
 			continue
 		}
 
-		break // Header processed
+		// Send command to the hub
+		cl.req <- cmd
 	}
 
-	cl.listenPayload(&cmd)
+}
+
+// Reads the header of a connection and verifies it is correct
+func (cl *Client) listenHeader(cmd *Command) error {
+	// Create error packet in case its necessary to send it
+	pak, e := NewPacket(ERR, ErrorCode(ErrorHeader), nil)
+	if e != nil { // Error when creating packet
+		log.Print(e)
+	}
+
+	// Read from the wire
+	b, err := cl.rd.ReadBytes('\n')
+	if err != nil {
+		return err
+	}
+
+	// Make sure the size is appropaite
+	if len(b) < HeaderSize {
+		// Send an error packet
+		if e == nil {
+			cl.conn.Write(pak)
+		}
+		return ErrorHeader
+	}
+
+	// Create and check the header
+	cmd.HD = NewHeader(b)
+	if err := cmd.HD.Check(); err != nil {
+		// Send an error packet
+		if e == nil {
+			cl.conn.Write(pak)
+		}
+		return ErrorHeader
+	}
+
+	// Header processed
+	return nil
 }
 
 // Reads a payload to put it into a command
-func (cl *Client) listenPayload(cmd *Command) {
-	defer cl.conn.Close()
+func (cl *Client) listenPayload(cmd *Command) error {
+	// Buffer and total length
+	var buf bytes.Buffer
+	var tot int
 
-	// Read until all arguments have been read
+	// Read until all arguments have been processed
 	for i := 0; i < int(cmd.HD.Args); {
-		_, err := cl.rd.ReadBytes('\n')
+		//? Check if the reader keeps the previous contents
+		b, err := cl.rd.ReadBytes('\n')
 		if err != nil {
-			log.Print(err)
-			continue
+			return err
+		}
+
+		// Write into the buffer and get length
+		l, err := buf.Write(b)
+		if err != nil {
+			return err
+		}
+		tot += l
+
+		// Check if the payload is too big
+		if tot > MaxPayload {
+			return ErrorMaxSize
+		}
+
+		// Check if it ends in CRLF
+		if string(b[l-2]) == "\r" {
+			// Append all necessary contents
+			cmd.Args[i] = strings.Clone(buf.String())
+			buf.Reset() // Empty the buffer
+			i++         // Next argument
 		}
 	}
+
+	// Payload processed
+	return nil
 }
