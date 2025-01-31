@@ -17,7 +17,7 @@ func main() {
 	hub := Hub{
 		comm: make(chan Client),
 	}
-	hub.Run()
+	go hub.Run()
 
 	// Endless loop to listen for connections
 	for {
