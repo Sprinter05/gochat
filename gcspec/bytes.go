@@ -6,27 +6,39 @@ import (
 
 // Identifies a header split into its fields as single bytes
 type Header struct {
-	Version uint8
-	Action  ID
-	Info    uint8
-	Args    uint8
-	Length  uint16
+	Ver  uint8
+	ID   ID
+	Info uint8
+	Args uint8
+	Len  uint16
 }
 
 type Command struct {
-	Header    Header
-	Arguments []string
+	HD   Header
+	Args []string
+}
+
+func (hd Header) Check() error {
+	if hd.Ver != ProtocolVersion {
+		return ErrorVersion
+	}
+
+	if hd.ID == NullID {
+		return ErrorInvalid
+	}
+
+	return nil
 }
 
 // Splits a the byte header into its fields
 func NewHeader(hdr []byte) Header {
 	h := binary.BigEndian.Uint32(hdr[:HeaderSize])
 	return Header{
-		Version: uint8(h >> 28),
-		Action:  CodeToID(uint8(h >> 20)),
-		Info:    uint8(h >> 12),
-		Args:    (uint8(h >> 10)) &^ 0xFC,
-		Length:  uint16(h) &^ 0xFC00,
+		Ver:  uint8(h >> 28),
+		ID:   CodeToID(uint8(h >> 20)),
+		Info: uint8(h >> 12),
+		Args: (uint8(h >> 10)) &^ 0xFC,
+		Len:  uint16(h) &^ 0xFC00,
 	}
 }
 

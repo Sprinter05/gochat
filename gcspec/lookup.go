@@ -9,7 +9,7 @@ import (
 const NullID ID = 0
 const EmptyInfo byte = 0xFF
 
-const ProtocolVersion uint = 1
+const ProtocolVersion uint8 = 1
 const HeaderSize int = 4
 const MaxArgs int = 1<<2 - 1
 const MaxPayload int = 1<<10 - 1
