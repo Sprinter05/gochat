@@ -28,12 +28,20 @@ func (cl *Client) listen() {
 
 	for {
 		cmd := Command{}
+
 		// Read header from the wire
 		if err := cl.listenHeader(&cmd); err != nil {
 			log.Print(err)
 			// Connection closed by client
 			if err == io.EOF {
 				return
+			}
+			// Send error packet to client
+			pak, e := NewPacket(ERR, ErrorCode(err), nil)
+			if e != nil { // Error when creating packet
+				log.Print(e)
+			} else {
+				cl.conn.Write(pak)
 			}
 			continue
 		}
@@ -44,6 +52,13 @@ func (cl *Client) listen() {
 			// Connection closed by client
 			if err == io.EOF {
 				return
+			}
+			// Send error packet to client
+			pak, e := NewPacket(ERR, ErrorCode(err), nil)
+			if e != nil { // Error when creating packet
+				log.Print(e)
+			} else {
+				cl.conn.Write(pak)
 			}
 			continue
 		}
@@ -56,12 +71,6 @@ func (cl *Client) listen() {
 
 // Reads the header of a connection and verifies it is correct
 func (cl *Client) listenHeader(cmd *Command) error {
-	// Create error packet in case its necessary to send it
-	pak, e := NewPacket(ERR, ErrorCode(ErrorHeader), nil)
-	if e != nil { // Error when creating packet
-		log.Print(e)
-	}
-
 	// Read from the wire
 	b, err := cl.rd.ReadBytes('\n')
 	if err != nil {
@@ -70,20 +79,12 @@ func (cl *Client) listenHeader(cmd *Command) error {
 
 	// Make sure the size is appropaite
 	if len(b) < HeaderSize {
-		// Send an error packet
-		if e == nil {
-			cl.conn.Write(pak)
-		}
 		return ErrorHeader
 	}
 
 	// Create and check the header
 	cmd.HD = NewHeader(b)
 	if err := cmd.HD.Check(); err != nil {
-		// Send an error packet
-		if e == nil {
-			cl.conn.Write(pak)
-		}
 		return ErrorHeader
 	}
 
@@ -108,7 +109,9 @@ func (cl *Client) listenPayload(cmd *Command) error {
 		// Write into the buffer and get length
 		l, err := buf.Write(b)
 		if err != nil {
-			return err
+			//! May cause unexpected behaviour
+			buf.Reset()
+			continue
 		}
 		tot += l
 
