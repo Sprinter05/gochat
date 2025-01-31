@@ -9,8 +9,8 @@ func (hub *Hub) Run() {
 	for {
 		// Block until a command is received
 		select {
-		case cmd := <-hub.comm:
-			cmd.cmd.Print()
+		case c := <-hub.comm:
+			c.cmd.Print()
 		}
 	}
 }

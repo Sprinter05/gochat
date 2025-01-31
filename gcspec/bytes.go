@@ -98,6 +98,7 @@ func NewPacket(id ID, inf byte, arg []string) ([]byte, error) {
 	// Append payload arguments
 	for _, v := range arg {
 		p = append(p, v...)
+		p = append(p, "\r\n"...)
 	}
 
 	return p, nil
