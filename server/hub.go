@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type Hub struct {
 	comm  chan Client
 	users map[string]Client
@@ -12,7 +10,7 @@ func (hub *Hub) Run() {
 		// Block until a command is received
 		select {
 		case cmd := <-hub.comm:
-			fmt.Println(cmd)
+			cmd.cmd.Print()
 		}
 	}
 }

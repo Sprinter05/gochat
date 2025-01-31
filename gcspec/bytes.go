@@ -2,6 +2,7 @@ package gcspec
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // Identifies a header split into its fields as single bytes
@@ -18,6 +19,22 @@ type Command struct {
 	Args []string
 }
 
+// Prints all information about a packet
+func (c Command) Print() {
+	fmt.Println("**HEADER:**")
+	fmt.Printf("Version: %d\n", c.HD.Ver)
+	fmt.Printf("Action ID: %d\n", c.HD.ID)
+	fmt.Printf("Info: %d\n", c.HD.Info)
+	fmt.Printf("Arguments: %d\n", c.HD.Args)
+	fmt.Printf("Payload Length: %d\n", c.HD.Len)
+	fmt.Println("**PAYLOAD:**")
+	for i, v := range c.Args {
+		fmt.Printf("Arg %d: %s\n", i, v)
+	}
+	fmt.Println()
+}
+
+// Checks the validity of the header fields
 func (hd Header) Check() error {
 	if hd.Ver != ProtocolVersion {
 		return ErrorVersion

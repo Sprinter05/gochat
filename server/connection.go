@@ -15,7 +15,7 @@ import (
 type Client struct {
 	conn net.Conn
 	rd   *bufio.Reader
-	req  Command
+	cmd  Command
 }
 
 // Listens from a client and sends itself trough a channel for the hub to process
@@ -64,7 +64,7 @@ func (cl *Client) Listen(hub chan<- Client) {
 		}
 
 		// Send command to the hub
-		cl.req = cmd
+		cl.cmd = cmd
 		hub <- *cl
 	}
 
@@ -98,6 +98,9 @@ func (cl *Client) listenPayload(cmd *Command) error {
 	// Buffer and total length
 	var buf bytes.Buffer
 	var tot int
+
+	// Allocate the arguments
+	cmd.Args = make([]string, cmd.HD.Args)
 
 	// Read until all arguments have been processed
 	for i := 0; i < int(cmd.HD.Args); {

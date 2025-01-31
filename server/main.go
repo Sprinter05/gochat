@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// Create a new server listening on the adress
-	l, err := net.Listen("tcp", "127.0.0.1:6969")
+	l, err := net.Listen("tcp4", "127.0.0.1:6969")
 	if err != nil {
 		log.Fatal(err)
 	}
