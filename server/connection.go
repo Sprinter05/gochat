@@ -15,10 +15,8 @@ type Client struct {
 	req  chan Command
 }
 
-// Handles a connection with a client by verifying the
-// connection and then reading from it until closed
-func (cl *Client) listen() {
-	defer cl.conn.Close()
+// Reads the header of a connection and verifies it is correct
+func (cl *Client) listenHeader() {
 	cmd := Command{}
 
 	// Header processing
@@ -26,7 +24,9 @@ func (cl *Client) listen() {
 		// Read from the wire
 		b, err := cl.rd.ReadBytes('\n')
 		if err != nil {
+			cl.conn.Close()
 			log.Fatal(err)
+			return
 		}
 
 		// Make sure the size is appropaite
@@ -45,5 +45,22 @@ func (cl *Client) listen() {
 			continue
 		}
 
+		break // Header processed
+	}
+
+	cl.listenPayload(&cmd)
+}
+
+// Reads a payload to put it into a command
+func (cl *Client) listenPayload(cmd *Command) {
+	defer cl.conn.Close()
+
+	// Read until all arguments have been read
+	for i := 0; i < int(cmd.HD.Args); {
+		_, err := cl.rd.ReadBytes('\n')
+		if err != nil {
+			log.Print(err)
+			continue
+		}
 	}
 }

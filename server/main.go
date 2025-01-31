@@ -28,6 +28,6 @@ func main() {
 			req:  nil,
 		}
 
-		go cl.listen()
+		go cl.listenHeader()
 	}
 }
