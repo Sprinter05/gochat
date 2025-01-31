@@ -49,6 +49,10 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_NOTFOUND` (0x02): Requested content not found.
 - `ERR_VERSION` (0x03): Versions do not match.
 - `ERR_HANDSHAKE` (0x04): Handshake process has failed.
+- `ERR_ARGS` (0x05): Invalid arguments provided.
+- `ERR_MAXSIZ` (0x06): Payload is too big.
+- `ERR_HEADER` (0x07): Invalid header provided.
+- `ERR_NOLOGIN` (0x08): User is not logged in.
 
 ## Body
 

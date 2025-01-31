@@ -1,10 +1,16 @@
 package main
 
-type User struct {
-	name string
-	cl   Client
+type Hub struct {
+	comm  chan Client
+	users map[string]Client
 }
 
-type Hub struct {
-	users map[string]User
+func (hub *Hub) Run() {
+	for {
+		// Block until a command is received
+		select {
+		case c := <-hub.comm:
+			c.cmd.Print()
+		}
+	}
 }

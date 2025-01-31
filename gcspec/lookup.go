@@ -9,7 +9,7 @@ import (
 const NullID ID = 0
 const EmptyInfo byte = 0xFF
 
-const ProtocolVersion uint = 1
+const ProtocolVersion uint8 = 1
 const HeaderSize int = 4
 const MaxArgs int = 1<<2 - 1
 const MaxPayload int = 1<<10 - 1
@@ -104,6 +104,9 @@ var ErrorArguments error = errors.New("Invalid arguments")
 // Payload size too big
 var ErrorMaxSize error = errors.New("Payload size too big")
 
+// Header processing failed
+var ErrorHeader error = errors.New("Invalid header provided")
+
 // User is not logged in
 var ErrorNoSession error = errors.New("User is not connected")
 
@@ -113,6 +116,10 @@ var errorCodes map[error]byte = map[error]byte{
 	ErrorNotFound:  0x02,
 	ErrorVersion:   0x03,
 	ErrorHandshake: 0x04,
+	ErrorArguments: 0x05,
+	ErrorMaxSize:   0x06,
+	ErrorHeader:    0x07,
+	ErrorNoSession: 0x08,
 }
 
 // Returns the error code or the empty information field if not found

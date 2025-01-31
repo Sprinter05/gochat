@@ -2,31 +2,60 @@ package gcspec
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // Identifies a header split into its fields as single bytes
 type Header struct {
-	Version uint8
-	Action  uint8
-	Info    uint8
-	Args    uint8
-	Length  uint16
+	Ver  uint8
+	ID   ID
+	Info uint8
+	Args uint8
+	Len  uint16
 }
 
 type Command struct {
-	Header    Header
-	Arguments []string
+	HD   Header
+	Args []string
+}
+
+// Prints all information about a packet
+func (c Command) Print() {
+	fmt.Println("**HEADER:**")
+	fmt.Printf("Version: %d\n", c.HD.Ver)
+	fmt.Printf("Action ID: %d\n", c.HD.ID)
+	fmt.Printf("Info: %d\n", c.HD.Info)
+	fmt.Printf("Arguments: %d\n", c.HD.Args)
+	fmt.Printf("Payload Length: %d\n", c.HD.Len)
+	fmt.Println("**PAYLOAD:**")
+	for i, v := range c.Args {
+		fmt.Printf("Arg %d: %s\n", i, v)
+	}
+	fmt.Println()
+}
+
+// Checks the validity of the header fields
+func (hd Header) Check() error {
+	if hd.Ver != ProtocolVersion {
+		return ErrorVersion
+	}
+
+	if hd.ID == NullID {
+		return ErrorInvalid
+	}
+
+	return nil
 }
 
 // Splits a the byte header into its fields
 func NewHeader(hdr []byte) Header {
 	h := binary.BigEndian.Uint32(hdr[:HeaderSize])
 	return Header{
-		Version: uint8(h >> 28),
-		Action:  uint8(h >> 20),
-		Info:    uint8(h >> 12),
-		Args:    (uint8(h >> 10)) &^ 0xFC,
-		Length:  uint16(h) &^ 0xFC00,
+		Ver:  uint8(h >> 28),
+		ID:   CodeToID(uint8(h >> 20)),
+		Info: uint8(h >> 12),
+		Args: (uint8(h >> 10)) &^ 0xFC,
+		Len:  uint16(h) &^ 0xFC00,
 	}
 }
 
@@ -44,7 +73,7 @@ func NewPacket(id ID, inf byte, arg []string) ([]byte, error) {
 	tot := 0
 	if l != 0 {
 		for _, v := range arg {
-			tot += len(v)
+			tot += len(v) + 2 // CRLF is 2 bytes
 		}
 		if tot > MaxPayload {
 			return nil, ErrorMaxSize
@@ -69,6 +98,7 @@ func NewPacket(id ID, inf byte, arg []string) ([]byte, error) {
 	// Append payload arguments
 	for _, v := range arg {
 		p = append(p, v...)
+		p = append(p, "\r\n"...)
 	}
 
 	return p, nil
