@@ -1,8 +1,10 @@
 package main
 
+import gc "github.com/Sprinter05/gochat/gcspec"
+
 type Hub struct {
-	comm  chan Client
-	users map[string]Client
+	comm  chan Request
+	users map[string]gc.Connection
 }
 
 func (hub *Hub) Run() {

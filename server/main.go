@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"net"
+
+	gc "github.com/Sprinter05/gochat/gcspec"
 )
 
 func main() {
@@ -15,7 +18,7 @@ func main() {
 
 	// Run hun that processes commands
 	hub := Hub{
-		comm: make(chan Client),
+		comm: make(chan Request),
 	}
 	go hub.Run()
 
@@ -27,10 +30,11 @@ func main() {
 			continue // Keep seeking clients
 		}
 
-		cl := &Client{
-			conn: c,
+		cl := &gc.Connection{
+			Conn: c,
+			RD:   bufio.NewReader(c),
 		}
 
-		go cl.Listen(hub.comm)
+		go listenConnection(cl, hub.comm)
 	}
 }
