@@ -54,7 +54,14 @@ func listenConnection(cl *gc.Connection, hub chan<- Request) {
 			continue
 		}
 
-		// TODO: Send OK response to client
+		// Send OK reply to the client
+		pak, err := gc.NewPacket(gc.OK, gc.EmptyInfo, nil)
+		if err != nil { // Error when creating packet
+			log.Print(err)
+		} else {
+			cl.Conn.Write(pak)
+		}
+
 		// Send command to the hub
 		hub <- Request{
 			cl:  cl,
