@@ -63,6 +63,36 @@ var idToCode map[ID]byte = map[ID]byte{
 	SHTDWN: 0x0C,
 }
 
+var stringToCode map[string]ID = map[string]ID{
+	"OK":     OK,
+	"ERR":    ERR,
+	"REG":    REG,
+	"VERIF":  VERIF,
+	"REQ":    REQ,
+	"USRS":   USRS,
+	"RECIV":  RECIV,
+	"CONN":   CONN,
+	"MSG":    MSG,
+	"DISCN":  DISCN,
+	"DEREG":  DEREG,
+	"SHTDWN": SHTDWN,
+}
+
+var codeToString map[ID]string = map[ID]string{
+	OK:     "OK",
+	ERR:    "ERR",
+	REG:    "REG",
+	VERIF:  "VERIF",
+	REQ:    "REQ",
+	USRS:   "USRS",
+	RECIV:  "RECIV",
+	CONN:   "CONN",
+	MSG:    "MSG",
+	DISCN:  "DISCN",
+	DEREG:  "DEREG",
+	SHTDWN: "SHTDWN",
+}
+
 // Returns the ID associated to a byte code
 func CodeToID(b byte) ID {
 	v, ok := codeToid[b]
@@ -77,6 +107,24 @@ func IDToCode(i ID) byte {
 	v, ok := idToCode[i]
 	if !ok {
 		return 0x0
+	}
+	return v
+}
+
+// Returns the ID associated to a string
+func StringToCode(s string) ID {
+	v, ok := stringToCode[s]
+	if !ok {
+		return 0x0
+	}
+	return v
+}
+
+// Returns the ID associated to a string
+func CodeToString(i ID) string {
+	v, ok := codeToString[i]
+	if !ok {
+		return ""
 	}
 	return v
 }
@@ -122,11 +170,32 @@ var errorCodes map[error]byte = map[error]byte{
 	ErrorNoSession: 0x08,
 }
 
+var errorCodeToError map[byte]error = map[byte]error{
+	0x00: ErrorUndefined,
+	0x01: ErrorInvalid,
+	0x02: ErrorNotFound,
+	0x03: ErrorVersion,
+	0x04: ErrorHandshake,
+	0x05: ErrorArguments,
+	0x06: ErrorMaxSize,
+	0x07: ErrorHeader,
+	0x08: ErrorNoSession,
+}
+
 // Returns the error code or the empty information field if not found
 func ErrorCode(err error) byte {
 	v, ok := errorCodes[err]
 	if !ok {
 		return EmptyInfo
+	}
+	return v
+}
+
+// Returns the error
+func ErrorCodeToError(c byte) error {
+	v, ok := errorCodeToError[c]
+	if !ok {
+		return nil
 	}
 	return v
 }
