@@ -14,9 +14,11 @@ type Header struct {
 	Len  uint16
 }
 
+type Arg []byte
+
 type Command struct {
 	HD   Header
-	Args []string
+	Args []Arg
 }
 
 // Prints all information about a packet

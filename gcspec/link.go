@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"io"
 	"net"
-	"strings"
 )
 
 // Identifies a client in the server
@@ -44,7 +43,7 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 	var tot int
 
 	// Allocate the arguments
-	cmd.Args = make([]string, cmd.HD.Args)
+	cmd.Args = make([]Arg, cmd.HD.Args)
 
 	// Read until all arguments have been processed
 	for i := 0; i < int(cmd.HD.Args); {
@@ -74,7 +73,7 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		// Check if it ends in CRLF
 		if string(b[l-2]) == "\r" {
 			// Append all necessary contents
-			cmd.Args[i] = strings.Clone(buf.String())
+			copy(cmd.Args[i], buf.Bytes())
 			buf.Reset() // Empty the buffer
 			i++         // Next argument
 		}
