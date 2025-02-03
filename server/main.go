@@ -18,7 +18,9 @@ func main() {
 
 	// Run hun that processes commands
 	hub := Hub{
-		comm: make(chan Request),
+		req:   make(chan Request),
+		users: make(map[username]*User),
+		conns: make(map[ip]username),
 	}
 	go hub.Run()
 
@@ -35,6 +37,6 @@ func main() {
 			RD:   bufio.NewReader(c),
 		}
 
-		go listenConnection(cl, hub.comm)
+		go listenConnection(cl, hub.req)
 	}
 }

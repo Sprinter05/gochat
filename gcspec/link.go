@@ -73,7 +73,9 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		// Check if it ends in CRLF
 		if string(b[l-2]) == "\r" {
 			// Append all necessary contents
-			copy(cmd.Args[i], buf.Bytes())
+			b := buf.Bytes()
+			// Do not append CRLF
+			copy(cmd.Args[i], b[:l-2])
 			buf.Reset() // Empty the buffer
 			i++         // Next argument
 		}

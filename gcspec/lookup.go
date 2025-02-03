@@ -13,6 +13,8 @@ const ProtocolVersion uint8 = 1
 const HeaderSize int = 4
 const MaxArgs int = 1<<2 - 1
 const MaxPayload int = 1<<10 - 1
+const RSABitSize int = 4096
+const UsernameSize int = 32
 
 // ACTION CODES
 
