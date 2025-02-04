@@ -1,17 +1,18 @@
 # Implementation
 ## Header Format
-Both server and client headers share the following header format, which occupies **4 bytes**:
+Both server and client headers share the following header format, which occupies **6 bytes**:
 
-    0         4             12           20     22               32
-    +---------+-------------+------------+------+----------------+
-    | Version | Action Code | Reply Info | Args | Payload Length |
-    +---------+-------------+------------+------+----------------+
+    0         4             12           20     22               32              48
+    +---------+-------------+------------+------+----------------+---------------+
+    | Version | Action Code | Reply Info | Args | Payload Length | Identificator |
+    +---------+-------------+------------+------+----------------+---------------+
 
 - **Protocol Version** | `4 bits`: Ensures that both client and server share the same protocol format. Communication between the client application and the server cannot happen if the versions differ.
 - **Action Code** | `8 bits`: Instruction code that determines the action code that must be performed. Both client and server have their own, independent codes.
 - **Reply Information** | `8 bits`: Additional information provided by specific instructions such as `ERR` codes.
 - **Arguments** | `2 bits` : Amount of arguments to be read.
 - **Length** | `10 bits`: Indicates the size of the payload in bytes.
+- **Identificator** | `16 bits`: Indicates the packet identification the client has provided.
 
 ## Codes
 `0x0` is reserved as an invalid value.

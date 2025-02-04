@@ -10,7 +10,7 @@ const NullID ID = 0
 const EmptyInfo byte = 0xFF
 
 const ProtocolVersion uint8 = 1
-const HeaderSize int = 4
+const HeaderSize int = 6
 const MaxArgs int = 1<<2 - 1
 const MaxPayload int = 1<<10 - 1
 const RSABitSize int = 4096
@@ -23,9 +23,6 @@ const CypherLength int = 128
 
 // Specifies an action code
 type ID uint8
-
-// Specifies the order in which packets come
-type Order uint32
 
 const (
 	OK ID = iota + 1

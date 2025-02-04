@@ -16,7 +16,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Error reply packer
 	ret := gc.ErrorCode(gc.ErrorHandshake)
-	errpak, _ := gc.NewPacket(gc.ERR, ret, nil)
+	errpak, _ := gc.NewPacket(gc.ERR, cmd.HD.Ord, ret, nil)
 
 	// Assign public key
 	key, err := gc.PEMToPubkey(cmd.Args[1])
@@ -38,7 +38,10 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 		u.conn.Write(errpak)
 		return
 	}
-	vpak, _ := gc.NewPacket(gc.VERIF, gc.EmptyInfo, []gc.Arg{gc.Arg(enc)})
+
+	// Create verification packet
+	arg := []gc.Arg{gc.Arg(enc)}
+	vpak, _ := gc.NewPacket(gc.VERIF, cmd.HD.Ord, gc.EmptyInfo, arg)
 	u.conn.Write(vpak)
 
 	//TODO: Change so that it has to be in an unverified list until the decyphered payload is sent

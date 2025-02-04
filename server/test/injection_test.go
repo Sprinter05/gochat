@@ -74,7 +74,7 @@ func TestREG(t *testing.T) {
 
 	// REG Packet
 	p := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
-	test1, err := gc.NewPacket(gc.REG, gc.EmptyInfo, p)
+	test1, err := gc.NewPacket(gc.REG, gc.Order(13123), gc.EmptyInfo, p)
 	if err != nil {
 		t.Fatal(err)
 	}

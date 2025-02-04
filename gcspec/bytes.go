@@ -20,10 +20,14 @@ type Header struct {
 	Info uint8
 	Args uint8
 	Len  uint16
+	Ord  Order
 }
 
 // Used to specify its coming from a command
 type Arg []byte
+
+// Specifies the ID of the packet that has been sent
+type Order uint16
 
 // Specifies a command
 type Command struct {
@@ -35,15 +39,16 @@ type Command struct {
 
 // Prints all information about a packet
 func (c Command) Print() {
-	fmt.Println("**HEADER:**")
-	fmt.Printf("Version: %d\n", c.HD.Ver)
-	fmt.Printf("Action ID: %d\n", c.HD.ID)
-	fmt.Printf("Info: %d\n", c.HD.Info)
-	fmt.Printf("Arguments: %d\n", c.HD.Args)
-	fmt.Printf("Payload Length: %d\n", c.HD.Len)
-	fmt.Println("**PAYLOAD:**")
+	fmt.Println("-------- HEADER --------")
+	fmt.Printf("* Version: %d\n", c.HD.Ver)
+	fmt.Printf("* Action: %d\n", c.HD.ID)
+	fmt.Printf("* Info: %d\n", c.HD.Info)
+	fmt.Printf("* Args: %d\n", c.HD.Args)
+	fmt.Printf("* Length: %d\n", c.HD.Len)
+	fmt.Printf("* ID: %d\n", c.HD.Ord)
+	fmt.Println("-------- PAYLOAD --------")
 	for i, v := range c.Args {
-		fmt.Printf("Arg %d: %s\n", i, v)
+		fmt.Printf("[%d] %s\n", i, v)
 	}
 	fmt.Println()
 }
@@ -65,32 +70,24 @@ func (hd Header) Check() error {
 
 // Splits a the byte header into its fields
 func NewHeader(hdr []byte) Header {
-	h := binary.BigEndian.Uint32(hdr[:HeaderSize])
+	h := binary.BigEndian.Uint32(hdr[:HeaderSize-2])
+	id := binary.BigEndian.Uint16(hdr[HeaderSize-2 : HeaderSize])
 	return Header{
 		Ver:  uint8(h >> 28),
 		ID:   CodeToID(uint8(h >> 20)),
 		Info: uint8(h >> 12),
 		Args: (uint8(h >> 10)) &^ 0xFC,
 		Len:  uint16(h) &^ 0xFC00,
+		Ord:  Order(id),
 	}
 }
 
 /* PACKET FUNCTIONS */
 
-// Return the byte array asocciated with the order ID
-func OrderToBytes(o Order) []byte {
-	// 32 bit integer is 4 bytes
-	b := make([]byte, 4)
-
-	binary.BigEndian.PutUint32(b, uint32(o))
-
-	return b
-}
-
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy
 // like containg CRLF at the end of each argument
-func NewPacket(id ID, inf byte, arg []Arg) ([]byte, error) {
+func NewPacket(id ID, ord Order, inf byte, arg []Arg) ([]byte, error) {
 	// Verify number of arguments
 	l := len(arg)
 	if l > MaxArgs {
@@ -119,8 +116,11 @@ func NewPacket(id ID, inf byte, arg []Arg) ([]byte, error) {
 		(uint32(l) << 10) |
 		(uint32(tot))
 
-	// Append header to slice
+	// Append header and packet order
 	p = binary.BigEndian.AppendUint32(p, b)
+	p = binary.BigEndian.AppendUint16(p, uint16(ord))
+
+	// CRLF termination
 	p = append(p, "\r\n"...)
 
 	// Append payload arguments

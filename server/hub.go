@@ -54,7 +54,7 @@ func readRequest(r Request, h *Hub) (*User, error) {
 	// register or connect we return an error to client
 	if err != nil && (id != gc.CONN && id != gc.REG) {
 		ret := gc.ErrorCode(gc.ErrorNoSession)
-		pak, e := gc.NewPacket(gc.ERR, ret, nil)
+		pak, e := gc.NewPacket(gc.ERR, r.cmd.HD.Ord, ret, nil)
 		if e != nil {
 			//* Error when creating packet
 			return nil, e
@@ -94,6 +94,9 @@ func (hub *Hub) Run() {
 		// Block until a command is received
 		select {
 		case r := <-hub.req:
+			// Print command info
+			r.cmd.Print()
+
 			// Read the incoming request
 			v, err := readRequest(r, hub)
 			if err != nil {
