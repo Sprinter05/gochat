@@ -1,60 +1,15 @@
 package main
 
 import (
-	"crypto/rsa"
 	"log"
-	"math/rand"
 	"net"
-	"sync"
-	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
 
-// DEFINITIONS
-
-// Has to be used with net.Conn.RemoteAddr().String()
-type ip string
-
-// Has to conform to UsernameSize
-type username string
-
-// Specifies a logged in user
-type User struct {
-	conn   net.Conn
-	name   username
-	pubkey *rsa.PublicKey
-}
-
-// Uses a mutex since functions are running concurrently
-type Hub struct {
-	req   chan Request
-	mut   sync.Mutex
-	users map[ip]*User
-}
-
-// Specifies the functions to run depending on the ID
-type actions func(*Hub, *User, gc.Command)
-
+// Function mapping table
 var cmdTable map[gc.ID]actions = map[gc.ID]actions{
 	gc.REG: registerUser,
-}
-
-// FUNCTIONS
-
-// Generate a random text
-func randText() []byte {
-	// Set seed
-	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
-	set := []byte(gc.CypherCharset)
-
-	// Generate random characters
-	r := make([]byte, gc.CypherLength)
-	for i := range r {
-		r[i] = set[seed.Intn(len(gc.CypherCharset))]
-	}
-
-	return r
 }
 
 // Check if a user is already logged in
@@ -95,7 +50,8 @@ func procRequest(r Request, u *User, h *Hub) {
 		user = u
 	}
 
-	// Call the function
+	//! Be careful with race condition
+	//TODO: Maybe lock to only 1 action per user?
 	go fun(h, user, r.cmd)
 }
 

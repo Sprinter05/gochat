@@ -36,6 +36,6 @@ func main() {
 			RD:   bufio.NewReader(c),
 		}
 
-		go listenConnection(cl, hub.req)
+		go ListenConnection(cl, hub.req)
 	}
 }
