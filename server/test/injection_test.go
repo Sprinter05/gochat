@@ -74,21 +74,18 @@ func TestREG(t *testing.T) {
 
 	// REG Packet
 	p := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
-	test1, err := gc.NewPacket(gc.REG, gc.Order(13123), gc.EmptyInfo, p)
+	test1, err := gc.NewPacket(gc.REG, gc.Order(19736), gc.EmptyInfo, p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	l.Write(test1)
 
-	p1 := readFromConn(conn)
+	readFromConn(conn)
 	p2 := readFromConn(conn)
-
-	t.Log(p1)
-	t.Log(p2)
 
 	dec, _ := gc.DecryptText(p2.Args[0], v)
 
-	t.Log(string(dec))
+	t.Log("\n" + string(dec) + "\n")
 
 	return
 }
