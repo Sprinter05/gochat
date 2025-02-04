@@ -124,7 +124,22 @@ func NewPacket(id ID, inf byte, arg []Arg) ([]byte, error) {
 
 /* CRYPTO FUNCTIONS */
 
-// Turn Pubkey to PEM byte array
+// Turns an RSA private key to a PEM byte array
+// Uses the PKCS1 format
+func PrivkeytoPEM(privkey *rsa.PrivateKey) []byte {
+	b := x509.MarshalPKCS1PrivateKey(privkey)
+
+	p := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: b,
+		},
+	)
+
+	return p
+}
+
+// Turn an RSA public key to a PEM byte array
 // Uses the PKIX format
 func PubkeytoPEM(pubkey *rsa.PublicKey) ([]byte, error) {
 	b, err := x509.MarshalPKIXPublicKey(pubkey)
@@ -142,7 +157,23 @@ func PubkeytoPEM(pubkey *rsa.PublicKey) ([]byte, error) {
 	return p, nil
 }
 
-// Get Pubkey from PEM byte array
+// Gets the private RSA key from a PEM byte array
+// Uses the PKCS1 format
+func PEMToPrivkey(privPEM []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(privPEM))
+	if block == nil {
+		return nil, errors.New("PEM parsing failed")
+	}
+
+	priv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return priv, nil
+}
+
+// Gets the public RSA key from a PEM byte array
 // Uses the PKIX format
 func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode(pubPEM)
