@@ -41,7 +41,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	vpak, _ := gc.NewPacket(gc.VERIF, gc.EmptyInfo, []gc.Arg{gc.Arg(enc)})
 	u.conn.Write(vpak)
 
-	// Add user to the hub
+	//TODO: Change so that it has to be in an unverified list until the decyphered payload is sent
 	ip := ip(u.conn.RemoteAddr().String())
 	h.mut.Lock()
 	h.users[ip] = u
