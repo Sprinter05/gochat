@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -9,6 +10,7 @@ import (
 // FUNCTIONS
 
 func registerUser(h *Hub, u *User, cmd gc.Command) {
+	// TODO: Check if user is already logged in or in database
 	// Assign parameters to the user
 	u.name = username(cmd.Args[0])
 
@@ -27,7 +29,9 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	u.pubkey = key
 
 	// Create random cypher
-	enc, err := gc.EncryptText(randText(), key)
+	ran := randText()
+	fmt.Println(string(ran)) //! TEST
+	enc, err := gc.EncryptText(ran, key)
 	if err != nil {
 		//* Error with cyphering
 		log.Println(err)

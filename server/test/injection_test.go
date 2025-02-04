@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
 	"net"
@@ -51,9 +52,21 @@ func setup(t *testing.T) net.Conn {
 	l.Write(test4)
 }*/
 
+func readFromConn(c *gc.Connection) gc.Command {
+	cmd := &gc.Command{}
+	c.ListenHeader(cmd)
+	c.ListenPayload(cmd)
+	return *cmd
+}
+
 func TestREG(t *testing.T) {
 	l := setup(t)
 	defer l.Close()
+
+	conn := &gc.Connection{
+		Conn: l,
+		RD:   bufio.NewReader(l),
+	}
 
 	// Create rsa key
 	v, _ := rsa.GenerateKey(rand.Reader, gc.RSABitSize)
@@ -67,4 +80,16 @@ func TestREG(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Write(test1)
+
+	p1 := readFromConn(conn)
+	p2 := readFromConn(conn)
+
+	t.Log(p1)
+	t.Log(p2)
+
+	dec, _ := gc.DecryptText(p2.Args[0], v)
+
+	t.Log(dec)
+
+	return
 }
