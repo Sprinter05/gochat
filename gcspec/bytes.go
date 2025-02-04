@@ -1,7 +1,7 @@
 package gcspec
 
 import (
-	crand "crypto/rand"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -9,8 +9,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	mrand "math/rand"
-	"time"
 )
 
 /* TYPES */
@@ -126,8 +124,27 @@ func NewPacket(id ID, inf byte, arg []Arg) ([]byte, error) {
 
 /* CRYPTO FUNCTIONS */
 
+// Turn Pubkey to PEM byte array
+// Uses the PKIX format
+func PubkeytoPEM(pubkey *rsa.PublicKey) ([]byte, error) {
+	b, err := x509.MarshalPKIXPublicKey(pubkey)
+	if err != nil {
+		return nil, err
+	}
+
+	p := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PUBLIC KEY",
+			Bytes: b,
+		},
+	)
+
+	return p, nil
+}
+
 // Get Pubkey from PEM byte array
-func PemToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
+// Uses the PKIX format
+func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode(pubPEM)
 	if block == nil {
 		return nil, errors.New("PEM parsing failed")
@@ -149,22 +166,23 @@ func PemToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 	return nil, errors.New("Key type is not RSA")
 }
 
-// Generate a random cyphered payload
-func RandomCypher(pub *rsa.PublicKey) ([]byte, error) {
-	// Set seed
-	seededRand := mrand.New(mrand.NewSource(time.Now().UnixNano()))
-
-	// Generate random characters
-	str := make([]byte, CypherLength)
-	for i := range str {
-		str[i] = CypherCharset[seededRand.Intn(len(CypherCharset))]
-	}
-
+// Encrypts a text using OAEP with SHA256
+func EncryptText(t []byte, pub *rsa.PublicKey) ([]byte, error) {
 	// Cypher the payload
 	hash := sha256.New()
-	enc, err := rsa.EncryptOAEP(hash, crand.Reader, pub, str, nil)
+	enc, err := rsa.EncryptOAEP(hash, rand.Reader, pub, t, nil)
 	if err != nil {
-		return nil, errors.New("Impossible to encrypt random string")
+		return nil, errors.New("Impossible to encrypt")
 	}
 	return enc, nil
+}
+
+// Decrypts a cyphertext using OAEP with SHA256
+func DecryptText(e []byte, priv *rsa.PrivateKey) ([]byte, error) {
+	hash := sha256.New()
+	dec, err := rsa.DecryptOAEP(hash, rand.Reader, priv, e, nil)
+	if err != nil {
+		return nil, errors.New("Impossible to decrypt")
+	}
+	return dec, nil
 }

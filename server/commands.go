@@ -17,7 +17,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	errpak, _ := gc.NewPacket(gc.ERR, ret, nil)
 
 	// Assign public key
-	key, err := gc.PemToPubkey(cmd.Args[1])
+	key, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		//* Error with public key
 		log.Print(err)
@@ -27,7 +27,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	u.pubkey = key
 
 	// Create random cypher
-	enc, err := gc.RandomCypher(u.pubkey)
+	enc, err := gc.EncryptText(randText(), key)
 	if err != nil {
 		//* Error with cyphering
 		log.Print(err)

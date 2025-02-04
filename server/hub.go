@@ -3,8 +3,10 @@ package main
 import (
 	"crypto/rsa"
 	"log"
+	"math/rand"
 	"net"
 	"sync"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -39,6 +41,21 @@ var cmdTable map[gc.ID]actions = map[gc.ID]actions{
 }
 
 // FUNCTIONS
+
+// Generate a random text
+func randText() []byte {
+	// Set seed
+	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
+	set := []byte(gc.CypherCharset)
+
+	// Generate random characters
+	r := make([]byte, gc.CypherLength)
+	for i := range r {
+		r[i] = set[seed.Intn(len(gc.CypherCharset))]
+	}
+
+	return r
+}
 
 // Check if a user is already logged in
 func (hub *Hub) logged(addr net.Addr) (*User, error) {
