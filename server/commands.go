@@ -20,7 +20,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	key, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		//* Error with public key
-		log.Print(err)
+		log.Println(err)
 		u.conn.Write(errpak)
 		return
 	}
@@ -30,7 +30,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	enc, err := gc.EncryptText(randText(), key)
 	if err != nil {
 		//* Error with cyphering
-		log.Print(err)
+		log.Println(err)
 		u.conn.Write(errpak)
 		return
 	}

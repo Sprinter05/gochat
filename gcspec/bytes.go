@@ -77,6 +77,16 @@ func NewHeader(hdr []byte) Header {
 
 /* PACKET FUNCTIONS */
 
+// Return the byte array asocciated with the order ID
+func OrderToBytes(o Order) []byte {
+	// 32 bit integer is 4 bytes
+	b := make([]byte, 4)
+
+	binary.BigEndian.PutUint32(b, uint32(o))
+
+	return b
+}
+
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy
 // like containg CRLF at the end of each argument

@@ -21,7 +21,11 @@ const CypherLength int = 128
 
 /* ACTION CODES */
 
+// Specifies an action code
 type ID uint8
+
+// Specifies the order in which packets come
+type Order uint32
 
 const (
 	OK ID = iota + 1

@@ -13,7 +13,7 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 	// Read header from the wire
 	if err := cl.ListenHeader(cmd); err != nil {
 		//* Error with header
-		log.Print(err)
+		log.Println(err)
 		// Connection closed by client
 		if err == io.EOF {
 			return err
@@ -22,7 +22,7 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 		pak, e := gc.NewPacket(gc.ERR, gc.ErrorCode(err), nil)
 		if e != nil {
 			//* Error when creating packet
-			log.Print(e)
+			log.Println(e)
 		} else {
 			cl.Conn.Write(pak)
 		}
@@ -34,7 +34,7 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	// Read payload from the wire
 	if err := cl.ListenPayload(cmd); err != nil {
 		//* Error with payload
-		log.Print(err)
+		log.Println(err)
 		// Connection closed by client
 		if err == io.EOF {
 			return err
@@ -43,7 +43,7 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 		pak, e := gc.NewPacket(gc.ERR, gc.ErrorCode(err), nil)
 		if e != nil {
 			//* Error when creating packet
-			log.Print(e)
+			log.Println(e)
 		} else {
 			cl.Conn.Write(pak)
 		}
@@ -71,7 +71,7 @@ func ListenConnection(cl *gc.Connection, hub chan<- Request) {
 		pak, err := gc.NewPacket(gc.OK, gc.EmptyInfo, nil)
 		if err != nil {
 			//* Error when creating packet
-			log.Print(err)
+			log.Println(err)
 		} else {
 			cl.Conn.Write(pak)
 		}
