@@ -1,10 +1,12 @@
 package test
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"net"
 	"testing"
 
-	. "github.com/Sprinter05/gochat/gcspec"
+	gc "github.com/Sprinter05/gochat/gcspec"
 )
 
 func setup(t *testing.T) net.Conn {
@@ -15,7 +17,7 @@ func setup(t *testing.T) net.Conn {
 	return l
 }
 
-func TestPacket(t *testing.T) {
+/*func TestPacket(t *testing.T) {
 	l := setup(t)
 	defer l.Close()
 
@@ -47,4 +49,22 @@ func TestPacket(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Write(test4)
+}*/
+
+func TestREG(t *testing.T) {
+	l := setup(t)
+	defer l.Close()
+
+	// Create rsa key
+	v, _ := rsa.GenerateKey(rand.Reader, gc.RSABitSize)
+	b, _ := gc.PubkeytoPEM(&v.PublicKey)
+	t.Log(b)
+
+	// REG Packet
+	p := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
+	test1, err := gc.NewPacket(gc.REG, gc.EmptyInfo, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Write(test1)
 }

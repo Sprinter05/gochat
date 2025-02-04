@@ -51,7 +51,7 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 
 	// Read until all arguments have been processed
 	for i := 0; i < int(cmd.HD.Args); {
-		//? Check if the reader keeps the previous contents
+		// Read from the wire
 		b, err := cl.RD.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -76,10 +76,15 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 
 		// Check if it ends in CRLF
 		if string(b[l-2]) == "\r" {
-			// Append all necessary contents
 			b := buf.Bytes()
+			siz := buf.Len()
+
+			// Allocate new array
+			mem := make([]byte, siz)
+			copy(mem, b)
+
 			// Do not append CRLF
-			copy(cmd.Args[i], b[:l-2])
+			cmd.Args[i] = mem[:siz-2]
 			buf.Reset() // Empty the buffer
 			i++         // Next argument
 		}
