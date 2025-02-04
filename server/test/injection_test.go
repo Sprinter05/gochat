@@ -71,7 +71,6 @@ func TestREG(t *testing.T) {
 	// Create rsa key
 	v, _ := rsa.GenerateKey(rand.Reader, gc.RSABitSize)
 	b, _ := gc.PubkeytoPEM(&v.PublicKey)
-	t.Log(b)
 
 	// REG Packet
 	p := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
@@ -89,7 +88,7 @@ func TestREG(t *testing.T) {
 
 	dec, _ := gc.DecryptText(p2.Args[0], v)
 
-	t.Log(dec)
+	t.Log(string(dec))
 
 	return
 }
