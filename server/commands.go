@@ -8,24 +8,38 @@ import (
 
 // FUNCTIONS
 
-func registerUser(u *User, cmd gc.Command) {
+func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Assign parameters to the user
 	u.name = username(cmd.Args[0])
 
-	// Make reply packets
+	// Error reply packer
 	ret := gc.ErrorCode(gc.ErrorHandshake)
 	errpak, _ := gc.NewPacket(gc.ERR, ret, nil)
-	// TODO: Create random string to decypher
-	vpak, _ := gc.NewPacket(gc.VERIF, gc.EmptyInfo, nil)
 
 	// Assign public key
-	key, err := pemToPub(cmd.Args[1])
+	key, err := gc.PemToPubkey(cmd.Args[1])
 	if err != nil {
-		// Invalid public key given
+		//* Error with public key
 		log.Print(err)
 		u.conn.Write(errpak)
 		return
 	}
 	u.pubkey = key
+
+	// Create random cypher
+	enc, err := gc.RandomCypher(u.pubkey)
+	if err != nil {
+		//* Error with cyphering
+		log.Print(err)
+		u.conn.Write(errpak)
+		return
+	}
+	vpak, _ := gc.NewPacket(gc.VERIF, gc.EmptyInfo, []gc.Arg{gc.Arg(enc)})
 	u.conn.Write(vpak)
+
+	// Add user to the hub
+	ip := ip(u.conn.RemoteAddr().String())
+	h.mut.Lock()
+	h.users[ip] = u
+	h.mut.Unlock()
 }

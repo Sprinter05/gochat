@@ -7,11 +7,15 @@ import (
 	"net"
 )
 
+/* TYPES */
+
 // Identifies a client in the server
 type Connection struct {
 	Conn net.Conn
 	RD   *bufio.Reader
 }
+
+/* CONNECTION FUNCTIONS */
 
 // Reads the header of a connection and verifies it is correct
 func (cl *Connection) ListenHeader(cmd *Command) error {

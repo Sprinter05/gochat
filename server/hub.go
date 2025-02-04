@@ -32,7 +32,7 @@ type Hub struct {
 }
 
 // Specifies the functions to run depending on the ID
-type actions func(*User, gc.Command)
+type actions func(*Hub, *User, gc.Command)
 
 var cmdTable map[gc.ID]actions = map[gc.ID]actions{
 	gc.REG: registerUser,
@@ -57,12 +57,13 @@ func (hub *Hub) logged(addr net.Addr) (*User, error) {
 }
 
 // Check which action to perform
-func procRequest(r Request, u *User) {
+func procRequest(r Request, u *User, h *Hub) {
 	id := r.cmd.HD.ID
 
 	// Check if the action can be performed
 	fun, ok := cmdTable[id]
 	if !ok {
+		//* Error with action code
 		log.Print("Invalid action performed at hub!")
 		return
 	}
@@ -78,7 +79,7 @@ func procRequest(r Request, u *User) {
 	}
 
 	// Call the function
-	go fun(user, r.cmd)
+	go fun(h, user, r.cmd)
 }
 
 // Function that distributes actions to run
@@ -96,7 +97,8 @@ func (hub *Hub) Run() {
 			if err != nil && (id != gc.CONN && id != gc.REG) {
 				ret := gc.ErrorCode(gc.ErrorNoSession)
 				pak, e := gc.NewPacket(gc.ERR, ret, nil)
-				if e != nil { // Error when creating packet
+				if e != nil {
+					//* Error when creating packet
 					log.Print(e)
 				} else {
 					// User is not logged in
@@ -106,7 +108,7 @@ func (hub *Hub) Run() {
 			}
 
 			// Process the request
-			procRequest(r, v)
+			procRequest(r, v, hub)
 		}
 	}
 }

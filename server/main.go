@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net"
 
@@ -27,7 +26,8 @@ func main() {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			fmt.Println(err)
+			//* Error with the connection
+			log.Println(err)
 			continue // Keep seeking clients
 		}
 

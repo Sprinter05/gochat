@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-// PREDEFINED VALUES
+/* PREDEFINED VALUES */
 
 const NullID ID = 0
 const EmptyInfo byte = 0xFF
@@ -16,7 +16,10 @@ const MaxPayload int = 1<<10 - 1
 const RSABitSize int = 4096
 const UsernameSize int = 32
 
-// ACTION CODES
+const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
+const CypherLength int = 128
+
+/* ACTION CODES */
 
 type ID uint8
 
@@ -83,7 +86,7 @@ func IDToCode(i ID) byte {
 	return v
 }
 
-// ERROR CODES
+/* ERROR CODES */
 
 // Determines a generic undefined error
 var ErrorUndefined error = errors.New("Undefined problem")

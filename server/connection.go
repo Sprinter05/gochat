@@ -1,10 +1,6 @@
 package main
 
 import (
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
 	"io"
 	"log"
 	"net"
@@ -21,29 +17,6 @@ type Request struct {
 
 // FUNCTIONS
 
-// Get Pubkey from PEM byte array
-func pemToPub(pubPEM []byte) (*rsa.PublicKey, error) {
-	block, _ := pem.Decode(pubPEM)
-	if block == nil {
-		return nil, errors.New("PEM parsing failed")
-	}
-
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if its a public key
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		return pub, nil
-	default:
-		break // Fall through
-	}
-
-	return nil, errors.New("Key type is not RSA")
-}
-
 // Listens from a client and sends itself trough a channel for the hub to process
 func listenConnection(cl *gc.Connection, hub chan<- Request) {
 	// Close connection when exiting
@@ -54,6 +27,7 @@ func listenConnection(cl *gc.Connection, hub chan<- Request) {
 
 		// Read header from the wire
 		if err := cl.ListenHeader(&cmd); err != nil {
+			//* Error with header
 			log.Print(err)
 			// Connection closed by client
 			if err == io.EOF {
@@ -61,7 +35,8 @@ func listenConnection(cl *gc.Connection, hub chan<- Request) {
 			}
 			// Send error packet to client
 			pak, e := gc.NewPacket(gc.ERR, gc.ErrorCode(err), nil)
-			if e != nil { // Error when creating packet
+			if e != nil {
+				//* Error when creating packet
 				log.Print(e)
 			} else {
 				cl.Conn.Write(pak)
@@ -71,6 +46,7 @@ func listenConnection(cl *gc.Connection, hub chan<- Request) {
 
 		// Read payload from the wire
 		if err := cl.ListenPayload(&cmd); err != nil {
+			//* Error with payload
 			log.Print(err)
 			// Connection closed by client
 			if err == io.EOF {
@@ -78,7 +54,8 @@ func listenConnection(cl *gc.Connection, hub chan<- Request) {
 			}
 			// Send error packet to client
 			pak, e := gc.NewPacket(gc.ERR, gc.ErrorCode(err), nil)
-			if e != nil { // Error when creating packet
+			if e != nil {
+				//* Error when creating packet
 				log.Print(e)
 			} else {
 				cl.Conn.Write(pak)
@@ -88,7 +65,8 @@ func listenConnection(cl *gc.Connection, hub chan<- Request) {
 
 		// Send OK reply to the client
 		pak, err := gc.NewPacket(gc.OK, gc.EmptyInfo, nil)
-		if err != nil { // Error when creating packet
+		if err != nil {
+			//* Error when creating packet
 			log.Print(err)
 		} else {
 			cl.Conn.Write(pak)

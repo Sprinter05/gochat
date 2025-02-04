@@ -1,9 +1,19 @@
 package gcspec
 
 import (
+	crand "crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/binary"
+	"encoding/pem"
+	"errors"
 	"fmt"
+	mrand "math/rand"
+	"time"
 )
+
+/* TYPES */
 
 // Identifies a header split into its fields as single bytes
 type Header struct {
@@ -14,12 +24,16 @@ type Header struct {
 	Len  uint16
 }
 
+// Used to specify its coming from a command
 type Arg []byte
 
+// Specifies a command
 type Command struct {
 	HD   Header
 	Args []Arg
 }
+
+/* COMMAND FUNCTIONS */
 
 // Prints all information about a packet
 func (c Command) Print() {
@@ -35,6 +49,8 @@ func (c Command) Print() {
 	}
 	fmt.Println()
 }
+
+/* HEADER FUNCTIONS */
 
 // Checks the validity of the header fields
 func (hd Header) Check() error {
@@ -61,10 +77,12 @@ func NewHeader(hdr []byte) Header {
 	}
 }
 
+/* PACKET FUNCTIONS */
+
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy
 // like containg CRLF at the end of each argument
-func NewPacket(id ID, inf byte, arg []string) ([]byte, error) {
+func NewPacket(id ID, inf byte, arg []Arg) ([]byte, error) {
 	// Verify number of arguments
 	l := len(arg)
 	if l > MaxArgs {
@@ -104,4 +122,49 @@ func NewPacket(id ID, inf byte, arg []string) ([]byte, error) {
 	}
 
 	return p, nil
+}
+
+/* CRYPTO FUNCTIONS */
+
+// Get Pubkey from PEM byte array
+func PemToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode(pubPEM)
+	if block == nil {
+		return nil, errors.New("PEM parsing failed")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if its a public key
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		return pub, nil
+	default:
+		break // Fall through
+	}
+
+	return nil, errors.New("Key type is not RSA")
+}
+
+// Generate a random cyphered payload
+func RandomCypher(pub *rsa.PublicKey) ([]byte, error) {
+	// Set seed
+	seededRand := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+
+	// Generate random characters
+	str := make([]byte, CypherLength)
+	for i := range str {
+		str[i] = CypherCharset[seededRand.Intn(len(CypherCharset))]
+	}
+
+	// Cypher the payload
+	hash := sha256.New()
+	enc, err := rsa.EncryptOAEP(hash, crand.Reader, pub, str, nil)
+	if err != nil {
+		return nil, errors.New("Impossible to encrypt random string")
+	}
+	return enc, nil
 }

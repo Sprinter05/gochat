@@ -20,7 +20,7 @@ func TestPacket(t *testing.T) {
 	defer l.Close()
 
 	// OK Packet with 2 arguments
-	p := []string{"Hello this is a test\nDoes it work?", "I sure hope so"}
+	p := []Arg{Arg("Hello this is a test\nDoes it work?"), Arg("I sure hope so")}
 	test1, err := NewPacket(REG, EmptyInfo, p)
 	if err != nil {
 		t.Fatal(err)
@@ -28,7 +28,7 @@ func TestPacket(t *testing.T) {
 	l.Write(test1)
 
 	// OK Packet with 1 argument
-	test2, err := NewPacket(MSG, EmptyInfo, []string{"Hello there!"})
+	test2, err := NewPacket(MSG, EmptyInfo, []Arg{Arg("Hello there!")})
 	if err != nil {
 		t.Fatal(err)
 	}
