@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rsa"
+	"log"
 	"math/rand"
 	"net"
 	"sync"
@@ -42,6 +43,28 @@ type Hub struct {
 }
 
 /* AUXILIARY FUNCTIONS */
+
+// Help with packet creation by logging
+func sendErrorPacket(ord gc.Order, err error, cl net.Conn) {
+	pak, e := gc.NewPacket(gc.ERR, ord, gc.ErrorCode(err), nil)
+	if e != nil {
+		//* Error when creating packet
+		log.Println(e)
+	} else {
+		cl.Write(pak)
+	}
+}
+
+// Help with packet creation by logging
+func sendOKPacket(ord gc.Order, cl net.Conn) {
+	pak, e := gc.NewPacket(gc.ERR, ord, gc.EmptyInfo, nil)
+	if e != nil {
+		//* Error when creating packet
+		log.Println(e)
+	} else {
+		cl.Write(pak)
+	}
+}
 
 // Generate a random text
 func randText() []byte {

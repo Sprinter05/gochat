@@ -30,6 +30,7 @@ func procRequest(r Request, u *User, h *Hub) {
 
 	// If we are going to register we create a new user
 	var user *User
+	//TODO: Modify this for CONN once database is implemented
 	if id == gc.REG {
 		user = &User{
 			conn: r.cl,
@@ -53,16 +54,8 @@ func readRequest(r Request, h *Hub) (*User, error) {
 	// If its not registered and the command is not
 	// register or connect we return an error to client
 	if err != nil && (id != gc.CONN && id != gc.REG) {
-		ret := gc.ErrorCode(gc.ErrorNoSession)
-		pak, e := gc.NewPacket(gc.ERR, r.cmd.HD.Ord, ret, nil)
-		if e != nil {
-			//* Error when creating packet
-			return nil, e
-		} else {
-			//* Error since user is not logged in
-			r.cl.Write(pak)
-			return nil, err
-		}
+		sendErrorPacket(r.cmd.HD.Ord, gc.ErrorNoSession, r.cl)
+		return nil, err
 	}
 
 	// Otherwise we return the value

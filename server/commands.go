@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -14,30 +13,34 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Assign parameters to the user
 	u.name = username(cmd.Args[0])
 
-	// Error reply packer
-	ret := gc.ErrorCode(gc.ErrorHandshake)
-	errpak, _ := gc.NewPacket(gc.ERR, cmd.HD.Ord, ret, nil)
+	// Check if username size is correct
+	if len(u.name) > gc.UsernameSize {
+		log.Println("Username too big")
+		sendErrorPacket(cmd.HD.Ord, gc.ErrorArguments, u.conn)
+		return
+	}
 
 	// Assign public key
 	key, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		//* Error with public key
 		log.Println(err)
-		u.conn.Write(errpak)
+		sendErrorPacket(cmd.HD.Ord, gc.ErrorArguments, u.conn)
 		return
 	}
 	u.pubkey = key
 
 	// Create random cypher
 	ran := randText()
-	fmt.Println(string(ran)) //! TEST
 	enc, err := gc.EncryptText(ran, key)
 	if err != nil {
 		//* Error with cyphering
 		log.Println(err)
-		u.conn.Write(errpak)
+		sendErrorPacket(cmd.HD.Ord, gc.ErrorArguments, u.conn)
 		return
 	}
+
+	//! EVERYTHING FROM HERE DOESNT BELONG HERE, ITS TEMPORAL
 
 	// Create verification packet
 	arg := []gc.Arg{gc.Arg(enc)}
