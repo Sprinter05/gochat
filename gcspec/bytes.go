@@ -62,7 +62,7 @@ func (c Command) ShellPrint() {
 		inf = ErrorCodeToError(c.HD.Info).Error()
 	}
 	// Prints header information
-	fmt.Printf("Packet with ID %x (%s) received with information code %x (%s)", IDToCode(c.HD.Op), CodeToString(c.HD.Op), c.HD.Info, inf)
+	fmt.Printf("Packet with action code %x (%s) and ID %d received with information code %x (%s)", IDToCode(c.HD.Op), CodeToString(c.HD.Op), c.HD.ID, c.HD.Info, inf)
 	// Checks argument count
 	if len(c.Args) == 0 {
 		fmt.Printf(". No arguments.\n")
