@@ -17,6 +17,7 @@
             "request": "launch",
             "mode": "test",
             "program": "${workspaceFolder}/server/test",
+            "preLaunchTask": "Clean_Test_Cache"
         }
     ]
 }

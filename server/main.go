@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net"
 
@@ -18,7 +17,8 @@ func main() {
 
 	// Run hun that processes commands
 	hub := Hub{
-		comm: make(chan Request),
+		req:   make(chan Request),
+		users: make(map[ip]*User),
 	}
 	go hub.Run()
 
@@ -26,7 +26,8 @@ func main() {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			fmt.Println(err)
+			//* Error with the connection
+			log.Println(err)
 			continue // Keep seeking clients
 		}
 
@@ -35,6 +36,6 @@ func main() {
 			RD:   bufio.NewReader(c),
 		}
 
-		go listenConnection(cl, hub.comm)
+		go ListenConnection(cl, hub.req)
 	}
 }

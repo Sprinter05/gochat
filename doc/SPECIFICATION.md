@@ -12,15 +12,15 @@
 
 ## Connection
 ### Registering a user
-The client application must create an RSA key pair and then send **both** the public key and username to the server, which must give an acknowledgment reply.
+The client application must create an RSA key pair and then send **both** the public key and username to the server, which will only error if the username or key is already in use. The RSA key pair should be **4096 bits** and be sent in `PKIX` format to the server.
 
-`REG <rsa_pub>\r\n<username>` _Client_
+`REG <username> <rsa_pub>` _Client_
 
 ### Verification handshake
 
 The client must send its public key to connect to the server:
 
-`CONN <rsa_pub>` _Client_
+`CONN <username>` _Client_
 
 The server will reply with a connection acknowledgment and a **cyphered random text** to verify that the user owns the private key, or an error if no user with that key exists:
 

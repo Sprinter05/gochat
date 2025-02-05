@@ -5,14 +5,17 @@ import (
 	"bytes"
 	"io"
 	"net"
-	"strings"
 )
+
+/* TYPES */
 
 // Identifies a client in the server
 type Connection struct {
 	Conn net.Conn
 	RD   *bufio.Reader
 }
+
+/* CONNECTION FUNCTIONS */
 
 // Reads the header of a connection and verifies it is correct
 func (cl *Connection) ListenHeader(cmd *Command) error {
@@ -44,11 +47,11 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 	var tot int
 
 	// Allocate the arguments
-	cmd.Args = make([]string, cmd.HD.Args)
+	cmd.Args = make([]Arg, cmd.HD.Args)
 
 	// Read until all arguments have been processed
 	for i := 0; i < int(cmd.HD.Args); {
-		//? Check if the reader keeps the previous contents
+		// Read from the wire
 		b, err := cl.RD.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -73,8 +76,15 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 
 		// Check if it ends in CRLF
 		if string(b[l-2]) == "\r" {
-			// Append all necessary contents
-			cmd.Args[i] = strings.Clone(buf.String())
+			b := buf.Bytes()
+			siz := buf.Len()
+
+			// Allocate new array
+			mem := make([]byte, siz)
+			copy(mem, b)
+
+			// Do not append CRLF
+			cmd.Args[i] = mem[:siz-2]
 			buf.Reset() // Empty the buffer
 			i++         // Next argument
 		}

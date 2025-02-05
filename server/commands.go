@@ -1,0 +1,55 @@
+package main
+
+import (
+	"log"
+
+	gc "github.com/Sprinter05/gochat/gcspec"
+)
+
+// FUNCTIONS
+
+func registerUser(h *Hub, u *User, cmd gc.Command) {
+	// TODO: Check if user is already logged in or in database
+	// Assign parameters to the user
+	u.name = username(cmd.Args[0])
+
+	// Check if username size is correct
+	if len(u.name) > gc.UsernameSize {
+		log.Println("Username too big")
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		return
+	}
+
+	// Assign public key
+	key, err := gc.PEMToPubkey(cmd.Args[1])
+	if err != nil {
+		//* Error with public key
+		log.Println(err)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		return
+	}
+	u.pubkey = key
+
+	// Create random cypher
+	ran := randText()
+	enc, err := gc.EncryptText(ran, key)
+	if err != nil {
+		//* Error with cyphering
+		log.Println(err)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		return
+	}
+
+	//! EVERYTHING FROM HERE DOESNT BELONG HERE, ITS TEMPORAL
+
+	// Create verification packet
+	arg := []gc.Arg{gc.Arg(enc)}
+	vpak, _ := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
+	u.conn.Write(vpak)
+
+	//TODO: Change so that it has to be in an unverified list until the decyphered payload is sent
+	ip := ip(u.conn.RemoteAddr().String())
+	h.mut.Lock()
+	h.users[ip] = u
+	h.mut.Unlock()
+}

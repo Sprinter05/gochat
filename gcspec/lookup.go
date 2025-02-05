@@ -4,22 +4,28 @@ import (
 	"errors"
 )
 
-// PREDEFINED VALUES
+/* PREDEFINED VALUES */
 
-const NullID ID = 0
+const NullID Action = 0
 const EmptyInfo byte = 0xFF
 
 const ProtocolVersion uint8 = 1
-const HeaderSize int = 4
+const HeaderSize int = 6
 const MaxArgs int = 1<<2 - 1
 const MaxPayload int = 1<<10 - 1
+const RSABitSize int = 4096
+const UsernameSize int = 32
 
-// ACTION CODES
+const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
+const CypherLength int = 128
 
-type ID uint8
+/* ACTION CODES */
+
+// Specifies an action code
+type Action uint8
 
 const (
-	OK ID = iota + 1
+	OK Action = iota + 1
 	ERR
 	REG
 	VERIF
@@ -33,7 +39,7 @@ const (
 	SHTDWN
 )
 
-var codeToid map[byte]ID = map[byte]ID{
+var codeToid map[byte]Action = map[byte]Action{
 	0x01: OK,
 	0x02: ERR,
 	0x03: REG,
@@ -48,7 +54,7 @@ var codeToid map[byte]ID = map[byte]ID{
 	0x0C: SHTDWN,
 }
 
-var idToCode map[ID]byte = map[ID]byte{
+var idToCode map[Action]byte = map[Action]byte{
 	OK:     0x01,
 	ERR:    0x02,
 	REG:    0x03,
@@ -63,7 +69,7 @@ var idToCode map[ID]byte = map[ID]byte{
 	SHTDWN: 0x0C,
 }
 
-var stringToCode map[string]ID = map[string]ID{
+var stringToCode map[string]Action = map[string]Action{
 	"OK":     OK,
 	"ERR":    ERR,
 	"REG":    REG,
@@ -78,7 +84,7 @@ var stringToCode map[string]ID = map[string]ID{
 	"SHTDWN": SHTDWN,
 }
 
-var codeToString map[ID]string = map[ID]string{
+var codeToString map[Action]string = map[Action]string{
 	OK:     "OK",
 	ERR:    "ERR",
 	REG:    "REG",
@@ -94,7 +100,7 @@ var codeToString map[ID]string = map[ID]string{
 }
 
 // Returns the ID associated to a byte code
-func CodeToID(b byte) ID {
+func CodeToID(b byte) Action {
 	v, ok := codeToid[b]
 	if !ok {
 		return NullID
@@ -103,8 +109,8 @@ func CodeToID(b byte) ID {
 }
 
 // Returns the byte code asocciated to an ID
-func IDToCode(i ID) byte {
-	v, ok := idToCode[i]
+func IDToCode(a Action) byte {
+	v, ok := idToCode[a]
 	if !ok {
 		return 0x0
 	}
@@ -112,7 +118,7 @@ func IDToCode(i ID) byte {
 }
 
 // Returns the ID associated to a string
-func StringToCode(s string) ID {
+func StringToCode(s string) Action {
 	v, ok := stringToCode[s]
 	if !ok {
 		return 0x0
@@ -121,7 +127,7 @@ func StringToCode(s string) ID {
 }
 
 // Returns the ID associated to a string
-func CodeToString(i ID) string {
+func CodeToString(i Action) string {
 	v, ok := codeToString[i]
 	if !ok {
 		return ""
@@ -129,7 +135,7 @@ func CodeToString(i ID) string {
 	return v
 }
 
-// ERROR CODES
+/* ERROR CODES */
 
 // Determines a generic undefined error
 var ErrorUndefined error = errors.New("Undefined problem")
@@ -170,7 +176,7 @@ var errorCodes map[error]byte = map[error]byte{
 	ErrorNoSession: 0x08,
 }
 
-var errorCodeToError map[byte]error = map[byte]error{
+var codeToError map[byte]error = map[byte]error{
 	0x00: ErrorUndefined,
 	0x01: ErrorInvalid,
 	0x02: ErrorNotFound,
@@ -191,9 +197,9 @@ func ErrorCode(err error) byte {
 	return v
 }
 
-// Returns the error
-func ErrorCodeToError(c byte) error {
-	v, ok := errorCodeToError[c]
+// Returns the error code or the empty information field if not found
+func ErrorCodeToError(b byte) error {
+	v, ok := codeToError[b]
 	if !ok {
 		return nil
 	}
