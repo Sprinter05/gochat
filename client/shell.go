@@ -38,20 +38,20 @@ const helpText = "EXIT: Closes the shell.\n\n" +
 
 // Interface for all commands
 type Command interface {
-	Run(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error
+	Run(id gcspec.Action, act gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error
 }
 
 // Type for commands with arguments
-type CmdArgs func(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error
+type CmdArgs func(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error
 
-func (cmd CmdArgs) Run(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error {
-	return cmd(id, inf, args, nArg)
+func (cmd CmdArgs) Run(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error {
+	return cmd(act, id, inf, args, nArg)
 }
 
 // Type for commands with no arguments
 type CmdNoArgs func() error
 
-func (cmd CmdNoArgs) Run(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error {
+func (cmd CmdNoArgs) Run(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error {
 	return cmd()
 }
 
@@ -155,20 +155,20 @@ func help() error {
 }
 
 // Generic function able to execute every packet-sending command
-func sendPacket(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error {
+func sendPacket(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error {
 	// Checks argument count
 	if len(args) != nArg {
-		return fmt.Errorf("%s: Incorrect number of arguments", gcspec.CodeToString(id))
+		return fmt.Errorf("%s: Incorrect number of arguments", gcspec.CodeToString(act))
 	}
 	// Creates packet with the proper headers
-	pct, err := gcspec.NewPacket(id, 0, gcspec.EmptyInfo, args)
+	pct, err := gcspec.NewPacket(act, id, gcspec.EmptyInfo, args)
 	if err != nil {
-		return fmt.Errorf("%s: %s", gcspec.CodeToString(id), err)
+		return fmt.Errorf("%s: %s", gcspec.CodeToString(act), err)
 	}
 	// Sends packet to server
-	_, err = gCon.Write(pct)
-	if err != nil {
-		return fmt.Errorf("%s: Unable to write packet to connection", gcspec.CodeToString(id))
+	_, errW := gCon.Write(pct)
+	if errW != nil {
+		return fmt.Errorf("%s: Unable to write packet to connection", gcspec.CodeToString(act))
 	}
 
 	return nil
