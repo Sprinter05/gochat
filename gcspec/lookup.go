@@ -197,7 +197,7 @@ func ErrorCode(err error) byte {
 	return v
 }
 
-// Returns the error code or the empty information field if not found
+// Returns the error or nil if the error doesn't exist, by its error code
 func ErrorCodeToError(b byte) error {
 	v, ok := codeToError[b]
 	if !ok {
