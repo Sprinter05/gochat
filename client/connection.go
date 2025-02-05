@@ -11,6 +11,9 @@ import (
 	"github.com/Sprinter05/gochat/gcspec"
 )
 
+// Buffer where packets whose response is pending are allocated
+var PacketBuffer map[uint16]*[]byte = make(map[uint16]*[]byte)
+
 // Starts listening for packets
 func Listen(con net.Conn) {
 
@@ -44,10 +47,17 @@ func Listen(con net.Conn) {
 
 			continue // Continues listening
 		}
+		// If the server packet was correct, by this point in the code, it has been completely received
+
+		_, ok := PacketBuffer[uint16(pct.HD.ID)]
+		if ok {
+			// Deletes the ID of the packet that was waiting for the now received reply
+			delete(PacketBuffer, uint16(pct.HD.ID))
+		}
 
 		// Clears shell prompt to print the packet
 		ClearPrompt()
-		// Prints recieved packet
+		// Prints received packet
 		pct.ShellPrint()
 		// Prints the shell prompt again
 		PrintPrompt()
