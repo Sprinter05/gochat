@@ -16,7 +16,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Check if username size is correct
 	if len(u.name) > gc.UsernameSize {
 		log.Println("Username too big")
-		sendErrorPacket(cmd.HD.Ord, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
 
@@ -25,7 +25,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	if err != nil {
 		//* Error with public key
 		log.Println(err)
-		sendErrorPacket(cmd.HD.Ord, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
 	u.pubkey = key
@@ -36,7 +36,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	if err != nil {
 		//* Error with cyphering
 		log.Println(err)
-		sendErrorPacket(cmd.HD.Ord, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
 
@@ -44,7 +44,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Create verification packet
 	arg := []gc.Arg{gc.Arg(enc)}
-	vpak, _ := gc.NewPacket(gc.VERIF, cmd.HD.Ord, gc.EmptyInfo, arg)
+	vpak, _ := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
 	u.conn.Write(vpak)
 
 	//TODO: Change so that it has to be in an unverified list until the decyphered payload is sent

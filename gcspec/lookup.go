@@ -6,7 +6,7 @@ import (
 
 /* PREDEFINED VALUES */
 
-const NullID ID = 0
+const NullID Action = 0
 const EmptyInfo byte = 0xFF
 
 const ProtocolVersion uint8 = 1
@@ -22,10 +22,10 @@ const CypherLength int = 128
 /* ACTION CODES */
 
 // Specifies an action code
-type ID uint8
+type Action uint8
 
 const (
-	OK ID = iota + 1
+	OK Action = iota + 1
 	ERR
 	REG
 	VERIF
@@ -39,7 +39,7 @@ const (
 	SHTDWN
 )
 
-var codeToid map[byte]ID = map[byte]ID{
+var codeToid map[byte]Action = map[byte]Action{
 	0x01: OK,
 	0x02: ERR,
 	0x03: REG,
@@ -54,7 +54,7 @@ var codeToid map[byte]ID = map[byte]ID{
 	0x0C: SHTDWN,
 }
 
-var idToCode map[ID]byte = map[ID]byte{
+var idToCode map[Action]byte = map[Action]byte{
 	OK:     0x01,
 	ERR:    0x02,
 	REG:    0x03,
@@ -70,7 +70,7 @@ var idToCode map[ID]byte = map[ID]byte{
 }
 
 // Returns the ID associated to a byte code
-func CodeToID(b byte) ID {
+func CodeToID(b byte) Action {
 	v, ok := codeToid[b]
 	if !ok {
 		return NullID
@@ -79,8 +79,8 @@ func CodeToID(b byte) ID {
 }
 
 // Returns the byte code asocciated to an ID
-func IDToCode(i ID) byte {
-	v, ok := idToCode[i]
+func IDToCode(a Action) byte {
+	v, ok := idToCode[a]
 	if !ok {
 		return 0x0
 	}

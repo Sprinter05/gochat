@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"net"
+	"os"
 	"testing"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -18,40 +19,6 @@ func setup(t *testing.T) net.Conn {
 	return l
 }
 
-/*func TestPacket(t *testing.T) {
-	l := setup(t)
-	defer l.Close()
-
-	// OK Packet with 2 arguments
-	p := []Arg{Arg("Hello this is a test\nDoes it work?"), Arg("I sure hope so")}
-	test1, err := NewPacket(REG, EmptyInfo, p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	l.Write(test1)
-
-	// OK Packet with 1 argument
-	test2, err := NewPacket(MSG, EmptyInfo, []Arg{Arg("Hello there!")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	l.Write(test2)
-
-	// OK Packet with no arguments
-	test3, err := NewPacket(USRS, EmptyInfo, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	l.Write(test3)
-
-	// OK Packet with error code
-	test4, err := NewPacket(ERR, ErrorCode(ErrorHandshake), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	l.Write(test4)
-}*/
-
 func readFromConn(c *gc.Connection) gc.Command {
 	cmd := &gc.Command{}
 	c.ListenHeader(cmd)
@@ -59,9 +26,27 @@ func readFromConn(c *gc.Connection) gc.Command {
 	return *cmd
 }
 
+func readKeyFile(name string) []byte {
+	file, _ := os.Open(name)
+	defer file.Close()
+
+	// Get the file size
+	stat, _ := file.Stat()
+
+	// Read the file into a byte slice
+	bs := make([]byte, stat.Size())
+	bufio.NewReader(file).Read(bs)
+
+	return bs
+}
+
 func TestREG(t *testing.T) {
 	l := setup(t)
 	defer l.Close()
+
+	//pub := readKeyFile("public.pem")
+	//priv := readKeyFile("private.pem")
+	//dekey, _ := gc.PEMToPrivkey(priv)
 
 	conn := &gc.Connection{
 		Conn: l,
@@ -74,7 +59,7 @@ func TestREG(t *testing.T) {
 
 	// REG Packet
 	p := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
-	test1, err := gc.NewPacket(gc.REG, gc.Order(19736), gc.EmptyInfo, p)
+	test1, err := gc.NewPacket(gc.REG, gc.ID(19736), gc.EmptyInfo, p)
 	if err != nil {
 		t.Fatal(err)
 	}

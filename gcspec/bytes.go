@@ -16,18 +16,18 @@ import (
 // Identifies a header split into its fields as single bytes
 type Header struct {
 	Ver  uint8
-	ID   ID
+	Op   Action
 	Info uint8
 	Args uint8
 	Len  uint16
-	Ord  Order
+	ID   ID
 }
 
 // Used to specify its coming from a command
 type Arg []byte
 
 // Specifies the ID of the packet that has been sent
-type Order uint16
+type ID uint16
 
 // Specifies a command
 type Command struct {
@@ -41,11 +41,11 @@ type Command struct {
 func (c Command) Print() {
 	fmt.Println("-------- HEADER --------")
 	fmt.Printf("* Version: %d\n", c.HD.Ver)
-	fmt.Printf("* Action: %d\n", c.HD.ID)
+	fmt.Printf("* Action: %d\n", c.HD.Op)
 	fmt.Printf("* Info: %d\n", c.HD.Info)
 	fmt.Printf("* Args: %d\n", c.HD.Args)
 	fmt.Printf("* Length: %d\n", c.HD.Len)
-	fmt.Printf("* ID: %d\n", c.HD.Ord)
+	fmt.Printf("* ID: %d\n", c.HD.ID)
 	fmt.Println("-------- PAYLOAD --------")
 	for i, v := range c.Args {
 		fmt.Printf("[%d] %s\n", i, v)
@@ -61,7 +61,7 @@ func (hd Header) Check() error {
 		return ErrorVersion
 	}
 
-	if hd.ID == NullID {
+	if hd.Op == NullID {
 		return ErrorInvalid
 	}
 
@@ -74,11 +74,11 @@ func NewHeader(hdr []byte) Header {
 	id := binary.BigEndian.Uint16(hdr[HeaderSize-2 : HeaderSize])
 	return Header{
 		Ver:  uint8(h >> 28),
-		ID:   CodeToID(uint8(h >> 20)),
+		Op:   CodeToID(uint8(h >> 20)),
 		Info: uint8(h >> 12),
 		Args: (uint8(h >> 10)) &^ 0xFC,
 		Len:  uint16(h) &^ 0xFC00,
-		Ord:  Order(id),
+		ID:   ID(id),
 	}
 }
 
@@ -87,7 +87,7 @@ func NewHeader(hdr []byte) Header {
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy
 // like containg CRLF at the end of each argument
-func NewPacket(id ID, ord Order, inf byte, arg []Arg) ([]byte, error) {
+func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
 	// Verify number of arguments
 	l := len(arg)
 	if l > MaxArgs {
@@ -111,14 +111,14 @@ func NewPacket(id ID, ord Order, inf byte, arg []Arg) ([]byte, error) {
 
 	// Set all header bits
 	b := (uint32(ProtocolVersion) << 28) |
-		(uint32(IDToCode(id)) << 20) |
+		(uint32(IDToCode(op)) << 20) |
 		(uint32(inf) << 12) |
 		(uint32(l) << 10) |
 		(uint32(tot))
 
 	// Append header and packet order
 	p = binary.BigEndian.AppendUint32(p, b)
-	p = binary.BigEndian.AppendUint16(p, uint16(ord))
+	p = binary.BigEndian.AppendUint16(p, uint16(id))
 
 	// CRLF termination
 	p = append(p, "\r\n"...)

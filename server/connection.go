@@ -19,7 +19,7 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 			return err
 		}
 		// Send error packet to client
-		sendErrorPacket(cmd.HD.Ord, err, cl.Conn)
+		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 	}
 	return nil
 }
@@ -34,7 +34,7 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 			return err
 		}
 		// Send error packet to client
-		sendErrorPacket(cmd.HD.Ord, err, cl.Conn)
+		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 	}
 	return nil
 }
@@ -56,7 +56,7 @@ func ListenConnection(cl *gc.Connection, hub chan<- Request) {
 		}
 
 		// Send OK reply to the client
-		sendOKPacket(cmd.HD.Ord, cl.Conn)
+		sendOKPacket(cmd.HD.ID, cl.Conn)
 
 		// Send command to the hub
 		hub <- Request{

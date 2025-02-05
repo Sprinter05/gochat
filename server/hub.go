@@ -10,7 +10,7 @@ import (
 /* DATA */
 
 // Function mapping table
-var cmdTable map[gc.ID]actions = map[gc.ID]actions{
+var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 	gc.REG: registerUser,
 }
 
@@ -18,7 +18,7 @@ var cmdTable map[gc.ID]actions = map[gc.ID]actions{
 
 // Check which action to perform
 func procRequest(r Request, u *User, h *Hub) {
-	id := r.cmd.HD.ID
+	id := r.cmd.HD.Op
 
 	// Check if the action can be performed
 	fun, ok := cmdTable[id]
@@ -46,7 +46,7 @@ func procRequest(r Request, u *User, h *Hub) {
 
 func readRequest(r Request, h *Hub) (*User, error) {
 	ip := r.cl.RemoteAddr()
-	id := r.cmd.HD.ID
+	id := r.cmd.HD.Op
 
 	// Check if its already logged in
 	v, err := h.logged(ip)
@@ -54,7 +54,7 @@ func readRequest(r Request, h *Hub) (*User, error) {
 	// If its not registered and the command is not
 	// register or connect we return an error to client
 	if err != nil && (id != gc.CONN && id != gc.REG) {
-		sendErrorPacket(r.cmd.HD.Ord, gc.ErrorNoSession, r.cl)
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
 		return nil, err
 	}
 
