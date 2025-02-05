@@ -5,30 +5,53 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	"github.com/Sprinter05/gochat/gcspec"
 )
 
+// Text to be printed by the HELP command
+const helpText = "EXIT: Closes the shell.\n\n" +
+
+	"VER: Prints out the gochat version the client has installed.\n\n" +
+
+	"HELP: Prints out a manual for the use of this shell.\n\n" +
+
+	"REG <rsa_pub> <username>: Provides the generated RSA public key and username to register to the server.\n\n" +
+
+	"CONN <rsa_pub>: Connects to the server by providing the already generated RSA public key.\n\n" +
+
+	"VERIF <decyphered_text>: Replies to the server's verification request, providing the decyphered_text.\n\n" +
+
+	"REQ <username>: Used to request a connection with another client in order to begin messaging.\n\n" +
+
+	"USRS <online/all>: Requests the server a list of either the users online or all of them, depending on the token specified on the argument.\n\n" +
+
+	"MSG <username> <unix_stamp> <cypher_payload>: Sends a message to the specified user, providing the specified UNIX timestamp and the payload, which is the chyphered text message.\n\n" +
+
+	"DISCN: Disconnects the client from the server.\n\n" +
+
+	"DEREG: Deregisters the user from the server."
+
 // Interface for all commands
 type Command interface {
-	Run(id gcspec.ID, inf byte, args []string, nArg int) error
+	Run(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error
 }
 
 // Type for commands with arguments
-type CmdArgs func(id gcspec.ID, inf byte, args []string, nArg int) error
+type CmdArgs func(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error
 
-func (cmd CmdArgs) Run(id gcspec.ID, inf byte, args []string, nArg int) error {
+func (cmd CmdArgs) Run(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error {
 	return cmd(id, inf, args, nArg)
 }
 
 // Type for commands with no arguments
 type CmdNoArgs func() error
 
-func (cmd CmdNoArgs) Run(id gcspec.ID, inf byte, args []string, nArg int) error {
+func (cmd CmdNoArgs) Run(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error {
 	return cmd()
 }
 
@@ -73,15 +96,20 @@ func NewShell(con net.Conn) {
 	for {
 		PrintPrompt()
 		// Starts reading input
-		input, err := rd.ReadString('\n')
+		input, err := rd.ReadBytes('\n')
 		if err != nil {
 			fmt.Println(err)
 		}
 		// Clears any leading an trailing spaces along with the newline character
-		input = strings.TrimSpace(input)
+		input = bytes.TrimSpace(input)
 		// Splits the command and arguments
-		cmd := strings.Fields(input)[0]
-		args := strings.Fields(input)[1:]
+		cmd := string(bytes.Fields(input)[0])
+
+		// Casts every arg byte array into Arg type to append it to the argument slice
+		var args []gcspec.Arg
+		for _, arg := range bytes.Fields(input)[1:] {
+			args = append(args, gcspec.Arg(arg))
+		}
 
 		if cmd == "EXIT" {
 			// Closes the shell
@@ -94,7 +122,7 @@ func NewShell(con net.Conn) {
 			fmt.Printf("%s: No such command\n", cmd)
 		} else {
 			// Runs command
-			err := v.Run(gcspec.ID(gcspec.StringToCode(cmd)), gcspec.EmptyInfo, args, nArgs[cmd])
+			err := v.Run(gcspec.Action(gcspec.StringToCode(cmd)), gcspec.EmptyInfo, args, nArgs[cmd])
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -122,23 +150,18 @@ func ver() error {
 
 // Execution code of the HELP command
 func help() error {
-	// Attempts to open the file and gets its content
-	txt, err := os.ReadFile("../doc/HELP.txt")
-	if err != nil {
-		return fmt.Errorf("HELP: Unable to open HELP.txt")
-	}
-	fmt.Println(string(txt))
+	fmt.Println(helpText)
 	return nil
 }
 
 // Generic function able to execute every packet-sending command
-func sendPacket(id gcspec.ID, inf byte, args []string, nArg int) error {
+func sendPacket(id gcspec.Action, inf byte, args []gcspec.Arg, nArg int) error {
 	// Checks argument count
 	if len(args) != nArg {
 		return fmt.Errorf("%s: Incorrect number of arguments", gcspec.CodeToString(id))
 	}
 	// Creates packet with the proper headers
-	pct, err := gcspec.NewPacket(id, gcspec.EmptyInfo, args)
+	pct, err := gcspec.NewPacket(id, 0, gcspec.EmptyInfo, args)
 	if err != nil {
 		return fmt.Errorf("%s: %s", gcspec.CodeToString(id), err)
 	}
