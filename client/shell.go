@@ -122,7 +122,7 @@ func NewShell(con net.Conn) {
 			fmt.Printf("%s: No such command\n", cmd)
 		} else {
 			// Runs command
-			err := v.Run(gcspec.Action(gcspec.StringToCode(cmd)), gcspec.EmptyInfo, args, nArgs[cmd])
+			err := v.Run(gcspec.Action(gcspec.StringToCode(cmd)), gcspec.ID(gcspec.GeneratePacketID(PacketBuffer)), gcspec.EmptyInfo, args, nArgs[cmd]) // TODO: Change "24"
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -169,6 +169,9 @@ func sendPacket(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nA
 	_, errW := gCon.Write(pct)
 	if errW != nil {
 		return fmt.Errorf("%s: Unable to write packet to connection", gcspec.CodeToString(act))
+	} else {
+		// If the packet is sent correctly, it is added to PacketBuffer
+		PacketBuffer[uint16(id)] = &pct
 	}
 
 	return nil
