@@ -53,6 +53,29 @@ func (c Command) Print() {
 	fmt.Println()
 }
 
+// Prints summarized information about a packet for the client shell
+func (c Command) ShellPrint() {
+	// Initializes information message to EmptyInfo message
+	inf := "No information"
+	// If the information is an error, sets the information message to the error's
+	if c.HD.Info != 0xFF {
+		inf = ErrorCodeToError(c.HD.Info).Error()
+	}
+	// Prints header information
+	fmt.Printf("Packet with ID %x (%s) received with information code %x (%s)", IDToCode(c.HD.Op), CodeToString(c.HD.Op), c.HD.Info, inf)
+	// Checks argument count
+	if len(c.Args) == 0 {
+		fmt.Printf(". No arguments.\n")
+	} else {
+		// Prints arguments
+		fmt.Printf("\nArguments: ")
+		for i, v := range c.Args {
+			fmt.Printf("Arg %d: %s ", i, v)
+		}
+		fmt.Print(".\n")
+	}
+}
+
 /* HEADER FUNCTIONS */
 
 // Checks the validity of the header fields
