@@ -77,7 +77,7 @@ var nArgs = map[string]int{
 	"CONN":  1,
 	"VERIF": 1,
 	"REQ":   1,
-	"USRS":  1,
+	"USRS":  0,
 	"MSG":   3,
 	"DISCN": 0,
 	"DEREG": 0,
