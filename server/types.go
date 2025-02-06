@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rsa"
+	"database/sql"
 	"log"
 	"math/rand"
 	"net"
@@ -38,6 +39,7 @@ type User struct {
 // Uses a mutex since functions are running concurrently
 type Hub struct {
 	req   chan Request
+	db    *sql.DB
 	mut   sync.Mutex
 	users map[ip]*User
 }

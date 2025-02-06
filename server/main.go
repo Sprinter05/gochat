@@ -6,19 +6,27 @@ import (
 	"net"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment files
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatalln("Failed to read environment file!")
+	}
+
 	// Create a new server listening on the adress
 	l, err := net.Listen("tcp4", "127.0.0.1:6969")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	// Run hun that processes commands
 	hub := Hub{
 		req:   make(chan Request),
 		users: make(map[ip]*User),
+		db:    connectDB(),
 	}
 	go hub.Run()
 

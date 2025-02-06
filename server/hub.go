@@ -83,6 +83,8 @@ func (hub *Hub) logged(addr net.Addr) (*User, error) {
 
 // Function that distributes actions to run
 func (hub *Hub) Run() {
+	defer hub.db.Close()
+
 	for {
 		// Block until a command is received
 		select {
