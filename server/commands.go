@@ -71,3 +71,31 @@ func connUser(h *Hub, u *User, cmd gc.Command) {
 	delete(h.verifs, ip)
 	h.vmut.Unlock()
 }
+
+func verifUser(h *Hub, u *User, cmd gc.Command) {
+	ip := ip(u.conn.RemoteAddr().String())
+
+	// Get the text to verify
+	h.vmut.Lock()
+	text, ok := h.verifs[ip]
+	h.vmut.Unlock()
+
+	// Check if the user is in verification
+	if !ok {
+		log.Printf("%s is not in verification!\n", u.name)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		return
+	}
+
+	// Check if the text is correct
+	if text != string(cmd.Args[0]) {
+		log.Printf("%s verification is incorrect!\n", u.name)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
+		return
+	}
+
+	// Everything went fine so we cache the user
+	h.umut.Lock()
+	h.users[ip] = u
+	h.umut.Unlock()
+}

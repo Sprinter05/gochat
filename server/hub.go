@@ -10,15 +10,17 @@ import (
 /* DATA */
 
 // Function mapping table
+// ? Dangerous global variable
 var cmdTable map[gc.Action]actions = map[gc.Action]actions{
-	gc.REG:  registerUser,
-	gc.CONN: connUser,
+	gc.REG:   registerUser,
+	gc.CONN:  connUser,
+	gc.VERIF: verifUser,
 }
 
-/* AUXILIARY FUNCTIONS */
+/* HUB WRAPPER FUNCTIONS */
 
 // Check which action to perform
-func procRequest(r Request, u *User, h *Hub) {
+func (h *Hub) procRequest(r Request, u *User) {
 	id := r.cmd.HD.Op
 
 	// Check if the action can be performed
@@ -44,7 +46,29 @@ func procRequest(r Request, u *User, h *Hub) {
 	go fun(h, user, r.cmd)
 }
 
-/* HUB FUNCTIONS */
+// Check if a session is present using the auxiliary functions
+func (hub *Hub) checkSession(r Request) (*User, error) {
+	// Check the user session
+	user, err := hub.cachedLogin(r)
+	if err == nil {
+		// Valid user found in cache, serve request
+		return user, nil
+	} else if err != gc.ErrorNotFound {
+		// We do not search in the DB if its a different error
+		return nil, err
+	}
+
+	// Query the database
+	user, err = hub.dbLogin(r)
+	if err == nil {
+		return user, nil
+	}
+
+	// Fallthrough
+	return nil, nil
+}
+
+/* HUB LOGIN FUNCTIONS */
 
 // Check if there is a possible login from the database
 func (h *Hub) dbLogin(r Request) (*User, error) {
@@ -101,6 +125,8 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	return nil, gc.ErrorNotFound
 }
 
+/* HUB CHECK FUNCTIONS */
+
 // Find a username in case it might be logged in with a different IP
 func (hub *Hub) userLogged(uname username) bool {
 	hub.umut.Lock()
@@ -131,28 +157,6 @@ func (hub *Hub) loggedIP(addr net.Addr) (*User, error) {
 	return nil, gc.ErrorNotFound
 }
 
-// Check if a session is present using the auxiliary functions
-func (hub *Hub) checkSession(r Request) (*User, error) {
-	// Check the user session
-	user, err := hub.cachedLogin(r)
-	if err == nil {
-		// Valid user found in cache, serve request
-		return user, nil
-	} else if err != gc.ErrorNotFound {
-		// We do not search in the DB if its a different error
-		return nil, err
-	}
-
-	// Query the database
-	user, err = hub.dbLogin(r)
-	if err == nil {
-		return user, nil
-	}
-
-	// Fallthrough
-	return nil, nil
-}
-
 // Function that distributes actions to run
 func (hub *Hub) Run() {
 	defer hub.db.Close()
@@ -170,6 +174,6 @@ func (hub *Hub) Run() {
 		}
 
 		// Process the request
-		procRequest(r, u, hub)
+		hub.procRequest(r, u)
 	}
 }
