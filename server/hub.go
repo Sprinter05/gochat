@@ -28,48 +28,88 @@ func procRequest(r Request, u *User, h *Hub) {
 		return
 	}
 
-	// If we are going to register we create a new user
-	var user *User
-	//TODO: Modify this for CONN once database is implemented
-	if id == gc.REG {
-		user = &User{
-			conn: r.cl,
-		}
-	} else {
-		user = u
-	}
-
 	//! Be careful with race condition
 	//TODO: Maybe lock to only 1 action per user?
-	go fun(h, user, r.cmd)
-}
-
-func readRequest(r Request, h *Hub) (*User, error) {
-	ip := r.cl.RemoteAddr()
-	id := r.cmd.HD.Op
-
-	// Check if its already logged in
-	v, err := h.logged(ip)
-
-	// If its not registered and the command is not
-	// register or connect we return an error to client
-	if err != nil && (id != gc.CONN && id != gc.REG) {
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
-		return nil, err
-	}
-
-	// Otherwise we return the value
-	//! The user returned can be nil but should be handled by procRequest
-	return v, nil
+	go fun(h, u, r.cmd)
 }
 
 /* HUB FUNCTIONS */
 
-// Check if a user is already logged in
-func (hub *Hub) logged(addr net.Addr) (*User, error) {
+// Check if there is a possible login from the database
+func (h *Hub) dbLogin(r Request) (*User, error) {
+	ip := ip(r.cl.RemoteAddr().String())
+
+	// Check if the user is in the database
+	u := username(r.cmd.Args[0])
+	key, e := queryUserKey(h.db, u)
+	if e == nil {
+		// User is in the database so we query it
+		u := &User{
+			conn:   r.cl,
+			name:   u,
+			pubkey: key,
+		}
+
+		// Cache user from now on
+		h.mut.Lock()
+		h.users[ip] = u
+		h.mut.Unlock()
+
+		// Return user
+		return u, nil
+	}
+
+	return nil, gc.ErrorNotFound
+}
+
+// Check if the user is already logged in from the cache
+func (h *Hub) cachedLogin(r Request) (*User, error) {
+	ip := r.cl.RemoteAddr()
+	id := r.cmd.HD.Op
+
+	// Check if its already IP cached
+	v, err := h.loggedIP(ip)
+	if err == nil {
+		if id == gc.REG || id == gc.CONN {
+			// If its logged in and the command is REG OR CONN we error
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+			return nil, err
+		} else {
+			// User is cached and the request can be served
+			return v, nil
+		}
+	}
+
+	// We check if the user is logged in from another IP
+	if h.userLogged(username(r.cmd.Args[0])) {
+		// Cannot have two sessions of the same user
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
+		return nil, gc.ErrorLogin
+	}
+
+	// Otherwise we return the value
+	return nil, gc.ErrorNotFound
+}
+
+// Find a username in case it might be logged in with a different IP
+func (hub *Hub) userLogged(uname username) bool {
+	hub.mut.Lock()
+	defer hub.mut.Unlock()
+	for _, v := range hub.users {
+		if v.name == uname {
+			return true
+		}
+	}
+
+	// User is not found
+	return false
+}
+
+// Check if a user is already loggedIP in
+func (hub *Hub) loggedIP(addr net.Addr) (*User, error) {
 	ip := ip(addr.String())
 
-	// Check if user is already cached
+	// Check if IP is already cached
 	hub.mut.Lock()
 	v, ok := hub.users[ip]
 	hub.mut.Unlock()
@@ -77,8 +117,30 @@ func (hub *Hub) logged(addr net.Addr) (*User, error) {
 	if ok {
 		return v, nil
 	}
-	return nil, gc.ErrorNotFound
 
+	return nil, gc.ErrorNotFound
+}
+
+// Check if a session is present using the auxiliary functions
+func (hub *Hub) checkSession(r Request) (*User, error) {
+	// Check the user session
+	user, err := hub.cachedLogin(r)
+	if err == nil {
+		// Valid user found in cache, serve request
+		return user, nil
+	} else if err != gc.ErrorNotFound {
+		// We do not search in the DB if its a different error
+		return nil, err
+	}
+
+	// Query the database
+	user, err = hub.dbLogin(r)
+	if err != nil {
+		return user, nil
+	}
+
+	// Fallthrough
+	return nil, nil
 }
 
 // Function that distributes actions to run
@@ -90,14 +152,17 @@ func (hub *Hub) Run() {
 		// Print command info
 		r.cmd.Print()
 
-		// Read the incoming request
-		v, err := readRequest(r, hub)
-		if err != nil {
-			log.Println(err)
+		// Check if the user can be served
+		u, e := hub.checkSession(r)
+		if e != nil {
+			log.Println(e)
 			continue
 		}
 
+		// TODO: Create new user if not in db
+		// TODO: CONN protection?
+
 		// Process the request
-		procRequest(r, v, hub)
+		procRequest(r, u, hub)
 	}
 }

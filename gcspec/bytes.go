@@ -204,7 +204,7 @@ func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 		break // Fall through
 	}
 
-	return nil, errors.New("Key type is not RSA")
+	return nil, errors.New("key type is not RSA")
 }
 
 // Encrypts a text using OAEP with SHA256
@@ -213,7 +213,7 @@ func EncryptText(t []byte, pub *rsa.PublicKey) ([]byte, error) {
 	hash := sha256.New()
 	enc, err := rsa.EncryptOAEP(hash, rand.Reader, pub, t, nil)
 	if err != nil {
-		return nil, errors.New("Impossible to encrypt")
+		return nil, err
 	}
 	return enc, nil
 }
@@ -223,7 +223,7 @@ func DecryptText(e []byte, priv *rsa.PrivateKey) ([]byte, error) {
 	hash := sha256.New()
 	dec, err := rsa.DecryptOAEP(hash, rand.Reader, priv, e, nil)
 	if err != nil {
-		return nil, errors.New("Impossible to decrypt")
+		return nil, err
 	}
 	return dec, nil
 }

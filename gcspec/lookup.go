@@ -90,31 +90,34 @@ func IDToCode(a Action) byte {
 /* ERROR CODES */
 
 // Determines a generic undefined error
-var ErrorUndefined error = errors.New("Undefined problem")
+var ErrorUndefined error = errors.New("undefined problem")
 
 // Invalid operation performed
-var ErrorInvalid error = errors.New("Invalid operation performed")
+var ErrorInvalid error = errors.New("invalid operation performed")
 
 // Content could not be found
-var ErrorNotFound error = errors.New("Content not found")
+var ErrorNotFound error = errors.New("content not found")
 
 // Versions do not match
-var ErrorVersion error = errors.New("Versions do not match")
+var ErrorVersion error = errors.New("versions do not match")
 
 // Verification handshake failed
-var ErrorHandshake error = errors.New("Handshake failed")
+var ErrorHandshake error = errors.New("handshake failed")
 
 // Invalid arguments given
-var ErrorArguments error = errors.New("Invalid arguments")
+var ErrorArguments error = errors.New("invalid arguments")
 
 // Payload size too big
-var ErrorMaxSize error = errors.New("Payload size too big")
+var ErrorMaxSize error = errors.New("payload size too big")
 
 // Header processing failed
-var ErrorHeader error = errors.New("Invalid header provided")
+var ErrorHeader error = errors.New("invalid header provided")
 
 // User is not logged in
-var ErrorNoSession error = errors.New("User is not connected")
+var ErrorNoSession error = errors.New("user is not connected")
+
+// User cannot be logged in
+var ErrorLogin error = errors.New("user is already logged in")
 
 var errorCodes map[error]byte = map[error]byte{
 	ErrorUndefined: 0x00,
@@ -126,6 +129,7 @@ var errorCodes map[error]byte = map[error]byte{
 	ErrorMaxSize:   0x06,
 	ErrorHeader:    0x07,
 	ErrorNoSession: 0x08,
+	ErrorLogin:     0x09,
 }
 
 // Returns the error code or the empty information field if not found
