@@ -85,22 +85,19 @@ func (hub *Hub) logged(addr net.Addr) (*User, error) {
 func (hub *Hub) Run() {
 	defer hub.db.Close()
 
-	for {
-		// Block until a command is received
-		select {
-		case r := <-hub.req:
-			// Print command info
-			r.cmd.Print()
+	// Read the channel until closed
+	for r := range hub.req {
+		// Print command info
+		r.cmd.Print()
 
-			// Read the incoming request
-			v, err := readRequest(r, hub)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			// Process the request
-			procRequest(r, v, hub)
+		// Read the incoming request
+		v, err := readRequest(r, hub)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
+
+		// Process the request
+		procRequest(r, v, hub)
 	}
 }

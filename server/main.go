@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// Load environment files
-	err := godotenv.Load(".env")
+	err := godotenv.Load("../.env")
 	if err != nil {
 		log.Fatalln("Failed to read environment file!")
 	}
