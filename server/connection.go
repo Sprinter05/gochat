@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"log"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -15,11 +14,9 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 		//* Error with header
 		log.Println(err)
 		// Connection closed by client
-		if err == io.EOF {
-			return err
-		}
+		return err
 		// Send error packet to client
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
+		//sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 	}
 	return nil
 }
@@ -30,11 +27,9 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 		//* Error with payload
 		log.Println(err)
 		// Connection closed by client
-		if err == io.EOF {
-			return err
-		}
+		return err
 		// Send error packet to client
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
+		// sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 	}
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"net"
-	"os"
 	"testing"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -26,7 +25,7 @@ func readFromConn(c *gc.Connection) gc.Command {
 	return *cmd
 }
 
-func readKeyFile(name string) []byte {
+/*func readKeyFile(name string) []byte {
 	file, _ := os.Open(name)
 	defer file.Close()
 
@@ -38,7 +37,7 @@ func readKeyFile(name string) []byte {
 	bufio.NewReader(file).Read(bs)
 
 	return bs
-}
+}*/
 
 func TestREG(t *testing.T) {
 	l := setup(t)
@@ -58,19 +57,33 @@ func TestREG(t *testing.T) {
 	b, _ := gc.PubkeytoPEM(&v.PublicKey)
 
 	// REG Packet
-	p := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
-	test1, err := gc.NewPacket(gc.REG, gc.ID(19736), gc.EmptyInfo, p)
+	p1 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
+	test1, err := gc.NewPacket(gc.REG, gc.ID(19736), gc.EmptyInfo, p1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	l.Write(test1)
 
-	readFromConn(conn)
-	p2 := readFromConn(conn)
+	readFromConn(conn) // ignored OK
 
-	dec, _ := gc.DecryptText(p2.Args[0], v)
+	// Login
+	p2 := []gc.Arg{gc.Arg("Sprinter05")}
+	test2, err := gc.NewPacket(gc.CONN, gc.ID(8945), gc.EmptyInfo, p2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Write(test2)
 
-	t.Log("\n" + string(dec) + "\n")
+	readFromConn(conn)         // ignored OK
+	vpak := readFromConn(conn) // VERIF packet
 
-	return
+	dec, _ := gc.DecryptText(vpak.Args[0], v)
+
+	// Verify
+	p3 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(string(dec))}
+	test3, err := gc.NewPacket(gc.VERIF, gc.ID(11333), gc.EmptyInfo, p3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Write(test3)
 }

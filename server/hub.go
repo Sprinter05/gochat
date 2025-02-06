@@ -41,9 +41,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 		user = u
 	}
 
-	//! Be careful with race condition
-	//TODO: Maybe restrict to only 1 action per user?
-	go fun(h, user, r.cmd)
+	fun(h, user, r.cmd)
 }
 
 // Check if a session is present using the auxiliary functions
@@ -76,7 +74,8 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 	u := username(r.cmd.Args[0])
 	key, e := queryUserKey(h.db, u)
 	if e == nil {
-		if r.cmd.HD.Op != gc.CONN {
+		id := r.cmd.HD.Op
+		if id != gc.CONN && id != gc.VERIF {
 			// User in database can only connect
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 			return nil, gc.ErrorInvalid

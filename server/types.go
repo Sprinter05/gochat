@@ -20,6 +20,12 @@ type username string
 // Specifies the functions to run depending on the ID
 type actions func(*Hub, *User, gc.Command)
 
+// Specifies a verification in process
+type Verif struct {
+	name username
+	text string
+}
+
 // Determines a request to be processed by a hug
 type Request struct {
 	cl  net.Conn
@@ -40,7 +46,7 @@ type Hub struct {
 	umut   sync.Mutex
 	users  map[net.Conn]*User
 	vmut   sync.Mutex
-	verifs map[net.Conn]string
+	verifs map[net.Conn]*Verif
 }
 
 /* AUXILIARY FUNCTIONS */
@@ -58,7 +64,7 @@ func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 
 // Help with packet creation by logging
 func sendOKPacket(id gc.ID, cl net.Conn) {
-	pak, e := gc.NewPacket(gc.ERR, id, gc.EmptyInfo, nil)
+	pak, e := gc.NewPacket(gc.OK, id, gc.EmptyInfo, nil)
 	if e != nil {
 		//* Error when creating packet
 		log.Println(e)

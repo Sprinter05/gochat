@@ -26,7 +26,7 @@ func main() {
 	hub := Hub{
 		req:    make(chan Request),
 		users:  make(map[net.Conn]*User),
-		verifs: make(map[net.Conn]string),
+		verifs: make(map[net.Conn]*Verif),
 		db:     connectDB(),
 	}
 	go hub.Run()

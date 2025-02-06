@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -59,21 +58,24 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Add the user to the pending verifications
 	h.vmut.Lock()
-	h.verifs[u.conn] = string(ran)
+	h.verifs[u.conn] = &Verif{
+		name: u.name,
+		text: string(ran),
+	}
 	h.vmut.Unlock()
 
 	// Wait timeout and remove the entry
-	w := time.Duration(gc.LoginTimeout)
+	/*w := time.Duration(gc.LoginTimeout)
 	time.Sleep(w * time.Second)
 	h.vmut.Lock()
 	delete(h.verifs, u.conn)
-	h.vmut.Unlock()
+	h.vmut.Unlock()*/
 }
 
 func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// Get the text to verify
 	h.vmut.Lock()
-	text, ok := h.verifs[u.conn]
+	verif, ok := h.verifs[u.conn]
 	h.vmut.Unlock()
 
 	// Check if the user is in verification
@@ -84,7 +86,7 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	}
 
 	// Check if the text is correct
-	if text != string(cmd.Args[0]) {
+	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
 		log.Printf("%s verification is incorrect!\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
@@ -94,4 +96,9 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	h.umut.Lock()
 	h.users[u.conn] = u
 	h.umut.Unlock()
+
+	// We delete the pending verification
+	h.vmut.Lock()
+	delete(h.verifs, u.conn)
+	h.vmut.Unlock()
 }
