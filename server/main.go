@@ -24,9 +24,10 @@ func main() {
 
 	// Run hun that processes commands
 	hub := Hub{
-		req:   make(chan Request),
-		users: make(map[ip]*User),
-		db:    connectDB(),
+		req:    make(chan Request),
+		users:  make(map[net.Conn]*User),
+		verifs: make(map[net.Conn]string),
+		db:     connectDB(),
 	}
 	go hub.Run()
 

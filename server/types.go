@@ -14,9 +14,6 @@ import (
 
 /* TYPE DEFINITIONS */
 
-// Has to be used with net.Conn.RemoteAddr().String()
-type ip string
-
 // Has to conform to UsernameSize
 type username string
 
@@ -41,9 +38,9 @@ type Hub struct {
 	req    chan Request
 	db     *sql.DB
 	umut   sync.Mutex
-	users  map[ip]*User
+	users  map[net.Conn]*User
 	vmut   sync.Mutex
-	verifs map[ip]string
+	verifs map[net.Conn]string
 }
 
 /* AUXILIARY FUNCTIONS */

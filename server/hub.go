@@ -13,8 +13,8 @@ import (
 // ? Dangerous global variable
 var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 	gc.REG:   registerUser,
-	gc.CONN:  connUser,
-	gc.VERIF: verifUser,
+	gc.CONN:  connectUser,
+	gc.VERIF: verifyUser,
 }
 
 /* HUB WRAPPER FUNCTIONS */
@@ -98,11 +98,10 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 
 // Check if the user is already logged in from the cache
 func (h *Hub) cachedLogin(r Request) (*User, error) {
-	ip := r.cl.RemoteAddr()
 	id := r.cmd.HD.Op
 
 	// Check if its already IP cached
-	v, err := h.loggedIP(ip)
+	v, err := h.loggedConn(r.cl)
 	if err == nil {
 		if id == gc.REG || id == gc.CONN {
 			// If its logged in and the command is REG OR CONN we error
@@ -141,13 +140,11 @@ func (hub *Hub) userLogged(uname username) bool {
 	return false
 }
 
-// Check if a user is already loggedIP in
-func (hub *Hub) loggedIP(addr net.Addr) (*User, error) {
-	ip := ip(addr.String())
-
+// Check if a user is already loggedConn in
+func (hub *Hub) loggedConn(conn net.Conn) (*User, error) {
 	// Check if IP is already cached
 	hub.umut.Lock()
-	v, ok := hub.users[ip]
+	v, ok := hub.users[conn]
 	hub.umut.Unlock()
 
 	if ok {
@@ -159,6 +156,7 @@ func (hub *Hub) loggedIP(addr net.Addr) (*User, error) {
 
 // Function that distributes actions to run
 func (hub *Hub) Run() {
+	// Close database at exit
 	defer hub.db.Close()
 
 	// Read the channel until closed

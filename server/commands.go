@@ -34,9 +34,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	insertUser(h.db, u.name, cmd.Args[1])
 }
 
-func connUser(h *Hub, u *User, cmd gc.Command) {
-	ip := ip(u.conn.RemoteAddr().String())
-
+func connectUser(h *Hub, u *User, cmd gc.Command) {
 	// Create random cypher
 	ran := randText()
 	enc, err := gc.EncryptText(ran, u.pubkey)
@@ -61,23 +59,21 @@ func connUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Add the user to the pending verifications
 	h.vmut.Lock()
-	h.verifs[ip] = string(ran)
+	h.verifs[u.conn] = string(ran)
 	h.vmut.Unlock()
 
 	// Wait timeout and remove the entry
 	w := time.Duration(gc.LoginTimeout)
 	time.Sleep(w * time.Second)
 	h.vmut.Lock()
-	delete(h.verifs, ip)
+	delete(h.verifs, u.conn)
 	h.vmut.Unlock()
 }
 
-func verifUser(h *Hub, u *User, cmd gc.Command) {
-	ip := ip(u.conn.RemoteAddr().String())
-
+func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// Get the text to verify
 	h.vmut.Lock()
-	text, ok := h.verifs[ip]
+	text, ok := h.verifs[u.conn]
 	h.vmut.Unlock()
 
 	// Check if the user is in verification
@@ -96,6 +92,6 @@ func verifUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Everything went fine so we cache the user
 	h.umut.Lock()
-	h.users[ip] = u
+	h.users[u.conn] = u
 	h.umut.Unlock()
 }

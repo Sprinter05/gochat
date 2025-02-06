@@ -47,6 +47,8 @@ func ListenConnection(cl *gc.Connection, hub chan<- Request) {
 	for {
 		cmd := gc.Command{}
 
+		// TODO: Tell the hub through another channel to de-cache the user on EOF
+
 		// Process the fields of the packet
 		if processHeader(cl, &cmd) != nil {
 			return
