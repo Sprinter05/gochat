@@ -38,10 +38,12 @@ type User struct {
 
 // Uses a mutex since functions are running concurrently
 type Hub struct {
-	req   chan Request
-	db    *sql.DB
-	mut   sync.Mutex
-	users map[ip]*User
+	req    chan Request
+	db     *sql.DB
+	umut   sync.Mutex
+	users  map[ip]*User
+	vmut   sync.Mutex
+	verifs map[ip]string
 }
 
 /* AUXILIARY FUNCTIONS */

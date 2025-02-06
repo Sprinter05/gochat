@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -9,7 +10,6 @@ import (
 // FUNCTIONS
 
 func registerUser(h *Hub, u *User, cmd gc.Command) {
-	// TODO: Check if user is already logged in or in database
 	// Assign parameters to the user
 	u.name = username(cmd.Args[0])
 
@@ -30,26 +30,44 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	}
 	u.pubkey = key
 
+	// Register user into the database
+	insertUser(h.db, u.name, cmd.Args[1])
+}
+
+func connUser(h *Hub, u *User, cmd gc.Command) {
+	ip := ip(u.conn.RemoteAddr().String())
+
 	// Create random cypher
 	ran := randText()
-	enc, err := gc.EncryptText(ran, key)
+	enc, err := gc.EncryptText(ran, u.pubkey)
 	if err != nil {
 		//* Error with cyphering
+		//! This shouldnt happen, it means the database for the user is corrupted
 		log.Println(err)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
 		return
 	}
 
-	//! EVERYTHING FROM HERE DOESNT BELONG HERE, ITS TEMPORAL
-
-	// Create verification packet
+	// We create the packet with the enconded text
 	arg := []gc.Arg{gc.Arg(enc)}
-	vpak, _ := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
+	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+
+	// Send the encrypted cyphertext
 	u.conn.Write(vpak)
 
-	//TODO: Change so that it has to be in an unverified list until the decyphered payload is sent
-	ip := ip(u.conn.RemoteAddr().String())
-	h.mut.Lock()
-	h.users[ip] = u
-	h.mut.Unlock()
+	// Add the user to the pending verifications
+	h.vmut.Lock()
+	h.verifs[ip] = string(ran)
+	h.vmut.Unlock()
+
+	// Wait timeout and remove the entry
+	w := time.Duration(gc.LoginTimeout)
+	time.Sleep(w * time.Second)
+	h.vmut.Lock()
+	delete(h.verifs, ip)
+	h.vmut.Unlock()
 }

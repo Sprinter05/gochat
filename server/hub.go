@@ -11,7 +11,8 @@ import (
 
 // Function mapping table
 var cmdTable map[gc.Action]actions = map[gc.Action]actions{
-	gc.REG: registerUser,
+	gc.REG:  registerUser,
+	gc.CONN: connUser,
 }
 
 /* AUXILIARY FUNCTIONS */
@@ -28,32 +29,41 @@ func procRequest(r Request, u *User, h *Hub) {
 		return
 	}
 
+	// If the user is null we create a new one
+	var user *User
+	if u == nil {
+		user = &User{
+			conn: r.cl,
+		}
+	} else {
+		user = u
+	}
+
 	//! Be careful with race condition
-	//TODO: Maybe lock to only 1 action per user?
-	go fun(h, u, r.cmd)
+	//TODO: Maybe restrict to only 1 action per user?
+	go fun(h, user, r.cmd)
 }
 
 /* HUB FUNCTIONS */
 
 // Check if there is a possible login from the database
 func (h *Hub) dbLogin(r Request) (*User, error) {
-	ip := ip(r.cl.RemoteAddr().String())
-
 	// Check if the user is in the database
 	u := username(r.cmd.Args[0])
 	key, e := queryUserKey(h.db, u)
 	if e == nil {
+		if r.cmd.HD.Op != gc.CONN {
+			// User in database can only connect
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+			return nil, gc.ErrorInvalid
+		}
+
 		// User is in the database so we query it
 		u := &User{
 			conn:   r.cl,
 			name:   u,
 			pubkey: key,
 		}
-
-		// Cache user from now on
-		h.mut.Lock()
-		h.users[ip] = u
-		h.mut.Unlock()
 
 		// Return user
 		return u, nil
@@ -73,9 +83,9 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 		if id == gc.REG || id == gc.CONN {
 			// If its logged in and the command is REG OR CONN we error
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-			return nil, err
+			return nil, gc.ErrorInvalid
 		} else {
-			// User is cached and the request can be served
+			// User is cached and the session can be returned
 			return v, nil
 		}
 	}
@@ -93,8 +103,8 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 
 // Find a username in case it might be logged in with a different IP
 func (hub *Hub) userLogged(uname username) bool {
-	hub.mut.Lock()
-	defer hub.mut.Unlock()
+	hub.umut.Lock()
+	defer hub.umut.Unlock()
 	for _, v := range hub.users {
 		if v.name == uname {
 			return true
@@ -110,9 +120,9 @@ func (hub *Hub) loggedIP(addr net.Addr) (*User, error) {
 	ip := ip(addr.String())
 
 	// Check if IP is already cached
-	hub.mut.Lock()
+	hub.umut.Lock()
 	v, ok := hub.users[ip]
-	hub.mut.Unlock()
+	hub.umut.Unlock()
 
 	if ok {
 		return v, nil
@@ -135,7 +145,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 
 	// Query the database
 	user, err = hub.dbLogin(r)
-	if err != nil {
+	if err == nil {
 		return user, nil
 	}
 
@@ -158,9 +168,6 @@ func (hub *Hub) Run() {
 			log.Println(e)
 			continue
 		}
-
-		// TODO: Create new user if not in db
-		// TODO: CONN protection?
 
 		// Process the request
 		procRequest(r, u, hub)

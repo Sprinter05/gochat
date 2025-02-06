@@ -65,7 +65,7 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 /* INSERTIONS */
 
 // Inserts a user into a database, key must be in PEM format
-func insertUser(db *sql.DB, uname string, pubkey []byte) error {
+func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 	query := "INSERT INTO users(username, pubkey) VALUES (?, ?)"
 
 	// Attempt to insert
