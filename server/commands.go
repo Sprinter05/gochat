@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -65,11 +66,14 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	h.vmut.Unlock()
 
 	// Wait timeout and remove the entry
-	/*w := time.Duration(gc.LoginTimeout)
-	time.Sleep(w * time.Second)
-	h.vmut.Lock()
-	delete(h.verifs, u.conn)
-	h.vmut.Unlock()*/
+	go func() {
+		w := time.Duration(gc.LoginTimeout)
+		time.Sleep(w * time.Minute)
+		h.vmut.Lock()
+		delete(h.verifs, u.conn)
+		h.vmut.Unlock()
+	}()
+
 }
 
 func verifyUser(h *Hub, u *User, cmd gc.Command) {

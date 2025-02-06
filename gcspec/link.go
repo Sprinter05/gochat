@@ -3,7 +3,6 @@ package gcspec
 import (
 	"bufio"
 	"bytes"
-	"io"
 	"net"
 )
 
@@ -54,9 +53,6 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		// Read from the wire
 		b, err := cl.RD.ReadBytes('\n')
 		if err != nil {
-			if err == io.EOF {
-				return ErrorArguments
-			}
 			return err
 		}
 

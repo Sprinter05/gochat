@@ -42,6 +42,7 @@ type User struct {
 // Uses a mutex since functions are running concurrently
 type Hub struct {
 	req    chan Request
+	clean  chan net.Conn
 	db     *sql.DB
 	umut   sync.Mutex
 	users  map[net.Conn]*User

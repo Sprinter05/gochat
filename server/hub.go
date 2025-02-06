@@ -19,6 +19,25 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 
 /* HUB WRAPPER FUNCTIONS */
 
+// Cleans any mention to a connection in the caches
+func (h *Hub) cleanupConn(cl net.Conn) {
+	// Cleanup on the users table
+	h.umut.Lock()
+	_, uok := h.users[cl]
+	if uok {
+		delete(h.users, cl)
+	}
+	h.umut.Unlock()
+
+	// Cleanup on the verification table
+	h.vmut.Lock()
+	_, vok := h.verifs[cl]
+	if vok {
+		delete(h.verifs, cl)
+	}
+	h.vmut.Unlock()
+}
+
 // Check which action to perform
 func (h *Hub) procRequest(r Request, u *User) {
 	id := r.cmd.HD.Op
@@ -159,18 +178,24 @@ func (hub *Hub) Run() {
 	defer hub.db.Close()
 
 	// Read the channel until closed
-	for r := range hub.req {
-		// Print command info
-		r.cmd.Print()
+	for {
+		select {
+		case r := <-hub.req:
+			// Print command info
+			r.cmd.Print()
 
-		// Check if the user can be served
-		u, e := hub.checkSession(r)
-		if e != nil {
-			log.Println(e)
-			continue
+			// Check if the user can be served
+			u, e := hub.checkSession(r)
+			if e != nil {
+				log.Println(e)
+				continue
+			}
+
+			// Process the request
+			hub.procRequest(r, u)
+		case c := <-hub.clean:
+			// Remove all mentions of the connection in the cache
+			hub.cleanupConn(c)
 		}
-
-		// Process the request
-		hub.procRequest(r, u)
 	}
 }
