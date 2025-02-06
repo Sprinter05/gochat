@@ -36,7 +36,6 @@ func main() {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			//* Error with the connection
 			log.Println(err)
 			continue // Keep seeking clients
 		}

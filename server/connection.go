@@ -18,7 +18,7 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 		if err != gc.ErrorHeader {
 			return err
 		}
-		// Send error packet to client
+		//* Incorrect header
 		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 	}
 	return nil
@@ -27,13 +27,12 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	// Read payload from the wire
 	if err := cl.ListenPayload(cmd); err != nil {
-		//* Error with payload
 		log.Println(err)
 		// Connection closed
 		if err != gc.ErrorArguments && err != gc.ErrorMaxSize {
 			return err
 		}
-		// Send error packet to client
+		//* Incorrect payload
 		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 	}
 	return nil
@@ -46,8 +45,6 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 
 	for {
 		cmd := gc.Command{}
-
-		// TODO: Tell the hub through another channel to de-cache the user on EOF
 
 		// Process the fields of the packet
 		if processHeader(cl, &cmd) != nil {

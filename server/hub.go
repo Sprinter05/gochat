@@ -45,7 +45,6 @@ func (h *Hub) procRequest(r Request, u *User) {
 	// Check if the action can be performed
 	fun, ok := cmdTable[id]
 	if !ok {
-		//* Error with action code
 		log.Println("Invalid action performed at hub!")
 		return
 	}
@@ -95,7 +94,7 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 	if e == nil {
 		id := r.cmd.HD.Op
 		if id != gc.CONN && id != gc.VERIF {
-			// User in database can only connect
+			//* If the user is being read from the DB its in handshake
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 			return nil, gc.ErrorInvalid
 		}
@@ -122,7 +121,7 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	v, err := h.loggedConn(r.cl)
 	if err == nil {
 		if id == gc.REG || id == gc.CONN {
-			// If its logged in and the command is REG OR CONN we error
+			//* Can only register or connect if not in cache
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 			return nil, gc.ErrorInvalid
 		} else {
@@ -133,7 +132,7 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 
 	// We check if the user is logged in from another IP
 	if h.userLogged(username(r.cmd.Args[0])) {
-		// Cannot have two sessions of the same user
+		//* Cannot have two sessions of the same user
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
 		return nil, gc.ErrorLogin
 	}

@@ -16,6 +16,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Check if username size is correct
 	if len(u.name) > gc.UsernameSize {
 		log.Println("Username too big")
+		//* Username too big
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -23,8 +24,8 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Assign public key
 	key, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		//* Error with public key
 		log.Println(err)
+		//* Incorrect with public key
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -84,7 +85,9 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Check if the user is in verification
 	if !ok {
+		//! This shouldnt happen as its checked by the hub first
 		log.Printf("%s is not in verification!\n", u.name)
+		//* User is not being verified
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -92,6 +95,7 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// Check if the text is correct
 	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
 		log.Printf("%s verification is incorrect!\n", u.name)
+		//* Incorrect decyphered text
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
 	}
