@@ -17,6 +17,7 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 	gc.VERIF: verifyUser,
 	gc.DISCN: disconnectUser,
 	gc.DEREG: deregisterUser,
+	gc.REQ:   requestUser,
 }
 
 /* HUB WRAPPER FUNCTIONS */
@@ -61,6 +62,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 		user = u
 	}
 
+	// TODO: Add "runners" that run the actual command and the hub just processes
 	fun(h, user, r.cmd)
 }
 
@@ -90,6 +92,14 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 
 // Check if there is a possible login from the database
 func (h *Hub) dbLogin(r Request) (*User, error) {
+	// Check that the operation is correct before querying the database
+	id := r.cmd.HD.Op
+	if id != gc.CONN && id != gc.VERIF {
+		//* If the user is being read from the DB its in handshake
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+		return nil, gc.ErrorInvalid
+	}
+
 	// Check if the user is in the database
 	u := username(r.cmd.Args[0])
 	key, e := queryUserKey(h.db, u)
@@ -97,13 +107,6 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		// If the key is null the user has been deregisterd
 		if key == nil {
 			return nil, gc.ErrorLogin
-		}
-
-		id := r.cmd.HD.Op
-		if id != gc.CONN && id != gc.VERIF {
-			//* If the user is being read from the DB its in handshake
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-			return nil, gc.ErrorInvalid
 		}
 
 		// User is in the database so we query it

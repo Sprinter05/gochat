@@ -135,6 +135,7 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 
 func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 	// Attempt to remove the key from the user
+	// TODO: The entry should be removed during a catch up if the message cache is empty
 	err := removeKey(h.db, u.name)
 	if err != nil {
 		//* Error with deleting
@@ -144,4 +145,35 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Cleanup cache information
 	h.cleanupConn(u.conn)
+}
+
+func requestUser(h *Hub, u *User, cmd gc.Command) {
+	k, err := queryUserKey(h.db, username(cmd.Args[0]))
+	if err != nil {
+		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+		return
+	}
+
+	// Check if the user queried is deregistered
+	if k == nil {
+		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		return
+	}
+
+	// Turn the key into PEM format
+	p, e := gc.PubkeytoPEM(k)
+	if e != nil {
+		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		return
+	}
+
+	// Otherwise we send the key to the user
+	arg := []gc.Arg{gc.Arg(p)}
+	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo, arg)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+	u.conn.Write(pak)
+
 }

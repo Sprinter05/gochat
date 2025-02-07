@@ -57,6 +57,8 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 			return
 		}
 
+		// TODO: Check if the number of arguments is adequate for the operation
+
 		// Send OK reply to the client
 		sendOKPacket(cmd.HD.ID, cl.Conn)
 
