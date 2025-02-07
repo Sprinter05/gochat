@@ -57,7 +57,11 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 			return
 		}
 
-		// TODO: Check if the number of arguments is adequate for the operation
+		// Check that it has enough arguments
+		if int(cmd.HD.Args) != gc.IDToArgs(cmd.HD.Op) {
+			sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, cl.Conn)
+			return
+		}
 
 		// Send OK reply to the client
 		sendOKPacket(cmd.HD.ID, cl.Conn)

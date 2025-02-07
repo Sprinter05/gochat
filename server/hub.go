@@ -207,4 +207,6 @@ func (hub *Hub) Run() {
 			hub.cleanupConn(c)
 		}
 	}
+
+	// TODO: Add shutdown function for all clients when this ends
 }

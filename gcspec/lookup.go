@@ -89,6 +89,30 @@ func IDToCode(a Action) byte {
 	return v
 }
 
+/* ARGUMENTS PER OPERATION */
+var idToArgs map[Action]uint8 = map[Action]uint8{
+	OK:     0,
+	ERR:    0,
+	REG:    2,
+	VERIF:  2,
+	REQ:    1,
+	USRS:   0,
+	RECIV:  3,
+	CONN:   1,
+	MSG:    3,
+	DISCN:  0,
+	DEREG:  0,
+	SHTDWN: 0,
+}
+
+func IDToArgs(a Action) int {
+	v, ok := idToArgs[a]
+	if !ok {
+		return -1
+	}
+	return int(v)
+}
+
 /* ERROR CODES */
 
 // Determines a generic undefined error
