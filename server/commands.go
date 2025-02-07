@@ -15,8 +15,8 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Check if username size is correct
 	if len(u.name) > gc.UsernameSize {
-		log.Println("Username too big")
 		//* Username too big
+		log.Println("Username too big")
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -24,8 +24,8 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Assign public key
 	key, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		log.Println(err)
 		//* Incorrect with public key
+		log.Println(err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -86,16 +86,16 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// Check if the user is in verification
 	if !ok {
 		//! This shouldnt happen as its checked by the hub first
-		log.Printf("%s is not in verification!\n", u.name)
 		//* User is not being verified
+		log.Printf("%s is not in verification!\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
 
 	// Check if the text is correct
 	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
-		log.Printf("%s verification is incorrect!\n", u.name)
 		//* Incorrect decyphered text
+		log.Printf("%s verification is incorrect!\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
 	}
@@ -104,6 +104,8 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	h.umut.Lock()
 	h.users[u.conn] = u
 	h.umut.Unlock()
+
+	// TODO: RECIVs should be handled here now in another thread
 
 	// We delete the pending verification
 	h.vmut.Lock()
@@ -124,6 +126,7 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 
 	// If user is in none of the caches we error
 	if !uok && !vok {
+		//* Error since the user is not connected
 		log.Printf("Invalid operation performed!")
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
@@ -140,7 +143,9 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 	if err != nil {
 		//* Error with deleting
 		//! This should never happen
+		log.Println(err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
+		return
 	}
 
 	// Cleanup cache information
@@ -148,14 +153,19 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 func requestUser(h *Hub, u *User, cmd gc.Command) {
+	// We query the user's key
 	k, err := queryUserKey(h.db, username(cmd.Args[0]))
 	if err != nil {
+		//* Error since the key couldnt be found
+		log.Println(err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
 	}
 
 	// Check if the user queried is deregistered
 	if k == nil {
+		//* Error since the queried user has been deregistered
+		log.Printf("Queried %s has been deregistered!\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -163,6 +173,9 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 	// Turn the key into PEM format
 	p, e := gc.PubkeytoPEM(k)
 	if e != nil {
+		//* Failed to transform the public key
+		//! This means the user's database is corrupted info
+		log.Println(e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -190,7 +203,8 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 	} else if online == 0x00 {
 		usrs = h.userlist(false)
 	} else {
-		// Invalid argument in header info
+		//* Error due to invalid argument in header info
+		log.Printf("Invalid user list argument!")
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -203,4 +217,8 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 		return
 	}
 	u.conn.Write(pak)
+}
+
+func messageUser(h *Hub, u *User, cmd gc.Command) {
+	// Find information about the user
 }

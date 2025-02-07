@@ -20,34 +20,10 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 	gc.DEREG: deregisterUser,
 	gc.REQ:   requestUser,
 	gc.USRS:  listUsers,
+	gc.MSG:   messageUser,
 }
 
 /* HUB WRAPPER FUNCTIONS */
-
-// Lists all users in the server
-func (h *Hub) userlist(online bool) string {
-	var str strings.Builder
-	var ret string
-
-	if online {
-		ret = ""
-		for _, v := range h.users {
-			str.WriteString(string(v.name) + "\n")
-		}
-
-		l := str.Len()
-		ret = str.String()
-
-		// Remove the last newline
-		ret = ret[:l-1]
-	} else {
-		// Query database
-		ret, _ = queryUsernames(h.db)
-	}
-
-	// Will return empty if nothing is found
-	return ret
-}
 
 // Cleans any mention to a connection in the caches
 func (h *Hub) cleanupConn(cl net.Conn) {
@@ -113,6 +89,33 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 
 	// Fallthrough
 	return nil, nil
+}
+
+/* HUB USER FUNCTIONS */
+
+// Lists all users in the server
+func (h *Hub) userlist(online bool) string {
+	var str strings.Builder
+	var ret string
+
+	if online {
+		ret = ""
+		for _, v := range h.users {
+			str.WriteString(string(v.name) + "\n")
+		}
+
+		l := str.Len()
+		ret = str.String()
+
+		// Remove the last newline
+		ret = ret[:l-1]
+	} else {
+		// Query database
+		ret, _ = queryUsernames(h.db)
+	}
+
+	// Will return empty if nothing is found
+	return ret
 }
 
 /* HUB LOGIN FUNCTIONS */
