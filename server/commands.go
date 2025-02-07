@@ -110,3 +110,25 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	delete(h.verifs, u.conn)
 	h.vmut.Unlock()
 }
+
+func disconnectUser(h *Hub, u *User, cmd gc.Command) {
+	// See if the user that wants to disconnect is even connected
+	h.umut.Lock()
+	_, uok := h.users[u.conn]
+	h.umut.Unlock()
+
+	// See if its in verification
+	h.vmut.Lock()
+	_, vok := h.verifs[u.conn]
+	h.vmut.Unlock()
+
+	// If user is in none of the caches we error
+	if !uok && !vok {
+		log.Printf("Invalid operation performed!")
+		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		return
+	}
+
+	// Othersie we cleanup
+	h.cleanupConn(u.conn)
+}

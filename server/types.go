@@ -56,7 +56,6 @@ type Hub struct {
 func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.ERR, id, gc.ErrorCode(err), nil)
 	if e != nil {
-		//* Error when creating packet
 		log.Println(e)
 	} else {
 		cl.Write(pak)
@@ -67,7 +66,6 @@ func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 func sendOKPacket(id gc.ID, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.OK, id, gc.EmptyInfo, nil)
 	if e != nil {
-		//* Error when creating packet
 		log.Println(e)
 	} else {
 		cl.Write(pak)

@@ -12,7 +12,6 @@ import (
 func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 	// Read header from the wire
 	if err := cl.ListenHeader(cmd); err != nil {
-		//* Error with header
 		log.Println(err)
 		// Connection closed
 		if err != gc.ErrorHeader {

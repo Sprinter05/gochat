@@ -15,6 +15,7 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 	gc.REG:   registerUser,
 	gc.CONN:  connectUser,
 	gc.VERIF: verifyUser,
+	gc.DISCN: disconnectUser,
 }
 
 /* HUB WRAPPER FUNCTIONS */
