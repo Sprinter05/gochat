@@ -51,8 +51,12 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 		return nil, err
 	}
 
+	// Check if the user has been deregisterd
+	if pubkey == "" {
+		return nil, nil
+	}
+
 	// Turn key to rsa struct
-	//! If this fails it means the user database has invalid information
 	key, err := gc.PEMToPubkey([]byte(pubkey))
 	if err != nil {
 		return nil, err
@@ -70,6 +74,19 @@ func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 
 	// Attempt to insert
 	_, err := db.Exec(query, uname, string(pubkey))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Prevents a user from logging in
+func removeKey(db *sql.DB, uname username) error {
+	query := "UPDATE users SET pubkey = NULL WHERE username = ?"
+
+	// Attempt to remove
+	_, err := db.Exec(query, uname)
 	if err != nil {
 		return err
 	}

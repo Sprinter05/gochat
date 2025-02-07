@@ -119,7 +119,7 @@ var ErrorHeader error = errors.New("invalid header provided")
 var ErrorNoSession error = errors.New("user is not connected")
 
 // User cannot be logged in
-var ErrorLogin error = errors.New("user is already logged in")
+var ErrorLogin error = errors.New("user can not be logged in")
 
 var errorCodes map[error]byte = map[error]byte{
 	ErrorUndefined: 0x00,

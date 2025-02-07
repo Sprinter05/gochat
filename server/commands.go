@@ -132,3 +132,16 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 	// Othersie we cleanup
 	h.cleanupConn(u.conn)
 }
+
+func deregisterUser(h *Hub, u *User, cmd gc.Command) {
+	// Attempt to remove the key from the user
+	err := removeKey(h.db, u.name)
+	if err != nil {
+		//* Error with deleting
+		//! This should never happen
+		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
+	}
+
+	// Cleanup cache information
+	h.cleanupConn(u.conn)
+}

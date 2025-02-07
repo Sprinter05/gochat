@@ -16,6 +16,7 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 	gc.CONN:  connectUser,
 	gc.VERIF: verifyUser,
 	gc.DISCN: disconnectUser,
+	gc.DEREG: deregisterUser,
 }
 
 /* HUB WRAPPER FUNCTIONS */
@@ -93,6 +94,11 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 	u := username(r.cmd.Args[0])
 	key, e := queryUserKey(h.db, u)
 	if e == nil {
+		// If the key is null the user has been deregisterd
+		if key == nil {
+			return nil, gc.ErrorLogin
+		}
+
 		id := r.cmd.HD.Op
 		if id != gc.CONN && id != gc.VERIF {
 			//* If the user is being read from the DB its in handshake
