@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"strings"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -18,9 +19,35 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 	gc.DISCN: disconnectUser,
 	gc.DEREG: deregisterUser,
 	gc.REQ:   requestUser,
+	gc.USRS:  listUsers,
 }
 
 /* HUB WRAPPER FUNCTIONS */
+
+// Lists all users in the server
+func (h *Hub) userlist(online bool) string {
+	var str strings.Builder
+	var ret string
+
+	if online {
+		ret = ""
+		for _, v := range h.users {
+			str.WriteString(string(v.name) + "\n")
+		}
+
+		l := str.Len()
+		ret = str.String()
+
+		// Remove the last newline
+		ret = ret[:l-1]
+	} else {
+		// Query database
+		ret, _ = queryUsernames(h.db)
+	}
+
+	// Will return empty if nothing is found
+	return ret
+}
 
 // Cleans any mention to a connection in the caches
 func (h *Hub) cleanupConn(cl net.Conn) {
@@ -62,7 +89,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 		user = u
 	}
 
-	// TODO: Add "runners" that run the actual command and the hub just processes
+	// TODO: Add "runners" per client that just run the request
 	fun(h, user, r.cmd)
 }
 
@@ -208,5 +235,6 @@ func (hub *Hub) Run() {
 		}
 	}
 
-	// TODO: Add shutdown function for all clients when this ends
+	// TODO: Add shutdown function for all clients
+	//time.Now().Unix()
 }

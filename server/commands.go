@@ -177,3 +177,30 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 	u.conn.Write(pak)
 
 }
+
+func listUsers(h *Hub, u *User, cmd gc.Command) {
+	var usrs string
+
+	// Show online users or all
+	online := cmd.HD.Info
+
+	// Get the user list
+	if online == 0x01 {
+		usrs = h.userlist(true)
+	} else if online == 0x00 {
+		usrs = h.userlist(false)
+	} else {
+		// Invalid argument in header info
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		return
+	}
+
+	// We send the userlist
+	arg := []gc.Arg{gc.Arg([]byte(usrs))}
+	pak, e := gc.NewPacket(gc.USRS, cmd.HD.ID, gc.EmptyInfo, arg)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+	u.conn.Write(pak)
+}
