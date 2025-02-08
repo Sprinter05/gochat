@@ -221,4 +221,27 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 
 func messageUser(h *Hub, u *User, cmd gc.Command) {
 	// Find information about the user
+	user := h.findUser(username(cmd.Args[0]))
+	if user != nil {
+		// We send the message directly to the connection
+		// Only the user changes as we keep the same cyphertext
+		arg := []gc.Arg{gc.Arg(u.name), gc.Arg(gc.UnixStampNow()), cmd.Args[2]}
+		pak, e := gc.NewPacket(gc.RECIV, cmd.HD.ID, gc.EmptyInfo, arg)
+		if e != nil {
+			log.Println(e)
+			return
+		}
+		u.conn.Write(pak)
+		return
+	}
+
+	// Otherwise we just send it to the message cache
+	uname := username(cmd.Args[0])
+	err := cacheMessage(h.db, u.name, uname, []byte(cmd.Args[2]))
+	if err != nil {
+		//* Error when inserting the message into the cache
+		log.Println(err)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+		return
+	}
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// TODO: Better log handling method
+// TODO: env file relative path solution
 func main() {
 	// Load environment files
 	err := godotenv.Load("../.env")

@@ -70,7 +70,7 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 
 // Inserts a user into a database, key must be in PEM format
 func insertUser(db *sql.DB, uname username, pubkey []byte) error {
-	query := "INSERT INTO users(username, pubkey) VALUES (?, ?)"
+	query := "INSERT INTO users(username, pubkey) VALUES (?, ?);"
 
 	// Attempt to insert
 	_, err := db.Exec(query, uname, string(pubkey))
@@ -83,7 +83,7 @@ func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 
 // Prevents a user from logging in
 func removeKey(db *sql.DB, uname username) error {
-	query := "UPDATE users SET pubkey = NULL WHERE username = ?"
+	query := "UPDATE users SET pubkey = NULL WHERE username = ?;"
 
 	// Attempt to remove
 	_, err := db.Exec(query, uname)
@@ -97,7 +97,7 @@ func removeKey(db *sql.DB, uname username) error {
 // Lists all usernames in the database
 func queryUsernames(db *sql.DB) (string, error) {
 	var users string
-	query := "SELECT username FROM users"
+	query := "SELECT username FROM users;"
 
 	// Try to query all rows
 	rows, err := db.Query(query)
@@ -120,4 +120,19 @@ func queryUsernames(db *sql.DB) (string, error) {
 	// Return result without the last newline
 	l := len(users)
 	return users[:l-1], nil
+}
+
+// Adds a message to the users message cache
+func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
+	userquery := "(SELECT user_id FROM users WHERE username = ?)"
+	query := "INSERT INTO message_cache(src_user, dest_user, message) VALUES (" + userquery + ", " + userquery + ", ?);"
+
+	// Attempt to run insert
+	_, err := db.Exec(query, src, dst, msg)
+	if err != nil {
+		return err
+	}
+
+	// Everything worked
+	return nil
 }

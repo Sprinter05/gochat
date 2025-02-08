@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"time"
 )
 
 /* TYPES */
@@ -83,6 +84,14 @@ func NewHeader(hdr []byte) Header {
 }
 
 /* PACKET FUNCTIONS */
+
+// Returns a byte array with the current unix timestamp
+func UnixStampNow() []byte {
+	t := time.Now().Unix()
+	p := make([]byte, binary.Size(t))
+	binary.AppendVarint(p, t)
+	return p
+}
 
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy

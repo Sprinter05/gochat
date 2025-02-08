@@ -100,9 +100,11 @@ func (h *Hub) userlist(online bool) string {
 
 	if online {
 		ret = ""
+		h.umut.Lock()
 		for _, v := range h.users {
 			str.WriteString(string(v.name) + "\n")
 		}
+		h.umut.Unlock()
 
 		l := str.Len()
 		ret = str.String()
@@ -116,6 +118,23 @@ func (h *Hub) userlist(online bool) string {
 
 	// Will return empty if nothing is found
 	return ret
+}
+
+// Returns an online user if it exists
+func (h *Hub) findUser(uname username) *User {
+	var find *User = nil
+
+	// Try to find the user
+	h.umut.Lock()
+	for _, v := range h.users {
+		if v.name == uname {
+			find = v
+			break
+		}
+	}
+	h.umut.Unlock()
+
+	return find
 }
 
 /* HUB LOGIN FUNCTIONS */
