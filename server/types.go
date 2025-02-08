@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rsa"
 	"database/sql"
+	"errors"
 	"log"
 	"math/rand"
 	"net"
@@ -50,13 +51,22 @@ type Hub struct {
 	verifs map[net.Conn]*Verif
 }
 
+/* INTERNAL ERRORS */
+
+var ErrorDeregistered error = errors.New("user has been deregistered")
+var ErrorDoesNotExist error = errors.New("data does not exist")
+var ErrorSessionExists error = errors.New("user is already logged in")
+var ErrorDuplicatedSession error = errors.New("user is logged in from another endpoint")
+var ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
+var ErrorNoAccount error = errors.New("user tried performing an operation with no account")
+
 /* AUXILIARY FUNCTIONS */
 
 // Help with packet creation by logging
 func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.ERR, id, gc.ErrorCode(err), nil)
 	if e != nil {
-		log.Println(e)
+		log.Printf("Error when creating ERR packet: %s\n", e)
 	} else {
 		cl.Write(pak)
 	}
@@ -66,7 +76,7 @@ func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 func sendOKPacket(id gc.ID, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.OK, id, gc.EmptyInfo, nil)
 	if e != nil {
-		log.Println(e)
+		log.Printf("Error when creating OK packet: %s\n", e)
 	} else {
 		cl.Write(pak)
 	}

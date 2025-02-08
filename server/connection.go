@@ -12,13 +12,14 @@ import (
 func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 	// Read header from the wire
 	if err := cl.ListenHeader(cmd); err != nil {
-		log.Println(err)
+		ip := cl.Conn.RemoteAddr().String()
+		log.Printf("Error reading header from %s: %s\n", ip, err)
 		// Connection closed
-		if err != gc.ErrorHeader {
+		if err == gc.ErrorConnection {
 			return err
 		}
-		//* Incorrect header
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
+		// Incorrect header
+		sendErrorPacket(cmd.HD.ID, gc.ErrorHeader, cl.Conn)
 	}
 	return nil
 }
@@ -26,13 +27,14 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	// Read payload from the wire
 	if err := cl.ListenPayload(cmd); err != nil {
-		log.Println(err)
+		ip := cl.Conn.RemoteAddr().String()
+		log.Printf("Error reading paylaod from %s: %s\n", ip, err)
 		// Connection closed
-		if err != gc.ErrorArguments && err != gc.ErrorMaxSize {
+		if err == gc.ErrorConnection {
 			return err
 		}
-		//* Incorrect payload
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
+		// Incorrect payload
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, cl.Conn)
 	}
 	return nil
 }

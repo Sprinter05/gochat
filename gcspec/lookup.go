@@ -71,6 +71,36 @@ var idToCode map[Action]byte = map[Action]byte{
 	SHTDWN: 0x0C,
 }
 
+var stringToCode map[string]Action = map[string]Action{
+	"OK":     OK,
+	"ERR":    ERR,
+	"REG":    REG,
+	"VERIF":  VERIF,
+	"REQ":    REQ,
+	"USRS":   USRS,
+	"RECIV":  RECIV,
+	"CONN":   CONN,
+	"MSG":    MSG,
+	"DISCN":  DISCN,
+	"DEREG":  DEREG,
+	"SHTDWN": SHTDWN,
+}
+
+var codeToString map[Action]string = map[Action]string{
+	OK:     "OK",
+	ERR:    "ERR",
+	REG:    "REG",
+	VERIF:  "VERIF",
+	REQ:    "REQ",
+	USRS:   "USRS",
+	RECIV:  "RECIV",
+	CONN:   "CONN",
+	MSG:    "MSG",
+	DISCN:  "DISCN",
+	DEREG:  "DEREG",
+	SHTDWN: "SHTDWN",
+}
+
 // Returns the ID associated to a byte code
 func CodeToID(b byte) Action {
 	v, ok := codeToid[b]
@@ -85,6 +115,24 @@ func IDToCode(a Action) byte {
 	v, ok := idToCode[a]
 	if !ok {
 		return 0x0
+	}
+	return v
+}
+
+// Returns the ID associated to a string
+func StringToCode(s string) Action {
+	v, ok := stringToCode[s]
+	if !ok {
+		return 0x0
+	}
+	return v
+}
+
+// Returns the ID associated to a string
+func CodeToString(i Action) string {
+	v, ok := codeToString[i]
+	if !ok {
+		return ""
 	}
 	return v
 }
@@ -116,25 +164,25 @@ func IDToArgs(a Action) int {
 /* ERROR CODES */
 
 // Determines a generic undefined error
-var ErrorUndefined error = errors.New("undefined problem")
+var ErrorUndefined error = errors.New("undefined problem occured")
 
 // Invalid operation performed
 var ErrorInvalid error = errors.New("invalid operation performed")
 
 // Content could not be found
-var ErrorNotFound error = errors.New("content not found")
+var ErrorNotFound error = errors.New("content can not be found")
 
 // Versions do not match
-var ErrorVersion error = errors.New("versions do not match")
+var ErrorVersion error = errors.New("server and client versions do not match")
 
 // Verification handshake failed
-var ErrorHandshake error = errors.New("handshake failed")
+var ErrorHandshake error = errors.New("handshake process failed")
 
 // Invalid arguments given
-var ErrorArguments error = errors.New("invalid arguments")
+var ErrorArguments error = errors.New("invalid arguments given")
 
 // Payload size too big
-var ErrorMaxSize error = errors.New("payload size too big")
+var ErrorMaxSize error = errors.New("size is too big")
 
 // Header processing failed
 var ErrorHeader error = errors.New("invalid header provided")
@@ -145,17 +193,21 @@ var ErrorNoSession error = errors.New("user is not connected")
 // User cannot be logged in
 var ErrorLogin error = errors.New("user can not be logged in")
 
+// Connection problems occured
+var ErrorConnection error = errors.New("connection problem occured")
+
 var errorCodes map[error]byte = map[error]byte{
-	ErrorUndefined: 0x00,
-	ErrorInvalid:   0x01,
-	ErrorNotFound:  0x02,
-	ErrorVersion:   0x03,
-	ErrorHandshake: 0x04,
-	ErrorArguments: 0x05,
-	ErrorMaxSize:   0x06,
-	ErrorHeader:    0x07,
-	ErrorNoSession: 0x08,
-	ErrorLogin:     0x09,
+	ErrorUndefined:  0x00,
+	ErrorInvalid:    0x01,
+	ErrorNotFound:   0x02,
+	ErrorVersion:    0x03,
+	ErrorHandshake:  0x04,
+	ErrorArguments:  0x05,
+	ErrorMaxSize:    0x06,
+	ErrorHeader:     0x07,
+	ErrorNoSession:  0x08,
+	ErrorLogin:      0x09,
+	ErrorConnection: 0x0A,
 }
 
 // Returns the error code or the empty information field if not found

@@ -15,8 +15,8 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Check if username size is correct
 	if len(u.name) > gc.UsernameSize {
-		//* Username too big
-		log.Println("Username too big")
+		// Username too big
+		log.Printf("Supplied username %s is too big\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -24,8 +24,8 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Assign public key
 	key, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		//* Incorrect with public key
-		log.Println(err)
+		// Incorrect with public key
+		log.Printf("Incorrect public key from %s when registering: %s\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -40,9 +40,9 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	ran := randText()
 	enc, err := gc.EncryptText(ran, u.pubkey)
 	if err != nil {
-		//* Error with cyphering
+		// Error with cyphering
 		//! This shouldnt happen, it means the database for the user is corrupted
-		log.Println(err)
+		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
 		return
 	}
@@ -51,7 +51,7 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	arg := []gc.Arg{gc.Arg(enc)}
 	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
-		log.Println(e)
+		log.Printf("Error when creating VERIF packet: %s\n", e)
 		return
 	}
 
@@ -86,16 +86,16 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// Check if the user is in verification
 	if !ok {
 		//! This shouldnt happen as its checked by the hub first
-		//* User is not being verified
-		log.Printf("%s is not in verification!\n", u.name)
+		// User is not being verified
+		log.Fatalf("%s is not in verification but it should!\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
 
 	// Check if the text is correct
 	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
-		//* Incorrect decyphered text
-		log.Printf("%s verification is incorrect!\n", u.name)
+		// Incorrect decyphered text
+		log.Printf("%s verification is incorrect\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
 	}
@@ -126,8 +126,8 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 
 	// If user is in none of the caches we error
 	if !uok && !vok {
-		//* Error since the user is not connected
-		log.Printf("Invalid operation performed!")
+		// Error since the user is not connected
+		log.Printf("%s trying to disconnect when not connected\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -141,9 +141,9 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 	// TODO: The entry should be removed during a catch up if the message cache is empty
 	err := removeKey(h.db, u.name)
 	if err != nil {
-		//* Error with deleting
+		// Error with deleting user key
 		//! This should never happen
-		log.Println(err)
+		log.Fatalf("Impossible to deregister user %s: %s!\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
 		return
 	}
@@ -156,26 +156,18 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 	// We query the user's key
 	k, err := queryUserKey(h.db, username(cmd.Args[0]))
 	if err != nil {
-		//* Error since the key couldnt be found
-		log.Println(err)
+		// Error since the key couldnt be found
+		log.Printf("Requested user can not be queried: %s\n", err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
-		return
-	}
-
-	// Check if the user queried is deregistered
-	if k == nil {
-		//* Error since the queried user has been deregistered
-		log.Printf("Queried %s has been deregistered!\n", u.name)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
 
 	// Turn the key into PEM format
 	p, e := gc.PubkeytoPEM(k)
 	if e != nil {
-		//* Failed to transform the public key
+		// Failed to transform the public key
 		//! This means the user's database is corrupted info
-		log.Println(e)
+		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -184,7 +176,7 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 	arg := []gc.Arg{gc.Arg(p)}
 	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
-		log.Println(e)
+		log.Printf("Error when creating REQ packet: %s\n", e)
 		return
 	}
 	u.conn.Write(pak)
@@ -203,8 +195,8 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 	} else if online == 0x00 {
 		usrs = h.userlist(false)
 	} else {
-		//* Error due to invalid argument in header info
-		log.Printf("Invalid user list argument!")
+		// Error due to invalid argument in header info
+		log.Printf("Invalid user list argument from %s\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -213,7 +205,7 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 	arg := []gc.Arg{gc.Arg([]byte(usrs))}
 	pak, e := gc.NewPacket(gc.USRS, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
-		log.Println(e)
+		log.Printf("Error when creating USRS packet: %s\n", e)
 		return
 	}
 	u.conn.Write(pak)
@@ -221,14 +213,14 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 
 func messageUser(h *Hub, u *User, cmd gc.Command) {
 	// Find information about the user
-	user := h.findUser(username(cmd.Args[0]))
-	if user != nil {
+	_, e := h.findUser(username(cmd.Args[0]))
+	if e == nil {
 		// We send the message directly to the connection
 		// Only the user changes as we keep the same cyphertext
 		arg := []gc.Arg{gc.Arg(u.name), gc.Arg(gc.UnixStampNow()), cmd.Args[2]}
 		pak, e := gc.NewPacket(gc.RECIV, cmd.HD.ID, gc.EmptyInfo, arg)
 		if e != nil {
-			log.Println(e)
+			log.Printf("Error when creating RECIV packet: %s\n", e)
 			return
 		}
 		u.conn.Write(pak)
@@ -239,8 +231,8 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 	uname := username(cmd.Args[0])
 	err := cacheMessage(h.db, u.name, uname, []byte(cmd.Args[2]))
 	if err != nil {
-		//* Error when inserting the message into the cache
-		log.Println(err)
+		// Error when inserting the message into the cache
+		log.Printf("Error when caching a message from %s\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
 	}

@@ -51,44 +51,49 @@ func (h *Hub) procRequest(r Request, u *User) {
 	// Check if the action can be performed
 	fun, ok := cmdTable[id]
 	if !ok {
-		log.Println("Invalid action performed at hub!")
+		// Invalid action is trying to be ran
+		log.Printf("No function asocciated to %s, ignoring request!\n", gc.CodeToString(id))
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 		return
 	}
 
-	// If the user is null we create a new one
-	var user *User
-	if u == nil {
-		user = &User{
-			conn: r.cl,
-		}
-	} else {
-		user = u
-	}
-
 	// TODO: Add "runners" per client that just run the request
-	fun(h, user, r.cmd)
+	fun(h, u, r.cmd)
 }
 
 // Check if a session is present using the auxiliary functions
 func (hub *Hub) checkSession(r Request) (*User, error) {
 	// Check the user session
-	user, err := hub.cachedLogin(r)
+	cached, err := hub.cachedLogin(r)
 	if err == nil {
 		// Valid user found in cache, serve request
-		return user, nil
-	} else if err != gc.ErrorNotFound {
+		return cached, nil
+	} else if err != ErrorDoesNotExist {
 		// We do not search in the DB if its a different error
 		return nil, err
 	}
 
 	// Query the database
-	user, err = hub.dbLogin(r)
-	if err == nil {
+	user, e := hub.dbLogin(r)
+	if e == nil {
+		// User found in database so we return it
 		return user, nil
+	} else if e != ErrorDoesNotExist {
+		// We do not create a new user if its a different error
+		return nil, e
 	}
 
-	// Fallthrough
-	return nil, nil
+	// Create a new user only if that is what was requested
+	if r.cmd.HD.Op != gc.REG {
+		// Cannot do anything else without an account
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+		return nil, ErrorNoAccount
+	}
+
+	// Newly created user
+	return &User{
+		conn: r.cl,
+	}, nil
 }
 
 /* HUB USER FUNCTIONS */
@@ -96,10 +101,10 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 // Lists all users in the server
 func (h *Hub) userlist(online bool) string {
 	var str strings.Builder
-	var ret string
+	var ret string = ""
+	var err error
 
 	if online {
-		ret = ""
 		h.umut.Lock()
 		for _, v := range h.users {
 			str.WriteString(string(v.name) + "\n")
@@ -113,7 +118,10 @@ func (h *Hub) userlist(online bool) string {
 		ret = ret[:l-1]
 	} else {
 		// Query database
-		ret, _ = queryUsernames(h.db)
+		ret, err = queryUsernames(h.db)
+		if err != nil {
+			log.Printf("Error querying username list: %s\n", err)
+		}
 	}
 
 	// Will return empty if nothing is found
@@ -121,58 +129,53 @@ func (h *Hub) userlist(online bool) string {
 }
 
 // Returns an online user if it exists
-func (h *Hub) findUser(uname username) *User {
-	var find *User = nil
-
+func (h *Hub) findUser(uname username) (*User, error) {
 	// Try to find the user
 	h.umut.Lock()
 	for _, v := range h.users {
 		if v.name == uname {
-			find = v
-			break
+			return v, nil
 		}
 	}
 	h.umut.Unlock()
 
-	return find
+	return nil, ErrorDoesNotExist
 }
 
 /* HUB LOGIN FUNCTIONS */
 
 // Check if there is a possible login from the database
+// Also makes sure that the operation is a handshake operation
 func (h *Hub) dbLogin(r Request) (*User, error) {
 	// Check that the operation is correct before querying the database
 	id := r.cmd.HD.Op
 	if id != gc.CONN && id != gc.VERIF {
-		//* If the user is being read from the DB its in handshake
+		// If the user is being read from the DB its in handshake
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-		return nil, gc.ErrorInvalid
+		return nil, ErrorProhibitedOperation
 	}
 
 	// Check if the user is in the database
 	u := username(r.cmd.Args[0])
 	key, e := queryUserKey(h.db, u)
-	if e == nil {
-		// If the key is null the user has been deregisterd
-		if key == nil {
-			return nil, gc.ErrorLogin
-		}
-
-		// User is in the database so we query it
-		u := &User{
-			conn:   r.cl,
-			name:   u,
-			pubkey: key,
-		}
-
-		// Return user
-		return u, nil
+	if e != nil {
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
+		return nil, e
 	}
 
-	return nil, gc.ErrorNotFound
+	// User is in the database so we query it
+	ret := &User{
+		conn:   r.cl,
+		name:   u,
+		pubkey: key,
+	}
+
+	// Return user
+	return ret, nil
 }
 
 // Check if the user is already logged in from the cache
+// Also makes sure that the operation is not trying to register or connect
 func (h *Hub) cachedLogin(r Request) (*User, error) {
 	id := r.cmd.HD.Op
 
@@ -180,9 +183,9 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	v, err := h.loggedConn(r.cl)
 	if err == nil {
 		if id == gc.REG || id == gc.CONN {
-			//* Can only register or connect if not in cache
+			// Can only register or connect if not in cache
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-			return nil, gc.ErrorInvalid
+			return nil, ErrorSessionExists
 		} else {
 			// User is cached and the session can be returned
 			return v, nil
@@ -191,13 +194,13 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 
 	// We check if the user is logged in from another IP
 	if h.userLogged(username(r.cmd.Args[0])) {
-		//* Cannot have two sessions of the same user
+		// Cannot have two sessions of the same user
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
-		return nil, gc.ErrorLogin
+		return nil, ErrorDuplicatedSession
 	}
 
 	// Otherwise we return the value
-	return nil, gc.ErrorNotFound
+	return nil, ErrorDoesNotExist
 }
 
 /* HUB CHECK FUNCTIONS */
@@ -227,7 +230,8 @@ func (hub *Hub) loggedConn(conn net.Conn) (*User, error) {
 		return v, nil
 	}
 
-	return nil, gc.ErrorNotFound
+	// User is not in the cache
+	return nil, ErrorDoesNotExist
 }
 
 // Function that distributes actions to run
@@ -243,10 +247,11 @@ func (hub *Hub) Run() {
 			r.cmd.Print()
 
 			// Check if the user can be served
-			u, e := hub.checkSession(r)
-			if e != nil {
-				log.Println(e)
-				continue
+			u, err := hub.checkSession(r)
+			if err != nil {
+				ip := r.cl.RemoteAddr().String()
+				log.Printf("Error checking session from %s: %s", ip, err)
+				continue // Next request
 			}
 
 			// Process the request

@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -21,19 +22,47 @@ func connectDB() *sql.DB {
 	// Connect to the database
 	db, err := sql.Open("mysql", access)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln(err)
 	}
 
 	// Test that the database works
 	e := db.Ping()
 	if e != nil {
-		fmt.Println(e)
+		log.Fatalln(e)
 	}
 
 	return db
 }
 
 /* QUERIES */
+
+// Lists all usernames in the database
+func queryUsernames(db *sql.DB) (string, error) {
+	var users string
+	query := "SELECT username FROM users;"
+
+	// Try to query all rows
+	rows, err := db.Query(query)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	// Iterate over the queried rows
+	for rows.Next() {
+		// Add the username
+		e := rows.Scan(&users)
+		if e != nil {
+			return "", e
+		}
+		// Append newline
+		users += "\n"
+	}
+
+	// Return result without the last newline
+	l := len(users)
+	return users[:l-1], nil
+}
 
 // Retrieves the user public key if it exists wih a nil net.Conn
 func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
@@ -46,14 +75,14 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// User does not exist
-			return nil, gc.ErrorNotFound
+			return nil, ErrorDoesNotExist
 		}
 		return nil, err
 	}
 
 	// Check if the user has been deregisterd
 	if pubkey == "" {
-		return nil, nil
+		return nil, ErrorDeregistered
 	}
 
 	// Turn key to rsa struct
@@ -92,34 +121,6 @@ func removeKey(db *sql.DB, uname username) error {
 	}
 
 	return nil
-}
-
-// Lists all usernames in the database
-func queryUsernames(db *sql.DB) (string, error) {
-	var users string
-	query := "SELECT username FROM users;"
-
-	// Try to query all rows
-	rows, err := db.Query(query)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	// Iterate over the queried rows
-	for rows.Next() {
-		// Add the username
-		e := rows.Scan(&users)
-		if e != nil {
-			return "", e
-		}
-		// Append newline
-		users += "\n"
-	}
-
-	// Return result without the last newline
-	l := len(users)
-	return users[:l-1], nil
 }
 
 // Adds a message to the users message cache

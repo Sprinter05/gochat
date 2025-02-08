@@ -21,7 +21,7 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 	// Read from the wire
 	b, err := cl.RD.ReadBytes('\n')
 	if err != nil {
-		return err
+		return ErrorConnection
 	}
 
 	// Make sure the size is appropaite
@@ -32,7 +32,7 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 	// Create and check the header
 	cmd.HD = NewHeader(b)
 	if err := cmd.HD.Check(); err != nil {
-		return ErrorHeader
+		return err
 	}
 
 	// Header processed
@@ -53,15 +53,14 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		// Read from the wire
 		b, err := cl.RD.ReadBytes('\n')
 		if err != nil {
-			return err
+			return ErrorConnection
 		}
 
 		// Write into the buffer and get length
 		l, err := buf.Write(b)
 		if err != nil {
-			//! May cause unexpected behaviour
-			buf.Reset()
-			continue
+			// This implies the payload is too big
+			return err
 		}
 		tot += l
 

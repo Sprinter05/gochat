@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"net"
+	"os"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 	"github.com/joho/godotenv"
@@ -11,7 +12,11 @@ import (
 
 // TODO: Better log handling method
 // TODO: env file relative path solution
+// TODO: Boolean functions for not found stuff
 func main() {
+	// Set up logging
+	log.SetOutput(os.Stdout)
+
 	// Load environment files
 	err := godotenv.Load("../.env")
 	if err != nil {
