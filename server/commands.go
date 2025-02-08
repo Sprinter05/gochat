@@ -58,6 +58,8 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	// Send the encrypted cyphertext
 	u.conn.Write(vpak)
 
+	// TODO: Use a context for cleaning up the connection with errors
+
 	// Add the user to the pending verifications
 	h.vmut.Lock()
 	h.verifs[u.conn] = &Verif{
@@ -82,6 +84,8 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	h.vmut.Lock()
 	verif, ok := h.verifs[u.conn]
 	h.vmut.Unlock()
+
+	// TODO: Use a context for cleaning up the connection with errors
 
 	// Check if the user is in verification
 	if !ok {

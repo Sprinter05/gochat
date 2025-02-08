@@ -42,7 +42,7 @@ type Command struct {
 func (c Command) Print() {
 	fmt.Println("-------- HEADER --------")
 	fmt.Printf("* Version: %d\n", c.HD.Ver)
-	fmt.Printf("* Action: %d\n", c.HD.Op)
+	fmt.Printf("* Action: %d (%s)\n", c.HD.Op, CodeToString(c.HD.Op))
 	fmt.Printf("* Info: %d\n", c.HD.Info)
 	fmt.Printf("* Args: %d\n", c.HD.Args)
 	fmt.Printf("* Length: %d\n", c.HD.Len)

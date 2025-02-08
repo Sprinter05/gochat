@@ -138,6 +138,7 @@ func CodeToString(i Action) string {
 }
 
 /* ARGUMENTS PER OPERATION */
+
 var idToArgs map[Action]uint8 = map[Action]uint8{
 	OK:     0,
 	ERR:    0,
