@@ -16,7 +16,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	// Check if username size is correct
 	if len(u.name) > gc.UsernameSize {
 		// Username too big
-		log.Printf("Supplied username %s is too big\n", u.name)
+		//log.Printf("Supplied username %s is too big\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -25,7 +25,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 	key, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		// Incorrect with public key
-		log.Printf("Incorrect public key from %s when registering: %s\n", u.name, err)
+		//log.Printf("Incorrect public key from %s when registering: %s\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -42,8 +42,8 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	if err != nil {
 		// Error with cyphering
 		//! This shouldnt happen, it means the database for the user is corrupted
-		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
+		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
 		return
 	}
 
@@ -87,15 +87,15 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	if !ok {
 		//! This shouldnt happen as its checked by the hub first
 		// User is not being verified
-		log.Fatalf("%s is not in verification but it should!\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		log.Fatalf("%s is not in verification but it should!\n", u.name)
 		return
 	}
 
 	// Check if the text is correct
 	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
 		// Incorrect decyphered text
-		log.Printf("%s verification is incorrect\n", u.name)
+		//log.Printf("%s verification is incorrect\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
 	}
@@ -127,7 +127,7 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 	// If user is in none of the caches we error
 	if !uok && !vok {
 		// Error since the user is not connected
-		log.Printf("%s trying to disconnect when not connected\n", u.name)
+		//log.Printf("%s trying to disconnect when not connected\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -142,9 +142,9 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 	err := removeKey(h.db, u.name)
 	if err != nil {
 		// Error with deleting user key
-		//! This should never happen
-		log.Fatalf("Impossible to deregister user %s: %s!\n", u.name, err)
+		//! This should never happen when deleting a key
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
+		log.Fatalf("Impossible to deregister user %s: %s!\n", u.name, err)
 		return
 	}
 
@@ -167,8 +167,8 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 	if e != nil {
 		// Failed to transform the public key
 		//! This means the user's database is corrupted info
-		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
 		return
 	}
 
@@ -196,8 +196,16 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 		usrs = h.userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		log.Printf("Invalid user list argument from %s\n", u.name)
+		//log.Printf("Invalid user list argument from %s\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		return
+	}
+
+	// No users found
+	if usrs == "" {
+		// Could not find any users matching
+		//log.Printf("No users exist when querying userlist\n")
+		sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
 		return
 	}
 
@@ -213,8 +221,8 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 
 func messageUser(h *Hub, u *User, cmd gc.Command) {
 	// Find information about the user
-	_, e := h.findUser(username(cmd.Args[0]))
-	if e == nil {
+	_, ok := h.findUser(username(cmd.Args[0]))
+	if ok {
 		// We send the message directly to the connection
 		// Only the user changes as we keep the same cyphertext
 		arg := []gc.Arg{gc.Arg(u.name), gc.Arg(gc.UnixStampNow()), cmd.Args[2]}

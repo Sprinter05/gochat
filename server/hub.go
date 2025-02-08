@@ -96,52 +96,6 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 	}, nil
 }
 
-/* HUB USER FUNCTIONS */
-
-// Lists all users in the server
-func (h *Hub) userlist(online bool) string {
-	var str strings.Builder
-	var ret string = ""
-	var err error
-
-	if online {
-		h.umut.Lock()
-		for _, v := range h.users {
-			str.WriteString(string(v.name) + "\n")
-		}
-		h.umut.Unlock()
-
-		l := str.Len()
-		ret = str.String()
-
-		// Remove the last newline
-		ret = ret[:l-1]
-	} else {
-		// Query database
-		ret, err = queryUsernames(h.db)
-		if err != nil {
-			log.Printf("Error querying username list: %s\n", err)
-		}
-	}
-
-	// Will return empty if nothing is found
-	return ret
-}
-
-// Returns an online user if it exists
-func (h *Hub) findUser(uname username) (*User, error) {
-	// Try to find the user
-	h.umut.Lock()
-	for _, v := range h.users {
-		if v.name == uname {
-			return v, nil
-		}
-	}
-	h.umut.Unlock()
-
-	return nil, ErrorDoesNotExist
-}
-
 /* HUB LOGIN FUNCTIONS */
 
 // Check if there is a possible login from the database
@@ -180,8 +134,8 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	id := r.cmd.HD.Op
 
 	// Check if its already IP cached
-	v, err := h.loggedConn(r.cl)
-	if err == nil {
+	v, ok := h.loggedConn(r.cl)
+	if ok {
 		if id == gc.REG || id == gc.CONN {
 			// Can only register or connect if not in cache
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
@@ -203,7 +157,37 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	return nil, ErrorDoesNotExist
 }
 
-/* HUB CHECK FUNCTIONS */
+/* HUB QUERY FUNCTIONS */
+
+// Lists all users in the server
+func (h *Hub) userlist(online bool) string {
+	var str strings.Builder
+	var ret string = ""
+	var err error
+
+	if online {
+		h.umut.Lock()
+		for _, v := range h.users {
+			str.WriteString(string(v.name) + "\n")
+		}
+		h.umut.Unlock()
+
+		l := str.Len()
+		ret = str.String()
+
+		// Remove the last newline
+		ret = ret[:l-1]
+	} else {
+		// Query database
+		ret, err = queryUsernames(h.db)
+		if err != nil {
+			log.Printf("Error querying username list: %s\n", err)
+		}
+	}
+
+	// Will return empty if nothing is found
+	return ret
+}
 
 // Find a username in case it might be logged in with a different IP
 func (hub *Hub) userLogged(uname username) bool {
@@ -220,19 +204,35 @@ func (hub *Hub) userLogged(uname username) bool {
 }
 
 // Check if a user is already loggedConn in
-func (hub *Hub) loggedConn(conn net.Conn) (*User, error) {
+func (hub *Hub) loggedConn(conn net.Conn) (*User, bool) {
 	// Check if IP is already cached
 	hub.umut.Lock()
 	v, ok := hub.users[conn]
 	hub.umut.Unlock()
 
 	if ok {
-		return v, nil
+		return v, true
 	}
 
 	// User is not in the cache
-	return nil, ErrorDoesNotExist
+	return nil, false
 }
+
+// Returns an online user if it exists
+func (h *Hub) findUser(uname username) (*User, bool) {
+	// Try to find the user
+	h.umut.Lock()
+	for _, v := range h.users {
+		if v.name == uname {
+			return v, true
+		}
+	}
+	h.umut.Unlock()
+
+	return nil, false
+}
+
+/* HUB MAIN */
 
 // Function that distributes actions to run
 func (hub *Hub) Run() {
@@ -250,7 +250,7 @@ func (hub *Hub) Run() {
 			u, err := hub.checkSession(r)
 			if err != nil {
 				ip := r.cl.RemoteAddr().String()
-				log.Printf("Error checking session from %s: %s", ip, err)
+				log.Printf("Error checking session from %s: %s\n", ip, err)
 				continue // Next request
 			}
 

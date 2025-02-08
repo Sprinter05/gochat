@@ -196,6 +196,9 @@ var ErrorLogin error = errors.New("user can not be logged in")
 // Connection problems occured
 var ErrorConnection error = errors.New("connection problem occured")
 
+// Empty result returned
+var ErrorEmpty error = errors.New("queried data is empty")
+
 var errorCodes map[error]byte = map[error]byte{
 	ErrorUndefined:  0x00,
 	ErrorInvalid:    0x01,
@@ -208,6 +211,7 @@ var errorCodes map[error]byte = map[error]byte{
 	ErrorNoSession:  0x08,
 	ErrorLogin:      0x09,
 	ErrorConnection: 0x0A,
+	ErrorEmpty:      0x0B,
 }
 
 // Returns the error code or the empty information field if not found
