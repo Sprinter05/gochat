@@ -19,7 +19,7 @@ func setup(t *testing.T) net.Conn {
 }
 
 func readFromConn(c *gc.Connection) gc.Command {
-	cmd := &gc.Command{}
+	cmd := new(gc.Command)
 	c.ListenHeader(cmd)
 	c.ListenPayload(cmd)
 	return *cmd

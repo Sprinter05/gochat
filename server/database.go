@@ -17,7 +17,10 @@ import (
 func connectDB() *sql.DB {
 	user := os.Getenv("DB_USER")
 	passwd := os.Getenv("DB_PSWD")
-	access := fmt.Sprintf("%s:%s@tcp(%s)/%s", user, passwd, "127.0.1.1:3306", "gochat")
+	addr := os.Getenv("DB_ADDR")
+	port := os.Getenv("DB_PORT")
+	dbname := os.Getenv("DB_NAME")
+	access := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, passwd, addr, port, dbname)
 
 	// Connect to the database
 	db, err := sql.Open("mysql", access)

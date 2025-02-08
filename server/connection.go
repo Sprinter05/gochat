@@ -45,15 +45,15 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 	defer cl.Conn.Close()
 
 	for {
-		cmd := gc.Command{}
+		cmd := new(gc.Command)
 
 		// Process the fields of the packet
-		if processHeader(cl, &cmd) != nil {
+		if processHeader(cl, cmd) != nil {
 			// Cleanup connection
 			hubcl <- cl.Conn
 			return
 		}
-		if processPayload(cl, &cmd) != nil {
+		if processPayload(cl, cmd) != nil {
 			// Cleanup connection
 			hubcl <- cl.Conn
 			return
@@ -71,7 +71,7 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 		// Send command to the hub
 		hubreq <- Request{
 			cl:  cl.Conn,
-			cmd: cmd,
+			cmd: *cmd,
 		}
 	}
 
