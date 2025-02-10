@@ -63,13 +63,13 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	ctx, cancl := context.WithCancel(context.Background())
 
 	// Add the user to the pending verifications
-	h.vmut.Lock()
-	h.verifs[u.conn] = &Verif{
+	h.verifs.mut.Lock()
+	h.verifs.tab[u.conn] = &Verif{
 		name:   u.name,
 		text:   string(ran),
 		cancel: cancl,
 	}
-	h.vmut.Unlock()
+	h.verifs.mut.Unlock()
 
 	// Wait timeout and remove the entry
 	go func(ctx context.Context) {
@@ -77,9 +77,9 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 		select {
 		case <-time.After(w):
 			// Verification timeout
-			h.vmut.Lock()
-			delete(h.verifs, u.conn)
-			h.vmut.Unlock()
+			h.verifs.mut.Lock()
+			delete(h.verifs.tab, u.conn)
+			h.verifs.mut.Unlock()
 		case <-ctx.Done():
 			// Verification complete
 			return
@@ -89,9 +89,9 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 
 func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// Get the text to verify
-	h.vmut.Lock()
-	verif, ok := h.verifs[u.conn]
-	h.vmut.Unlock()
+	h.verifs.mut.Lock()
+	verif, ok := h.verifs.tab[u.conn]
+	h.verifs.mut.Unlock()
 
 	// Check if the user is in verification
 	if !ok {
@@ -112,15 +112,15 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	}
 
 	// Everything went fine so we cache the user
-	h.umut.Lock()
-	h.users[u.conn] = u
-	h.umut.Unlock()
+	h.users.mut.Lock()
+	h.users.tab[u.conn] = u
+	h.users.mut.Unlock()
 
 	// We delete the pending verification and cancel the goroutine
 	verif.cancel()
-	h.vmut.Lock()
-	delete(h.verifs, u.conn)
-	h.vmut.Unlock()
+	h.verifs.mut.Lock()
+	delete(h.verifs.tab, u.conn)
+	h.verifs.mut.Unlock()
 
 	// Perform catchup for the logged in user
 	h.wrapCatchUp(u)
@@ -128,14 +128,14 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 
 func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 	// See if the user that wants to disconnect is even connected
-	h.umut.Lock()
-	_, uok := h.users[u.conn]
-	h.umut.Unlock()
+	h.users.mut.Lock()
+	_, uok := h.users.tab[u.conn]
+	h.users.mut.Unlock()
 
 	// See if its in verification
-	h.vmut.Lock()
-	_, vok := h.verifs[u.conn]
-	h.vmut.Unlock()
+	h.verifs.mut.Lock()
+	_, vok := h.verifs.tab[u.conn]
+	h.verifs.mut.Unlock()
 
 	// If user is in none of the caches we error
 	if !uok && !vok {

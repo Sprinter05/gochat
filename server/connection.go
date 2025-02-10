@@ -71,7 +71,7 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 		// Send command to the hub
 		hubreq <- Request{
 			cl:  cl.Conn,
-			cmd: *cmd,
+			cmd: cmd,
 		}
 	}
 

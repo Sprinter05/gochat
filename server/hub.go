@@ -28,20 +28,20 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 // Cleans any mention to a connection in the caches
 func (h *Hub) cleanupConn(cl net.Conn) {
 	// Cleanup on the users table
-	h.umut.Lock()
-	_, uok := h.users[cl]
+	h.users.mut.Lock()
+	_, uok := h.users.tab[cl]
 	if uok {
-		delete(h.users, cl)
+		delete(h.users.tab, cl)
 	}
-	h.umut.Unlock()
+	h.users.mut.Unlock()
 
 	// Cleanup on the verification table
-	h.vmut.Lock()
-	_, vok := h.verifs[cl]
+	h.verifs.mut.Lock()
+	_, vok := h.verifs.tab[cl]
 	if vok {
-		delete(h.verifs, cl)
+		delete(h.verifs.tab, cl)
 	}
-	h.vmut.Unlock()
+	h.verifs.mut.Unlock()
 }
 
 // Perform a catch up for a user
@@ -66,7 +66,10 @@ func (h *Hub) wrapCatchUp(u *User) {
 
 	// Get the timestamp of the newest message as threshold
 	ts := (*catch)[size].stamp
-	removeMessages(h.db, u.name, ts)
+	e := removeMessages(h.db, u.name, ts)
+	if e != nil {
+		log.Printf("Error when deleting cached messages from %s: %s", u.name, err)
+	}
 }
 
 // Check which action to perform
@@ -83,7 +86,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 	}
 
 	// TODO: Add "runners" per client that just run the request
-	fun(h, u, r.cmd)
+	fun(h, u, *r.cmd)
 }
 
 // Check if a session is present using the auxiliary functions
@@ -260,7 +263,7 @@ func (h *Hub) findUser(uname username) (*User, bool) {
 /* HUB MAIN */
 
 // Function that distributes actions to run
-func (hub *Hub) Run() {
+func (hub *Hub) Start() {
 	// Close database at exit
 	defer hub.db.Close()
 
@@ -288,5 +291,4 @@ func (hub *Hub) Run() {
 	}
 
 	// TODO: Add shutdown function for all clients
-	//time.Now().Unix()
 }

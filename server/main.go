@@ -29,13 +29,17 @@ func setupEnv() {
 func setupHub() *Hub {
 	// Run hun that processes commands
 	hub := Hub{
-		req:    make(chan Request),
-		clean:  make(chan net.Conn),
-		users:  make(map[net.Conn]*User),
-		verifs: make(map[net.Conn]*Verif),
-		db:     connectDB(),
+		req:   make(chan Request),
+		clean: make(chan net.Conn),
+		users: table[*User]{
+			tab: make(map[net.Conn]*User),
+		},
+		verifs: table[*Verif]{
+			tab: make(map[net.Conn]*Verif),
+		},
+		db: connectDB(),
 	}
-	go hub.Run()
+	go hub.Start()
 
 	return &hub
 }

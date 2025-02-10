@@ -22,6 +22,12 @@ type username string
 // Specifies the functions to run depending on the ID
 type actions func(*Hub, *User, gc.Command)
 
+// Table used for hub values
+type table[T any] struct {
+	mut sync.Mutex
+	tab map[net.Conn]T
+}
+
 // Specifies a verification in process
 type Verif struct {
 	name   username
@@ -32,7 +38,7 @@ type Verif struct {
 // Determines a request to be processed by a hug
 type Request struct {
 	cl  net.Conn
-	cmd gc.Command
+	cmd *gc.Command
 }
 
 // Specifies a logged in user
@@ -54,10 +60,15 @@ type Hub struct {
 	req    chan Request
 	clean  chan net.Conn
 	db     *sql.DB
-	umut   sync.Mutex
-	users  map[net.Conn]*User
-	vmut   sync.Mutex
-	verifs map[net.Conn]*Verif
+	users  table[*User]
+	verifs table[*Verif]
+	// TODO: runners here
+}
+
+// Identifies a runner for concurrency
+type Runner[T any] interface {
+	chan T
+	Run()
 }
 
 /* INTERNAL ERRORS */
