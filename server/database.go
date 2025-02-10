@@ -3,12 +3,13 @@ package main
 import (
 	"crypto/rsa"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
-	_ "github.com/go-sql-driver/mysql"
+	myqsl "github.com/go-sql-driver/mysql"
 )
 
 /* UTILITIES */
@@ -150,7 +151,13 @@ func removeUser(db *sql.DB, uname username) error {
 	// Attempt to delete the user
 	_, err := db.Exec(query, uname)
 	if err != nil {
-		// TODO: Check if the error is the constraint
+		// Unwrap error as driver error
+		var sqlerr *myqsl.MySQLError
+		ok := errors.As(err, &sqlerr)
+		// Check if the error is the foreign key constraint
+		if ok && sqlerr.Number == 1451 {
+			return ErrorDBConstraint
+		}
 		return err
 	}
 
