@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -47,35 +48,41 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 		return
 	}
 
-	// We create the packet with the enconded text
+	// We create and send the packet with the enconded text
 	arg := []gc.Arg{gc.Arg(enc)}
 	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
 		log.Printf("Error when creating VERIF packet: %s\n", e)
 		return
 	}
-
-	// Send the encrypted cyphertext
 	u.conn.Write(vpak)
 
-	// TODO: Use a context for cleaning up the connection with errors
+	// Context used for goroutine
+	ctx, cancl := context.WithCancel(context.Background())
 
 	// Add the user to the pending verifications
 	h.vmut.Lock()
 	h.verifs[u.conn] = &Verif{
-		name: u.name,
-		text: string(ran),
+		name:   u.name,
+		text:   string(ran),
+		cancel: cancl,
 	}
 	h.vmut.Unlock()
 
 	// Wait timeout and remove the entry
-	go func() {
-		w := time.Duration(gc.LoginTimeout)
-		time.Sleep(w * time.Minute)
-		h.vmut.Lock()
-		delete(h.verifs, u.conn)
-		h.vmut.Unlock()
-	}()
+	go func(ctx context.Context) {
+		w := time.Duration(gc.LoginTimeout) * time.Minute
+		select {
+		case <-time.After(w):
+			// Verification timeout
+			h.vmut.Lock()
+			delete(h.verifs, u.conn)
+			h.vmut.Unlock()
+		case <-ctx.Done():
+			// Verification complete
+			return
+		}
+	}(ctx)
 
 }
 
@@ -85,14 +92,11 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	verif, ok := h.verifs[u.conn]
 	h.vmut.Unlock()
 
-	// TODO: Use a context for cleaning up the connection with errors
-
 	// Check if the user is in verification
 	if !ok {
-		//! This shouldnt happen as its checked by the hub first
 		// User is not being verified
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
-		log.Fatalf("%s is not in verification but it should!\n", u.name)
+		log.Printf("%s is not in verification!\n", u.name)
 		return
 	}
 
@@ -100,6 +104,9 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
 		// Incorrect decyphered text
 		//log.Printf("%s verification is incorrect\n", u.name)
+		// We cancel the goroutine and remove the verification
+		verif.cancel()
+		h.cleanupConn(u.conn)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
 	}
@@ -112,6 +119,8 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// TODO: RECIVs should be handled here now in another thread
 
 	// We delete the pending verification
+	// and cancel the goroutine
+	verif.cancel()
 	h.vmut.Lock()
 	delete(h.verifs, u.conn)
 	h.vmut.Unlock()

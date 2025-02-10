@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rsa"
 	"database/sql"
 	"errors"
@@ -23,8 +24,9 @@ type actions func(*Hub, *User, gc.Command)
 
 // Specifies a verification in process
 type Verif struct {
-	name username
-	text string
+	name   username
+	text   string
+	cancel context.CancelFunc
 }
 
 // Determines a request to be processed by a hug
