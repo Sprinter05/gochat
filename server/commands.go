@@ -126,14 +126,19 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	if err != nil {
 		log.Printf("Could not query message quantity for %s: %s\n", u.name, err)
 	}
-	if size != 0 {
-		catch, err := queryMessages(h.db, u.name, size)
-		if err != nil {
-			log.Printf("Could not query messages for %s: %s\n", u.name, err)
-		}
-		// Do the catch up concurrently
-		go catchUp(u.conn, catch)
+	if size == 0 {
+		// Nothing to do
+		return
 	}
+
+	catch, err := queryMessages(h.db, u.name, size)
+	if err != nil {
+		log.Printf("Could not query messages for %s: %s\n", u.name, err)
+	}
+	// Do the catch up concurrently
+	go catchUp(u.conn, catch)
+
+	// TODO: Delete messages from the database
 }
 
 func disconnectUser(h *Hub, u *User, cmd gc.Command) {
