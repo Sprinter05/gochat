@@ -102,7 +102,6 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Check if the text is correct
 	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
-		// Incorrect decyphered text
 		//log.Printf("%s verification is incorrect\n", u.name)
 		// We cancel the goroutine and remove the verification
 		verif.cancel()
@@ -116,14 +115,25 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	h.users[u.conn] = u
 	h.umut.Unlock()
 
-	// TODO: RECIVs should be handled here now in another thread
-
-	// We delete the pending verification
-	// and cancel the goroutine
+	// We delete the pending verification and cancel the goroutine
 	verif.cancel()
 	h.vmut.Lock()
 	delete(h.verifs, u.conn)
 	h.vmut.Unlock()
+
+	// Perform a catch up if there are messages for the user
+	size, err := queryMessageQuantity(h.db, u.name)
+	if err != nil {
+		log.Printf("Could not query message quantity for %s: %s\n", u.name, err)
+	}
+	if size != 0 {
+		catch, err := queryMessages(h.db, u.name, size)
+		if err != nil {
+			log.Printf("Could not query messages for %s: %s\n", u.name, err)
+		}
+		// Do the catch up concurrently
+		go catchUp(u.conn, catch)
+	}
 }
 
 func disconnectUser(h *Hub, u *User, cmd gc.Command) {
@@ -209,7 +219,6 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 		return
 	}
 	u.conn.Write(pak)
-
 }
 
 func listUsers(h *Hub, u *User, cmd gc.Command) {

@@ -62,7 +62,7 @@ func (hd Header) Check() error {
 		return ErrorVersion
 	}
 
-	if hd.Op == NullID {
+	if hd.Op == NullOp {
 		return ErrorInvalid
 	}
 
@@ -90,6 +90,13 @@ func UnixStampNow() []byte {
 	t := time.Now().Unix()
 	p := make([]byte, binary.Size(t))
 	binary.AppendVarint(p, t)
+	return p
+}
+
+// Uses int64 format for conversion
+func UnixStampToBytes(s int64) []byte {
+	p := make([]byte, binary.Size(s))
+	binary.AppendVarint(p, s)
 	return p
 }
 

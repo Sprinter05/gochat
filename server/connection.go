@@ -76,3 +76,24 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 	}
 
 }
+
+// Catches up messages for the logged connection
+func catchUp(cl net.Conn, msgs []Message) {
+	for _, v := range msgs {
+		// Turn timestamp to byte array and create packet
+		stp := gc.UnixStampToBytes(v.stamp)
+		arg := []gc.Arg{
+			gc.Arg(v.sender),
+			gc.Arg(stp),
+			gc.Arg(v.message),
+		}
+
+		// The packet ID is not used for RECIV
+		pak, err := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)
+		if err != nil {
+			log.Printf("Error when creating RECIV packet: %s\n", err)
+			continue
+		}
+		cl.Write(pak)
+	}
+}

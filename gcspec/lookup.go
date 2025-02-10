@@ -6,7 +6,8 @@ import (
 
 /* PREDEFINED VALUES */
 
-const NullID Action = 0
+const NullOp Action = 0
+const NullID ID = 0
 const EmptyInfo byte = 0xFF
 
 const ProtocolVersion uint8 = 1
@@ -105,7 +106,7 @@ var codeToString map[Action]string = map[Action]string{
 func CodeToID(b byte) Action {
 	v, ok := codeToid[b]
 	if !ok {
-		return NullID
+		return NullOp
 	}
 	return v
 }
