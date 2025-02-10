@@ -61,6 +61,7 @@ var ErrorSessionExists error = errors.New("user is already logged in")
 var ErrorDuplicatedSession error = errors.New("user is logged in from another endpoint")
 var ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
 var ErrorNoAccount error = errors.New("user tried performing an operation with no account")
+var ErrorDBConstraint error = errors.New("database returned constraint on operation")
 
 /* AUXILIARY FUNCTIONS */
 

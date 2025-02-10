@@ -150,29 +150,35 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 func deregisterUser(h *Hub, u *User, cmd gc.Command) {
-	// Check if the message cache is empty
+	// Cleanup cache information in any case
+	defer h.cleanupConn(u.conn)
+
+	// Delete if message cache is empty
 	e := removeUser(h.db, u.name)
-	if e != nil {
-		// The user has cached messages
-		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		log.Fatalf("Impossible to check message cache for %s: %s!\n", u.name, e)
+	if e == nil {
+		// User deleted, everything worked
 		return
 	}
 
-	// If the cache is empty we can delete the user
+	// Undefined problem
+	if e != ErrorDBConstraint {
+		// Error when deleting that is not the constraint
+		//! This means a problem with the database occured
+		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
+		log.Fatalf("Undefined database error when deleting %s: %s!\n", u.name, e)
+		return
+	}
 
+	// The user has cached messages
 	// Attempt to remove the key from the user
 	err := removeKey(h.db, u.name)
 	if err != nil {
 		// Error with deleting user key
-		//! This should never happen when deleting a key
+		//! This should never happen when deleting this key
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
 		log.Fatalf("Impossible to deregister user %s: %s!\n", u.name, err)
 		return
 	}
-
-	// Cleanup cache information
-	h.cleanupConn(u.conn)
 }
 
 func requestUser(h *Hub, u *User, cmd gc.Command) {
