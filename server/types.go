@@ -24,8 +24,7 @@ type action func(*Hub, *User, gc.Command)
 
 // Table used for storing thread safe maps
 type table[T any] struct {
-	// TODO: RWMutex
-	mut sync.Mutex
+	mut sync.RWMutex
 	tab map[net.Conn]T
 }
 
@@ -89,21 +88,20 @@ var ErrorNoMessages error = errors.New("user has no messages to receive")
 
 func (t *table[T]) Add(i net.Conn, v T) {
 	t.mut.Lock()
+	defer t.mut.Unlock()
 	t.tab[i] = v
-	t.mut.Unlock()
 }
 
 func (t *table[T]) Remove(i net.Conn) {
 	t.mut.Lock()
+	defer t.mut.Unlock()
 	delete(t.tab, i)
-	t.mut.Unlock()
 }
 
 func (t *table[T]) Get(i net.Conn) (T, bool) {
-	look := t.tab
-	t.mut.Lock()
-	v, ok := look[i]
-	t.mut.Unlock()
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	v, ok := t.tab[i]
 
 	if !ok {
 		var zero T // Empty value of T
@@ -111,6 +109,23 @@ func (t *table[T]) Get(i net.Conn) (T, bool) {
 	}
 
 	return v, true
+}
+
+func (t *table[T]) GetAll() []T {
+	l := len(t.tab)
+	if l == 0 {
+		return nil
+	}
+
+	array := make([]T, l)
+
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	for _, v := range t.tab {
+		array = append(array, v)
+	}
+
+	return array
 }
 
 /* AUXILIARY FUNCTIONS */

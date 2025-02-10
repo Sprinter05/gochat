@@ -187,11 +187,10 @@ func (h *Hub) userlist(online bool) string {
 	var err error
 
 	if online {
-		h.users.mut.Lock()
-		for _, v := range h.users.tab {
+		list := h.users.GetAll()
+		for _, v := range list {
 			str.WriteString(string(v.name) + "\n")
 		}
-		h.users.mut.Unlock()
 
 		l := str.Len()
 		ret = str.String()
@@ -214,12 +213,12 @@ func (h *Hub) userlist(online bool) string {
 func (h *Hub) findUser(uname username) (*User, bool) {
 	// Try to find the user
 	h.users.mut.Lock()
+	defer h.users.mut.Unlock()
 	for _, v := range h.users.tab {
 		if v.name == uname {
 			return v, true
 		}
 	}
-	h.users.mut.Unlock()
 
 	return nil, false
 }
