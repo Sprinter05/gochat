@@ -14,10 +14,10 @@ import (
 // Sets up logging
 // Reads environment file from first cli argument
 func setupEnv() {
-	// Set up logging
+	// If we default to stderr it won't print unless debugged
 	log.SetOutput(os.Stdout)
 
-	// Load environment files
+	// Argument 0 is the pathname to the executable
 	err := godotenv.Load(os.Args[1])
 	if err != nil {
 		log.Fatalln("Failed to read environment file!")
@@ -43,44 +43,52 @@ func setupHub() *Hub {
 		db: connectDB(),
 	}
 
-	// Run hun that processes commands
 	go hub.Start()
 
 	return &hub
 }
 
 func main() {
-	// Create a new server listening on the adress
-	l, err := net.Listen("tcp4", "127.0.0.1:6969")
+	addr := fmt.Sprintf(
+		"%s:%s",
+		os.Getenv("SRV_ADDR"),
+		os.Getenv("SRV_PORT"),
+	)
+	l, err := net.Listen("tcp4", addr)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// Setup the server
 	setupEnv()
 	hub := setupHub()
 
-	// Print that the server is up and running
+	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for incoming connections! --\n")
 
 	// Endless loop to listen for connections
+	var count int
 	for {
+		// If we exceed the client count we just wait until a spot is free
+		if count == gc.MaxClients {
+			continue
+		}
+
 		c, err := l.Accept()
 		if err != nil {
 			log.Println(err)
-			continue // Keep accepting clients
+			// Keep accepting clients
+			continue
 		}
+		count++
 
-		// Set up new connection
 		cl := &gc.Connection{
 			Conn: c,
 			RD:   bufio.NewReader(c),
 		}
 
-		// Concurrently listen to that client
 		go ListenConnection(cl, hub.req, hub.clean)
 
-		// Create runner for the client
+		// Create runner that processes commands
 		send := make(chan Task)
 		hub.runners.Add(cl.Conn, send)
 		go runTask(send)

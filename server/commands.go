@@ -115,9 +115,7 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	verif.cancel()
 	h.users.Remove(u.conn)
 
-	// Perform catchup for the logged in user after acknowledge
 	sendOKPacket(cmd.HD.ID, u.conn)
-	h.wrapCatchUp(u)
 }
 
 func disconnectUser(h *Hub, u *User, cmd gc.Command) {
@@ -255,7 +253,7 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 			gc.Arg(gc.UnixStampNow()),
 			cmd.Args[2],
 		}
-		pak, e := gc.NewPacket(gc.RECIV, cmd.HD.ID, gc.EmptyInfo, arg)
+		pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)
 		if e != nil {
 			log.Printf("Error when creating RECIV packet: %s\n", e)
 			return
@@ -275,4 +273,37 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 		return
 	}
 	sendOKPacket(cmd.HD.ID, u.conn)
+}
+
+// Sends all cached messages to the client
+func recivMessages(h *Hub, u *User, cmd gc.Command) {
+	// Get the amount of messages needed
+	size, err := queryMessageQuantity(h.db, u.name)
+	if err != nil {
+		log.Printf("Could not query message quantity for %s: %s\n", u.name, err)
+	}
+	if size == 0 {
+		// Nothing to do
+		return
+	}
+
+	catch, err := queryMessages(h.db, u.name, size)
+	if err != nil {
+		log.Printf("Could not query messages for %s: %s\n", u.name, err)
+	}
+
+	// Do the catch up concurrently
+	chk := catchUp(u.conn, catch, cmd.HD.ID)
+	if chk != nil {
+		// We do not delete messages in this case
+		sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
+		return
+	}
+
+	// Get the timestamp of the newest message as threshold
+	ts := (*catch)[size].stamp
+	e := removeMessages(h.db, u.name, ts)
+	if e != nil {
+		log.Printf("Error when deleting cached messages from %s: %s", u.name, err)
+	}
 }

@@ -16,14 +16,15 @@ import (
 
 /* TYPE DEFINITIONS */
 
-// Has to conform to UsernameSize
+// Has to conform to UsernameSize on the specification
 type username string
 
 // Specifies the functions to run depending on the ID
 type action func(*Hub, *User, gc.Command)
 
-// Table used for hub values
+// Table used for storing thread safe maps
 type table[T any] struct {
+	// TODO: RWMutex
 	mut sync.Mutex
 	tab map[net.Conn]T
 }

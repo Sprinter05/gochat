@@ -21,6 +21,7 @@ const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx
 const CypherLength int = 128
 
 const LoginTimeout int = 2
+const MaxClients int = 20
 
 /* ACTION CODES */
 
@@ -164,8 +165,6 @@ func IDToArgs(a Action) int {
 }
 
 /* ERROR CODES */
-
-// TODO: Use an interface
 
 // Determines a generic undefined error
 var ErrorUndefined error = errors.New("undefined problem occured")

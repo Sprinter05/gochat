@@ -21,6 +21,7 @@ var cmdTable map[gc.Action]action = map[gc.Action]action{
 	gc.REQ:   requestUser,
 	gc.USRS:  listUsers,
 	gc.MSG:   messageUser,
+	gc.RECIV: recivMessages,
 }
 
 /* HUB WRAPPER FUNCTIONS */
@@ -50,34 +51,6 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 
 	// Remove runner from the table
 	h.runners.Remove(cl)
-}
-
-// Perform a catch up for a user
-func (h *Hub) wrapCatchUp(u *User) {
-	// Get the amount of messages needed
-	size, err := queryMessageQuantity(h.db, u.name)
-	if err != nil {
-		log.Printf("Could not query message quantity for %s: %s\n", u.name, err)
-	}
-	if size == 0 {
-		// Nothing to do
-		return
-	}
-
-	catch, err := queryMessages(h.db, u.name, size)
-	if err != nil {
-		log.Printf("Could not query messages for %s: %s\n", u.name, err)
-	}
-
-	// Do the catch up concurrently
-	go catchUp(u.conn, catch)
-
-	// Get the timestamp of the newest message as threshold
-	ts := (*catch)[size].stamp
-	e := removeMessages(h.db, u.name, ts)
-	if e != nil {
-		log.Printf("Error when deleting cached messages from %s: %s", u.name, err)
-	}
 }
 
 // Check which action to perform
