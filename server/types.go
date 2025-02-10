@@ -20,7 +20,7 @@ import (
 type username string
 
 // Specifies the functions to run depending on the ID
-type actions func(*Hub, *User, gc.Command)
+type action func(*Hub, *User, gc.Command)
 
 // Table used for hub values
 type table[T any] struct {
@@ -28,17 +28,18 @@ type table[T any] struct {
 	tab map[net.Conn]T
 }
 
-// Specifies a verification in process
-type Verif struct {
-	name   username
-	text   string
-	cancel context.CancelFunc
-}
-
-// Determines a request to be processed by a hug
+// Determines a request to be processed by a hub
 type Request struct {
 	cl  net.Conn
-	cmd *gc.Command
+	cmd gc.Command
+}
+
+// Specifies a task to be performed by a runner
+type Task struct {
+	fun  action
+	hub  *Hub
+	user *User
+	cmd  gc.Command
 }
 
 // Specifies a logged in user
@@ -46,6 +47,13 @@ type User struct {
 	conn   net.Conn
 	name   username
 	pubkey *rsa.PublicKey
+}
+
+// Specifies a verification in process
+type Verif struct {
+	name   username
+	text   string
+	cancel context.CancelFunc
 }
 
 // Specifies a message to be received
@@ -57,18 +65,12 @@ type Message struct {
 
 // Uses a mutex since functions are running concurrently
 type Hub struct {
-	req    chan Request
-	clean  chan net.Conn
-	db     *sql.DB
-	users  table[*User]
-	verifs table[*Verif]
-	// TODO: runners here
-}
-
-// Identifies a runner for concurrency
-type Runner[T any] interface {
-	chan T
-	Run()
+	db      *sql.DB
+	req     chan Request
+	clean   chan net.Conn
+	users   table[*User]
+	verifs  table[*Verif]
+	runners table[chan Task]
 }
 
 /* INTERNAL ERRORS */

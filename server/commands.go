@@ -34,6 +34,7 @@ func registerUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Register user into the database
 	insertUser(h.db, u.name, cmd.Args[1])
+	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 func connectUser(h *Hub, u *User, cmd gc.Command) {
@@ -102,7 +103,7 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 		//log.Printf("%s verification is incorrect\n", u.name)
 		// We cancel the goroutine and remove the verification
 		verif.cancel()
-		h.cleanupConn(u.conn)
+		h.cleanupUser(u.conn)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
 	}
@@ -114,7 +115,8 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	verif.cancel()
 	h.users.Remove(u.conn)
 
-	// Perform catchup for the logged in user
+	// Perform catchup for the logged in user after acknowledge
+	sendOKPacket(cmd.HD.ID, u.conn)
 	h.wrapCatchUp(u)
 }
 
@@ -133,13 +135,14 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 		return
 	}
 
-	// Othersie we cleanup
-	h.cleanupConn(u.conn)
+	// Otherwise we cleanup
+	h.cleanupUser(u.conn)
+	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 	// Cleanup cache information in any case
-	defer h.cleanupConn(u.conn)
+	defer h.cleanupUser(u.conn)
 
 	// Delete if message cache is empty
 	e := removeUser(h.db, u.name)
@@ -167,6 +170,8 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 		log.Fatalf("Impossible to deregister user %s: %s!\n", u.name, err)
 		return
 	}
+
+	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 func requestUser(h *Hub, u *User, cmd gc.Command) {
@@ -241,7 +246,7 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 
 func messageUser(h *Hub, u *User, cmd gc.Command) {
 	// Find information about the user
-	_, ok := h.findUser(username(cmd.Args[0]))
+	send, ok := h.findUser(username(cmd.Args[0]))
 	if ok {
 		// We send the message directly to the connection
 		// Only the user changes as we keep the same cyphertext
@@ -255,7 +260,8 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 			log.Printf("Error when creating RECIV packet: %s\n", e)
 			return
 		}
-		u.conn.Write(pak)
+		send.conn.Write(pak)
+		sendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
 
@@ -268,4 +274,5 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
 	}
+	sendOKPacket(cmd.HD.ID, u.conn)
 }

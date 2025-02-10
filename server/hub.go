@@ -12,7 +12,7 @@ import (
 
 // Function mapping table
 // ? Dangerous global variable
-var cmdTable map[gc.Action]actions = map[gc.Action]actions{
+var cmdTable map[gc.Action]action = map[gc.Action]action{
 	gc.REG:   registerUser,
 	gc.CONN:  connectUser,
 	gc.VERIF: verifyUser,
@@ -25,13 +25,31 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 
 /* HUB WRAPPER FUNCTIONS */
 
-// Cleans any mention to a connection in the caches
+// This should be run every time a connection ends
+// Doing so prevents leaking goroutines
 func (h *Hub) cleanupConn(cl net.Conn) {
+	// Close the channel to stop the goroutine
+	v, ok := h.runners.Get(cl)
+	if !ok {
+		// Nothing to cleanup
+		return
+	}
+	close(v)
+
+	// Remove the channel from the map
+	h.runners.Remove(cl)
+}
+
+// Cleans any mention to a connection in the caches
+func (h *Hub) cleanupUser(cl net.Conn) {
 	// Cleanup on the users table
 	h.users.Remove(cl)
 
 	// Cleanup on the verification table
 	h.verifs.Remove(cl)
+
+	// Remove runner from the table
+	h.runners.Remove(cl)
 }
 
 // Perform a catch up for a user
@@ -75,8 +93,20 @@ func (h *Hub) procRequest(r Request, u *User) {
 		return
 	}
 
-	// TODO: Add "runners" per client that just run the request
-	fun(h, u, *r.cmd)
+	// Check if the channel exists and create it otherwise
+	send, exist := h.runners.Get(u.conn)
+	if !exist {
+		// Error because the channel does not exist
+		log.Printf("Cannot send task to %s due to missing channel", u.name)
+	}
+
+	// Send task to the channel
+	send <- Task{
+		fun:  fun,
+		hub:  h,
+		user: u,
+		cmd:  r.cmd,
+	}
 }
 
 // Check if a session is present using the auxiliary functions
@@ -228,7 +258,8 @@ func (hub *Hub) Start() {
 	// Close database at exit
 	defer hub.db.Close()
 
-	// Read the channel until closed
+	// Not prepared for channels being closed
+	// Channels shouldnt be able to be closed
 	for {
 		select {
 		case r := <-hub.req:
@@ -247,6 +278,9 @@ func (hub *Hub) Start() {
 			hub.procRequest(r, u)
 		case c := <-hub.clean:
 			// Remove all mentions of the connection in the cache
+			hub.cleanupUser(c)
+
+			// Close all runners
 			hub.cleanupConn(c)
 		}
 	}

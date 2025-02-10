@@ -65,13 +65,10 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 			return
 		}
 
-		// Send OK reply to the client
-		sendOKPacket(cmd.HD.ID, cl.Conn)
-
 		// Send command to the hub
 		hubreq <- Request{
 			cl:  cl.Conn,
-			cmd: cmd,
+			cmd: *cmd,
 		}
 	}
 
@@ -95,5 +92,13 @@ func catchUp(cl net.Conn, msgs *[]Message) {
 			continue
 		}
 		cl.Write(pak)
+	}
+}
+
+// Wraps concurrency with each client's command
+func runTask(ch <-chan Task) {
+	// Will stop if the channel is closed
+	for t := range ch {
+		t.fun(t.hub, t.user, t.cmd)
 	}
 }

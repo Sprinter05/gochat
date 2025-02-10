@@ -27,7 +27,7 @@ func setupEnv() {
 // Creates a hub with all channels, caches and database
 // Indicates the hub to start running
 func setupHub() *Hub {
-	// Run hun that processes commands
+	// Allocate all data structures
 	hub := Hub{
 		req:   make(chan Request),
 		clean: make(chan net.Conn),
@@ -37,8 +37,13 @@ func setupHub() *Hub {
 		verifs: table[*Verif]{
 			tab: make(map[net.Conn]*Verif),
 		},
+		runners: table[chan Task]{
+			tab: make(map[net.Conn]chan Task),
+		},
 		db: connectDB(),
 	}
+
+	// Run hun that processes commands
 	go hub.Start()
 
 	return &hub
@@ -72,7 +77,12 @@ func main() {
 			RD:   bufio.NewReader(c),
 		}
 
-		// Concurrnetly listen to that client
+		// Concurrently listen to that client
 		go ListenConnection(cl, hub.req, hub.clean)
+
+		// Create runner for the client
+		send := make(chan Task)
+		hub.runners.Add(cl.Conn, send)
+		go runTask(send)
 	}
 }
