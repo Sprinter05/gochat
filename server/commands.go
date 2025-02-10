@@ -63,35 +63,31 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	ctx, cancl := context.WithCancel(context.Background())
 
 	// Add the user to the pending verifications
-	h.verifs.mut.Lock()
-	h.verifs.tab[u.conn] = &Verif{
+	ins := &Verif{
 		name:   u.name,
 		text:   string(ran),
 		cancel: cancl,
 	}
-	h.verifs.mut.Unlock()
+	h.verifs.Add(u.conn, ins)
 
 	// Wait timeout and remove the entry
-	go func(ctx context.Context) {
+	// This function is a closure
+	go func() {
 		w := time.Duration(gc.LoginTimeout) * time.Minute
 		select {
 		case <-time.After(w):
 			// Verification timeout
-			h.verifs.mut.Lock()
-			delete(h.verifs.tab, u.conn)
-			h.verifs.mut.Unlock()
+			h.verifs.Remove(u.conn)
 		case <-ctx.Done():
 			// Verification complete
 			return
 		}
-	}(ctx)
+	}()
 }
 
 func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// Get the text to verify
-	h.verifs.mut.Lock()
-	verif, ok := h.verifs.tab[u.conn]
-	h.verifs.mut.Unlock()
+	verif, ok := h.verifs.Get(u.conn)
 
 	// Check if the user is in verification
 	if !ok {
@@ -112,15 +108,11 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	}
 
 	// Everything went fine so we cache the user
-	h.users.mut.Lock()
-	h.users.tab[u.conn] = u
-	h.users.mut.Unlock()
+	h.users.Add(u.conn, u)
 
 	// We delete the pending verification and cancel the goroutine
 	verif.cancel()
-	h.verifs.mut.Lock()
-	delete(h.verifs.tab, u.conn)
-	h.verifs.mut.Unlock()
+	h.users.Remove(u.conn)
 
 	// Perform catchup for the logged in user
 	h.wrapCatchUp(u)
@@ -128,14 +120,10 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 
 func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 	// See if the user that wants to disconnect is even connected
-	h.users.mut.Lock()
-	_, uok := h.users.tab[u.conn]
-	h.users.mut.Unlock()
+	_, uok := h.users.Get(u.conn)
 
 	// See if its in verification
-	h.verifs.mut.Lock()
-	_, vok := h.verifs.tab[u.conn]
-	h.verifs.mut.Unlock()
+	_, vok := h.verifs.Get(u.conn)
 
 	// If user is in none of the caches we error
 	if !uok && !vok {

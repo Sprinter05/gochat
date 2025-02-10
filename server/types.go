@@ -82,6 +82,34 @@ var ErrorNoAccount error = errors.New("user tried performing an operation with n
 var ErrorDBConstraint error = errors.New("database returned constraint on operation")
 var ErrorNoMessages error = errors.New("user has no messages to receive")
 
+/* TABLE FUNCTIONS */
+
+func (t *table[T]) Add(i net.Conn, v T) {
+	t.mut.Lock()
+	t.tab[i] = v
+	t.mut.Unlock()
+}
+
+func (t *table[T]) Remove(i net.Conn) {
+	t.mut.Lock()
+	delete(t.tab, i)
+	t.mut.Unlock()
+}
+
+func (t *table[T]) Get(i net.Conn) (T, bool) {
+	look := t.tab
+	t.mut.Lock()
+	v, ok := look[i]
+	t.mut.Unlock()
+
+	if !ok {
+		var zero T // Empty value of T
+		return zero, false
+	}
+
+	return v, true
+}
+
 /* AUXILIARY FUNCTIONS */
 
 // Help with packet creation by logging

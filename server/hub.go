@@ -28,20 +28,10 @@ var cmdTable map[gc.Action]actions = map[gc.Action]actions{
 // Cleans any mention to a connection in the caches
 func (h *Hub) cleanupConn(cl net.Conn) {
 	// Cleanup on the users table
-	h.users.mut.Lock()
-	_, uok := h.users.tab[cl]
-	if uok {
-		delete(h.users.tab, cl)
-	}
-	h.users.mut.Unlock()
+	h.users.Remove(cl)
 
 	// Cleanup on the verification table
-	h.verifs.mut.Lock()
-	_, vok := h.verifs.tab[cl]
-	if vok {
-		delete(h.verifs.tab, cl)
-	}
-	h.verifs.mut.Unlock()
+	h.verifs.Remove(cl)
 }
 
 // Perform a catch up for a user
@@ -162,7 +152,7 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	id := r.cmd.HD.Op
 
 	// Check if its already IP cached
-	v, ok := h.loggedConn(r.cl)
+	v, ok := h.users.Get(r.cl)
 	if ok {
 		if id == gc.REG || id == gc.CONN {
 			// Can only register or connect if not in cache
@@ -175,7 +165,7 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	}
 
 	// We check if the user is logged in from another IP
-	if h.userLogged(username(r.cmd.Args[0])) {
+	if _, ok := h.findUser(username(r.cmd.Args[0])); ok {
 		// Cannot have two sessions of the same user
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
 		return nil, ErrorDuplicatedSession
@@ -194,11 +184,11 @@ func (h *Hub) userlist(online bool) string {
 	var err error
 
 	if online {
-		h.umut.Lock()
-		for _, v := range h.users {
+		h.users.mut.Lock()
+		for _, v := range h.users.tab {
 			str.WriteString(string(v.name) + "\n")
 		}
-		h.umut.Unlock()
+		h.users.mut.Unlock()
 
 		l := str.Len()
 		ret = str.String()
@@ -217,45 +207,16 @@ func (h *Hub) userlist(online bool) string {
 	return ret
 }
 
-// Find a username in case it might be logged in with a different IP
-func (hub *Hub) userLogged(uname username) bool {
-	hub.umut.Lock()
-	defer hub.umut.Unlock()
-	for _, v := range hub.users {
-		if v.name == uname {
-			return true
-		}
-	}
-
-	// User is not found
-	return false
-}
-
-// Check if a user is already loggedConn in
-func (hub *Hub) loggedConn(conn net.Conn) (*User, bool) {
-	// Check if IP is already cached
-	hub.umut.Lock()
-	v, ok := hub.users[conn]
-	hub.umut.Unlock()
-
-	if ok {
-		return v, true
-	}
-
-	// User is not in the cache
-	return nil, false
-}
-
 // Returns an online user if it exists
 func (h *Hub) findUser(uname username) (*User, bool) {
 	// Try to find the user
-	h.umut.Lock()
-	for _, v := range h.users {
+	h.users.mut.Lock()
+	for _, v := range h.users.tab {
 		if v.name == uname {
 			return v, true
 		}
 	}
-	h.umut.Unlock()
+	h.users.mut.Unlock()
 
 	return nil, false
 }
