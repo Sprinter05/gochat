@@ -69,7 +69,7 @@ func queryUsernames(db *sql.DB) (string, error) {
 
 // Retrieves the user public key if it exists wih a nil net.Conn
 func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
-	var pubkey string
+	var pubkey sql.NullString
 	query := "SELECT pubkey FROM users WHERE username = ?;"
 
 	// Query database
@@ -84,12 +84,12 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 	}
 
 	// Check if the user has been deregisterd
-	if pubkey == "" {
+	if !pubkey.Valid {
 		return nil, ErrorDeregistered
 	}
 
 	// Turn key to rsa struct
-	key, err := gc.PEMToPubkey([]byte(pubkey))
+	key, err := gc.PEMToPubkey([]byte(pubkey.String))
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 	return key, nil
 }
 
-/* INSERTIONS */
+/* INSERTIONS AND UPDATES */
 
 // Inserts a user into a database, key must be in PEM format
 func insertUser(db *sql.DB, uname username, pubkey []byte) error {
@@ -138,5 +138,22 @@ func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
 	}
 
 	// Everything worked
+	return nil
+}
+
+/* DELETIONS */
+
+// Removes a user from the database
+func removeUser(db *sql.DB, uname username) error {
+	query := "DELETE FROM users WHERE username = ?"
+
+	// Attempt to delete the user
+	_, err := db.Exec(query, uname)
+	if err != nil {
+		// TODO: Check if the error is the constraint
+		return err
+	}
+
+	// Attempt to delete
 	return nil
 }

@@ -150,8 +150,18 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 func deregisterUser(h *Hub, u *User, cmd gc.Command) {
+	// Check if the message cache is empty
+	e := removeUser(h.db, u.name)
+	if e != nil {
+		// The user has cached messages
+		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
+		log.Fatalf("Impossible to check message cache for %s: %s!\n", u.name, e)
+		return
+	}
+
+	// If the cache is empty we can delete the user
+
 	// Attempt to remove the key from the user
-	// TODO: The entry should be removed during a catch up if the message cache is empty
 	err := removeKey(h.db, u.name)
 	if err != nil {
 		// Error with deleting user key
