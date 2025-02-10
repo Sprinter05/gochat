@@ -49,7 +49,9 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 	}
 
 	// We create and send the packet with the enconded text
-	arg := []gc.Arg{gc.Arg(enc)}
+	arg := []gc.Arg{
+		gc.Arg(enc),
+	}
 	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
 		log.Printf("Error when creating VERIF packet: %s\n", e)
@@ -83,7 +85,6 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 			return
 		}
 	}(ctx)
-
 }
 
 func verifyUser(h *Hub, u *User, cmd gc.Command) {
@@ -121,24 +122,8 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	delete(h.verifs, u.conn)
 	h.vmut.Unlock()
 
-	// Perform a catch up if there are messages for the user
-	size, err := queryMessageQuantity(h.db, u.name)
-	if err != nil {
-		log.Printf("Could not query message quantity for %s: %s\n", u.name, err)
-	}
-	if size == 0 {
-		// Nothing to do
-		return
-	}
-
-	catch, err := queryMessages(h.db, u.name, size)
-	if err != nil {
-		log.Printf("Could not query messages for %s: %s\n", u.name, err)
-	}
-	// Do the catch up concurrently
-	go catchUp(u.conn, catch)
-
-	// TODO: Delete messages from the database
+	// Perform catchup for the logged in user
+	h.wrapCatchUp(u)
 }
 
 func disconnectUser(h *Hub, u *User, cmd gc.Command) {
@@ -217,7 +202,9 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 	}
 
 	// Otherwise we send the key to the user
-	arg := []gc.Arg{gc.Arg(p)}
+	arg := []gc.Arg{
+		gc.Arg(p),
+	}
 	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
 		log.Printf("Error when creating REQ packet: %s\n", e)
@@ -253,7 +240,9 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 	}
 
 	// We send the userlist
-	arg := []gc.Arg{gc.Arg([]byte(usrs))}
+	arg := []gc.Arg{
+		gc.Arg(usrs),
+	}
 	pak, e := gc.NewPacket(gc.USRS, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
 		log.Printf("Error when creating USRS packet: %s\n", e)
@@ -268,7 +257,11 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 	if ok {
 		// We send the message directly to the connection
 		// Only the user changes as we keep the same cyphertext
-		arg := []gc.Arg{gc.Arg(u.name), gc.Arg(gc.UnixStampNow()), cmd.Args[2]}
+		arg := []gc.Arg{
+			gc.Arg(u.name),
+			gc.Arg(gc.UnixStampNow()),
+			cmd.Args[2],
+		}
 		pak, e := gc.NewPacket(gc.RECIV, cmd.HD.ID, gc.EmptyInfo, arg)
 		if e != nil {
 			log.Printf("Error when creating RECIV packet: %s\n", e)

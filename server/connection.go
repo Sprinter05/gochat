@@ -78,8 +78,8 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 }
 
 // Catches up messages for the logged connection
-func catchUp(cl net.Conn, msgs []Message) {
-	for _, v := range msgs {
+func catchUp(cl net.Conn, msgs *[]Message) {
+	for _, v := range *msgs {
 		// Turn timestamp to byte array and create packet
 		stp := gc.UnixStampToBytes(v.stamp)
 		arg := []gc.Arg{

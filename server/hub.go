@@ -44,6 +44,31 @@ func (h *Hub) cleanupConn(cl net.Conn) {
 	h.vmut.Unlock()
 }
 
+// Perform a catch up for a user
+func (h *Hub) wrapCatchUp(u *User) {
+	// Get the amount of messages needed
+	size, err := queryMessageQuantity(h.db, u.name)
+	if err != nil {
+		log.Printf("Could not query message quantity for %s: %s\n", u.name, err)
+	}
+	if size == 0 {
+		// Nothing to do
+		return
+	}
+
+	catch, err := queryMessages(h.db, u.name, size)
+	if err != nil {
+		log.Printf("Could not query messages for %s: %s\n", u.name, err)
+	}
+
+	// Do the catch up concurrently
+	go catchUp(u.conn, catch)
+
+	// Get the timestamp of the newest message as threshold
+	ts := (*catch)[size].stamp
+	removeMessages(h.db, u.name, ts)
+}
+
 // Check which action to perform
 func (h *Hub) procRequest(r Request, u *User) {
 	id := r.cmd.HD.Op

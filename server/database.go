@@ -59,8 +59,8 @@ func queryMessageQuantity(db *sql.DB, uname username) (int, error) {
 
 // Gets all messages from the user
 // It is expected for the size to be queried previously
-func queryMessages(db *sql.DB, uname username, size int) ([]Message, error) {
-	query := "SELECT username, message, UNIX_TIMESTAMP(stamp) FROM message_cache mc JOIN users u ON mc.src_user = u.user_id WHERE mc.dest_user = (SELECT user_id FROM users WHERE username = ?);"
+func queryMessages(db *sql.DB, uname username, size int) (*[]Message, error) {
+	query := "SELECT username, message, UNIX_TIMESTAMP(stamp) FROM message_cache mc JOIN users u ON mc.src_user = u.user_id WHERE mc.dest_user = (SELECT user_id FROM users WHERE username = ?) ORDER BY stamp ASC;"
 
 	// Try to query all rows
 	rows, err := db.Query(query, uname)
@@ -86,7 +86,7 @@ func queryMessages(db *sql.DB, uname username, size int) ([]Message, error) {
 		}
 	}
 
-	return message, nil
+	return &message, nil
 }
 
 // Lists all usernames in the database
@@ -212,5 +212,19 @@ func removeUser(db *sql.DB, uname username) error {
 	}
 
 	// Attempt to delete
+	return nil
+}
+
+// Removes all cached messages from a user before a given stamp
+// This is done to prevent messages from being lost
+func removeMessages(db *sql.DB, uname username, stamp int64) error {
+	query := "DELETE FROM message_cache WHERE dest_user = (SELECT user_id FROM users WHERE username = ?) AND stamp <= FROM_UNIXTIME(?);"
+
+	// Attempt to delete the user
+	_, err := db.Exec(query, uname, stamp)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
