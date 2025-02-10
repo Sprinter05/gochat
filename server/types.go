@@ -42,6 +42,13 @@ type User struct {
 	pubkey *rsa.PublicKey
 }
 
+// Specifies a message to be received
+type Message struct {
+	sender  username
+	message string
+	stamp   int64
+}
+
 // Uses a mutex since functions are running concurrently
 type Hub struct {
 	req    chan Request
@@ -62,6 +69,7 @@ var ErrorDuplicatedSession error = errors.New("user is logged in from another en
 var ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
 var ErrorNoAccount error = errors.New("user tried performing an operation with no account")
 var ErrorDBConstraint error = errors.New("database returned constraint on operation")
+var ErrorNoMessages error = errors.New("user has no messages to receive")
 
 /* AUXILIARY FUNCTIONS */
 

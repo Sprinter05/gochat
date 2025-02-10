@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 	myqsl "github.com/go-sql-driver/mysql"
@@ -40,9 +41,57 @@ func connectDB() *sql.DB {
 
 /* QUERIES */
 
+func queryMessageQuantity(db *sql.DB, uname username) (int, error) {
+	var size int
+	query := "SELECT COUNT(*) FROM message_cache mc JOIN users u ON mc.src_user = u.user_id WHERE mc.dest_user = (SELECT user_id FROM users WHERE username = ?);"
+
+	// Query the amount of messages
+	row := db.QueryRow(query, string(uname))
+	err := row.Scan(&size)
+	if err != nil {
+		// Problem occurred
+		return -1, err
+	}
+
+	// Return the size of messages
+	return size, nil
+}
+
+// Gets all messages from the user
+// It is expected for the size to be queried previously
+func queryMessages(db *sql.DB, uname username, size int) ([]Message, error) {
+	query := "SELECT username, message, UNIX_TIMESTAMP(stamp) FROM message_cache mc JOIN users u ON mc.src_user = u.user_id WHERE mc.dest_user = (SELECT user_id FROM users WHERE username = ?);"
+
+	// Try to query all rows
+	rows, err := db.Query(query, uname)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// We allocate for the necessary messages
+	message := make([]Message, size)
+
+	// Get all messages
+	for i := 0; rows.Next(); i++ {
+		err := rows.Scan(
+			&message[i].sender,
+			&message[i].message,
+			&message[i].stamp,
+		)
+
+		// Problem occurred
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return message, nil
+}
+
 // Lists all usernames in the database
 func queryUsernames(db *sql.DB) (string, error) {
-	var users string
+	var users strings.Builder
 	query := "SELECT username FROM users;"
 
 	// Try to query all rows
@@ -54,18 +103,20 @@ func queryUsernames(db *sql.DB) (string, error) {
 
 	// Iterate over the queried rows
 	for rows.Next() {
+		var temp string
 		// Add the username
-		e := rows.Scan(&users)
+		e := rows.Scan(&temp)
 		if e != nil {
 			return "", e
 		}
-		// Append newline
-		users += "\n"
+		// Append to buffer
+		users.WriteString(temp + "\n")
 	}
 
 	// Return result without the last newline
-	l := len(users)
-	return users[:l-1], nil
+	l := users.Len()
+	slice := users.String()
+	return slice[:l-1], nil
 }
 
 // Retrieves the user public key if it exists wih a nil net.Conn
@@ -128,9 +179,8 @@ func removeKey(db *sql.DB, uname username) error {
 }
 
 // Adds a message to the users message cache
-func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
-	userquery := "(SELECT user_id FROM users WHERE username = ?)"
-	query := "INSERT INTO message_cache(src_user, dest_user, message) VALUES (" + userquery + ", " + userquery + ", ?);"
+func cacheMessage(db *sql.DB, src username, dst username, msg string) error {
+	query := "INSERT INTO message_cache(src_user, dest_user, message) VALUES ((SELECT user_id FROM users WHERE username = ?), (SELECT user_id FROM users WHERE username = ?), ?);"
 
 	// Attempt to run insert
 	_, err := db.Exec(query, src, dst, msg)
