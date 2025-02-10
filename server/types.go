@@ -86,31 +86,36 @@ var ErrorNoMessages error = errors.New("user has no messages to receive")
 
 /* TABLE FUNCTIONS */
 
+// Thread safe write
 func (t *table[T]) Add(i net.Conn, v T) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 	t.tab[i] = v
 }
 
+// Thread safe write
 func (t *table[T]) Remove(i net.Conn) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 	delete(t.tab, i)
 }
 
+// Thread safe read
 func (t *table[T]) Get(i net.Conn) (T, bool) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 	v, ok := t.tab[i]
 
 	if !ok {
-		var zero T // Empty value of T
-		return zero, false
+		// Empty value of T
+		var empty T
+		return empty, false
 	}
 
 	return v, true
 }
 
+// Thread safe read
 func (t *table[T]) GetAll() []T {
 	l := len(t.tab)
 	if l == 0 {
@@ -130,7 +135,7 @@ func (t *table[T]) GetAll() []T {
 
 /* AUXILIARY FUNCTIONS */
 
-// Help with packet creation by logging
+// Wrap the error sending function
 func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.ERR, id, gc.ErrorCode(err), nil)
 	if e != nil {
@@ -140,7 +145,7 @@ func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 	}
 }
 
-// Help with packet creation by logging
+// Wrap the acknowledgement sending function
 func sendOKPacket(id gc.ID, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.OK, id, gc.EmptyInfo, nil)
 	if e != nil {
@@ -150,13 +155,12 @@ func sendOKPacket(id gc.ID, cl net.Conn) {
 	}
 }
 
-// Generate a random text
+// Generate a random text using the specification charset
 func randText() []byte {
-	// Set seed
+	// Set seed in nanoseconds for better randomness
 	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
 	set := []byte(gc.CypherCharset)
 
-	// Generate random characters
 	r := make([]byte, gc.CypherLength)
 	for i := range r {
 		r[i] = set[seed.Intn(len(gc.CypherCharset))]

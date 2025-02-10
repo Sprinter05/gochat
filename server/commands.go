@@ -265,7 +265,7 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 
 	// Otherwise we just send it to the message cache
 	uname := username(cmd.Args[0])
-	err := cacheMessage(h.db, u.name, uname, string(cmd.Args[2]))
+	err := cacheMessage(h.db, u.name, uname, cmd.Args[2])
 	if err != nil {
 		// Error when inserting the message into the cache
 		log.Printf("Error when caching a message from %s\n", u.name)

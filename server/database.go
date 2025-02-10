@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rsa"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -12,6 +13,8 @@ import (
 	gc "github.com/Sprinter05/gochat/gcspec"
 	myqsl "github.com/go-sql-driver/mysql"
 )
+
+// TODO: Use prepared queries for faster performance
 
 /* UTILITIES */
 
@@ -71,11 +74,16 @@ func queryMessages(db *sql.DB, uname username, size int) (*[]Message, error) {
 	message := make([]Message, size)
 
 	for i := 0; rows.Next(); i++ {
+		var temp string
 		err := rows.Scan(
 			&message[i].sender,
-			&message[i].message,
+			&temp,
 			&message[i].stamp,
 		)
+
+		// Conversion from hex string
+		dec, _ := hex.DecodeString(temp)
+		message[i].message = string(dec)
 
 		if err != nil {
 			return nil, err
@@ -156,10 +164,12 @@ func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 }
 
 // Adds a message to the users message cache
-func cacheMessage(db *sql.DB, src username, dst username, msg string) error {
+// The message must be in byte array format since its encrypted
+func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
 	query := "INSERT INTO message_cache(src_user, dest_user, message) VALUES ((SELECT user_id FROM users WHERE username = ?), (SELECT user_id FROM users WHERE username = ?), ?);"
+	str := hex.EncodeToString(msg)
 
-	_, err := db.Exec(query, src, dst, msg)
+	_, err := db.Exec(query, src, dst, str)
 	if err != nil {
 		return err
 	}
