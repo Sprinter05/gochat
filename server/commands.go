@@ -177,7 +177,9 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 		return
 	}
 
+	// We reply with the username that was requested as well
 	arg := []gc.Arg{
+		cmd.Args[0],
 		gc.Arg(p),
 	}
 	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo, arg)
