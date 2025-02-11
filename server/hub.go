@@ -70,6 +70,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 		// Error because the channel does not exist
 		//! This should not happen unless the thread panicked
 		log.Fatalf("Cannot send task to %s due to missing channel!", u.name)
+		return
 	}
 
 	// Send task to the runner
