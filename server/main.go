@@ -12,7 +12,6 @@ import (
 )
 
 // TODO: Permission hierarchy
-// TODO: Review code
 // TODO: Review markdown
 
 // Sets up logging

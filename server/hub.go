@@ -11,17 +11,26 @@ import (
 /* DATA */
 
 // Function mapping table
-// ? Dangerous global variable
-var cmdTable map[gc.Action]action = map[gc.Action]action{
-	gc.REG:   registerUser,
-	gc.CONN:  connectUser,
-	gc.VERIF: verifyUser,
-	gc.DISCN: disconnectUser,
-	gc.DEREG: deregisterUser,
-	gc.REQ:   requestUser,
-	gc.USRS:  listUsers,
-	gc.MSG:   messageUser,
-	gc.RECIV: recivMessages,
+// We do not use a variable as a map cannot be const
+func lookupCommand(op gc.Action) (action, error) {
+	lookup := map[gc.Action]action{
+		gc.REG:   registerUser,
+		gc.CONN:  connectUser,
+		gc.VERIF: verifyUser,
+		gc.DISCN: disconnectUser,
+		gc.DEREG: deregisterUser,
+		gc.REQ:   requestUser,
+		gc.USRS:  listUsers,
+		gc.MSG:   messageUser,
+		gc.RECIV: recivMessages,
+	}
+
+	v, ok := lookup[op]
+	if !ok {
+		return nil, ErrorDoesNotExist
+	}
+
+	return v, nil
 }
 
 /* HUB WRAPPER FUNCTIONS */
@@ -57,30 +66,30 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 func (h *Hub) procRequest(r Request, u *User) {
 	id := r.cmd.HD.Op
 
-	fun, ok := cmdTable[id]
-	if !ok {
+	fun, err := lookupCommand(id)
+	if err != nil {
 		// Invalid action is trying to be ran
 		log.Printf("No function asocciated to %s, skipping request!\n", gc.CodeToString(id))
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 		return
 	}
 
-	_, exist := h.runners.Get(u.conn)
+	send, exist := h.runners.Get(u.conn)
 	if !exist {
 		// Error because the channel does not exist
 		//! This should not happen unless the thread panicked
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorUndefined, r.cl)
 		log.Fatalf("Cannot send task to %s due to missing channel!", u.name)
 		return
 	}
 
 	// Send task to the runner
-	fun(h, u, r.cmd)
-	/*send <- Task{
+	send <- Task{
 		fun:  fun,
 		hub:  h,
 		user: u,
 		cmd:  r.cmd,
-	}*/
+	}
 }
 
 // Check if a session is present using the auxiliary functions
@@ -161,7 +170,7 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 		// Operation check must be done after checking the cache
 		if id == gc.REG || id == gc.CONN {
 			// Can only register or connect if not in cache
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
 			return nil, ErrorSessionExists
 		} else {
 			// User is cached and the session can be returned

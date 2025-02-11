@@ -118,7 +118,7 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 	if !uok && !vok {
 		// If user is in none of the caches we error
 		//log.Printf("%s trying to disconnect when not connected\n", u.name)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorNoSession, u.conn)
 		return
 	}
 
@@ -164,7 +164,6 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 func requestUser(h *Hub, u *User, cmd gc.Command) {
 	k, err := queryUserKey(h.db, username(cmd.Args[0]))
 	if err != nil {
-		//? Better error handling depending on each case
 		//log.Printf("Requested user can not be queried: %s\n", err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
@@ -235,10 +234,9 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 	send, ok := h.findUser(username(cmd.Args[0]))
 	if ok {
 		// We send the message directly to the connection
-		//? Could use the timestamp from the command argument
 		arg := []gc.Arg{
 			gc.Arg(u.name),
-			gc.Arg(gc.UnixStampNow()),
+			cmd.Args[1],
 			cmd.Args[2],
 		}
 		pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)
