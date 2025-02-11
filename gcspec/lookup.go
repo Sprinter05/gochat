@@ -202,6 +202,9 @@ var ErrorConnection error = errors.New("connection problem occured")
 // Empty result returned
 var ErrorEmpty error = errors.New("queried data is empty")
 
+// Problem with packet creation or delivery
+var ErrorPacket error = errors.New("packet could not be delivered")
+
 var errorCodes map[error]byte = map[error]byte{
 	ErrorUndefined:  0x00,
 	ErrorInvalid:    0x01,
@@ -215,6 +218,7 @@ var errorCodes map[error]byte = map[error]byte{
 	ErrorLogin:      0x09,
 	ErrorConnection: 0x0A,
 	ErrorEmpty:      0x0B,
+	ErrorPacket:     0x0C,
 }
 
 // Returns the error code or the empty information field if not found

@@ -21,10 +21,14 @@ func setupEnv() {
 	// If we default to stderr it won't print unless debugged
 	log.SetOutput(os.Stdout)
 
+	if len(os.Args) < 2 {
+		log.Fatalf("Not enough arguments supplied!")
+	}
+
 	// Argument 0 is the pathname to the executable
 	err := godotenv.Load(os.Args[1])
 	if err != nil {
-		log.Fatalln("Failed to read environment file!")
+		log.Fatalf("Failed to read environment file: %s\n", err)
 	}
 }
 
@@ -53,6 +57,8 @@ func setupHub() *Hub {
 }
 
 func main() {
+	setupEnv()
+
 	addr := fmt.Sprintf(
 		"%s:%s",
 		os.Getenv("SRV_ADDR"),
@@ -63,7 +69,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	setupEnv()
 	hub := setupHub()
 
 	// Indicate that the server is up and running

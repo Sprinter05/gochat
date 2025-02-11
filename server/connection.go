@@ -10,7 +10,7 @@ import (
 // FUNCTIONS
 
 func processHeader(cl *gc.Connection, cmd *gc.Command) error {
-	// Read header from the wire
+	// Reads using the reader assigned to the connection
 	if err := cl.ListenHeader(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Printf("Error reading header from %s: %s\n", ip, err)
@@ -25,7 +25,7 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 }
 
 func processPayload(cl *gc.Connection, cmd *gc.Command) error {
-	// Read payload from the wire
+	// Reads using the reader assigned to the connection
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Printf("Error reading paylaod from %s: %s\n", ip, err)
@@ -39,22 +39,20 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	return nil
 }
 
-// Listens from a client and sends itself trough a channel for the hub to process
+// Listens from a client and communicates with the hub through the channels
 func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net.Conn) {
-	// Close connection when exiting
 	defer cl.Conn.Close()
 
 	for {
 		cmd := new(gc.Command)
 
-		// Process the fields of the packet
 		if processHeader(cl, cmd) != nil {
-			// Cleanup connection
+			// Cleanup connection on error
 			hubcl <- cl.Conn
 			return
 		}
 		if processPayload(cl, cmd) != nil {
-			// Cleanup connection
+			// Cleanup connection on error
 			hubcl <- cl.Conn
 			return
 		}
@@ -65,7 +63,6 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 			return
 		}
 
-		// Send command to the hub
 		hubreq <- Request{
 			cl:  cl.Conn,
 			cmd: *cmd,

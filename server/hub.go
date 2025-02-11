@@ -26,10 +26,9 @@ var cmdTable map[gc.Action]action = map[gc.Action]action{
 
 /* HUB WRAPPER FUNCTIONS */
 
-// This should be run every time a connection ends
+// This should be ran every time a connection ends
 // Doing so prevents leaking goroutines
 func (h *Hub) cleanupConn(cl net.Conn) {
-	// Close the channel to stop the goroutine
 	v, ok := h.runners.Get(cl)
 	if !ok {
 		// Nothing to cleanup
@@ -38,6 +37,7 @@ func (h *Hub) cleanupConn(cl net.Conn) {
 	close(v)
 
 	// Remove the channel from the map
+	// Otherwise a function could send to a closed channel, which would panic
 	h.runners.Remove(cl)
 }
 
@@ -57,23 +57,22 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 func (h *Hub) procRequest(r Request, u *User) {
 	id := r.cmd.HD.Op
 
-	// Check if the action can be performed
 	fun, ok := cmdTable[id]
 	if !ok {
 		// Invalid action is trying to be ran
-		log.Printf("No function asocciated to %s, ignoring request!\n", gc.CodeToString(id))
+		log.Printf("No function asocciated to %s, skipping request!\n", gc.CodeToString(id))
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 		return
 	}
 
-	// Check if the channel exists and create it otherwise
 	send, exist := h.runners.Get(u.conn)
 	if !exist {
 		// Error because the channel does not exist
-		log.Printf("Cannot send task to %s due to missing channel", u.name)
+		//! This should not happen unless the thread panicked
+		log.Fatalf("Cannot send task to %s due to missing channel!", u.name)
 	}
 
-	// Send task to the channel
+	// Send task to the runner
 	send <- Task{
 		fun:  fun,
 		hub:  h,
@@ -84,7 +83,6 @@ func (h *Hub) procRequest(r Request, u *User) {
 
 // Check if a session is present using the auxiliary functions
 func (hub *Hub) checkSession(r Request) (*User, error) {
-	// Check the user session
 	cached, err := hub.cachedLogin(r)
 	if err == nil {
 		// Valid user found in cache, serve request
@@ -94,7 +92,6 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 		return nil, err
 	}
 
-	// Query the database
 	user, e := hub.dbLogin(r)
 	if e == nil {
 		// User found in database so we return it
@@ -104,7 +101,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 		return nil, e
 	}
 
-	// Create a new user only if that is what was requested
+	// Create a new user only if that is what was requested (REG)
 	if r.cmd.HD.Op != gc.REG {
 		// Cannot do anything else without an account
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
@@ -112,6 +109,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 	}
 
 	// Newly created user
+	// The REG function is expected to fill the rest of the struct
 	return &User{
 		conn: r.cl,
 	}, nil
@@ -119,8 +117,8 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 
 /* HUB LOGIN FUNCTIONS */
 
-// Check if there is a possible login from the database
-// Also makes sure that the operation is a handshake operation
+// Check if there is a user entry from the database
+// Also makes sure that the operation is a handshake operation (CONN or VERIF)
 func (h *Hub) dbLogin(r Request) (*User, error) {
 	// Check that the operation is correct before querying the database
 	id := r.cmd.HD.Op
@@ -138,19 +136,16 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		return nil, e
 	}
 
-	// User is in the database so we query it
 	ret := &User{
 		conn:   r.cl,
 		name:   u,
 		pubkey: key,
 	}
-
-	// Return user
 	return ret, nil
 }
 
 // Check if the user is already logged in from the cache
-// Also makes sure that the operation is not trying to register or connect
+// Also makes sure that the operation is not handshake (REG or CONN)
 func (h *Hub) cachedLogin(r Request) (*User, error) {
 	id := r.cmd.HD.Op
 
@@ -205,15 +200,17 @@ func (h *Hub) userlist(online bool) string {
 		}
 	}
 
-	// Will return empty if nothing is found
+	// Will return "" if nothing is found
 	return ret
 }
 
-// Returns an online user if it exists
+// Returns an online user if it exists (thread-safe)
+// This function does not use the generic functions
+// Therefore it must use the asocciated mutex
 func (h *Hub) findUser(uname username) (*User, bool) {
 	// Try to find the user
-	h.users.mut.Lock()
-	defer h.users.mut.Unlock()
+	h.users.mut.RLock()
+	defer h.users.mut.RUnlock()
 	for _, v := range h.users.tab {
 		if v.name == uname {
 			return v, true
@@ -227,11 +224,10 @@ func (h *Hub) findUser(uname username) (*User, bool) {
 
 // Function that distributes actions to run
 func (hub *Hub) Start() {
-	// Close database at exit
 	defer hub.db.Close()
 
-	// Not prepared for channels being closed
-	// Channels shouldnt be able to be closed
+	// Does not handle channels being closed
+	// Channels used here SHOULDNT be closed
 	for {
 		select {
 		case r := <-hub.req:
@@ -246,13 +242,12 @@ func (hub *Hub) Start() {
 				continue // Next request
 			}
 
-			// Process the request
 			hub.procRequest(r, u)
 		case c := <-hub.clean:
-			// Remove all mentions of the connection in the cache
+			// Remove all mentions of the user in the cache
 			hub.cleanupUser(c)
 
-			// Close all runners
+			// Close runner for that connection
 			hub.cleanupConn(c)
 		}
 	}
