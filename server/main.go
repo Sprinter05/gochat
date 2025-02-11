@@ -12,7 +12,6 @@ import (
 )
 
 // TODO: Permission hierarchy
-// TODO: Review markdown
 
 // Sets up logging
 // Reads environment file from first cli argument
