@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"time"
 )
 
 /* TYPES */
@@ -41,7 +42,7 @@ type Command struct {
 func (c Command) Print() {
 	fmt.Println("-------- HEADER --------")
 	fmt.Printf("* Version: %d\n", c.HD.Ver)
-	fmt.Printf("* Action: %d\n", c.HD.Op)
+	fmt.Printf("* Action: %d (%s)\n", c.HD.Op, CodeToString(c.HD.Op))
 	fmt.Printf("* Info: %d\n", c.HD.Info)
 	fmt.Printf("* Args: %d\n", c.HD.Args)
 	fmt.Printf("* Length: %d\n", c.HD.Len)
@@ -84,7 +85,7 @@ func (hd Header) Check() error {
 		return ErrorVersion
 	}
 
-	if hd.Op == NullID {
+	if hd.Op == NullOp {
 		return ErrorInvalid
 	}
 
@@ -106,6 +107,21 @@ func NewHeader(hdr []byte) Header {
 }
 
 /* PACKET FUNCTIONS */
+
+// Returns a byte array with the current unix timestamp
+func UnixStampNow() []byte {
+	t := time.Now().Unix()
+	p := make([]byte, binary.Size(t))
+	binary.AppendVarint(p, t)
+	return p
+}
+
+// Uses int64 format for conversion
+func UnixStampToBytes(s int64) []byte {
+	p := make([]byte, binary.Size(s))
+	binary.AppendVarint(p, s)
+	return p
+}
 
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy
@@ -227,7 +243,7 @@ func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 		break // Fall through
 	}
 
-	return nil, errors.New("Key type is not RSA")
+	return nil, errors.New("key type is not RSA")
 }
 
 // Encrypts a text using OAEP with SHA256
@@ -236,7 +252,7 @@ func EncryptText(t []byte, pub *rsa.PublicKey) ([]byte, error) {
 	hash := sha256.New()
 	enc, err := rsa.EncryptOAEP(hash, rand.Reader, pub, t, nil)
 	if err != nil {
-		return nil, errors.New("Impossible to encrypt")
+		return nil, err
 	}
 	return enc, nil
 }
@@ -246,7 +262,7 @@ func DecryptText(e []byte, priv *rsa.PrivateKey) ([]byte, error) {
 	hash := sha256.New()
 	dec, err := rsa.DecryptOAEP(hash, rand.Reader, priv, e, nil)
 	if err != nil {
-		return nil, errors.New("Impossible to decrypt")
+		return nil, err
 	}
 	return dec, nil
 }

@@ -17,26 +17,21 @@ Both server and client headers share the following header format, which occupies
 ## Codes
 `0x0` is reserved as an invalid value.
 
-### Server Action Codes
-- `OK` = 0x01
-- `ERR` = 0x02
-- `VERIF` = 0x04
-- `REQ` = 0x05
-- `USRS` = 0x06
-- `RECIV` = 0x07
-- `SHTDWN` = 0x0C
-
-### Client Action Codes
+### Action Codes
 - `OK` = 0x01
 - `ERR` = 0x02
 - `REG` = 0x03
 - `VERIF` = 0x04
 - `REQ` = 0x05
 - `USRS` = 0x06
+- `RECIV` = 0x07
 - `CONN` = 0x08
 - `MSG` = 0x09
 - `DISCN` = 0x0A
 - `DEREG` = 0x0B
+- `SHTDWN` = 0x0C
+
+> **NOTE**: Not all actions can be used by both client and server, check the specification for details.
 
 ## Reply Info
 
@@ -44,7 +39,7 @@ If the action to perform requires no additional information the "**Reply Info**"
 
 > **NOTE**: Behaviour when the information value is incorrect is undefined.
 
-### Error Codes
+### Error Codes for ERR
 - `ERR_UNDEFINED` (0x00): Undefined generic error.
 - `ERR_INVALID` (0x01): Invalid operation performed.
 - `ERR_NOTFOUND` (0x02): Requested content not found.
@@ -53,9 +48,17 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_ARGS` (0x05): Invalid arguments provided.
 - `ERR_MAXSIZ` (0x06): Payload is too big.
 - `ERR_HEADER` (0x07): Invalid header provided.
-- `ERR_NOLOGIN` (0x08): User is not logged in.
+- `ERR_NOSESS` (0x08): User is not in a session.
+- `ERR_LOGIN` (0x09): User can not be logged in.
+- `ERR_CONN` (0x0A): Connection problem occured.
+- `ERR_EMPTY` (0x0B): Request yielded an empty result.
+- `ERR_PACKET` (0x0C): Problem with packet answer.
+
+### Argument for USRS
+- `OFFLINE` (0x0): Show all users.
+- `ONLINE` (0x1): Show online users.
 
 ## Body
 
 ### Payload
-The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A total of *n* reads will be performed, corresponding to the amount of arguments specified by the header. Each read will stop when **CRLF** is found. If the last read argument goes over the maximum payload size, it will be ignored and if there are any pending reads, they will not be performed.
+The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A total of *n* reads will be performed, corresponding to the amount of arguments specified by the header. Each read will stop when **CRLF** is found. If at any point the payload goes over the maximum allowed size, an error will be produced.

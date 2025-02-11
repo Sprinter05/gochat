@@ -6,7 +6,8 @@ import (
 
 /* PREDEFINED VALUES */
 
-const NullID Action = 0
+const NullOp Action = 0
+const NullID ID = 0
 const EmptyInfo byte = 0xFF
 
 const ProtocolVersion uint8 = 1
@@ -18,6 +19,9 @@ const UsernameSize int = 32
 
 const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
 const CypherLength int = 128
+
+const LoginTimeout int = 2
+const MaxClients int = 20
 
 /* ACTION CODES */
 
@@ -103,7 +107,7 @@ var codeToString map[Action]string = map[Action]string{
 func CodeToID(b byte) Action {
 	v, ok := codeToid[b]
 	if !ok {
-		return NullID
+		return NullOp
 	}
 	return v
 }
@@ -135,45 +139,86 @@ func CodeToString(i Action) string {
 	return v
 }
 
+/* ARGUMENTS PER OPERATION */
+
+var idToArgs map[Action]uint8 = map[Action]uint8{
+	OK:     0,
+	ERR:    0,
+	REG:    2,
+	VERIF:  2,
+	REQ:    1,
+	USRS:   0,
+	RECIV:  3,
+	CONN:   1,
+	MSG:    3,
+	DISCN:  0,
+	DEREG:  0,
+	SHTDWN: 0,
+}
+
+func IDToArgs(a Action) int {
+	v, ok := idToArgs[a]
+	if !ok {
+		return -1
+	}
+	return int(v)
+}
+
 /* ERROR CODES */
 
 // Determines a generic undefined error
-var ErrorUndefined error = errors.New("Undefined problem")
+var ErrorUndefined error = errors.New("undefined problem occured")
 
 // Invalid operation performed
-var ErrorInvalid error = errors.New("Invalid operation performed")
+var ErrorInvalid error = errors.New("invalid operation performed")
 
 // Content could not be found
-var ErrorNotFound error = errors.New("Content not found")
+var ErrorNotFound error = errors.New("content can not be found")
 
 // Versions do not match
-var ErrorVersion error = errors.New("Versions do not match")
+var ErrorVersion error = errors.New("server and client versions do not match")
 
 // Verification handshake failed
-var ErrorHandshake error = errors.New("Handshake failed")
+var ErrorHandshake error = errors.New("handshake process failed")
 
 // Invalid arguments given
-var ErrorArguments error = errors.New("Invalid arguments")
+var ErrorArguments error = errors.New("invalid arguments given")
 
 // Payload size too big
-var ErrorMaxSize error = errors.New("Payload size too big")
+var ErrorMaxSize error = errors.New("size is too big")
 
 // Header processing failed
-var ErrorHeader error = errors.New("Invalid header provided")
+var ErrorHeader error = errors.New("invalid header provided")
 
 // User is not logged in
-var ErrorNoSession error = errors.New("User is not connected")
+var ErrorNoSession error = errors.New("user is not connected")
+
+// User cannot be logged in
+var ErrorLogin error = errors.New("user can not be logged in")
+
+// Connection problems occured
+var ErrorConnection error = errors.New("connection problem occured")
+
+// Empty result returned
+var ErrorEmpty error = errors.New("queried data is empty")
+
+// Problem with packet creation or delivery
+var ErrorPacket error = errors.New("packet could not be delivered")
 
 var errorCodes map[error]byte = map[error]byte{
-	ErrorUndefined: 0x00,
-	ErrorInvalid:   0x01,
-	ErrorNotFound:  0x02,
-	ErrorVersion:   0x03,
-	ErrorHandshake: 0x04,
-	ErrorArguments: 0x05,
-	ErrorMaxSize:   0x06,
-	ErrorHeader:    0x07,
-	ErrorNoSession: 0x08,
+	ErrorUndefined:  0x00,
+	ErrorInvalid:    0x01,
+	ErrorNotFound:   0x02,
+	ErrorVersion:    0x03,
+	ErrorHandshake:  0x04,
+	ErrorArguments:  0x05,
+	ErrorMaxSize:    0x06,
+	ErrorHeader:     0x07,
+	ErrorNoSession:  0x08,
+	ErrorLogin:      0x09,
+	ErrorConnection: 0x0A,
+	ErrorEmpty:      0x0B,
+	ErrorPacket:     0x0C,
 }
 
 var codeToError map[byte]error = map[byte]error{

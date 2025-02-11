@@ -3,7 +3,6 @@ package gcspec
 import (
 	"bufio"
 	"bytes"
-	"io"
 	"net"
 )
 
@@ -22,7 +21,7 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 	// Read from the wire
 	b, err := cl.RD.ReadBytes('\n')
 	if err != nil {
-		return err
+		return ErrorConnection
 	}
 
 	// Make sure the size is appropaite
@@ -33,7 +32,7 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 	// Create and check the header
 	cmd.HD = NewHeader(b)
 	if err := cmd.HD.Check(); err != nil {
-		return ErrorHeader
+		return err
 	}
 
 	// Header processed
@@ -54,18 +53,14 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		// Read from the wire
 		b, err := cl.RD.ReadBytes('\n')
 		if err != nil {
-			if err == io.EOF {
-				return ErrorArguments
-			}
-			return err
+			return ErrorConnection
 		}
 
 		// Write into the buffer and get length
 		l, err := buf.Write(b)
 		if err != nil {
-			//! May cause unexpected behaviour
-			buf.Reset()
-			continue
+			// This implies the payload is too big
+			return err
 		}
 		tot += l
 
@@ -75,7 +70,8 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		}
 
 		// Check if it ends in CRLF
-		if string(b[l-2]) == "\r" {
+		// Also checks if it has at leas CRLF and 1 byte of data
+		if len(b) >= 3 && string(b[l-2]) == "\r" {
 			b := buf.Bytes()
 			siz := buf.Len()
 
