@@ -47,7 +47,7 @@ To start messaging a user, the client application must request the public key fr
 
 If the user exists, an acknowledgment will be replied, followed by the requested public key, otherwise an error will be given.
 
-`REQ <rsa_pub>` _Server_
+`REQ <username> <rsa_pub>` _Server_
 
 ### Listing all users
 
