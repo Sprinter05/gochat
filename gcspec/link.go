@@ -70,7 +70,8 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		}
 
 		// Check if it ends in CRLF
-		if string(b[l-2]) == "\r" {
+		// Also checks if it has at leas CRLF and 1 byte
+		if len(b) < 3 || string(b[l-2]) == "\r" {
 			b := buf.Bytes()
 			siz := buf.Len()
 

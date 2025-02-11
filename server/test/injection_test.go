@@ -11,7 +11,7 @@ import (
 )
 
 func setup(t *testing.T) net.Conn {
-	l, err := net.Dial("tcp4", "127.0.0.1:6969")
+	l, err := net.Dial("tcp4", "127.0.0.1:9037")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,8 @@ func TestREG(t *testing.T) {
 	}
 	l.Write(test1)
 
-	readFromConn(conn) // ignored OK
+	r1 := readFromConn(conn) // ignored OK
+	r1.Print()
 
 	// Login
 	p2 := []gc.Arg{gc.Arg("Sprinter05")}
@@ -74,8 +75,8 @@ func TestREG(t *testing.T) {
 	}
 	l.Write(test2)
 
-	readFromConn(conn)         // ignored OK
 	vpak := readFromConn(conn) // VERIF packet
+	vpak.Print()
 
 	dec, _ := gc.DecryptText(vpak.Args[0], v)
 
@@ -86,4 +87,7 @@ func TestREG(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Write(test3)
+
+	r2 := readFromConn(conn) // OK packet
+	r2.Print()
 }

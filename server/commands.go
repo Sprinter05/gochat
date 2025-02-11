@@ -105,7 +105,7 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 	// We modify the tables and cancel the goroutine
 	verif.cancel()
 	h.users.Add(u.conn, u)
-	h.users.Remove(u.conn)
+	h.verifs.Remove(u.conn)
 
 	sendOKPacket(cmd.HD.ID, u.conn)
 }

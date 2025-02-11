@@ -65,7 +65,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 		return
 	}
 
-	send, exist := h.runners.Get(u.conn)
+	_, exist := h.runners.Get(u.conn)
 	if !exist {
 		// Error because the channel does not exist
 		//! This should not happen unless the thread panicked
@@ -74,12 +74,13 @@ func (h *Hub) procRequest(r Request, u *User) {
 	}
 
 	// Send task to the runner
-	send <- Task{
+	fun(h, u, r.cmd)
+	/*send <- Task{
 		fun:  fun,
 		hub:  h,
 		user: u,
 		cmd:  r.cmd,
-	}
+	}*/
 }
 
 // Check if a session is present using the auxiliary functions
@@ -121,20 +122,24 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 // Check if there is a user entry from the database
 // Also makes sure that the operation is a handshake operation (CONN or VERIF)
 func (h *Hub) dbLogin(r Request) (*User, error) {
-	// Check that the operation is correct before querying the database
-	id := r.cmd.HD.Op
-	if id != gc.CONN && id != gc.VERIF {
-		// If the user is being read from the DB its in handshake
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-		return nil, ErrorProhibitedOperation
-	}
 
 	// Check if the user is in the database
 	u := username(r.cmd.Args[0])
 	key, e := queryUserKey(h.db, u)
 	if e != nil {
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
+		if e != ErrorDoesNotExist {
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
+		}
 		return nil, e
+	}
+
+	// Check that the operation is correct
+	// Must be done after querying the database
+	id := r.cmd.HD.Op
+	if id != gc.CONN && id != gc.VERIF {
+		// If the user is being read from the DB its in handshake
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+		return nil, ErrorProhibitedOperation
 	}
 
 	ret := &User{
@@ -153,6 +158,7 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	// Check if its already IP cached
 	v, ok := h.users.Get(r.cl)
 	if ok {
+		// Operation check must be done after checking the cache
 		if id == gc.REG || id == gc.CONN {
 			// Can only register or connect if not in cache
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
