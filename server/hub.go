@@ -151,9 +151,14 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		return nil, ErrorProhibitedOperation
 	}
 
+	// We do not need to check the error
+	// The part where we check the key already does
+	p, _ := queryUserPerms(h.db, u)
+
 	ret := &User{
 		conn:   r.cl,
 		name:   u,
+		perms:  p,
 		pubkey: key,
 	}
 	return ret, nil

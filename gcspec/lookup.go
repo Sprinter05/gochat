@@ -37,7 +37,11 @@ const (
 	DISCN
 	DEREG
 	SHTDWN
+	ADMIN
+	SWAP
 )
+
+//? Reduce the amount of tables
 
 var codeToid map[byte]Action = map[byte]Action{
 	0x01: OK,
@@ -52,6 +56,8 @@ var codeToid map[byte]Action = map[byte]Action{
 	0x0A: DISCN,
 	0x0B: DEREG,
 	0x0C: SHTDWN,
+	0x0D: ADMIN,
+	0x0E: SWAP,
 }
 
 var idToCode map[Action]byte = map[Action]byte{
@@ -67,6 +73,8 @@ var idToCode map[Action]byte = map[Action]byte{
 	DISCN:  0x0A,
 	DEREG:  0x0B,
 	SHTDWN: 0x0C,
+	ADMIN:  0x0D,
+	SWAP:   0x0E,
 }
 
 var stringToCode map[string]Action = map[string]Action{
@@ -82,6 +90,8 @@ var stringToCode map[string]Action = map[string]Action{
 	"DISCN":  DISCN,
 	"DEREG":  DEREG,
 	"SHTDWN": SHTDWN,
+	"ADMIN":  ADMIN,
+	"SWAP":   SWAP,
 }
 
 var codeToString map[Action]string = map[Action]string{
@@ -97,6 +107,8 @@ var codeToString map[Action]string = map[Action]string{
 	DISCN:  "DISCN",
 	DEREG:  "DEREG",
 	SHTDWN: "SHTDWN",
+	ADMIN:  "ADMIN",
+	SWAP:   "SWAP",
 }
 
 // Returns the ID associated to a byte code
@@ -150,6 +162,8 @@ var idToArgs map[Action]uint8 = map[Action]uint8{
 	DISCN:  0,
 	DEREG:  0,
 	SHTDWN: 0,
+	ADMIN:  0, // Special case, can be more
+	SWAP:   1,
 }
 
 func IDToArgs(a Action) int {
@@ -210,6 +224,9 @@ var ErrorEmpty error = GCError{0xB, "queried data is empty"}
 
 // Problem with packet creation or delivery
 var ErrorPacket error = GCError{0xC, "packet could not be delivered"}
+
+// Not enough privileges to runa ction
+var ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
 
 // Returns the error code or the empty information field if not found
 func ErrorCode(err error) byte {

@@ -30,6 +30,8 @@ Both server and client headers share the following header format, which occupies
 - `DISCN` = 0x0A
 - `DEREG` = 0x0B
 - `SHTDWN` = 0x0C
+- `ADMIN` = 0x0D
+- `SWAP` = 0x0E
 
 > **NOTE**: Not all actions can be used by both client and server, check the specification for details.
 
@@ -53,6 +55,7 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_CONN` (0x0A): Connection problem occured.
 - `ERR_EMPTY` (0x0B): Request yielded an empty result.
 - `ERR_PACKET` (0x0C): Problem with packet answer.
+- `ERR_PERMS` (0x0D): Lacking permissions to run the action.
 
 ### Argument for USRS
 - `OFFLINE` (0x0): Show all users.

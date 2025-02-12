@@ -172,6 +172,28 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 	return key, nil
 }
 
+// Returns the privilege level of the user
+func queryUserPerms(db *sql.DB, uname username) (Permission, error) {
+	var perms Permission
+	query := `
+		SELECT permission
+		FROM users 
+		WHERE username = ?;
+	`
+
+	row := db.QueryRow(query, string(uname))
+	err := row.Scan(&perms)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// User does not exist
+			return -1, ErrorDoesNotExist
+		}
+		return -1, err
+	}
+
+	return perms, nil
+}
+
 /* INSERTIONS AND UPDATES */
 
 // Inserts a user into a database, key must be in PEM format

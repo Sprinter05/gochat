@@ -28,6 +28,15 @@ type table[T any] struct {
 	tab map[net.Conn]T
 }
 
+// Specifies a permission
+type Permission int8
+
+const (
+	USER Permission = iota
+	ADMIN
+	OWNER
+)
+
 // Determines a request to be processed by a hub
 type Request struct {
 	cl  net.Conn
@@ -46,6 +55,7 @@ type Task struct {
 type User struct {
 	conn   net.Conn
 	name   username
+	perms  Permission
 	pubkey *rsa.PublicKey
 }
 
