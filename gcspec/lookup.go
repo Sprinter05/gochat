@@ -1,9 +1,5 @@
 package gcspec
 
-import (
-	"errors"
-)
-
 /* PREDEFINED VALUES */
 
 const NullOp Action = 0
@@ -166,66 +162,61 @@ func IDToArgs(a Action) int {
 
 /* ERROR CODES */
 
+// Specific GCError struct that implements the error interface
+type GCError struct {
+	Code uint8
+	Text string
+}
+
+func (err GCError) Error() string {
+	return err.Text
+}
+
 // Determines a generic undefined error
-var ErrorUndefined error = errors.New("undefined problem occured")
+var ErrorUndefined error = GCError{0x0, "undefined problem occured"}
 
 // Invalid operation performed
-var ErrorInvalid error = errors.New("invalid operation performed")
+var ErrorInvalid error = GCError{0x1, "invalid operation performed"}
 
 // Content could not be found
-var ErrorNotFound error = errors.New("content can not be found")
+var ErrorNotFound error = GCError{0x2, "content can not be found"}
 
 // Versions do not match
-var ErrorVersion error = errors.New("server and client versions do not match")
+var ErrorVersion error = GCError{0x3, "server and client versions do not match"}
 
 // Verification handshake failed
-var ErrorHandshake error = errors.New("handshake process failed")
+var ErrorHandshake error = GCError{0x4, "handshake process failed"}
 
 // Invalid arguments given
-var ErrorArguments error = errors.New("invalid arguments given")
+var ErrorArguments error = GCError{0x5, "invalid arguments given"}
 
 // Payload size too big
-var ErrorMaxSize error = errors.New("size is too big")
+var ErrorMaxSize error = GCError{0x6, "size is too big"}
 
 // Header processing failed
-var ErrorHeader error = errors.New("invalid header provided")
+var ErrorHeader error = GCError{0x7, "invalid header provided"}
 
 // User is not logged in
-var ErrorNoSession error = errors.New("user is not connected")
+var ErrorNoSession error = GCError{0x8, "user is not connected"}
 
 // User cannot be logged in
-var ErrorLogin error = errors.New("user can not be logged in")
+var ErrorLogin error = GCError{0x9, "user can not be logged in"}
 
 // Connection problems occured
-var ErrorConnection error = errors.New("connection problem occured")
+var ErrorConnection error = GCError{0xA, "connection problem occured"}
 
 // Empty result returned
-var ErrorEmpty error = errors.New("queried data is empty")
+var ErrorEmpty error = GCError{0xB, "queried data is empty"}
 
 // Problem with packet creation or delivery
-var ErrorPacket error = errors.New("packet could not be delivered")
-
-var errorCodes map[error]byte = map[error]byte{
-	ErrorUndefined:  0x00,
-	ErrorInvalid:    0x01,
-	ErrorNotFound:   0x02,
-	ErrorVersion:    0x03,
-	ErrorHandshake:  0x04,
-	ErrorArguments:  0x05,
-	ErrorMaxSize:    0x06,
-	ErrorHeader:     0x07,
-	ErrorNoSession:  0x08,
-	ErrorLogin:      0x09,
-	ErrorConnection: 0x0A,
-	ErrorEmpty:      0x0B,
-	ErrorPacket:     0x0C,
-}
+var ErrorPacket error = GCError{0xC, "packet could not be delivered"}
 
 // Returns the error code or the empty information field if not found
 func ErrorCode(err error) byte {
-	v, ok := errorCodes[err]
-	if !ok {
+	switch v := err.(type) {
+	case GCError:
+		return v.Code
+	default:
 		return EmptyInfo
 	}
-	return v
 }

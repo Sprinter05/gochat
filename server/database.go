@@ -14,8 +14,6 @@ import (
 	myqsl "github.com/go-sql-driver/mysql"
 )
 
-// TODO: Use prepared queries for faster performance
-
 /* UTILITIES */
 
 // Connects to the database using the environment file
@@ -48,7 +46,16 @@ func connectDB() *sql.DB {
 // Queries the amount of messages cached for that user
 func queryMessageQuantity(db *sql.DB, uname username) (int, error) {
 	var size int
-	query := "SELECT COUNT(*) FROM message_cache mc JOIN users u ON mc.src_user = u.user_id WHERE mc.dest_user = (SELECT user_id FROM users WHERE username = ?);"
+	query := `
+		SELECT COUNT(*) 
+		FROM message_cache mc 
+		JOIN users u ON mc.src_user = u.user_id 
+		WHERE mc.dest_user = (
+			SELECT user_id 
+			FROM users 
+			WHERE username = ?
+		);
+	`
 
 	row := db.QueryRow(query, string(uname))
 	err := row.Scan(&size)
@@ -62,7 +69,16 @@ func queryMessageQuantity(db *sql.DB, uname username) (int, error) {
 // Gets all messages from the user
 // It is expected for the size to be queried previously
 func queryMessages(db *sql.DB, uname username, size int) (*[]Message, error) {
-	query := "SELECT username, message, UNIX_TIMESTAMP(stamp) FROM message_cache mc JOIN users u ON mc.src_user = u.user_id WHERE mc.dest_user = (SELECT user_id FROM users WHERE username = ?) ORDER BY stamp ASC;"
+	query := `
+		SELECT username, message, UNIX_TIMESTAMP(stamp) 
+		FROM message_cache mc JOIN users u ON mc.src_user = u.user_id 
+		WHERE mc.dest_user = (
+			SELECT user_id 
+			FROM users 
+			WHERE username = ?
+		) 
+		ORDER BY stamp ASC;
+	`
 
 	rows, err := db.Query(query, uname)
 	if err != nil {
@@ -96,7 +112,10 @@ func queryMessages(db *sql.DB, uname username, size int) (*[]Message, error) {
 // Lists all usernames in the database
 func queryUsernames(db *sql.DB) (string, error) {
 	var users strings.Builder
-	query := "SELECT username FROM users;"
+	query := `
+		SELECT username 
+		FROM users;
+	`
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -124,7 +143,11 @@ func queryUsernames(db *sql.DB) (string, error) {
 // Retrieves the user public key if it exists wih a nil net.Conn
 func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 	var pubkey sql.NullString
-	query := "SELECT pubkey FROM users WHERE username = ?;"
+	query := `
+		SELECT pubkey 
+		FROM users 
+		WHERE username = ?;
+	`
 
 	row := db.QueryRow(query, string(uname))
 	err := row.Scan(&pubkey)
@@ -153,7 +176,10 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 
 // Inserts a user into a database, key must be in PEM format
 func insertUser(db *sql.DB, uname username, pubkey []byte) error {
-	query := "INSERT INTO users(username, pubkey) VALUES (?, ?);"
+	query := `
+		INSERT INTO users(username, pubkey) 
+		VALUES (?, ?);
+	`
 
 	_, err := db.Exec(query, uname, string(pubkey))
 	if err != nil {
@@ -166,7 +192,21 @@ func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 // Adds a message to the users message cache
 // The message must be in byte array format since its encrypted
 func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
-	query := "INSERT INTO message_cache(src_user, dest_user, message) VALUES ((SELECT user_id FROM users WHERE username = ?), (SELECT user_id FROM users WHERE username = ?), ?);"
+	query := `
+		INSERT INTO message_cache(src_user, dest_user, message) 
+		VALUES (
+			(
+				SELECT user_id 
+				FROM users 
+				WHERE username = ?
+			), 
+			(
+				SELECT user_id 
+				FROM users 
+				WHERE username = ?
+			), 
+		?);
+	`
 	str := hex.EncodeToString(msg)
 
 	_, err := db.Exec(query, src, dst, str)
@@ -179,7 +219,11 @@ func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
 
 // Prevents a user from logging in
 func removeKey(db *sql.DB, uname username) error {
-	query := "UPDATE users SET pubkey = NULL WHERE username = ?;"
+	query := `
+		UPDATE users 
+		SET pubkey = NULL 
+		WHERE username = ?;
+	`
 
 	_, err := db.Exec(query, uname)
 	if err != nil {
@@ -193,7 +237,10 @@ func removeKey(db *sql.DB, uname username) error {
 
 // Removes a user from the database
 func removeUser(db *sql.DB, uname username) error {
-	query := "DELETE FROM users WHERE username = ?"
+	query := `
+		DELETE FROM users 
+		WHERE username = ?
+	`
 
 	_, err := db.Exec(query, uname)
 	if err != nil {
@@ -213,7 +260,14 @@ func removeUser(db *sql.DB, uname username) error {
 // Removes all cached messages from a user before a given stamp
 // This is done to prevent messages from being lost
 func removeMessages(db *sql.DB, uname username, stamp int64) error {
-	query := "DELETE FROM message_cache WHERE dest_user = (SELECT user_id FROM users WHERE username = ?) AND stamp <= FROM_UNIXTIME(?);"
+	query := `
+		DELETE FROM message_cache 
+		WHERE dest_user = (
+			SELECT user_id 
+			FROM users 
+			WHERE username = ?
+		) AND stamp <= FROM_UNIXTIME(?);
+	`
 
 	_, err := db.Exec(query, uname, stamp)
 	if err != nil {
