@@ -56,6 +56,7 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_EMPTY` (0x0B): Request yielded an empty result.
 - `ERR_PACKET` (0x0C): Problem with packet answer.
 - `ERR_PERMS` (0x0D): Lacking permissions to run the action.
+- `ERR_SERVER` (0x0E): Failed to perform a server-side operation.
 
 ### Argument for USRS
 - `OFFLINE` (0x0): Show all users.

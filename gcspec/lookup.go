@@ -228,6 +228,9 @@ var (
 
 	// Not enough privileges to runa ction
 	ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
+
+	// Failed to perform a server-side operation
+	ErrorServer error = GCError{0x0E, "server operation failed"}
 )
 
 // Returns the error code or the empty information field if not found

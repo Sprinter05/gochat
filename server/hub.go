@@ -25,6 +25,7 @@ func lookupCommand(op gc.Action) (action, error) {
 		gc.MSG:   messageUser,
 		gc.RECIV: recivMessages,
 		gc.ADMIN: adminOperation,
+		gc.SWAP:  swapUserKey,
 	}
 
 	v, ok := lookup[op]
