@@ -1,6 +1,7 @@
 package gcspec
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -98,6 +99,21 @@ func UnixStampToBytes(s int64) []byte {
 	p := make([]byte, binary.Size(s))
 	binary.AppendVarint(p, s)
 	return p
+}
+
+// Uses 4 bytes that it will turn to a unix timestamp
+func NewUnixStamp(b []byte) int64 {
+	if len(b) < 4 {
+		return -1
+	}
+
+	buf := bytes.NewBuffer(b[:4])
+	stamp, err := binary.ReadVarint(buf)
+	if err != nil {
+		return -1
+	}
+
+	return stamp
 }
 
 // Creates a byte slice corresponding to the header fields

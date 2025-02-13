@@ -162,7 +162,7 @@ var idToArgs map[Action]uint8 = map[Action]uint8{
 	DISCN:  0,
 	DEREG:  0,
 	SHTDWN: 0,
-	ADMIN:  0, // Special case, can be more
+	ADMIN:  0, // Special case, can have more arguments
 	SWAP:   1,
 }
 
@@ -186,47 +186,49 @@ func (err GCError) Error() string {
 	return err.Text
 }
 
-// Determines a generic undefined error
-var ErrorUndefined error = GCError{0x0, "undefined problem occured"}
+var (
+	// Determines a generic undefined error
+	ErrorUndefined error = GCError{0x0, "undefined problem occured"}
 
-// Invalid operation performed
-var ErrorInvalid error = GCError{0x1, "invalid operation performed"}
+	// Invalid operation performed
+	ErrorInvalid error = GCError{0x1, "invalid operation performed"}
 
-// Content could not be found
-var ErrorNotFound error = GCError{0x2, "content can not be found"}
+	// Content could not be found
+	ErrorNotFound error = GCError{0x2, "content can not be found"}
 
-// Versions do not match
-var ErrorVersion error = GCError{0x3, "server and client versions do not match"}
+	// Versions do not match
+	ErrorVersion error = GCError{0x3, "server and client versions do not match"}
 
-// Verification handshake failed
-var ErrorHandshake error = GCError{0x4, "handshake process failed"}
+	// Verification handshake failed
+	ErrorHandshake error = GCError{0x4, "handshake process failed"}
 
-// Invalid arguments given
-var ErrorArguments error = GCError{0x5, "invalid arguments given"}
+	// Invalid arguments given
+	ErrorArguments error = GCError{0x5, "invalid arguments given"}
 
-// Payload size too big
-var ErrorMaxSize error = GCError{0x6, "size is too big"}
+	// Payload size too big
+	ErrorMaxSize error = GCError{0x6, "size is too big"}
 
-// Header processing failed
-var ErrorHeader error = GCError{0x7, "invalid header provided"}
+	// Header processing failed
+	ErrorHeader error = GCError{0x7, "invalid header provided"}
 
-// User is not logged in
-var ErrorNoSession error = GCError{0x8, "user is not connected"}
+	// User is not logged in
+	ErrorNoSession error = GCError{0x8, "user is not connected"}
 
-// User cannot be logged in
-var ErrorLogin error = GCError{0x9, "user can not be logged in"}
+	// User cannot be logged in
+	ErrorLogin error = GCError{0x9, "user can not be logged in"}
 
-// Connection problems occured
-var ErrorConnection error = GCError{0xA, "connection problem occured"}
+	// Connection problems occured
+	ErrorConnection error = GCError{0xA, "connection problem occured"}
 
-// Empty result returned
-var ErrorEmpty error = GCError{0xB, "queried data is empty"}
+	// Empty result returned
+	ErrorEmpty error = GCError{0xB, "queried data is empty"}
 
-// Problem with packet creation or delivery
-var ErrorPacket error = GCError{0xC, "packet could not be delivered"}
+	// Problem with packet creation or delivery
+	ErrorPacket error = GCError{0xC, "packet could not be delivered"}
 
-// Not enough privileges to runa ction
-var ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
+	// Not enough privileges to runa ction
+	ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
+)
 
 // Returns the error code or the empty information field if not found
 func ErrorCode(err error) byte {
@@ -237,3 +239,19 @@ func ErrorCode(err error) byte {
 		return EmptyInfo
 	}
 }
+
+/* ADMIN OPERATIONS */
+
+const (
+	// Schedules a shutdown the server
+	AdminShutdown uint8 = 0x00
+
+	// Deregisters a user manually
+	AdminDeregister uint8 = 0x01
+
+	// Broadcasts a message to all online users
+	AdminBroadcast uint8 = 0x02
+
+	// Increases the permission levels of another user
+	AdminPromote uint8 = 0x03
+)

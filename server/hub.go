@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"os"
 	"strings"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -23,6 +24,7 @@ func lookupCommand(op gc.Action) (action, error) {
 		gc.USRS:  listUsers,
 		gc.MSG:   messageUser,
 		gc.RECIV: recivMessages,
+		gc.ADMIN: adminOperation,
 	}
 
 	v, ok := lookup[op]
@@ -251,7 +253,12 @@ func (hub *Hub) Start() {
 	// Channels used here SHOULDNT be closed
 	for {
 		select {
-		case r := <-hub.req:
+		case r, ok := <-hub.req:
+			if !ok {
+				// Perform a server shutdown
+				os.Exit(0)
+			}
+
 			// Print command info
 			r.cmd.Print()
 
