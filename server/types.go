@@ -85,14 +85,17 @@ type Hub struct {
 
 /* INTERNAL ERRORS */
 
-var ErrorDeregistered error = errors.New("user has been deregistered")
-var ErrorDoesNotExist error = errors.New("data does not exist")
-var ErrorSessionExists error = errors.New("user is already logged in")
-var ErrorDuplicatedSession error = errors.New("user is logged in from another endpoint")
-var ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
-var ErrorNoAccount error = errors.New("user tried performing an operation with no account")
-var ErrorDBConstraint error = errors.New("database returned constraint on operation")
-var ErrorNoMessages error = errors.New("user has no messages to receive")
+var (
+	ErrorDeregistered        error = errors.New("user has been deregistered")
+	ErrorDoesNotExist        error = errors.New("data does not exist")
+	ErrorSessionExists       error = errors.New("user is already logged in")
+	ErrorDuplicatedSession   error = errors.New("user is logged in from another endpoint")
+	ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
+	ErrorNoAccount           error = errors.New("user tried performing an operation with no account")
+	ErrorDBConstraint        error = errors.New("database returned constraint on operation")
+	ErrorNoMessages          error = errors.New("user has no messages to receive")
+	ErrorInvalidValue        error = errors.New("data provided is invalid")
+)
 
 /* TABLE FUNCTIONS */
 

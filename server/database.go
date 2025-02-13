@@ -191,6 +191,11 @@ func queryUserPerms(db *sql.DB, uname username) (Permission, error) {
 		return -1, err
 	}
 
+	if perms > OWNER {
+		// Already max permissions
+		return -1, ErrorInvalidValue
+	}
+
 	return perms, nil
 }
 
@@ -248,6 +253,22 @@ func removeKey(db *sql.DB, uname username) error {
 	`
 
 	_, err := db.Exec(query, uname)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Changes the permissions of a user
+func changePermissions(db *sql.DB, uname username, perm Permission) error {
+	query := `
+		UPDATE users
+		SET permission = ?
+		WHERE username = ?;
+	`
+
+	_, err := db.Exec(query, perm, uname)
 	if err != nil {
 		return err
 	}

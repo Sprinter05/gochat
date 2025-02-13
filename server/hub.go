@@ -155,7 +155,10 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 
 	// We do not need to check the error
 	// The part where we check the key already does
-	p, _ := queryUserPerms(h.db, u)
+	p, err := queryUserPerms(h.db, u)
+	if err != nil {
+		p = USER // Set to default value
+	}
 
 	ret := &User{
 		conn:   r.cl,
