@@ -98,6 +98,8 @@ func scheduleShutdown(h *Hub, u *User, cmd gc.Command) {
 		v.conn.Write(pak)
 	}
 
+	print := time.Unix(stamp, 0)
+	log.Printf("Server shutdown scheduled for %v!\n", print)
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 

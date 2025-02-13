@@ -61,6 +61,12 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `OFFLINE` (0x0): Show all users.
 - `ONLINE` (0x1): Show online users.
 
+### Admin Operations for ADMIN
+- `ADMIN_SHTDWN <stamp>` (0x00): Schedules a shutdown for the server.
+- `ADMIN_DEREG <user>` (0x01): Deregistrates a specified user.
+- `ADMIN_BRDCAST <msg>` (0x02): Broadcasts a message to all online users.
+- `ADMIN_PROMOTE <user>` (0x03): Increases the permission level of a user.
+
 ## Body
 
 ### Payload

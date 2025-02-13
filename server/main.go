@@ -11,8 +11,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// TODO: Permission hierarchy
-
 // Sets up logging
 // Reads environment file from first cli argument
 func setupEnv() {

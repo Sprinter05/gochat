@@ -259,6 +259,7 @@ func (hub *Hub) Start() {
 		case r, ok := <-hub.req:
 			if !ok {
 				// Perform a server shutdown
+				log.Printf("Shutting server down...\n")
 				os.Exit(0)
 			}
 

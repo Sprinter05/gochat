@@ -92,7 +92,7 @@ If the user has lost access to the **private key**, the client application may r
 ## Permissions
 
 ### Permission levels
-By default, the protocol implements **3 levels** of permissions that start from `0`, which indicates the **lowest level** of permissions. The server can decide what actions can be or not performed with a certain level of permissions. They can be performed using the following command, indicating in the header information the action to be performed. The user must be logged in to perform administrative actions, assuming they have enough permissions.
+By default, the protocol implements **2 levels** of permissions that start from `0`, which indicates the **lowest level** of permissions. The server can decide what actions can be or not performed with a certain level of permissions and can add **more permission levels**. They can be performed using the following command, indicating in the header information the action to be performed. The user must be logged in to perform administrative actions, assuming they have enough permissions.
 
 `ADMIN <arg_1> <arg_2> ... <arg_n>`
 
