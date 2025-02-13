@@ -20,7 +20,7 @@ import (
 type username string
 
 // Specifies the functions to run depending on the ID
-type action func(*Hub, *User, gc.Command)
+type action func(*Hub, User, gc.Command)
 
 // Table used for storing thread safe maps
 type table[T any] struct {
@@ -47,7 +47,7 @@ type Request struct {
 type Task struct {
 	fun  action
 	hub  *Hub
-	user *User
+	user User
 	cmd  gc.Command
 }
 
@@ -73,7 +73,8 @@ type Message struct {
 	stamp   int64
 }
 
-// Uses a mutex since functions are running concurrently
+// Tables store pointers for modification
+// But functions should not use the pointer
 type Hub struct {
 	db      *sql.DB
 	req     chan Request

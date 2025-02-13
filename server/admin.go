@@ -28,7 +28,7 @@ func lookupAdmin(ad uint8) (action, error) {
 }
 
 // Every admin operation replies with either ERR or OK
-func adminOperation(h *Hub, u *User, cmd gc.Command) {
+func adminOperation(h *Hub, u User, cmd gc.Command) {
 	if u.perms == USER {
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
 		return
@@ -49,7 +49,7 @@ func adminOperation(h *Hub, u *User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Uses 1 argument for the unix stamp
-func scheduleShutdown(h *Hub, u *User, cmd gc.Command) {
+func scheduleShutdown(h *Hub, u User, cmd gc.Command) {
 	if u.perms < ADMIN {
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
 		return
@@ -105,7 +105,7 @@ func scheduleShutdown(h *Hub, u *User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Requires 1 argument for the message
-func broadcastMessage(h *Hub, u *User, cmd gc.Command) {
+func broadcastMessage(h *Hub, u User, cmd gc.Command) {
 	if u.perms < ADMIN {
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
 		return
@@ -140,7 +140,7 @@ func broadcastMessage(h *Hub, u *User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Requires 1 argument for the user
-func forceDeregistration(h *Hub, u *User, cmd gc.Command) {
+func forceDeregistration(h *Hub, u User, cmd gc.Command) {
 	if u.perms < ADMIN {
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
 		return
@@ -163,7 +163,7 @@ func forceDeregistration(h *Hub, u *User, cmd gc.Command) {
 
 // Requires OWNER or more
 // Requires 1 argument for the user
-func promoteUser(h *Hub, u *User, cmd gc.Command) {
+func promoteUser(h *Hub, u User, cmd gc.Command) {
 	if u.perms < OWNER {
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
 		return

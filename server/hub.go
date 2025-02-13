@@ -90,7 +90,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 	send <- Task{
 		fun:  fun,
 		hub:  h,
-		user: u,
+		user: *u,
 		cmd:  r.cmd,
 	}
 }
