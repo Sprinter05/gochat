@@ -13,18 +13,21 @@ import (
 
 // Sets up logging
 // Reads environment file from first cli argument
-func setupEnv() {
+// init() always runs when the program starts
+func init() {
 	// If we default to stderr it won't print unless debugged
 	log.SetOutput(os.Stdout)
 
 	if len(os.Args) < 2 {
 		log.Fatalf("Not enough arguments supplied!")
+		os.Exit(1)
 	}
 
 	// Argument 0 is the pathname to the executable
 	err := godotenv.Load(os.Args[1])
 	if err != nil {
 		log.Fatalf("Failed to read environment file: %s\n", err)
+		os.Exit(1)
 	}
 }
 
@@ -53,8 +56,6 @@ func setupHub() *Hub {
 }
 
 func main() {
-	setupEnv()
-
 	addr := fmt.Sprintf(
 		"%s:%s",
 		os.Getenv("SRV_ADDR"),
