@@ -260,22 +260,6 @@ func removeKey(db *sql.DB, uname username) error {
 	return nil
 }
 
-// Changes the user's public key
-func changePubkey(db *sql.DB, uname username, pubkey []byte) error {
-	query := `
-		UPDATE users 
-		SET pubkey = ?
-		WHERE username = ?;
-	`
-
-	_, err := db.Exec(query, string(pubkey), uname)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Changes the permissions of a user
 func changePermissions(db *sql.DB, uname username, perm Permission) error {
 	query := `

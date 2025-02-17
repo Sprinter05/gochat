@@ -84,11 +84,6 @@ The client application can request the server to have a user deleted, but if sai
 
 Once the deregistration has happened the server can reply with an acknowledgment and must then **release the IP tied to the user**.
 
-### Modifying a user
-If the user has lost access to the **private key**, the client application may request a change of their public key as long as they **are logged in**. The server should respond with an acknowledgement unless the user is not logged in.
-
-`SWAP <new_pubkey>`
-
 ## Permissions
 
 ### Permission levels

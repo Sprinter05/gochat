@@ -300,31 +300,3 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 		log.Printf("Error when deleting cached messages from %s: %s", u.name, err)
 	}
 }
-
-// Replies with OK or ERR
-func swapUserKey(h *Hub, u User, cmd gc.Command) {
-	// Change user key on the
-	key, err := gc.PEMToPubkey(cmd.Args[0])
-	if err != nil {
-		//log.Printf("Incorrect public key from %s when registering: %s\n", u.name, err)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
-		return
-	}
-
-	// Modify it in the database
-	// We already checked that the pem certificate is fine
-	e := changePubkey(h.db, u.name, cmd.Args[0])
-	if e != nil {
-		// Database problem
-		log.Printf("Error when updating %s public key: %s\n", u.name, e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
-		return
-	}
-
-	// Thread safe modification of the public key
-	h.users.mut.Lock()
-	h.users.tab[u.conn].pubkey = key
-	h.users.mut.Unlock()
-
-	sendOKPacket(cmd.HD.ID, u.conn)
-}

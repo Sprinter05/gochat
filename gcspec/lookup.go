@@ -38,7 +38,6 @@ const (
 	DEREG
 	SHTDWN
 	ADMIN
-	SWAP
 )
 
 //? Reduce the amount of tables
@@ -57,7 +56,6 @@ var codeToid map[byte]Action = map[byte]Action{
 	0x0B: DEREG,
 	0x0C: SHTDWN,
 	0x0D: ADMIN,
-	0x0E: SWAP,
 }
 
 var idToCode map[Action]byte = map[Action]byte{
@@ -74,7 +72,6 @@ var idToCode map[Action]byte = map[Action]byte{
 	DEREG:  0x0B,
 	SHTDWN: 0x0C,
 	ADMIN:  0x0D,
-	SWAP:   0x0E,
 }
 
 var stringToCode map[string]Action = map[string]Action{
@@ -91,7 +88,6 @@ var stringToCode map[string]Action = map[string]Action{
 	"DEREG":  DEREG,
 	"SHTDWN": SHTDWN,
 	"ADMIN":  ADMIN,
-	"SWAP":   SWAP,
 }
 
 var codeToString map[Action]string = map[Action]string{
@@ -108,7 +104,6 @@ var codeToString map[Action]string = map[Action]string{
 	DEREG:  "DEREG",
 	SHTDWN: "SHTDWN",
 	ADMIN:  "ADMIN",
-	SWAP:   "SWAP",
 }
 
 // Returns the ID associated to a byte code
@@ -163,7 +158,6 @@ var idToArgs map[Action]uint8 = map[Action]uint8{
 	DEREG:  0,
 	SHTDWN: 0,
 	ADMIN:  0, // Special case, can have more arguments
-	SWAP:   1,
 }
 
 func IDToArgs(a Action) int {
