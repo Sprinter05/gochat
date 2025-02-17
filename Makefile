@@ -9,8 +9,13 @@ default: $(BUILD)/gcserver
 $(BUILD):
 	if ! [ -d "./$(BUILD)" ]; then mkdir $(BUILD); fi
 
+# We check the OS environment varible for the .exe extension
 $(BUILD)/gcserver: $(BUILD)
-	$(CC) build -o $(BUILD)/gcserver ./server 
+ifeq ($(OS),Windows_NT)
+	$(CC) build -o $(BUILD)/gcserver.exe ./server
+else 
+	$(CC) build -o $(BUILD)/gcserver ./server
+endif
 
 # Clean build folder
 clean: $(BUILD)
