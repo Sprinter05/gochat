@@ -166,7 +166,7 @@ func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 // Adds a message to the users message cache
 // The message must be in byte array format since its encrypted
 func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
-	query := "INSERT INTO message_cache(src_user, dest_user, message) VALUES ((SELECT user_id FROM users WHERE username = ?), (SELECT user_id FROM users WHERE username = ?), ?);"
+	query := "INSERT INTO message_cache(src_user, dest_user, msg) VALUES ((SELECT user_id FROM users WHERE username = ?), (SELECT user_id FROM users WHERE username = ?), ?);"
 	str := hex.EncodeToString(msg)
 
 	_, err := db.Exec(query, src, dst, str)
