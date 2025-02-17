@@ -70,7 +70,7 @@ func queryMessageQuantity(db *sql.DB, uname username) (int, error) {
 // It is expected for the size to be queried previously
 func queryMessages(db *sql.DB, uname username, size int) (*[]Message, error) {
 	query := `
-		SELECT username, message, UNIX_TIMESTAMP(stamp) 
+		SELECT username, msg, UNIX_TIMESTAMP(stamp) 
 		FROM message_cache mc JOIN users u ON mc.src_user = u.user_id 
 		WHERE mc.dest_user = (
 			SELECT user_id 
