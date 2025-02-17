@@ -1,6 +1,7 @@
 package gcspec
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -106,22 +107,39 @@ func NewHeader(hdr []byte) Header {
 	}
 }
 
-/* PACKET FUNCTIONS */
+/* UNIX STAMP FUNCTIONS */
 
 // Returns a byte array with the current unix timestamp
 func UnixStampNow() []byte {
 	t := time.Now().Unix()
 	p := make([]byte, binary.Size(t))
-	binary.AppendVarint(p, t)
+	p = binary.AppendVarint(p, t)
 	return p
 }
 
 // Uses int64 format for conversion
 func UnixStampToBytes(s int64) []byte {
 	p := make([]byte, binary.Size(s))
-	binary.AppendVarint(p, s)
+	p = binary.AppendVarint(p, s)
 	return p
 }
+
+// Uses 4 bytes that it will turn to a unix timestamp
+func NewUnixStamp(b []byte) int64 {
+	if len(b) < 4 {
+		return -1
+	}
+
+	buf := bytes.NewBuffer(b[:4])
+	stamp, err := binary.ReadVarint(buf)
+	if err != nil {
+		return -1
+	}
+
+	return stamp
+}
+
+/* PACKET FUNCTIONS */
 
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy

@@ -11,32 +11,32 @@ import (
 // FUNCTIONS
 
 // Replies with OK or ERR
-func registerUser(h *Hub, u *User, cmd gc.Command) {
-	u.name = username(cmd.Args[0])
+// Uses a user with only the net.Conn
+func registerUser(h *Hub, u User, cmd gc.Command) {
+	uname := username(cmd.Args[0])
 
-	if len(u.name) > gc.UsernameSize {
+	if len(uname) > gc.UsernameSize {
 		//log.Printf("Supplied username %s is too big\n", u.name)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
 
-	// Assign public key
-	key, err := gc.PEMToPubkey(cmd.Args[1])
+	// Check if public key is usable
+	_, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		//log.Printf("Incorrect public key from %s when registering: %s\n", u.name, err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
-	u.pubkey = key
 
 	// Register user into the database
-	insertUser(h.db, u.name, cmd.Args[1])
+	insertUser(h.db, uname, cmd.Args[1])
 
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Replies with VERIF or ERR
-func connectUser(h *Hub, u *User, cmd gc.Command) {
+func connectUser(h *Hub, u User, cmd gc.Command) {
 	ran := randText()
 	enc, err := gc.EncryptText(ran, u.pubkey)
 	if err != nil {
@@ -84,7 +84,7 @@ func connectUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 // Replies with OK or ERR
-func verifyUser(h *Hub, u *User, cmd gc.Command) {
+func verifyUser(h *Hub, u User, cmd gc.Command) {
 	verif, ok := h.verifs.Get(u.conn)
 
 	if !ok {
@@ -104,14 +104,14 @@ func verifyUser(h *Hub, u *User, cmd gc.Command) {
 
 	// We modify the tables and cancel the goroutine
 	verif.cancel()
-	h.users.Add(u.conn, u)
+	h.users.Add(u.conn, &u)
 	h.verifs.Remove(u.conn)
 
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Replies with OK or ERR
-func disconnectUser(h *Hub, u *User, cmd gc.Command) {
+func disconnectUser(h *Hub, u User, cmd gc.Command) {
 	_, uok := h.users.Get(u.conn)
 	_, vok := h.verifs.Get(u.conn)
 
@@ -129,7 +129,7 @@ func disconnectUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 // Replies with OK or ERR
-func deregisterUser(h *Hub, u *User, cmd gc.Command) {
+func deregisterUser(h *Hub, u User, cmd gc.Command) {
 	// Cleanup cache information in any case
 	defer h.cleanupUser(u.conn)
 
@@ -161,7 +161,7 @@ func deregisterUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 // Replies with REQ or ERR
-func requestUser(h *Hub, u *User, cmd gc.Command) {
+func requestUser(h *Hub, u User, cmd gc.Command) {
 	k, err := queryUserKey(h.db, username(cmd.Args[0]))
 	if err != nil {
 		//log.Printf("Requested user can not be queried: %s\n", err)
@@ -192,7 +192,7 @@ func requestUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 // Replies with USRS or ERR
-func listUsers(h *Hub, u *User, cmd gc.Command) {
+func listUsers(h *Hub, u User, cmd gc.Command) {
 	var usrs string
 
 	// Show online users or all
@@ -231,7 +231,7 @@ func listUsers(h *Hub, u *User, cmd gc.Command) {
 
 // Replies with OK or ERR
 // Sends a RECIV if destination user is online
-func messageUser(h *Hub, u *User, cmd gc.Command) {
+func messageUser(h *Hub, u User, cmd gc.Command) {
 	// Check if its online cached
 	send, ok := h.findUser(username(cmd.Args[0]))
 	if ok {
@@ -267,7 +267,7 @@ func messageUser(h *Hub, u *User, cmd gc.Command) {
 }
 
 // Replies with RECIV or ERR
-func recivMessages(h *Hub, u *User, cmd gc.Command) {
+func recivMessages(h *Hub, u User, cmd gc.Command) {
 	// Get the amount of messages needed for allocation
 	size, err := queryMessageQuantity(h.db, u.name)
 	if err != nil {

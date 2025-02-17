@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"os"
 	"strings"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -23,6 +24,7 @@ func lookupCommand(op gc.Action) (action, error) {
 		gc.USRS:  listUsers,
 		gc.MSG:   messageUser,
 		gc.RECIV: recivMessages,
+		gc.ADMIN: adminOperation,
 	}
 
 	v, ok := lookup[op]
@@ -87,7 +89,7 @@ func (h *Hub) procRequest(r Request, u *User) {
 	send <- Task{
 		fun:  fun,
 		hub:  h,
-		user: u,
+		user: *u,
 		cmd:  r.cmd,
 	}
 }
@@ -151,9 +153,17 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		return nil, ErrorProhibitedOperation
 	}
 
+	// We do not need to check the error
+	// The part where we check the key already does
+	p, err := queryUserPerms(h.db, u)
+	if err != nil {
+		p = USER // Set to default value
+	}
+
 	ret := &User{
 		conn:   r.cl,
 		name:   u,
+		perms:  p,
 		pubkey: key,
 	}
 	return ret, nil
@@ -246,7 +256,13 @@ func (hub *Hub) Start() {
 	// Channels used here SHOULDNT be closed
 	for {
 		select {
-		case r := <-hub.req:
+		case r, ok := <-hub.req:
+			if !ok {
+				// Perform a server shutdown
+				log.Printf("Shutting server down...\n")
+				os.Exit(0)
+			}
+
 			// Print command info
 			r.cmd.Print()
 

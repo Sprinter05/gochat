@@ -1,9 +1,5 @@
 package gcspec
 
-import (
-	"errors"
-)
-
 /* PREDEFINED VALUES */
 
 const NullOp Action = 0
@@ -41,7 +37,10 @@ const (
 	DISCN
 	DEREG
 	SHTDWN
+	ADMIN
 )
+
+//? Reduce the amount of tables
 
 var codeToid map[byte]Action = map[byte]Action{
 	0x01: OK,
@@ -56,6 +55,7 @@ var codeToid map[byte]Action = map[byte]Action{
 	0x0A: DISCN,
 	0x0B: DEREG,
 	0x0C: SHTDWN,
+	0x0D: ADMIN,
 }
 
 var idToCode map[Action]byte = map[Action]byte{
@@ -71,6 +71,7 @@ var idToCode map[Action]byte = map[Action]byte{
 	DISCN:  0x0A,
 	DEREG:  0x0B,
 	SHTDWN: 0x0C,
+	ADMIN:  0x0D,
 }
 
 var stringToCode map[string]Action = map[string]Action{
@@ -86,6 +87,7 @@ var stringToCode map[string]Action = map[string]Action{
 	"DISCN":  DISCN,
 	"DEREG":  DEREG,
 	"SHTDWN": SHTDWN,
+	"ADMIN":  ADMIN,
 }
 
 var codeToString map[Action]string = map[Action]string{
@@ -101,6 +103,7 @@ var codeToString map[Action]string = map[Action]string{
 	DISCN:  "DISCN",
 	DEREG:  "DEREG",
 	SHTDWN: "SHTDWN",
+	ADMIN:  "ADMIN",
 }
 
 // Returns the ID associated to a byte code
@@ -154,6 +157,7 @@ var idToArgs map[Action]uint8 = map[Action]uint8{
 	DISCN:  0,
 	DEREG:  0,
 	SHTDWN: 0,
+	ADMIN:  0, // Special case, can have more arguments
 }
 
 func IDToArgs(a Action) int {
@@ -166,60 +170,62 @@ func IDToArgs(a Action) int {
 
 /* ERROR CODES */
 
-// Determines a generic undefined error
-var ErrorUndefined error = errors.New("undefined problem occured")
-
-// Invalid operation performed
-var ErrorInvalid error = errors.New("invalid operation performed")
-
-// Content could not be found
-var ErrorNotFound error = errors.New("content can not be found")
-
-// Versions do not match
-var ErrorVersion error = errors.New("server and client versions do not match")
-
-// Verification handshake failed
-var ErrorHandshake error = errors.New("handshake process failed")
-
-// Invalid arguments given
-var ErrorArguments error = errors.New("invalid arguments given")
-
-// Payload size too big
-var ErrorMaxSize error = errors.New("size is too big")
-
-// Header processing failed
-var ErrorHeader error = errors.New("invalid header provided")
-
-// User is not logged in
-var ErrorNoSession error = errors.New("user is not connected")
-
-// User cannot be logged in
-var ErrorLogin error = errors.New("user can not be logged in")
-
-// Connection problems occured
-var ErrorConnection error = errors.New("connection problem occured")
-
-// Empty result returned
-var ErrorEmpty error = errors.New("queried data is empty")
-
-// Problem with packet creation or delivery
-var ErrorPacket error = errors.New("packet could not be delivered")
-
-var errorCodes map[error]byte = map[error]byte{
-	ErrorUndefined:  0x00,
-	ErrorInvalid:    0x01,
-	ErrorNotFound:   0x02,
-	ErrorVersion:    0x03,
-	ErrorHandshake:  0x04,
-	ErrorArguments:  0x05,
-	ErrorMaxSize:    0x06,
-	ErrorHeader:     0x07,
-	ErrorNoSession:  0x08,
-	ErrorLogin:      0x09,
-	ErrorConnection: 0x0A,
-	ErrorEmpty:      0x0B,
-	ErrorPacket:     0x0C,
+// Specific GCError struct that implements the error interface
+type GCError struct {
+	Code uint8
+	Text string
 }
+
+func (err GCError) Error() string {
+	return err.Text
+}
+
+var (
+	// Determines a generic undefined error
+	ErrorUndefined error = GCError{0x0, "undefined problem occured"}
+
+	// Invalid operation performed
+	ErrorInvalid error = GCError{0x1, "invalid operation performed"}
+
+	// Content could not be found
+	ErrorNotFound error = GCError{0x2, "content can not be found"}
+
+	// Versions do not match
+	ErrorVersion error = GCError{0x3, "server and client versions do not match"}
+
+	// Verification handshake failed
+	ErrorHandshake error = GCError{0x4, "handshake process failed"}
+
+	// Invalid arguments given
+	ErrorArguments error = GCError{0x5, "invalid arguments given"}
+
+	// Payload size too big
+	ErrorMaxSize error = GCError{0x6, "size is too big"}
+
+	// Header processing failed
+	ErrorHeader error = GCError{0x7, "invalid header provided"}
+
+	// User is not logged in
+	ErrorNoSession error = GCError{0x8, "user is not connected"}
+
+	// User cannot be logged in
+	ErrorLogin error = GCError{0x9, "user can not be logged in"}
+
+	// Connection problems occured
+	ErrorConnection error = GCError{0xA, "connection problem occured"}
+
+	// Empty result returned
+	ErrorEmpty error = GCError{0xB, "queried data is empty"}
+
+	// Problem with packet creation or delivery
+	ErrorPacket error = GCError{0xC, "packet could not be delivered"}
+
+	// Not enough privileges to runa ction
+	ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
+
+	// Failed to perform a server-side operation
+	ErrorServer error = GCError{0x0E, "server operation failed"}
+)
 
 var codeToError map[byte]error = map[byte]error{
 	0x00: ErrorUndefined,
@@ -235,14 +241,15 @@ var codeToError map[byte]error = map[byte]error{
 
 // Returns the error code or the empty information field if not found
 func ErrorCode(err error) byte {
-	v, ok := errorCodes[err]
-	if !ok {
+	switch v := err.(type) {
+	case GCError:
+		return v.Code
+	default:
 		return EmptyInfo
 	}
-	return v
 }
 
-// Returns the error code or the empty information field if not found
+// Returns the error or the nil if not found
 func ErrorCodeToError(b byte) error {
 	v, ok := codeToError[b]
 	if !ok {
@@ -250,3 +257,19 @@ func ErrorCodeToError(b byte) error {
 	}
 	return v
 }
+
+/* ADMIN OPERATIONS */
+
+const (
+	// Schedules a shutdown the server
+	AdminShutdown uint8 = 0x00
+
+	// Deregisters a user manually
+	AdminDeregister uint8 = 0x01
+
+	// Broadcasts a message to all online users
+	AdminBroadcast uint8 = 0x02
+
+	// Increases the permission levels of another user
+	AdminPromote uint8 = 0x03
+)

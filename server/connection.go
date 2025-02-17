@@ -57,8 +57,8 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 			return
 		}
 
-		// Check that it has enough arguments
-		if int(cmd.HD.Args) != gc.IDToArgs(cmd.HD.Op) {
+		// Check that it has enough arguments unless its the admin command
+		if cmd.HD.Op != gc.ADMIN && (int(cmd.HD.Args) != gc.IDToArgs(cmd.HD.Op)) {
 			sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, cl.Conn)
 			return
 		}

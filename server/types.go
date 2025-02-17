@@ -20,13 +20,22 @@ import (
 type username string
 
 // Specifies the functions to run depending on the ID
-type action func(*Hub, *User, gc.Command)
+type action func(*Hub, User, gc.Command)
 
 // Table used for storing thread safe maps
 type table[T any] struct {
 	mut sync.RWMutex
 	tab map[net.Conn]T
 }
+
+// Specifies a permission
+type Permission int8
+
+const (
+	USER Permission = iota
+	ADMIN
+	OWNER
+)
 
 // Determines a request to be processed by a hub
 type Request struct {
@@ -38,7 +47,7 @@ type Request struct {
 type Task struct {
 	fun  action
 	hub  *Hub
-	user *User
+	user User
 	cmd  gc.Command
 }
 
@@ -46,6 +55,7 @@ type Task struct {
 type User struct {
 	conn   net.Conn
 	name   username
+	perms  Permission
 	pubkey *rsa.PublicKey
 }
 
@@ -63,7 +73,8 @@ type Message struct {
 	stamp   int64
 }
 
-// Uses a mutex since functions are running concurrently
+// Tables store pointers for modification
+// But functions should not use the pointer
 type Hub struct {
 	db      *sql.DB
 	req     chan Request
@@ -75,14 +86,17 @@ type Hub struct {
 
 /* INTERNAL ERRORS */
 
-var ErrorDeregistered error = errors.New("user has been deregistered")
-var ErrorDoesNotExist error = errors.New("data does not exist")
-var ErrorSessionExists error = errors.New("user is already logged in")
-var ErrorDuplicatedSession error = errors.New("user is logged in from another endpoint")
-var ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
-var ErrorNoAccount error = errors.New("user tried performing an operation with no account")
-var ErrorDBConstraint error = errors.New("database returned constraint on operation")
-var ErrorNoMessages error = errors.New("user has no messages to receive")
+var (
+	ErrorDeregistered        error = errors.New("user has been deregistered")
+	ErrorDoesNotExist        error = errors.New("data does not exist")
+	ErrorSessionExists       error = errors.New("user is already logged in")
+	ErrorDuplicatedSession   error = errors.New("user is logged in from another endpoint")
+	ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
+	ErrorNoAccount           error = errors.New("user tried performing an operation with no account")
+	ErrorDBConstraint        error = errors.New("database returned constraint on operation")
+	ErrorNoMessages          error = errors.New("user has no messages to receive")
+	ErrorInvalidValue        error = errors.New("data provided is invalid")
+)
 
 /* TABLE FUNCTIONS */
 

@@ -83,3 +83,12 @@ The client application can request the server to have a user deleted, but if sai
 `DEREG` _Client_
 
 Once the deregistration has happened the server can reply with an acknowledgment and must then **release the IP tied to the user**.
+
+## Permissions
+
+### Permission levels
+By default, the protocol implements **2 levels** of permissions that start from `0`, which indicates the **lowest level** of permissions. The server can decide what actions can be or not performed with a certain level of permissions and can add **more permission levels**. They can be performed using the following command, indicating in the header information the action to be performed. The user must be logged in to perform administrative actions, assuming they have enough permissions.
+
+`ADMIN <arg_1> <arg_2> ... <arg_n>`
+
+The argument amount is not fixed and will depend on the action. The server will reply with either an acknowledgment or an error.

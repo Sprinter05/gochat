@@ -30,6 +30,8 @@ Both server and client headers share the following header format, which occupies
 - `DISCN` = 0x0A
 - `DEREG` = 0x0B
 - `SHTDWN` = 0x0C
+- `ADMIN` = 0x0D
+- `SWAP` = 0x0E
 
 > **NOTE**: Not all actions can be used by both client and server, check the specification for details.
 
@@ -53,10 +55,18 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_CONN` (0x0A): Connection problem occured.
 - `ERR_EMPTY` (0x0B): Request yielded an empty result.
 - `ERR_PACKET` (0x0C): Problem with packet answer.
+- `ERR_PERMS` (0x0D): Lacking permissions to run the action.
+- `ERR_SERVER` (0x0E): Failed to perform a server-side operation.
 
 ### Argument for USRS
 - `OFFLINE` (0x0): Show all users.
 - `ONLINE` (0x1): Show online users.
+
+### Admin Operations for ADMIN
+- `ADMIN_SHTDWN <stamp>` (0x00): Schedules a shutdown for the server.
+- `ADMIN_DEREG <user>` (0x01): Deregistrates a specified user.
+- `ADMIN_BRDCAST <msg>` (0x02): Broadcasts a message to all online users.
+- `ADMIN_PROMOTE <user>` (0x03): Increases the permission level of a user.
 
 ## Body
 
