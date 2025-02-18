@@ -1,18 +1,19 @@
 # Implementation
 ## Header Format
-Both server and client headers share the following header format, which occupies **6 bytes**:
+Both server and client headers share the following header format, which occupies **8 bytes**:
 
-    0         4             12           20     22               32              48
-    +---------+-------------+------------+------+----------------+---------------+
-    | Version | Action Code | Reply Info | Args | Payload Length | Identificator |
-    +---------+-------------+------------+------+----------------+---------------+
+    0     4             12           20     24               38              48         64
+    +-----+-------------+------------+------+----------------+---------------+----------+
+    | Ver | Action Code | Reply Info | Args | Payload Length | Identificator | Reserved |
+    +-----+-------------+------------+------+----------------+---------------+----------+
 
 - **Protocol Version** | `4 bits`: Ensures that both client and server share the same protocol format. Communication between the client application and the server cannot happen if the versions differ.
 - **Action Code** | `8 bits`: Instruction code that determines the action code that must be performed. Both client and server have their own, independent codes.
 - **Reply Information** | `8 bits`: Additional information provided by specific instructions such as `ERR` codes.
-- **Arguments** | `2 bits` : Amount of arguments to be read.
-- **Length** | `10 bits`: Indicates the size of the payload in bytes.
-- **Identificator** | `16 bits`: Indicates the packet identification the client has provided.
+- **Arguments** | `4 bits` : Amount of arguments to be read.
+- **Length** | `14 bits`: Indicates the size of the payload in bytes.
+- **Identificator** | `10 bits`: Indicates the packet identification the client has provided.
+- **Reserved** | `16 bits`: For future extension that might be needed. (`0xFFFF` by default)
 
 ## Codes
 `0x0` is reserved as an invalid value.
@@ -31,7 +32,6 @@ Both server and client headers share the following header format, which occupies
 - `DEREG` = 0x0B
 - `SHTDWN` = 0x0C
 - `ADMIN` = 0x0D
-- `SWAP` = 0x0E
 
 > **NOTE**: Not all actions can be used by both client and server, check the specification for details.
 
@@ -71,4 +71,4 @@ If the action to perform requires no additional information the "**Reply Info**"
 ## Body
 
 ### Payload
-The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A total of *n* reads will be performed, corresponding to the amount of arguments specified by the header. Each read will stop when **CRLF** is found. If at any point the payload goes over the maximum allowed size, an error will be produced.
+The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A total of *n* reads will be performed, corresponding to the amount of arguments specified by the header. Each read will stop when **CRLF** is found. If at any point the payload goes over the maximum allowed size, an error will be produced. A single argument may not be bigger than `2048` bytes.

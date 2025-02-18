@@ -62,15 +62,20 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 			// This implies the payload is too big
 			return err
 		}
-		tot += l
+
+		// Single argument over limit
+		if l > MaxArgSize {
+			return ErrorMaxSize
+		}
 
 		// Check if the payload is too big
+		tot += l
 		if tot > MaxPayload {
 			return ErrorMaxSize
 		}
 
 		// Check if it ends in CRLF
-		// Also checks if it has at least CRLF
+		// Also checks if it has at least 2 bytes
 		if len(b) >= 2 && string(b[l-2]) == "\r" {
 			b := buf.Bytes()
 			siz := buf.Len()

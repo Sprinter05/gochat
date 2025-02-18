@@ -95,15 +95,14 @@ func (hd Header) Check() error {
 
 // Splits a the byte header into its fields
 func NewHeader(hdr []byte) Header {
-	h := binary.BigEndian.Uint32(hdr[:HeaderSize-2])
-	id := binary.BigEndian.Uint16(hdr[HeaderSize-2 : HeaderSize])
+	h := binary.BigEndian.Uint64(hdr[:HeaderSize])
 	return Header{
-		Ver:  uint8(h >> 28),
-		Op:   CodeToID(uint8(h >> 20)),
-		Info: uint8(h >> 12),
-		Args: (uint8(h >> 10)) &^ 0xFC,
-		Len:  uint16(h) &^ 0xFC00,
-		ID:   ID(id),
+		Ver:  uint8(h >> 60),
+		Op:   CodeToID(uint8(h >> 52)),
+		Info: uint8(h >> 44),
+		Args: (uint8(h >> 40)) &^ 0xF0,        // 0b1111_0000
+		Len:  (uint16(h >> 26)) &^ 0xC000,     // 0b1100_0000_0000_0000
+		ID:   ID((uint16(h >> 16)) &^ 0xFC00), // 0b1111_1100_0000_0000
 	}
 }
 
@@ -155,7 +154,12 @@ func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
 	tot := 0
 	if l != 0 {
 		for _, v := range arg {
-			tot += len(v) + 2 // CRLF is 2 bytes
+			le := len(v) + 2 // CRLF is 2 bytes
+			// Over the single argument size
+			if le > MaxArgSize {
+				return nil, ErrorMaxSize
+			}
+			tot += le
 		}
 		if tot > MaxPayload {
 			return nil, ErrorMaxSize
@@ -167,15 +171,16 @@ func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
 	p := make([]byte, 0, HeaderSize+tot+2)
 
 	// Set all header bits
-	b := (uint32(ProtocolVersion) << 28) |
-		(uint32(IDToCode(op)) << 20) |
-		(uint32(inf) << 12) |
-		(uint32(l) << 10) |
-		(uint32(tot))
+	b := (uint64(ProtocolVersion) << 60) |
+		(uint64(IDToCode(op)) << 52) |
+		(uint64(inf) << 44) |
+		(uint64(l) << 40) |
+		(uint64(tot) << 26) |
+		(uint64(id) << 16) |
+		0xFFFF // Reserved (not in use)
 
-	// Append header and packet order
-	p = binary.BigEndian.AppendUint32(p, b)
-	p = binary.BigEndian.AppendUint16(p, uint16(id))
+	// Append header
+	p = binary.BigEndian.AppendUint64(p, b)
 
 	// CRLF termination
 	p = append(p, "\r\n"...)

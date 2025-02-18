@@ -7,9 +7,10 @@ const NullID ID = 0
 const EmptyInfo byte = 0xFF
 
 const ProtocolVersion uint8 = 1
-const HeaderSize int = 6
-const MaxArgs int = 1<<2 - 1
-const MaxPayload int = 1<<10 - 1
+const HeaderSize int = 8
+const MaxArgs int = 1<<4 - 1
+const MaxPayload int = 1<<14 - 1
+const MaxArgSize int = 1<<11 - 1
 const RSABitSize int = 4096
 const UsernameSize int = 32
 
