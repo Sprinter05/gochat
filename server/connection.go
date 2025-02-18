@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -45,6 +46,10 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 
 	for {
 		cmd := new(gc.Command)
+
+		// Max time for a packet to be received
+		out := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
+		cl.Conn.SetReadDeadline(out)
 
 		if processHeader(cl, cmd) != nil {
 			// Cleanup connection on error
