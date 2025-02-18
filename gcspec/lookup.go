@@ -237,6 +237,12 @@ var codeToError map[byte]error = map[byte]error{
 	0x06: ErrorMaxSize,
 	0x07: ErrorHeader,
 	0x08: ErrorNoSession,
+	0x09: ErrorLogin,
+	0x0A: ErrorConnection,
+	0x0B: ErrorEmpty,
+	0x0C: ErrorPacket,
+	0x0D: ErrorPrivileges,
+	0x0E: ErrorServer,
 }
 
 // Returns the error code or the empty information field if not found

@@ -117,7 +117,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 	// Create a new user only if that is what was requested (REG)
 	if r.cmd.HD.Op != gc.REG {
 		// Cannot do anything else without an account
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
 		return nil, ErrorNoAccount
 	}
 
