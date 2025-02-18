@@ -55,6 +55,13 @@ func setupHub() *Hub {
 	return &hub
 }
 
+// TODO: Log levels
+// TODO: Config file
+// TODO: TLS port
+// TODO: Fix hub bottleneck
+// TODO: Keep-alive packet
+// TODO: Change runners to listen thread
+
 func main() {
 	addr := fmt.Sprintf(
 		"%s:%s",

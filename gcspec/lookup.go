@@ -4,6 +4,7 @@ package gcspec
 
 const NullOp Action = 0
 const NullID ID = 0
+const MaxID ID = 1<<10 - 1
 const EmptyInfo byte = 0xFF
 
 const ProtocolVersion uint8 = 1

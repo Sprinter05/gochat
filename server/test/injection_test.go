@@ -58,7 +58,7 @@ func TestREG(t *testing.T) {
 
 	// REG Packet
 	p1 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
-	test1, err := gc.NewPacket(gc.REG, gc.ID(19736), gc.EmptyInfo, p1)
+	test1, err := gc.NewPacket(gc.REG, gc.ID(976), gc.EmptyInfo, p1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestREG(t *testing.T) {
 
 	// Login
 	p2 := []gc.Arg{gc.Arg("Sprinter05")}
-	test2, err := gc.NewPacket(gc.CONN, gc.ID(8945), gc.EmptyInfo, p2)
+	test2, err := gc.NewPacket(gc.CONN, gc.ID(894), gc.EmptyInfo, p2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestREG(t *testing.T) {
 
 	// Verify
 	p3 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(string(dec))}
-	test3, err := gc.NewPacket(gc.VERIF, gc.ID(11333), gc.EmptyInfo, p3)
+	test3, err := gc.NewPacket(gc.VERIF, gc.ID(113), gc.EmptyInfo, p3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestREG(t *testing.T) {
 
 	// Req
 	p4 := []gc.Arg{gc.Arg("Sprinter05")}
-	test4, err := gc.NewPacket(gc.REQ, gc.ID(6969), gc.EmptyInfo, p4)
+	test4, err := gc.NewPacket(gc.REQ, gc.ID(69), gc.EmptyInfo, p4)
 	if err != nil {
 		t.Fatal(err)
 	}

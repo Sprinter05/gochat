@@ -28,7 +28,7 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		log.Printf("Error reading paylaod from %s: %s\n", ip, err)
+		log.Printf("Error reading payload from %s: %s\n", ip, err)
 		// Connection closed
 		if err == gc.ErrorConnection {
 			return err

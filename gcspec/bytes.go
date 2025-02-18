@@ -150,6 +150,11 @@ func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
 		return nil, ErrorArguments
 	}
 
+	// Check that the ID is not over the bit size
+	if id > MaxID {
+		return nil, ErrorArguments
+	}
+
 	// Check total payload size
 	tot := 0
 	if l != 0 {
