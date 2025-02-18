@@ -15,12 +15,9 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 	if err := cl.ListenHeader(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Printf("Error reading header from %s: %s\n", ip, err)
-		// Connection closed
-		if err == gc.ErrorConnection {
-			return err
-		}
-		// Incorrect header
+		// Malformed header
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHeader, cl.Conn)
+		return err
 	}
 	return nil
 }
@@ -30,12 +27,9 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Printf("Error reading paylaod from %s: %s\n", ip, err)
-		// Connection closed
-		if err == gc.ErrorConnection {
-			return err
-		}
-		// Incorrect payload
+		// Malformed payload
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, cl.Conn)
+		return err
 	}
 	return nil
 }
