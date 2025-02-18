@@ -87,7 +87,11 @@ func (hd Header) Check() error {
 	}
 
 	if hd.Op == NullOp {
-		return ErrorInvalid
+		return ErrorHeader
+	}
+
+	if hd.ID == NullID {
+		return ErrorHeader
 	}
 
 	return nil
