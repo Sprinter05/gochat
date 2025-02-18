@@ -154,7 +154,7 @@ func forceDeregistration(h *Hub, u User, cmd gc.Command) {
 	err := removeKey(h.db, username(cmd.Args[0]))
 	if err != nil {
 		// Failed to change the key of the user
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
 
