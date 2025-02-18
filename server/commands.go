@@ -142,18 +142,16 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 
 	// Database error different than foreign key violation
 	if e != ErrorDBConstraint {
-		//! This means a problem with the database occured
-		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		log.Fatalf("Undefined database error when deleting %s: %s!\n", u.name, e)
+		log.Printf("Error when deleting user %s: %s\n", u.name, e)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
 
 	// The user has cached messages so we just NULL the pubkey
 	err := removeKey(h.db, u.name)
 	if err != nil {
-		//! This should never happen when deleting this key
-		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		log.Fatalf("Impossible to deregister user %s: %s!\n", u.name, err)
+		log.Printf("Failed deregister user %s: %s\n", u.name, err)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
 
@@ -172,7 +170,7 @@ func requestUser(h *Hub, u User, cmd gc.Command) {
 	p, e := gc.PubkeytoPEM(k)
 	if e != nil {
 		//! This means the user's database is corrupted info
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
 		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
 		return
 	}
@@ -206,7 +204,7 @@ func listUsers(h *Hub, u User, cmd gc.Command) {
 	} else {
 		// Error due to invalid argument in header info
 		//log.Printf("Invalid user list argument from %s\n", u.name)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorHeader, u.conn)
 		return
 	}
 
@@ -259,7 +257,7 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	if err != nil {
 		// Error when inserting the message into the cache
 		log.Printf("Error when caching a message from %s\n", u.name)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
 
@@ -282,7 +280,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	catch, err := queryMessages(h.db, u.name, size)
 	if err != nil {
 		log.Printf("Could not query messages for %s: %s\n", u.name, err)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
 

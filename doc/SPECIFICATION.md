@@ -11,6 +11,9 @@
 - Client acknowledgment: `OK`
 
 ## Connection
+
+When connecting to the server it is important to know that **any malformed packet** will automatically close the connection. Moreover, the server has a **5 minutes** deadline for receiving packets, after which the connection will close if nothing is received.
+
 ### Registering a user
 The client application must create an RSA key pair and then send **both** the public key and username to the server, which will only error if the username or key is already in use. The RSA key pair should be **4096 bits** and be sent in `PKIX` format to the server.
 
