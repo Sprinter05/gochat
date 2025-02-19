@@ -43,6 +43,8 @@ type Request struct {
 	cmd gc.Command
 }
 
+const MaxUserRequests int = 5
+
 // Specifies a logged in user
 type User struct {
 	conn   net.Conn

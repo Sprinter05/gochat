@@ -54,6 +54,7 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 		cmd := new(gc.Command)
 
 		// Max time for a packet to be received
+		// TODO: improve with goroutine and counter
 		out := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
 		cl.Conn.SetReadDeadline(out)
 

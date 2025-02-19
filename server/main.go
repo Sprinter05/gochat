@@ -36,7 +36,7 @@ func init() {
 func setupHub() *Hub {
 	// Allocate all data structures
 	hub := Hub{
-		clean:  make(chan net.Conn),
+		clean:  make(chan net.Conn, gc.MaxClients/2),
 		shtdwn: make(chan bool),
 		users: table[*User]{
 			tab: make(map[net.Conn]*User),
@@ -55,9 +55,9 @@ func setupHub() *Hub {
 // TODO: Log levels
 // TODO: Config file
 // TODO: TLS port
-// TODO: Fix hub bottleneck
 // TODO: Keep-alive packet
-// TODO: Change runners to listen thread
+// TODO: Security against DDOS
+// TODO: Timeout when keep alive too much
 
 func main() {
 	addr := fmt.Sprintf(
@@ -96,8 +96,8 @@ func main() {
 			RD:   bufio.NewReader(c),
 		}
 
-		// Channel for intercommunication
-		req := make(chan Request)
+		// Buffered channel for intercommunication
+		req := make(chan Request, MaxUserRequests)
 
 		// Listens to the client's packets
 		go ListenConnection(cl, req, hub.clean)

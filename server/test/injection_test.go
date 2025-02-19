@@ -69,7 +69,7 @@ func TestREG(t *testing.T) {
 
 	// Login
 	p2 := []gc.Arg{gc.Arg("Sprinter05")}
-	test2, err := gc.NewPacket(gc.CONN, gc.ID(894), gc.EmptyInfo, p2)
+	test2, err := gc.NewPacket(gc.LOGIN, gc.ID(894), gc.EmptyInfo, p2)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,16 +15,16 @@ import (
 // We do not use a variable as a map cannot be const
 func lookupCommand(op gc.Action) (action, error) {
 	lookup := map[gc.Action]action{
-		gc.REG:   registerUser,
-		gc.CONN:  connectUser,
-		gc.VERIF: verifyUser,
-		gc.DISCN: disconnectUser,
-		gc.DEREG: deregisterUser,
-		gc.REQ:   requestUser,
-		gc.USRS:  listUsers,
-		gc.MSG:   messageUser,
-		gc.RECIV: recivMessages,
-		gc.ADMIN: adminOperation,
+		gc.REG:    registerUser,
+		gc.LOGIN:  loginUser,
+		gc.VERIF:  verifyUser,
+		gc.LOGOUT: logoutUser,
+		gc.DEREG:  deregisterUser,
+		gc.REQ:    requestUser,
+		gc.USRS:   listUsers,
+		gc.MSG:    messageUser,
+		gc.RECIV:  recivMessages,
+		gc.ADMIN:  adminOperation,
 	}
 
 	v, ok := lookup[op]
@@ -85,9 +85,15 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 	}
 
 	// Create a new user only if that is what was requested (REG)
-	if r.cmd.HD.Op != gc.REG {
-		// Cannot do anything else without an account
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
+	op := r.cmd.HD.Op
+	if op != gc.REG {
+		if op == gc.LOGIN {
+			// User does not exist when trying to login
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorNotFound, r.cl)
+		} else {
+			// Cannot do anything without an account
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
+		}
 		return nil, ErrorNoAccount
 	}
 
@@ -117,7 +123,7 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 	// Check that the operation is correct
 	// Must be done after querying the database
 	id := r.cmd.HD.Op
-	if id != gc.CONN && id != gc.VERIF {
+	if id != gc.LOGIN && id != gc.VERIF {
 		// If the user is being read from the DB its in handshake
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 		return nil, ErrorProhibitedOperation
@@ -148,9 +154,9 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	v, ok := h.users.Get(r.cl)
 	if ok {
 		// Operation check must be done after checking the cache
-		if id == gc.REG || id == gc.CONN {
+		if id == gc.REG || id == gc.LOGIN {
 			// Can only register or connect if not in cache
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 			return nil, ErrorSessionExists
 		} else {
 			// User is cached and the session can be returned

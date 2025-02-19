@@ -35,12 +35,13 @@ const (
 	REQ
 	USRS
 	RECIV
-	CONN
+	LOGIN
 	MSG
-	DISCN
+	LOGOUT
 	DEREG
 	SHTDWN
 	ADMIN
+	KEEP
 )
 
 //? Reduce the amount of tables
@@ -53,12 +54,13 @@ var codeToid map[byte]Action = map[byte]Action{
 	0x05: REQ,
 	0x06: USRS,
 	0x07: RECIV,
-	0x08: CONN,
+	0x08: LOGIN,
 	0x09: MSG,
-	0x0A: DISCN,
+	0x0A: LOGOUT,
 	0x0B: DEREG,
 	0x0C: SHTDWN,
 	0x0D: ADMIN,
+	0x0E: KEEP,
 }
 
 var idToCode map[Action]byte = map[Action]byte{
@@ -69,12 +71,13 @@ var idToCode map[Action]byte = map[Action]byte{
 	REQ:    0x05,
 	USRS:   0x06,
 	RECIV:  0x07,
-	CONN:   0x08,
+	LOGIN:  0x08,
 	MSG:    0x09,
-	DISCN:  0x0A,
+	LOGOUT: 0x0A,
 	DEREG:  0x0B,
 	SHTDWN: 0x0C,
 	ADMIN:  0x0D,
+	KEEP:   0x0E,
 }
 
 var stringToCode map[string]Action = map[string]Action{
@@ -85,12 +88,13 @@ var stringToCode map[string]Action = map[string]Action{
 	"REQ":    REQ,
 	"USRS":   USRS,
 	"RECIV":  RECIV,
-	"CONN":   CONN,
+	"LOGIN":  LOGIN,
 	"MSG":    MSG,
-	"DISCN":  DISCN,
+	"LOGOUT": LOGOUT,
 	"DEREG":  DEREG,
 	"SHTDWN": SHTDWN,
 	"ADMIN":  ADMIN,
+	"KEEP":   KEEP,
 }
 
 var codeToString map[Action]string = map[Action]string{
@@ -101,12 +105,13 @@ var codeToString map[Action]string = map[Action]string{
 	REQ:    "REQ",
 	USRS:   "USRS",
 	RECIV:  "RECIV",
-	CONN:   "CONN",
+	LOGIN:  "LOGIN",
 	MSG:    "MSG",
-	DISCN:  "DISCN",
+	LOGOUT: "LOGOUT",
 	DEREG:  "DEREG",
 	SHTDWN: "SHTDWN",
 	ADMIN:  "ADMIN",
+	KEEP:   "KEEP",
 }
 
 // Returns the ID associated to a byte code
@@ -155,12 +160,13 @@ var idToArgs map[Action]uint8 = map[Action]uint8{
 	REQ:    1,
 	USRS:   0,
 	RECIV:  3,
-	CONN:   1,
+	LOGIN:  1,
 	MSG:    3,
-	DISCN:  0,
+	LOGOUT: 0,
 	DEREG:  0,
 	SHTDWN: 0,
 	ADMIN:  0, // Special case, can have more arguments
+	KEEP:   0,
 }
 
 func IDToArgs(a Action) int {
@@ -184,50 +190,22 @@ func (err GCError) Error() string {
 }
 
 var (
-	// Determines a generic undefined error
-	ErrorUndefined error = GCError{0x0, "undefined problem occured"}
-
-	// Invalid operation performed
-	ErrorInvalid error = GCError{0x1, "invalid operation performed"}
-
-	// Content could not be found
-	ErrorNotFound error = GCError{0x2, "content can not be found"}
-
-	// Versions do not match
-	ErrorVersion error = GCError{0x3, "server and client versions do not match"}
-
-	// Verification handshake failed
-	ErrorHandshake error = GCError{0x4, "handshake process failed"}
-
-	// Invalid arguments given
-	ErrorArguments error = GCError{0x5, "invalid arguments given"}
-
-	// Payload size too big
-	ErrorMaxSize error = GCError{0x6, "size is too big"}
-
-	// Header processing failed
-	ErrorHeader error = GCError{0x7, "invalid header provided"}
-
-	// User is not logged in
-	ErrorNoSession error = GCError{0x8, "user is not connected"}
-
-	// User cannot be logged in
-	ErrorLogin error = GCError{0x9, "user can not be logged in"}
-
-	// Connection problems occured
-	ErrorConnection error = GCError{0xA, "connection problem occured"}
-
-	// Empty result returned
-	ErrorEmpty error = GCError{0xB, "queried data is empty"}
-
-	// Problem with packet creation or delivery
-	ErrorPacket error = GCError{0xC, "packet could not be delivered"}
-
-	// Not enough privileges to runa ction
+	ErrorUndefined  error = GCError{0x00, "undefined problem occured"}
+	ErrorInvalid    error = GCError{0x01, "invalid operation performed"}
+	ErrorNotFound   error = GCError{0x02, "content can not be found"}
+	ErrorVersion    error = GCError{0x03, "server and client versions do not match"}
+	ErrorHandshake  error = GCError{0x04, "handshake process failed"}
+	ErrorArguments  error = GCError{0x05, "invalid arguments given"}
+	ErrorMaxSize    error = GCError{0x06, "data size is too big"}
+	ErrorHeader     error = GCError{0x07, "invalid header provided"}
+	ErrorNoSession  error = GCError{0x08, "user is not connected"}
+	ErrorLogin      error = GCError{0x09, "user can not be logged in"}
+	ErrorConnection error = GCError{0x0A, "connection problem occured"}
+	ErrorEmpty      error = GCError{0x0B, "queried data is empty"}
+	ErrorPacket     error = GCError{0x0C, "packet could not be delivered"}
 	ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
-
-	// Failed to perform a server-side operation
-	ErrorServer error = GCError{0x0E, "server operation failed"}
+	ErrorServer     error = GCError{0x0E, "server operation failed"}
+	ErrorIdle       error = GCError{0x0F, "user has been idle for too long"}
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -246,6 +224,7 @@ var codeToError map[byte]error = map[byte]error{
 	0x0C: ErrorPacket,
 	0x0D: ErrorPrivileges,
 	0x0E: ErrorServer,
+	0x0F: ErrorIdle,
 }
 
 // Returns the error code or the empty information field if not found
@@ -281,4 +260,7 @@ const (
 
 	// Increases the permission levels of another user
 	AdminPromote uint8 = 0x03
+
+	// Disconnects a user from the server
+	AdminKick uint8 = 0x04
 )

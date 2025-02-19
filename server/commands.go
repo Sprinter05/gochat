@@ -36,7 +36,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with VERIF or ERR
-func connectUser(h *Hub, u User, cmd gc.Command) {
+func loginUser(h *Hub, u User, cmd gc.Command) {
 	ran := randText()
 	enc, err := gc.EncryptText(ran, u.pubkey)
 	if err != nil {
@@ -111,7 +111,7 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with OK or ERR
-func disconnectUser(h *Hub, u User, cmd gc.Command) {
+func logoutUser(h *Hub, u User, cmd gc.Command) {
 	_, uok := h.users.Get(u.conn)
 	_, vok := h.verifs.Get(u.conn)
 
