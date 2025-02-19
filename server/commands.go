@@ -238,6 +238,11 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	// Check if its online cached
 	send, ok := h.findUser(username(cmd.Args[0]))
 	if ok {
+		if send.name == u.name {
+			sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+			return
+		}
+
 		// We send the message directly to the connection
 		arg := []gc.Arg{
 			gc.Arg(u.name),
