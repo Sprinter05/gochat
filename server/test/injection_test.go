@@ -91,7 +91,7 @@ func TestREG(t *testing.T) {
 	r2 := readFromConn(conn) // OK packet
 	r2.Print()
 
-	// Req
+	// Msg
 	p4 := []gc.Arg{
 		gc.Arg("Sprinter05"),
 		gc.Arg(gc.UnixStampNow()),

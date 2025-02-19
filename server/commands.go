@@ -8,7 +8,49 @@ import (
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
 
-// FUNCTIONS
+/* LOOKUP */
+
+// Function mapping table
+// We do not use a variable as a map cannot be const
+func lookupCommand(op gc.Action) (action, error) {
+	lookup := map[gc.Action]action{
+		gc.REG:    registerUser,
+		gc.LOGIN:  loginUser,
+		gc.VERIF:  verifyUser,
+		gc.LOGOUT: logoutUser,
+		gc.DEREG:  deregisterUser,
+		gc.REQ:    requestUser,
+		gc.USRS:   listUsers,
+		gc.MSG:    messageUser,
+		gc.RECIV:  recivMessages,
+		gc.ADMIN:  adminOperation,
+	}
+
+	v, ok := lookup[op]
+	if !ok {
+		return nil, ErrorDoesNotExist
+	}
+
+	return v, nil
+}
+
+// Check which action to perform
+func procRequest(h *Hub, r Request, u *User) {
+	id := r.cmd.HD.Op
+
+	fun, err := lookupCommand(id)
+	if err != nil {
+		// Invalid action is trying to be ran
+		log.Printf("No function asocciated to %s, skipping request!\n", gc.CodeToString(id))
+		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+		return
+	}
+
+	// Run command
+	fun(h, *u, r.cmd)
+}
+
+/* COMMANDS */
 
 // Replies with OK or ERR
 // Uses a user with only the net.Conn
@@ -135,12 +177,10 @@ func logoutUser(h *Hub, u User, cmd gc.Command) {
 
 // Replies with OK or ERR
 func deregisterUser(h *Hub, u User, cmd gc.Command) {
-	// Cleanup cache information in any case
-	defer h.cleanupUser(u.conn)
-
 	// Delete user if message cache is empty
 	e := removeUser(h.db, u.name)
 	if e == nil {
+		h.cleanupUser(u.conn)
 		sendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
@@ -160,6 +200,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 		return
 	}
 
+	h.cleanupUser(u.conn)
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 

@@ -15,9 +15,6 @@ const MaxArgSize int = 1<<11 - 1
 const RSABitSize int = 4096
 const UsernameSize int = 32
 
-const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
-const CypherLength int = 128
-
 const LoginTimeout int = 2 // Minutes
 const ReadTimeout int = 3  // Minutes
 const MaxClients int = 20

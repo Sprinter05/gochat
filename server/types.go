@@ -16,6 +16,10 @@ import (
 
 /* TYPE DEFINITIONS */
 
+// Cypher values
+const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
+const CypherLength int = 128
+
 // Has to conform to UsernameSize on the specification
 type username string
 
@@ -37,7 +41,7 @@ const (
 	OWNER
 )
 
-// Determines a request to be processed by a hub
+// Determines a request to be processed by a thread
 type Request struct {
 	cl  net.Conn
 	cmd gc.Command
@@ -168,11 +172,11 @@ func sendOKPacket(id gc.ID, cl net.Conn) {
 func randText() []byte {
 	// Set seed in nanoseconds for better randomness
 	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
-	set := []byte(gc.CypherCharset)
+	set := []byte(CypherCharset)
 
-	r := make([]byte, gc.CypherLength)
+	r := make([]byte, CypherLength)
 	for i := range r {
-		r[i] = set[seed.Intn(len(gc.CypherCharset))]
+		r[i] = set[seed.Intn(len(CypherCharset))]
 	}
 
 	return r

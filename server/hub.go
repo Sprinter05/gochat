@@ -9,50 +9,6 @@ import (
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
 
-/* DATA */
-
-// Function mapping table
-// We do not use a variable as a map cannot be const
-func lookupCommand(op gc.Action) (action, error) {
-	lookup := map[gc.Action]action{
-		gc.REG:    registerUser,
-		gc.LOGIN:  loginUser,
-		gc.VERIF:  verifyUser,
-		gc.LOGOUT: logoutUser,
-		gc.DEREG:  deregisterUser,
-		gc.REQ:    requestUser,
-		gc.USRS:   listUsers,
-		gc.MSG:    messageUser,
-		gc.RECIV:  recivMessages,
-		gc.ADMIN:  adminOperation,
-	}
-
-	v, ok := lookup[op]
-	if !ok {
-		return nil, ErrorDoesNotExist
-	}
-
-	return v, nil
-}
-
-/* RUN COMMAND FUNCTION */
-
-// Check which action to perform
-func procRequest(h *Hub, r Request, u *User) {
-	id := r.cmd.HD.Op
-
-	fun, err := lookupCommand(id)
-	if err != nil {
-		// Invalid action is trying to be ran
-		log.Printf("No function asocciated to %s, skipping request!\n", gc.CodeToString(id))
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-		return
-	}
-
-	// Run command
-	fun(h, *u, r.cmd)
-}
-
 /* HUB WRAPPER FUNCTIONS */
 
 // Cleans any mention to a connection in the caches
@@ -68,6 +24,7 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 func (hub *Hub) checkSession(r Request) (*User, error) {
 	op := r.cmd.HD.Op
 
+	// Cant be REG LOGIN or VERIF
 	if op != gc.REG && op != gc.LOGIN && op != gc.VERIF {
 		cached, err := hub.cachedLogin(r)
 		if err == nil {
@@ -79,6 +36,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 		}
 	}
 
+	// Can only be LOGIN or VERIF
 	if op == gc.LOGIN || op == gc.VERIF {
 		user, e := hub.dbLogin(r)
 		if e == nil {
@@ -90,7 +48,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 		}
 	}
 
-	// Create a new user only if that is what was requested (REG)
+	// Can only be REG
 	if op != gc.REG {
 		if op == gc.LOGIN {
 			// User does not exist when trying to login
@@ -112,7 +70,6 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 /* HUB LOGIN FUNCTIONS */
 
 // Check if there is a user entry from the database
-// Also makes sure that the operation is a handshake operation (CONN or VERIF)
 func (h *Hub) dbLogin(r Request) (*User, error) {
 
 	// Check if the user is in the database
@@ -125,8 +82,6 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		return nil, e
 	}
 
-	// We do not need to check the error
-	// The part where we check the key already does
 	p, err := queryUserPerms(h.db, u)
 	if err != nil {
 		p = USER // Set to default value
@@ -142,19 +97,17 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 }
 
 // Check if the user is already logged in from the cache
-// Also makes sure that the operation is not handshake (REG or CONN)
 func (h *Hub) cachedLogin(r Request) (*User, error) {
 	id := r.cmd.HD.Op
 
-	// Check if its already IP cached
 	v, ok := h.users.Get(r.cl)
 	if ok {
 		// User is cached and the session can be returned
 		return v, nil
 	}
 
-	// We check if the user is logged in from another IP
 	if id == gc.LOGIN {
+		// We check if the user is logged in from another IP
 		_, ipok := h.findUser(username(r.cmd.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
@@ -164,7 +117,7 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 		}
 	}
 
-	// Otherwise we return the value
+	// Otherwise the user is not found
 	return nil, ErrorDoesNotExist
 }
 
@@ -188,7 +141,6 @@ func (h *Hub) userlist(online bool) string {
 		// Remove the last newline
 		ret = ret[:l-1]
 	} else {
-		// Query database
 		ret, err = queryUsernames(h.db)
 		if err != nil {
 			log.Printf("Error querying username list: %s\n", err)
@@ -200,10 +152,9 @@ func (h *Hub) userlist(online bool) string {
 }
 
 // Returns an online user if it exists (thread-safe)
-// This function does not use the generic functions
-// Therefore it must use the asocciated mutex
 func (h *Hub) findUser(uname username) (*User, bool) {
-	// Try to find the user
+	// This function does not use the generic functions
+	// Therefore it must use the asocciated mutex
 	h.users.mut.RLock()
 	defer h.users.mut.RUnlock()
 	for _, v := range h.users.tab {
@@ -217,12 +168,10 @@ func (h *Hub) findUser(uname username) (*User, bool) {
 
 /* HUB MAIN */
 
-// Function that distributes actions to run
+// Handles generic server functions
 func (hub *Hub) Start() {
 	defer hub.db.Close()
 
-	// Does not handle channels being closed
-	// Channels used here SHOULDNT be closed
 	for {
 		select {
 		case <-hub.shtdwn:

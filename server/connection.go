@@ -26,7 +26,6 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Printf("Error reading payload from %s: %s\n", ip, err)
-		// Malformed payload
 		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return err
 	}
@@ -47,6 +46,7 @@ func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
 
 // Listens from a client and communicates with the hub through the channels
 func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Conn) {
+	// Cleanup connection on error
 	defer cleanup(cl.Conn, req, hubcl)
 
 	// Timeout
@@ -59,17 +59,9 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 		cl.Conn.SetReadDeadline(deadline)
 
 		if processHeader(cl, cmd) != nil {
-			// Cleanup connection on error
 			return
 		}
 		if processPayload(cl, cmd) != nil {
-			// Cleanup connection on error
-			return
-		}
-
-		// Check that it has enough arguments unless its the admin command
-		if cmd.HD.Op != gc.ADMIN && (int(cmd.HD.Args) != gc.IDToArgs(cmd.HD.Op)) {
-			sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, cl.Conn)
 			return
 		}
 

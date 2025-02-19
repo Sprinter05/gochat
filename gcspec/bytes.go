@@ -95,6 +95,11 @@ func (hd Header) Check() error {
 		return ErrorHeader
 	}
 
+	// Admin operations can have variable arguments
+	if hd.Op != ADMIN && (int(hd.Args) != IDToArgs(hd.Op)) {
+		return ErrorHeader
+	}
+
 	return nil
 }
 

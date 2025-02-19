@@ -58,6 +58,8 @@ func setupHub() *Hub {
 // TODO: Keep-alive packet
 // TODO: Security against DDOS
 // TODO: Timeout when keep alive too much
+// TODO: Admin kick command
+// TODO: Cleaner shutdown
 
 func main() {
 	addr := fmt.Sprintf(
@@ -73,7 +75,7 @@ func main() {
 	hub := setupHub()
 
 	// Indicate that the server is up and running
-	fmt.Printf("-- Server running and listening for incoming connections! --\n")
+	fmt.Printf("-- Server running and listening for connections! --\n")
 
 	// Endless loop to listen for connections
 	var count int
