@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"net"
+	"os"
 )
 
 /* TYPES */
@@ -21,6 +22,9 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 	// Read from the wire
 	b, err := cl.RD.ReadBytes('\n')
 	if err != nil {
+		if err == os.ErrDeadlineExceeded {
+			return ErrorIdle
+		}
 		return ErrorConnection
 	}
 

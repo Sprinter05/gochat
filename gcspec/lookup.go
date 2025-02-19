@@ -19,7 +19,7 @@ const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx
 const CypherLength int = 128
 
 const LoginTimeout int = 2 // Minutes
-const ReadTimeout int = 5  // Minutes
+const ReadTimeout int = 3  // Minutes
 const MaxClients int = 20
 
 /* ACTION CODES */

@@ -15,8 +15,7 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 	if err := cl.ListenHeader(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Printf("Error reading header from %s: %s\n", ip, err)
-		// Malformed header
-		sendErrorPacket(cmd.HD.ID, gc.ErrorHeader, cl.Conn)
+		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return err
 	}
 	return nil
@@ -26,9 +25,9 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		log.Printf("Error reading paylaod from %s: %s\n", ip, err)
+		log.Printf("Error reading payload from %s: %s\n", ip, err)
 		// Malformed payload
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, cl.Conn)
+		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return err
 	}
 	return nil
@@ -50,13 +49,14 @@ func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
 func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Conn) {
 	defer cleanup(cl.Conn, req, hubcl)
 
+	// Timeout
+	deadline := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
+
 	for {
 		cmd := new(gc.Command)
 
-		// Max time for a packet to be received
-		// TODO: improve with goroutine and counter
-		out := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
-		cl.Conn.SetReadDeadline(out)
+		// Works as an idle timeout calling it each time
+		cl.Conn.SetReadDeadline(deadline)
 
 		if processHeader(cl, cmd) != nil {
 			// Cleanup connection on error
