@@ -30,7 +30,12 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	}
 
 	// Register user into the database
-	insertUser(h.db, uname, cmd.Args[1])
+	e := insertUser(h.db, uname, cmd.Args[1])
+	if e != nil {
+		//log.Printf("User %s alredy exists: %s\n", u.name, err)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorExists, u.conn)
+		return
+	}
 
 	sendOKPacket(cmd.HD.ID, u.conn)
 }

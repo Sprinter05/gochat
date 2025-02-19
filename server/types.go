@@ -130,11 +130,13 @@ func (t *table[T]) GetAll() []T {
 	}
 
 	array := make([]T, l)
+	i := 0
 
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 	for _, v := range t.tab {
-		array = append(array, v)
+		array[i] = v
+		i++
 	}
 
 	return array

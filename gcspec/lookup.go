@@ -206,6 +206,7 @@ var (
 	ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
 	ErrorServer     error = GCError{0x0E, "server operation failed"}
 	ErrorIdle       error = GCError{0x0F, "user has been idle for too long"}
+	ErrorExists     error = GCError{0x10, "content already exists"}
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -225,6 +226,7 @@ var codeToError map[byte]error = map[byte]error{
 	0x0D: ErrorPrivileges,
 	0x0E: ErrorServer,
 	0x0F: ErrorIdle,
+	0x10: ErrorExists,
 }
 
 // Returns the error code or the empty information field if not found

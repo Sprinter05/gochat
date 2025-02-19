@@ -66,26 +66,31 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 
 // Check if a session is present using the auxiliary functions
 func (hub *Hub) checkSession(r Request) (*User, error) {
-	cached, err := hub.cachedLogin(r)
-	if err == nil {
-		// Valid user found in cache, serve request
-		return cached, nil
-	} else if err != ErrorDoesNotExist {
-		// We do not search in the DB if its a different error
-		return nil, err
+	op := r.cmd.HD.Op
+
+	if op != gc.REG && op != gc.LOGIN && op != gc.VERIF {
+		cached, err := hub.cachedLogin(r)
+		if err == nil {
+			// Valid user found in cache, serve request
+			return cached, nil
+		} else if err != ErrorDoesNotExist {
+			// We do not search in the DB if its a different error
+			return nil, err
+		}
 	}
 
-	user, e := hub.dbLogin(r)
-	if e == nil {
-		// User found in database so we return it
-		return user, nil
-	} else if e != ErrorDoesNotExist {
-		// We do not create a new user if its a different error
-		return nil, e
+	if op == gc.LOGIN || op == gc.VERIF {
+		user, e := hub.dbLogin(r)
+		if e == nil {
+			// User found in database so we return it
+			return user, nil
+		} else if e != ErrorDoesNotExist {
+			// We do not create a new user if its a different error
+			return nil, e
+		}
 	}
 
 	// Create a new user only if that is what was requested (REG)
-	op := r.cmd.HD.Op
 	if op != gc.REG {
 		if op == gc.LOGIN {
 			// User does not exist when trying to login
@@ -120,15 +125,6 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		return nil, e
 	}
 
-	// Check that the operation is correct
-	// Must be done after querying the database
-	id := r.cmd.HD.Op
-	if id != gc.LOGIN && id != gc.VERIF {
-		// If the user is being read from the DB its in handshake
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-		return nil, ErrorProhibitedOperation
-	}
-
 	// We do not need to check the error
 	// The part where we check the key already does
 	p, err := queryUserPerms(h.db, u)
@@ -153,22 +149,19 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 	// Check if its already IP cached
 	v, ok := h.users.Get(r.cl)
 	if ok {
-		// Operation check must be done after checking the cache
-		if id == gc.REG || id == gc.LOGIN {
-			// Can only register or connect if not in cache
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
-			return nil, ErrorSessionExists
-		} else {
-			// User is cached and the session can be returned
-			return v, nil
-		}
+		// User is cached and the session can be returned
+		return v, nil
 	}
 
 	// We check if the user is logged in from another IP
-	if _, ok := h.findUser(username(r.cmd.Args[0])); ok {
-		// Cannot have two sessions of the same user
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
-		return nil, ErrorDuplicatedSession
+	if id == gc.LOGIN {
+		_, ipok := h.findUser(username(r.cmd.Args[0]))
+		if ipok {
+			// Cannot have two sessions of the same user
+			sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
+			return nil, ErrorDuplicatedSession
+
+		}
 	}
 
 	// Otherwise we return the value

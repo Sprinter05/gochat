@@ -92,13 +92,13 @@ func TestREG(t *testing.T) {
 	r2.Print()
 
 	// Req
-	p4 := []gc.Arg{gc.Arg("Sprinter05")}
-	test4, err := gc.NewPacket(gc.REQ, gc.ID(69), gc.EmptyInfo, p4)
+	//p4 := []gc.Arg{gc.Arg("Sprinter05")}
+	test4, err := gc.NewPacket(gc.USRS, gc.ID(69), 0x01, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	l.Write(test4)
 
-	r3 := readFromConn(conn) // REQ packet
+	r3 := readFromConn(conn) // USRS packet
 	r3.Print()
 }
