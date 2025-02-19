@@ -34,9 +34,21 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	return nil
 }
 
+// Cleans up the connection upon exit
+func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
+	// Close the requests channel
+	close(ch)
+
+	// Request cleaning the tables
+	hub <- cl
+
+	// Close connection
+	cl.Close()
+}
+
 // Listens from a client and communicates with the hub through the channels
-func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net.Conn) {
-	defer cl.Conn.Close()
+func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Conn) {
+	defer cleanup(cl.Conn, req, hubcl)
 
 	for {
 		cmd := new(gc.Command)
@@ -47,12 +59,10 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 
 		if processHeader(cl, cmd) != nil {
 			// Cleanup connection on error
-			hubcl <- cl.Conn
 			return
 		}
 		if processPayload(cl, cmd) != nil {
 			// Cleanup connection on error
-			hubcl <- cl.Conn
 			return
 		}
 
@@ -62,7 +72,7 @@ func ListenConnection(cl *gc.Connection, hubreq chan<- Request, hubcl chan<- net
 			return
 		}
 
-		hubreq <- Request{
+		req <- Request{
 			cl:  cl.Conn,
 			cmd: *cmd,
 		}
@@ -94,9 +104,19 @@ func catchUp(cl net.Conn, msgs *[]Message, id gc.ID) error {
 }
 
 // Wraps concurrency with each client's command
-func runTask(ch <-chan Task) {
-	// Will stop if the channel is closed
-	for t := range ch {
-		t.fun(t.hub, t.user, t.cmd)
+func runTask(hub *Hub, req <-chan Request) {
+	for r := range req {
+		// Print command info
+		r.cmd.Print()
+
+		// Check if the user can be served
+		u, err := hub.checkSession(r)
+		if err != nil {
+			ip := r.cl.RemoteAddr().String()
+			log.Printf("Error checking session from %s: %s\n", ip, err)
+			continue // Next request
+		}
+
+		procRequest(hub, r, u)
 	}
 }

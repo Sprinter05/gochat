@@ -35,37 +35,10 @@ func lookupCommand(op gc.Action) (action, error) {
 	return v, nil
 }
 
-/* HUB WRAPPER FUNCTIONS */
-
-// This should be ran every time a connection ends
-// Doing so prevents leaking goroutines
-func (h *Hub) cleanupConn(cl net.Conn) {
-	v, ok := h.runners.Get(cl)
-	if !ok {
-		// Nothing to cleanup
-		return
-	}
-	close(v)
-
-	// Remove the channel from the map
-	// Otherwise a function could send to a closed channel, which would panic
-	h.runners.Remove(cl)
-}
-
-// Cleans any mention to a connection in the caches
-func (h *Hub) cleanupUser(cl net.Conn) {
-	// Cleanup on the users table
-	h.users.Remove(cl)
-
-	// Cleanup on the verification table
-	h.verifs.Remove(cl)
-
-	// Remove runner from the table
-	h.runners.Remove(cl)
-}
+/* RUN COMMAND FUNCTION */
 
 // Check which action to perform
-func (h *Hub) procRequest(r Request, u *User) {
+func procRequest(h *Hub, r Request, u *User) {
 	id := r.cmd.HD.Op
 
 	fun, err := lookupCommand(id)
@@ -76,22 +49,19 @@ func (h *Hub) procRequest(r Request, u *User) {
 		return
 	}
 
-	send, exist := h.runners.Get(u.conn)
-	if !exist {
-		// Error because the channel does not exist
-		//! This should not happen unless the thread panicked
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorUndefined, r.cl)
-		log.Fatalf("Cannot send task to %s due to missing channel!", u.name)
-		return
-	}
+	// Run command
+	fun(h, *u, r.cmd)
+}
 
-	// Send task to the runner
-	send <- Task{
-		fun:  fun,
-		hub:  h,
-		user: *u,
-		cmd:  r.cmd,
-	}
+/* HUB WRAPPER FUNCTIONS */
+
+// Cleans any mention to a connection in the caches
+func (h *Hub) cleanupUser(cl net.Conn) {
+	// Cleanup on the users table
+	h.users.Remove(cl)
+
+	// Cleanup on the verification table
+	h.verifs.Remove(cl)
 }
 
 // Check if a session is present using the auxiliary functions
@@ -256,31 +226,13 @@ func (hub *Hub) Start() {
 	// Channels used here SHOULDNT be closed
 	for {
 		select {
-		case r, ok := <-hub.req:
-			if !ok {
-				// Perform a server shutdown
-				log.Printf("Shutting server down...\n")
-				os.Exit(0)
-			}
-
-			// Print command info
-			r.cmd.Print()
-
-			// Check if the user can be served
-			u, err := hub.checkSession(r)
-			if err != nil {
-				ip := r.cl.RemoteAddr().String()
-				log.Printf("Error checking session from %s: %s\n", ip, err)
-				continue // Next request
-			}
-
-			hub.procRequest(r, u)
+		case <-hub.shtdwn:
+			// Perform a server shutdown
+			log.Printf("Shutting server down...\n")
+			os.Exit(0)
 		case c := <-hub.clean:
 			// Remove all mentions of the user in the cache
 			hub.cleanupUser(c)
-
-			// Close runner for that connection
-			hub.cleanupConn(c)
 		}
 	}
 }

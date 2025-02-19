@@ -43,14 +43,6 @@ type Request struct {
 	cmd gc.Command
 }
 
-// Specifies a task to be performed by a runner
-type Task struct {
-	fun  action
-	hub  *Hub
-	user User
-	cmd  gc.Command
-}
-
 // Specifies a logged in user
 type User struct {
 	conn   net.Conn
@@ -76,12 +68,11 @@ type Message struct {
 // Tables store pointers for modification
 // But functions should not use the pointer
 type Hub struct {
-	db      *sql.DB
-	req     chan Request
-	clean   chan net.Conn
-	users   table[*User]
-	verifs  table[*Verif]
-	runners table[chan Task]
+	db     *sql.DB
+	clean  chan net.Conn
+	shtdwn chan bool
+	users  table[*User]
+	verifs table[*Verif]
 }
 
 /* INTERNAL ERRORS */

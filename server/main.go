@@ -36,16 +36,13 @@ func init() {
 func setupHub() *Hub {
 	// Allocate all data structures
 	hub := Hub{
-		req:   make(chan Request),
-		clean: make(chan net.Conn),
+		clean:  make(chan net.Conn),
+		shtdwn: make(chan bool),
 		users: table[*User]{
 			tab: make(map[net.Conn]*User),
 		},
 		verifs: table[*Verif]{
 			tab: make(map[net.Conn]*Verif),
-		},
-		runners: table[chan Task]{
-			tab: make(map[net.Conn]chan Task),
 		},
 		db: connectDB(),
 	}
@@ -99,11 +96,13 @@ func main() {
 			RD:   bufio.NewReader(c),
 		}
 
-		go ListenConnection(cl, hub.req, hub.clean)
+		// Channel for intercommunication
+		req := make(chan Request)
 
-		// Create runner that processes commands
-		send := make(chan Task)
-		hub.runners.Add(cl.Conn, send)
-		go runTask(send)
+		// Listens to the client's packets
+		go ListenConnection(cl, req, hub.clean)
+
+		// Runs the client's commands
+		go runTask(hub, req)
 	}
 }

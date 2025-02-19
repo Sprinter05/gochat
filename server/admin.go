@@ -79,7 +79,7 @@ func scheduleShutdown(h *Hub, u User, cmd gc.Command) {
 		time.Sleep(wait)
 
 		// Send shutdown signal to server
-		close(h.req)
+		h.shtdwn <- true
 	}()
 
 	args := []gc.Arg{
