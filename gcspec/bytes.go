@@ -90,7 +90,8 @@ func (hd Header) Check() error {
 		return ErrorHeader
 	}
 
-	if hd.ID == NullID {
+	// ID 0 is reserved for reciv
+	if hd.ID == NullID && hd.Op != RECIV {
 		return ErrorHeader
 	}
 
