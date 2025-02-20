@@ -261,5 +261,5 @@ const (
 	AdminPromote uint8 = 0x03
 
 	// Disconnects a user from the server
-	AdminKick uint8 = 0x04
+	AdminDisconnect uint8 = 0x04
 )

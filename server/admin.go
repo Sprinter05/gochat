@@ -9,14 +9,45 @@ import (
 
 /* LOOKUP */
 
+// Argument mapping table
+func getAdminArguments(ad uint8) uint8 {
+	args := map[uint8]uint8{
+		gc.AdminShutdown:   1,
+		gc.AdminBroadcast:  1,
+		gc.AdminDeregister: 1,
+		gc.AdminPromote:    1,
+		gc.AdminDisconnect: 1,
+	}
+
+	// Ok has to be checked on lookup first
+	v := args[ad]
+	return v
+}
+
+// Permission mapping table
+func getAdminPermission(ad uint8) Permission {
+	perms := map[uint8]Permission{
+		gc.AdminShutdown:   ADMIN,
+		gc.AdminBroadcast:  ADMIN,
+		gc.AdminDeregister: ADMIN,
+		gc.AdminPromote:    OWNER,
+		gc.AdminDisconnect: ADMIN,
+	}
+
+	// Ok has to be checked on lookup first
+	v := perms[ad]
+	return v
+}
+
 // Admin function mapping table
 // We do not use a variable as a map cannot be const
 func lookupAdmin(ad uint8) (action, error) {
 	lookup := map[uint8]action{
-		gc.AdminShutdown:   scheduleShutdown,
-		gc.AdminBroadcast:  broadcastMessage,
-		gc.AdminDeregister: forceDeregistration,
-		gc.AdminPromote:    promoteUser,
+		gc.AdminShutdown:   adminShutdown,
+		gc.AdminBroadcast:  adminBroadcast,
+		gc.AdminDeregister: adminDeregister,
+		gc.AdminPromote:    adminPromote,
+		gc.AdminDisconnect: adminDisconnect,
 	}
 
 	v, ok := lookup[ad]
@@ -42,6 +73,18 @@ func adminOperation(h *Hub, u User, cmd gc.Command) {
 		return
 	}
 
+	args := getAdminArguments(cmd.HD.Info)
+	if cmd.HD.Args != args {
+		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		return
+	}
+
+	perms := getAdminPermission(cmd.HD.Info)
+	if u.perms < perms {
+		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
+		return
+	}
+
 	fun(h, u, cmd)
 }
 
@@ -49,17 +92,7 @@ func adminOperation(h *Hub, u User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Uses 1 argument for the unix stamp
-func scheduleShutdown(h *Hub, u User, cmd gc.Command) {
-	if u.perms < ADMIN {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
-		return
-	}
-
-	if cmd.HD.Args != 1 {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
-		return
-	}
-
+func adminShutdown(h *Hub, u User, cmd gc.Command) {
 	stamp := gc.NewUnixStamp(cmd.Args[0])
 	if stamp == -1 {
 		// Invalid number given
@@ -105,17 +138,7 @@ func scheduleShutdown(h *Hub, u User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Requires 1 argument for the message
-func broadcastMessage(h *Hub, u User, cmd gc.Command) {
-	if u.perms < ADMIN {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
-		return
-	}
-
-	if cmd.HD.Args != 1 {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
-		return
-	}
-
+func adminBroadcast(h *Hub, u User, cmd gc.Command) {
 	// Create packet with the message
 	arg := []gc.Arg{
 		gc.Arg(u.name + " [ADMIN]"),
@@ -140,17 +163,7 @@ func broadcastMessage(h *Hub, u User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Requires 1 argument for the user
-func forceDeregistration(h *Hub, u User, cmd gc.Command) {
-	if u.perms < ADMIN {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
-		return
-	}
-
-	if cmd.HD.Args != 1 {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
-		return
-	}
-
+func adminDeregister(h *Hub, u User, cmd gc.Command) {
 	err := removeKey(h.db, username(cmd.Args[0]))
 	if err != nil {
 		// Failed to change the key of the user
@@ -163,17 +176,7 @@ func forceDeregistration(h *Hub, u User, cmd gc.Command) {
 
 // Requires OWNER or more
 // Requires 1 argument for the user
-func promoteUser(h *Hub, u User, cmd gc.Command) {
-	if u.perms < OWNER {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
-		return
-	}
-
-	if cmd.HD.Args != 1 {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
-		return
-	}
-
+func adminPromote(h *Hub, u User, cmd gc.Command) {
 	curr, err := queryUserPerms(h.db, username(cmd.Args[0]))
 	if err != nil {
 		// Invalid user provided
@@ -196,4 +199,18 @@ func promoteUser(h *Hub, u User, cmd gc.Command) {
 	}
 
 	sendOKPacket(cmd.HD.ID, u.conn)
+}
+
+// Requires ADMIN or more
+// Requires 1 argument for the user
+func adminDisconnect(h *Hub, u User, cmd gc.Command) {
+	dc, ok := h.findUser(username(cmd.Args[0]))
+	if !ok {
+		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+		return
+	}
+
+	// This should stop the client thread
+	// And also cleanup caches
+	dc.conn.Close()
 }
