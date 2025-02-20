@@ -7,11 +7,12 @@ const NullID ID = 0
 const MaxID ID = 1<<10 - 1
 const EmptyInfo byte = 0xFF
 
-const ProtocolVersion uint8 = 1
 const HeaderSize int = 8
 const MaxArgs int = 1<<4 - 1
 const MaxPayload int = 1<<14 - 1
 const MaxArgSize int = 1<<11 - 1
+
+const ProtocolVersion uint8 = 1
 const RSABitSize int = 4096
 const UsernameSize int = 32
 
@@ -41,137 +42,108 @@ const (
 	KEEP
 )
 
-//? Reduce the amount of tables
-
-var codeToid map[byte]Action = map[byte]Action{
-	0x01: OK,
-	0x02: ERR,
-	0x03: REG,
-	0x04: VERIF,
-	0x05: REQ,
-	0x06: USRS,
-	0x07: RECIV,
-	0x08: LOGIN,
-	0x09: MSG,
-	0x0A: LOGOUT,
-	0x0B: DEREG,
-	0x0C: SHTDWN,
-	0x0D: ADMIN,
-	0x0E: KEEP,
+// Identifies an operation to be performed
+type lookup struct {
+	op   Action
+	hex  uint8
+	str  string
+	args uint8
 }
 
-var idToCode map[Action]byte = map[Action]byte{
-	OK:     0x01,
-	ERR:    0x02,
-	REG:    0x03,
-	VERIF:  0x04,
-	REQ:    0x05,
-	USRS:   0x06,
-	RECIV:  0x07,
-	LOGIN:  0x08,
-	MSG:    0x09,
-	LOGOUT: 0x0A,
-	DEREG:  0x0B,
-	SHTDWN: 0x0C,
-	ADMIN:  0x0D,
-	KEEP:   0x0E,
+var (
+	okLookup     = lookup{OK, 0x01, "OK", 0}
+	errLookup    = lookup{ERR, 0x02, "ERR", 0}
+	regLookup    = lookup{REG, 0x03, "REG", 2}
+	verifLookup  = lookup{VERIF, 0x04, "VERIF", 2}
+	reqLookup    = lookup{REQ, 0x05, "REQ", 1}
+	usrsLookup   = lookup{USRS, 0x06, "USRS", 0}
+	recivLookup  = lookup{RECIV, 0x07, "RECIV", 3}
+	loginLookup  = lookup{LOGIN, 0x08, "LOGIN", 1}
+	msgLookup    = lookup{MSG, 0x09, "MSG", 3}
+	logoutLookup = lookup{LOGOUT, 0x0A, "LOGOUT", 0}
+	deregLookup  = lookup{DEREG, 0x0B, "DEREG", 0}
+	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", 0}
+	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0}
+	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0}
+)
+
+// Args represents the amount of arguments the server needs
+var lookupByOperation map[Action]lookup = map[Action]lookup{
+	OK:     okLookup,
+	ERR:    errLookup,
+	REG:    regLookup,
+	VERIF:  verifLookup,
+	REQ:    reqLookup,
+	USRS:   usrsLookup,
+	RECIV:  recivLookup,
+	LOGIN:  loginLookup,
+	MSG:    msgLookup,
+	LOGOUT: logoutLookup,
+	DEREG:  deregLookup,
+	SHTDWN: shtdwnLookup,
+	ADMIN:  adminLookup,
+	KEEP:   keepLookup,
 }
 
-var stringToCode map[string]Action = map[string]Action{
-	"OK":     OK,
-	"ERR":    ERR,
-	"REG":    REG,
-	"VERIF":  VERIF,
-	"REQ":    REQ,
-	"USRS":   USRS,
-	"RECIV":  RECIV,
-	"LOGIN":  LOGIN,
-	"MSG":    MSG,
-	"LOGOUT": LOGOUT,
-	"DEREG":  DEREG,
-	"SHTDWN": SHTDWN,
-	"ADMIN":  ADMIN,
-	"KEEP":   KEEP,
-}
-
-var codeToString map[Action]string = map[Action]string{
-	OK:     "OK",
-	ERR:    "ERR",
-	REG:    "REG",
-	VERIF:  "VERIF",
-	REQ:    "REQ",
-	USRS:   "USRS",
-	RECIV:  "RECIV",
-	LOGIN:  "LOGIN",
-	MSG:    "MSG",
-	LOGOUT: "LOGOUT",
-	DEREG:  "DEREG",
-	SHTDWN: "SHTDWN",
-	ADMIN:  "ADMIN",
-	KEEP:   "KEEP",
+var lookupByString map[string]lookup = map[string]lookup{
+	"OK":     okLookup,
+	"ERR":    errLookup,
+	"REG":    regLookup,
+	"VERIF":  verifLookup,
+	"REQ":    reqLookup,
+	"USRS":   usrsLookup,
+	"RECIV":  recivLookup,
+	"LOGIN":  loginLookup,
+	"MSG":    msgLookup,
+	"LOGOUT": logoutLookup,
+	"DEREG":  deregLookup,
+	"SHTDWN": shtdwnLookup,
+	"ADMIN":  adminLookup,
+	"KEEP":   keepLookup,
 }
 
 // Returns the ID associated to a byte code
 func CodeToID(b byte) Action {
-	v, ok := codeToid[b]
+	v, ok := lookupByOperation[Action(b)]
 	if !ok {
 		return NullOp
 	}
-	return v
+	return v.op
 }
 
 // Returns the byte code asocciated to an ID
 func IDToCode(a Action) byte {
-	v, ok := idToCode[a]
+	v, ok := lookupByOperation[a]
 	if !ok {
 		return 0x0
 	}
-	return v
+	return v.hex
 }
 
 // Returns the ID associated to a string
 func StringToCode(s string) Action {
-	v, ok := stringToCode[s]
+	v, ok := lookupByString[s]
 	if !ok {
 		return 0x0
 	}
-	return v
+	return v.op
 }
 
 // Returns the ID associated to a string
-func CodeToString(i Action) string {
-	v, ok := codeToString[i]
+func CodeToString(a Action) string {
+	v, ok := lookupByOperation[a]
 	if !ok {
 		return ""
 	}
-	return v
-}
-
-/* ARGUMENTS PER OPERATION */
-
-var idToArgs map[Action]uint8 = map[Action]uint8{
-	OK:     0,
-	ERR:    0,
-	REG:    2,
-	VERIF:  2,
-	REQ:    1,
-	USRS:   0,
-	RECIV:  3,
-	LOGIN:  1,
-	MSG:    3,
-	LOGOUT: 0,
-	DEREG:  0,
-	SHTDWN: 0,
-	ADMIN:  0, // Special case, can have more arguments
-	KEEP:   0,
+	return v.str
 }
 
 func IDToArgs(a Action) int {
-	v, ok := idToArgs[a]
+	v, ok := lookupByOperation[a]
 	if !ok {
 		return -1
 	}
-	return int(v)
+	return int(v.args)
 }
 
 /* ERROR CODES */

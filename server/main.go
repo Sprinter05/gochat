@@ -19,8 +19,8 @@ func init() {
 	log.SetOutput(os.Stdout)
 
 	if len(os.Args) < 2 {
-		log.Fatalf("Not enough arguments supplied!")
-		os.Exit(1)
+		// No environment file supplied
+		return
 	}
 
 	// Argument 0 is the pathname to the executable
