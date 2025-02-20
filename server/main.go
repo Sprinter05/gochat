@@ -55,8 +55,6 @@ func setupHub() *Hub {
 // TODO: Log levels
 // TODO: Config file
 // TODO: TLS port
-// TODO: Admin kick command
-// TODO: Cleaner shutdown
 
 func main() {
 	addr := fmt.Sprintf(

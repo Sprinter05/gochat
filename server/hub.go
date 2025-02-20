@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -175,6 +176,15 @@ func (hub *Hub) Start() {
 	for {
 		select {
 		case <-hub.shtdwn:
+			// Disconnect all users
+			list := hub.users.GetAll()
+			for _, v := range list {
+				v.conn.Close()
+			}
+
+			// Wait a bit for everything to close
+			time.Sleep(5 * time.Second)
+
 			// Perform a server shutdown
 			log.Printf("Shutting server down...\n")
 			os.Exit(0)
