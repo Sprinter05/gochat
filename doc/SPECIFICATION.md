@@ -8,7 +8,7 @@
 
 ## Connection
 
-When connecting to the server it is important to know that **any malformed packet** will automatically close the connection. Moreover, the server has a **3 minutes** deadline for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be used to allow the connection to persist, but abuse of said operation will cause a disconnection.
+When connecting to the server it is important to know that **any malformed packet** will automatically close the connection. Moreover, the server has a **10 minutes** deadline for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be used to allow the connection to persist.
 
 ### Registering a user
 The client application must create an RSA key pair and then send **both** the public key and username to the server, which will only error if the username or key is already in use. The RSA key pair should be **4096 bits** and be sent in `PKIX, ASN.1 DER` format to the server.

@@ -55,9 +55,6 @@ func setupHub() *Hub {
 // TODO: Log levels
 // TODO: Config file
 // TODO: TLS port
-// TODO: Keep-alive packet
-// TODO: Security against DDOS
-// TODO: Timeout when keep alive too much
 // TODO: Admin kick command
 // TODO: Cleaner shutdown
 

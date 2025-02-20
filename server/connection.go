@@ -61,8 +61,17 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 		if processHeader(cl, cmd) != nil {
 			return
 		}
-		if processPayload(cl, cmd) != nil {
-			return
+
+		// If there are no arguments we do not process the payload
+		if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
+			if processPayload(cl, cmd) != nil {
+				return
+			}
+		}
+
+		// Keep conection alive packet
+		if cmd.HD.Op == gc.KEEP {
+			continue
 		}
 
 		req <- Request{

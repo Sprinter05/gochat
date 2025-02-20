@@ -16,7 +16,7 @@ const RSABitSize int = 4096
 const UsernameSize int = 32
 
 const LoginTimeout int = 2 // Minutes
-const ReadTimeout int = 3  // Minutes
+const ReadTimeout int = 10 // Minutes
 const MaxClients int = 20
 
 /* ACTION CODES */
