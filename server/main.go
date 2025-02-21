@@ -11,6 +11,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Global log
+var gclog Logging
+
 // Sets up logging
 // Reads environment file from first cli argument
 // init() always runs when the program starts
@@ -23,11 +26,23 @@ func init() {
 		return
 	}
 
+	// Setup logging levels
+	lv := os.Getenv("LOG_LEVL")
+	switch lv {
+	case "ALL":
+		gclog = ALL
+	case "INFO":
+		gclog = INFO
+	case "ERROR":
+		gclog = ERROR
+	default:
+		gclog = FATAL
+	}
+
 	// Argument 0 is the pathname to the executable
 	err := godotenv.Load(os.Args[1])
 	if err != nil {
-		log.Fatalf("Failed to read environment file: %s\n", err)
-		os.Exit(1)
+		gclog.Fatal("env file reading", err)
 	}
 }
 
@@ -64,7 +79,7 @@ func main() {
 	)
 	l, err := net.Listen("tcp4", addr)
 	if err != nil {
-		log.Fatalln(err)
+		gclog.Fatal("socket setup", err)
 	}
 
 	hub := setupHub()
@@ -82,7 +97,7 @@ func main() {
 
 		c, err := l.Accept()
 		if err != nil {
-			log.Println(err)
+			gclog.Error("connection accept", err)
 			// Keep accepting clients
 			continue
 		}

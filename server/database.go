@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -29,13 +28,13 @@ func connectDB() *sql.DB {
 
 	db, err := sql.Open("mysql", access)
 	if err != nil {
-		log.Fatalln(err)
+		gclog.Fatal("database login", err)
 	}
 
 	// Test that the database works
 	e := db.Ping()
 	if e != nil {
-		log.Fatalln(e)
+		gclog.Fatal("database ping", err)
 	}
 
 	return db

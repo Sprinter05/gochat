@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -144,7 +143,7 @@ func (h *Hub) userlist(online bool) string {
 	} else {
 		ret, err = queryUsernames(h.db)
 		if err != nil {
-			log.Printf("Error querying username list: %s\n", err)
+			gclog.DB("userlist", err)
 		}
 	}
 
@@ -186,7 +185,7 @@ func (hub *Hub) Start() {
 			time.Sleep(5 * time.Second)
 
 			// Perform a server shutdown
-			log.Printf("Shutting server down...\n")
+			gclog.Notice("inminent server shutdown")
 			os.Exit(0)
 		case c := <-hub.clean:
 			// Remove all mentions of the user in the cache

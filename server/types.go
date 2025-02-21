@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"database/sql"
 	"errors"
-	"log"
 	"math/rand"
 	"net"
 	"sync"
@@ -152,7 +151,7 @@ func (t *table[T]) GetAll() []T {
 func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.ERR, id, gc.ErrorCode(err), nil)
 	if e != nil {
-		log.Printf("Error when creating ERR packet: %s\n", e)
+		gclog.Packet(gc.ERR, e)
 	} else {
 		cl.Write(pak)
 	}
@@ -162,7 +161,7 @@ func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
 func sendOKPacket(id gc.ID, cl net.Conn) {
 	pak, e := gc.NewPacket(gc.OK, id, gc.EmptyInfo, nil)
 	if e != nil {
-		log.Printf("Error when creating OK packet: %s\n", e)
+		gclog.Packet(gc.OK, e)
 	} else {
 		cl.Write(pak)
 	}
