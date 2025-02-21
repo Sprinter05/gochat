@@ -220,18 +220,26 @@ func ErrorCodeToError(b byte) error {
 /* ADMIN OPERATIONS */
 
 const (
-	// Schedules a shutdown the server
-	AdminShutdown uint8 = 0x00
-
-	// Deregisters a user manually
-	AdminDeregister uint8 = 0x01
-
-	// Broadcasts a message to all online users
-	AdminBroadcast uint8 = 0x02
-
-	// Increases the permission levels of another user
-	AdminPromote uint8 = 0x03
-
-	// Disconnects a user from the server
-	AdminDisconnect uint8 = 0x04
+	AdminShutdown   = 0x00
+	AdminDeregister = 0x01
+	AdminBroadcast  = 0x02
+	AdminPromote    = 0x03
+	AdminDisconnect = 0x04
 )
+
+var codeToAdmin map[byte]string = map[byte]string{
+	0x00: "ADMIN_SHTDWN",
+	0x01: "ADMIN_DEREG",
+	0x02: "ADMIN_BRDCAST",
+	0x03: "ADMIN_PROMOTE",
+	0x04: "ADMIN_KICK",
+}
+
+// Returns the error code or the empty information field if not found
+func AdminString(a uint8) string {
+	v, ok := codeToAdmin[a]
+	if !ok {
+		return ""
+	}
+	return v
+}

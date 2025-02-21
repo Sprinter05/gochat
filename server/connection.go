@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net"
 	"time"
 
@@ -14,7 +13,7 @@ func processHeader(cl *gc.Connection, cmd *gc.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cl.ListenHeader(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		log.Printf("Error reading header from %s: %s\n", ip, err)
+		gclog.Read("header", ip, err)
 		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return err
 	}
@@ -25,7 +24,7 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		log.Printf("Error reading payload from %s: %s\n", ip, err)
+		gclog.Read("payload", ip, err)
 		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return err
 	}
@@ -96,7 +95,7 @@ func catchUp(cl net.Conn, msgs *[]Message, id gc.ID) error {
 		// The packet ID is not used for RECIV
 		pak, err := gc.NewPacket(gc.RECIV, id, gc.EmptyInfo, arg)
 		if err != nil {
-			log.Printf("Error when creating RECIV packet: %s\n", err)
+			gclog.Packet(gc.RECIV, err)
 			return err
 		}
 		cl.Write(pak)
@@ -115,7 +114,7 @@ func runTask(hub *Hub, req <-chan Request) {
 		u, err := hub.checkSession(r)
 		if err != nil {
 			ip := r.cl.RemoteAddr().String()
-			log.Printf("Error checking session from %s: %s\n", ip, err)
+			gclog.Error("session checking for "+ip, err)
 			continue // Next request
 		}
 

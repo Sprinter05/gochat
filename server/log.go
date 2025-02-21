@@ -65,7 +65,7 @@ func (l Logging) Error(msg string, err error) {
 		return
 	}
 	log.Printf(
-		"[E] Problem in %s due to %s",
+		"[E] Problem in %s due to %s\n",
 		msg,
 		err,
 	)
@@ -108,6 +108,19 @@ func (l Logging) Read(subj string, ip string, err error) {
 		subj,
 		ip,
 		err,
+	)
+}
+
+// Requires INFO or higher
+// Invalid operation
+func (l Logging) Invalid(op string, user string) {
+	if l < INFO {
+		return
+	}
+	log.Printf(
+		"[I] No operation asocciated to %s on request from %s, skipping!\n",
+		op,
+		user,
 	)
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -68,7 +67,7 @@ func adminOperation(h *Hub, u User, cmd gc.Command) {
 	fun, err := lookupAdmin(cmd.HD.Info)
 	if err != nil {
 		// Invalid action is trying to be ran
-		log.Printf("No admin operation asocciated to %d, skipping!\n", cmd.HD.Info)
+		gclog.Invalid(gc.AdminString(cmd.HD.Info), string(u.name))
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -120,7 +119,7 @@ func adminShutdown(h *Hub, u User, cmd gc.Command) {
 	}
 	pak, e := gc.NewPacket(gc.SHTDWN, gc.NullID, gc.EmptyInfo, args)
 	if e != nil {
-		log.Printf("Error when creating SHTDWN packet: %s\n", e)
+		gclog.Packet(gc.SHTDWN, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
 		return
 	}
@@ -132,7 +131,7 @@ func adminShutdown(h *Hub, u User, cmd gc.Command) {
 	}
 
 	print := time.Unix(stamp, 0)
-	log.Printf("Server shutdown scheduled for %v!\n", print)
+	gclog.Notice("server shutdown on " + print.String())
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
@@ -147,7 +146,7 @@ func adminBroadcast(h *Hub, u User, cmd gc.Command) {
 	}
 	pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)
 	if e != nil {
-		log.Printf("Error when creating RECIV packet: %s\n", e)
+		gclog.Packet(gc.RECIV, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
 		return
 	}
@@ -194,7 +193,7 @@ func adminPromote(h *Hub, u User, cmd gc.Command) {
 	if e != nil {
 		//! This shouldnt happen as the user was already queried before
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		log.Fatalf("Impossible to promote user %s!", string(cmd.Args[0]))
+		gclog.Fatal("promotion for "+string(u.name), e)
 		return
 	}
 
