@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"net"
 	"testing"
 
@@ -11,7 +12,13 @@ import (
 )
 
 func setup(t *testing.T) net.Conn {
-	l, err := net.Dial("tcp4", "127.0.0.1:9037")
+	cert, _ := tls.LoadX509KeyPair("certs/client.pem", "certs/client.key")
+	config := tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		InsecureSkipVerify: true,
+	}
+
+	l, err := tls.Dial("tcp4", "127.0.0.1:9037", &config)
 	if err != nil {
 		t.Fatal(err)
 	}

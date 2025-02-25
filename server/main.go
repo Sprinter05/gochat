@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
@@ -21,8 +22,8 @@ func init() {
 	// If we default to stderr it won't print unless debugged
 	log.SetOutput(os.Stdout)
 
-	if len(os.Args) < 2 {
-		// No environment file supplied
+	if len(os.Args) < 4 {
+		fmt.Printf("Format: gcserver <env file> <pem cert> <key cert>")
 		return
 	}
 
@@ -73,11 +74,20 @@ func main() {
 		os.Getenv("SRV_ADDR"),
 		os.Getenv("SRV_PORT"),
 	)
-	l, err := net.Listen("tcp4", addr)
+
+	// Load TLS certificate
+	cert, err := tls.LoadX509KeyPair(os.Args[2], os.Args[3])
+	if err != nil {
+		gclog.Fatal("tls loading", err)
+	}
+	config := tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+	l, err := tls.Listen("tcp4", addr, &config)
 	if err != nil {
 		gclog.Fatal("socket setup", err)
 	}
-
 	hub := setupHub()
 
 	// Indicate that the server is up and running

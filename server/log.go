@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -68,6 +69,19 @@ func (l Logging) Error(msg string, err error) {
 		"[E] Problem in %s due to %s\n",
 		msg,
 		err,
+	)
+}
+
+// Requires ERROR or higher
+// Notifies an error on an IP
+func (l Logging) IP(msg string, ip net.Addr) {
+	if l < ERROR {
+		return
+	}
+	log.Printf(
+		"[E] Problem with connection from %s due to %s\n",
+		ip.String(),
+		msg,
 	)
 }
 

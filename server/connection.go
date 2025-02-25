@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"net"
 	"time"
 
@@ -47,6 +48,12 @@ func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
 func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Conn) {
 	// Cleanup connection on error
 	defer cleanup(cl.Conn, req, hubcl)
+
+	// Check if the TLS is valid
+	_, ok := cl.Conn.(*tls.Conn)
+	if !ok {
+		gclog.IP("failed tls verification", cl.Conn.RemoteAddr())
+	}
 
 	// Timeout
 	deadline := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)

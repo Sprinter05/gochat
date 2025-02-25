@@ -1,3 +1,5 @@
 build/
+*.key
+*.pem
 *.env
 *.db
