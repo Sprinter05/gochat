@@ -41,6 +41,12 @@ func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
 
 	// Close connection
 	cl.Close()
+
+	// Log connection close
+	gclog.Connection(
+		cl.RemoteAddr().String(),
+		true,
+	)
 }
 
 // Listens from a client and communicates with the hub through the channels
@@ -50,6 +56,12 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 
 	// Timeout
 	deadline := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
+
+	// Log connection
+	gclog.Connection(
+		cl.Conn.RemoteAddr().String(),
+		false,
+	)
 
 	for {
 		cmd := new(gc.Command)

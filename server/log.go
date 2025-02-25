@@ -152,6 +152,25 @@ func (l Logging) Invalid(op string, user string) {
 }
 
 // Requires ALL
+// Prints a new connection
+func (l Logging) Connection(ip string, closed bool) {
+	if l < ALL {
+		return
+	}
+	if closed {
+		log.Printf(
+			"[-] Connection from %s closed!",
+			ip,
+		)
+	} else {
+		log.Printf(
+			"[-] New connection from %s!",
+			ip,
+		)
+	}
+}
+
+// Requires ALL
 // Prints packet information
 func (l Logging) Request(ip string, cmd gc.Command) {
 	if l < ALL {
