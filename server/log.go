@@ -98,6 +98,33 @@ func (l Logging) Packet(op gc.Action, err error) {
 }
 
 // Requires INFO or higher
+// Timeout due to timer finishing
+func (l Logging) Timeout(user string, msg string) {
+	if l < INFO {
+		return
+	}
+	log.Printf(
+		"[I] Timeout during %s for %s\n",
+		msg,
+		user,
+	)
+}
+
+// Requires INFO or higher
+// Error with data
+func (l Logging) User(user string, data string, err error) {
+	if l < INFO {
+		return
+	}
+	log.Printf(
+		"[I] Problem in %s's %s request due to %s\n",
+		user,
+		data,
+		err,
+	)
+}
+
+// Requires INFO or higher
 // Problem when reading from a socket
 func (l Logging) Read(subj string, ip string, err error) {
 	if l < INFO {

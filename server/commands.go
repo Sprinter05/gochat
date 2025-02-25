@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -41,7 +40,7 @@ func procRequest(h *Hub, r Request, u *User) {
 	fun, err := lookupCommand(id)
 	if err != nil {
 		// Invalid action is trying to be ran
-		log.Printf("No function asocciated to %s, skipping request!\n", gc.CodeToString(id))
+		gclog.Invalid(gc.CodeToString(id), string(u.name))
 		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
 		return
 	}
@@ -58,7 +57,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	uname := username(cmd.Args[0])
 
 	if len(uname) > gc.UsernameSize {
-		//log.Printf("Supplied username %s is too big\n", u.name)
+		gclog.User(string(u.name), "username registration", gc.ErrorMaxSize)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -66,7 +65,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	// Check if public key is usable
 	_, err := gc.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		//log.Printf("Incorrect public key from %s when registering: %s\n", u.name, err)
+		gclog.User(string(uname), "pubkey registration", ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -74,7 +73,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	// Register user into the database
 	e := insertUser(h.db, uname, cmd.Args[1])
 	if e != nil {
-		//log.Printf("User %s alredy exists: %s\n", u.name, err)
+		gclog.User(string(u.name), "registration", gc.ErrorExists)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorExists, u.conn)
 		return
 	}
@@ -89,7 +88,7 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 	if err != nil {
 		//! This shouldnt happen, it means the database for the user is corrupted
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
+		gclog.DBFatal("pubkey", string(u.name), err)
 		return
 	}
 
@@ -99,7 +98,7 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 	}
 	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
-		log.Printf("Error when creating VERIF packet: %s\n", e)
+		gclog.Packet(gc.VERIF, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
 		return
 	}
@@ -122,6 +121,7 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 		w := time.Duration(gc.LoginTimeout) * time.Minute
 		select {
 		case <-time.After(w):
+			gclog.Timeout(string(u.name), "verification")
 			h.verifs.Remove(u.conn)
 		case <-ctx.Done():
 			// Verification completed by VERIF
@@ -135,7 +135,7 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 	verif, ok := h.verifs.Get(u.conn)
 
 	if !ok {
-		//log.Printf("%s is not in verification!\n", u.name)
+		gclog.User(string(u.name), "verification", ErrorDoesNotExist)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
 	}
@@ -144,7 +144,7 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
 		h.cleanupUser(u.conn)
-		//log.Printf("%s verification is incorrect\n", u.name)
+		gclog.User(string(u.name), "verification", ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
 		return
 	}
@@ -164,7 +164,7 @@ func logoutUser(h *Hub, u User, cmd gc.Command) {
 
 	if !uok && !vok {
 		// If user is in none of the caches we error
-		//log.Printf("%s trying to disconnect when not connected\n", u.name)
+		gclog.User(string(u.name), "logout", gc.ErrorNoSession)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNoSession, u.conn)
 		return
 	}
@@ -187,7 +187,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 
 	// Database error different than foreign key violation
 	if e != ErrorDBConstraint {
-		log.Printf("Error when deleting user %s: %s\n", u.name, e)
+		gclog.DB(string(u.name)+"'s deletion", e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -195,7 +195,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 	// The user has cached messages so we just NULL the pubkey
 	err := removeKey(h.db, u.name)
 	if err != nil {
-		log.Printf("Failed deregister user %s: %s\n", u.name, err)
+		gclog.DB(string(u.name)+"'s pubkey to null", e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -208,7 +208,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 func requestUser(h *Hub, u User, cmd gc.Command) {
 	k, err := queryUserKey(h.db, username(cmd.Args[0]))
 	if err != nil {
-		//log.Printf("Requested user can not be queried: %s\n", err)
+		gclog.DB(string(u.name)+"'s pubkey", err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
 	}
@@ -217,7 +217,7 @@ func requestUser(h *Hub, u User, cmd gc.Command) {
 	if e != nil {
 		//! This means the user's database is corrupted info
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		log.Fatalf("%s has inconsistent database publickey: %s!\n", u.name, err)
+		gclog.DBFatal("pubkey", string(u.name), err)
 		return
 	}
 
@@ -228,7 +228,7 @@ func requestUser(h *Hub, u User, cmd gc.Command) {
 	}
 	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
-		log.Printf("Error when creating REQ packet: %s\n", e)
+		gclog.Packet(gc.REQ, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
 		return
 	}
@@ -249,14 +249,13 @@ func listUsers(h *Hub, u User, cmd gc.Command) {
 		usrs = h.userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		//log.Printf("Invalid user list argument from %s\n", u.name)
+		gclog.User(string(u.name), "list argument", ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorHeader, u.conn)
 		return
 	}
 
 	if usrs == "" {
 		// Could not find any users matching
-		//log.Printf("No users exist when querying userlist\n")
 		sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
 		return
 	}
@@ -266,7 +265,7 @@ func listUsers(h *Hub, u User, cmd gc.Command) {
 	}
 	pak, e := gc.NewPacket(gc.USRS, cmd.HD.ID, gc.EmptyInfo, arg)
 	if e != nil {
-		log.Printf("Error when creating USRS packet: %s\n", e)
+		gclog.Packet(gc.USRS, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
 		return
 	}
@@ -292,7 +291,7 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 		}
 		pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)
 		if e != nil {
-			log.Printf("Error when creating RECIV packet: %s\n", e)
+			gclog.Packet(gc.RECIV, e)
 			sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
 			return
 		}
@@ -307,7 +306,7 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	err := cacheMessage(h.db, u.name, uname, cmd.Args[2])
 	if err != nil {
 		// Error when inserting the message into the cache
-		log.Printf("Error when caching a message from %s\n", u.name)
+		gclog.DB("message caching from"+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -320,7 +319,9 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	// Get the amount of messages needed for allocation
 	size, err := queryMessageQuantity(h.db, u.name)
 	if err != nil {
-		log.Printf("Could not query message quantity for %s: %s\n", u.name, err)
+		gclog.DB("message quantity for"+string(u.name), err)
+		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
+		return
 	}
 	if size == 0 {
 		// Nothing to do
@@ -330,7 +331,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 
 	catch, err := queryMessages(h.db, u.name, size)
 	if err != nil {
-		log.Printf("Could not query messages for %s: %s\n", u.name, err)
+		gclog.DB("messages for"+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -346,6 +347,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	ts := (*catch)[size].stamp
 	e := removeMessages(h.db, u.name, ts)
 	if e != nil {
-		log.Printf("Error when deleting cached messages from %s: %s", u.name, err)
+		// We dont send an ERR here or we would be sending 2 packets
+		gclog.DB("deleting cached messages for"+string(u.name), e)
 	}
 }
