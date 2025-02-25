@@ -67,10 +67,6 @@ func setupHub() *Hub {
 	return &hub
 }
 
-// TODO: Log levels
-// TODO: Config file
-// TODO: TLS port
-
 func main() {
 	addr := fmt.Sprintf(
 		"%s:%s",
