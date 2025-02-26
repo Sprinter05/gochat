@@ -57,7 +57,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	uname := username(cmd.Args[0])
 
 	if len(uname) > gc.UsernameSize {
-		gclog.User(string(u.name), "username registration", gc.ErrorMaxSize)
+		gclog.User(string(uname), "username registration", gc.ErrorMaxSize)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -73,7 +73,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	// Register user into the database
 	e := insertUser(h.db, uname, cmd.Args[1])
 	if e != nil {
-		gclog.User(string(u.name), "registration", gc.ErrorExists)
+		gclog.User(string(uname), "registration", gc.ErrorExists)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorExists, u.conn)
 		return
 	}
