@@ -187,7 +187,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 
 	// Database error different than foreign key violation
 	if e != ErrorDBConstraint {
-		gclog.DB(string(u.name)+"'s deletion", e)
+		gclog.DB(string(u.name)+" deletion", e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -195,7 +195,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 	// The user has cached messages so we just NULL the pubkey
 	err := removeKey(h.db, u.name)
 	if err != nil {
-		gclog.DB(string(u.name)+"'s pubkey to null", e)
+		gclog.DB(string(u.name)+" pubkey to null", e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -208,7 +208,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 func requestUser(h *Hub, u User, cmd gc.Command) {
 	k, err := queryUserKey(h.db, username(cmd.Args[0]))
 	if err != nil {
-		gclog.DB(string(u.name)+"'s pubkey", err)
+		gclog.DB(string(u.name)+" pubkey", err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
 	}

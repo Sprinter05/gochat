@@ -107,13 +107,13 @@ func catchUp(cl net.Conn, msgs *[]Message, id gc.ID) error {
 // Wraps concurrency with each client's command
 func runTask(hub *Hub, req <-chan Request) {
 	for r := range req {
-		// Print command info
-		r.cmd.Print()
+		// Show request
+		ip := r.cl.RemoteAddr().String()
+		gclog.Request(ip, r.cmd)
 
 		// Check if the user can be served
 		u, err := hub.checkSession(r)
 		if err != nil {
-			ip := r.cl.RemoteAddr().String()
 			gclog.Error("session checking for "+ip, err)
 			continue // Next request
 		}

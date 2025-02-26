@@ -23,7 +23,14 @@ func init() {
 
 	if len(os.Args) < 2 {
 		// No environment file supplied
+		gclog.Fatal("loading env file", ErrorCLIArgs)
 		return
+	}
+
+	// Argument 0 is the pathname to the executable
+	err := godotenv.Load(os.Args[1])
+	if err != nil {
+		gclog.Fatal("env file reading", err)
 	}
 
 	// Setup logging levels
@@ -39,11 +46,6 @@ func init() {
 		gclog = FATAL
 	}
 
-	// Argument 0 is the pathname to the executable
-	err := godotenv.Load(os.Args[1])
-	if err != nil {
-		gclog.Fatal("env file reading", err)
-	}
 }
 
 // Creates a hub with all channels, caches and database
