@@ -15,17 +15,47 @@ import (
 
 /* UTILITIES */
 
+// Gets the environment variables necessary
+func getDBEnv() string {
+	user, ok := os.LookupEnv("DB_USER")
+	if !ok {
+		gclog.Env("DB_USER")
+	}
+
+	pswd, ok := os.LookupEnv("DB_PSWD")
+	if !ok {
+		gclog.Env("DB_PSWD")
+	}
+
+	addr, ok := os.LookupEnv("DB_ADDR")
+	if !ok {
+		gclog.Env("DB_ADDR")
+	}
+
+	port, ok := os.LookupEnv("DB_PORT")
+	if !ok {
+		gclog.Env("DB_PORT")
+	}
+
+	name, ok := os.LookupEnv("DB_NAME")
+	if !ok {
+		gclog.Env("DB_NAME")
+	}
+
+	// Get formatted string
+	return fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s",
+		user,
+		pswd,
+		addr,
+		port,
+		name,
+	)
+}
+
 // Connects to the database using the environment file
 func connectDB() *sql.DB {
-	access := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PSWD"),
-		os.Getenv("DB_ADDR"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
-	)
-
+	access := getDBEnv()
 	db, err := sql.Open("mysql", access)
 	if err != nil {
 		gclog.Fatal("database login", err)

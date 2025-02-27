@@ -24,7 +24,6 @@ func init() {
 	if len(os.Args) < 2 {
 		// No environment file supplied
 		gclog.Fatal("loading env file", ErrorCLIArgs)
-		return
 	}
 
 	// Argument 0 is the pathname to the executable
@@ -34,6 +33,8 @@ func init() {
 	}
 
 	// Setup logging levels
+	// No need to check if the env var exists
+	// We just default to FATAL
 	lv := os.Getenv("LOG_LEVL")
 	switch lv {
 	case "ALL":
@@ -44,8 +45,9 @@ func init() {
 		gclog = ERROR
 	default:
 		gclog = FATAL
+		lv = "FATAL"
 	}
-
+	fmt.Printf("-> Logging with log level %s...\n", lv)
 }
 
 // Creates a hub with all channels, caches and database
@@ -69,17 +71,34 @@ func setupHub() *Hub {
 	return &hub
 }
 
-func main() {
-	addr := fmt.Sprintf(
+// Creates a listener for the socket
+func setupConn() net.Listener {
+	addr, ok := os.LookupEnv("SRV_ADDR")
+	if !ok {
+		gclog.Env("SRV_ADDR")
+	}
+
+	port, ok := os.LookupEnv("SRV_PORT")
+	if !ok {
+		gclog.Env("SRV_PORT")
+	}
+
+	socket := fmt.Sprintf(
 		"%s:%s",
-		os.Getenv("SRV_ADDR"),
-		os.Getenv("SRV_PORT"),
+		addr,
+		port,
 	)
-	l, err := net.Listen("tcp4", addr)
+
+	l, err := net.Listen("tcp4", socket)
 	if err != nil {
 		gclog.Fatal("socket setup", err)
 	}
 
+	return l
+}
+
+func main() {
+	l := setupConn()
 	hub := setupHub()
 
 	// Indicate that the server is up and running

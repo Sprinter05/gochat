@@ -12,7 +12,7 @@ import (
 [E] ERROR -> Log server related errors
 [X] FATAL -> Logs when it crashes the program
 */
-type Logging int
+type Logging uint
 
 // FATAL is the lowest, ALL is the highest
 const (
@@ -28,6 +28,18 @@ func (l Logging) Notice(msg string) {
 	log.Printf(
 		"[*] Notifying %s...\n	",
 		msg,
+	)
+}
+
+// Requires FATAL
+// Informs of a missing environment variable
+func (l Logging) Env(envvar string) {
+	if l < FATAL {
+		return
+	}
+	log.Fatalf(
+		"[X] Missing environment variable %s!\n",
+		envvar,
 	)
 }
 
