@@ -350,4 +350,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 		// We dont send an ERR here or we would be sending 2 packets
 		gclog.DB("deleting cached messages for"+string(u.name), e)
 	}
+
+	// Let the client know there are no more catch up RECIVs
+	sendOKPacket(cmd.HD.ID, u.conn)
 }
