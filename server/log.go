@@ -33,7 +33,7 @@ func (l Logging) Notice(msg string) {
 
 // Requires FATAL
 // Informs of a missing environment variable
-func (l Logging) Env(envvar string) {
+func (l Logging) Environ(envvar string) {
 	if l < FATAL {
 		return
 	}
@@ -84,8 +84,20 @@ func (l Logging) Error(msg string, err error) {
 }
 
 // Requires ERROR or higher
+// Internal database problem
+func (l Logging) DBError(err error) {
+	if l < ERROR {
+		return
+	}
+	log.Printf(
+		"[E] Database error: %s\n",
+		err,
+	)
+}
+
+// Requires ERROR or higher
 // Problem running a SQL statement
-func (l Logging) DB(data string, err error) {
+func (l Logging) DBQuery(data string, err error) {
 	if l < ERROR {
 		return
 	}

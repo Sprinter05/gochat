@@ -19,27 +19,27 @@ import (
 func getDBEnv() string {
 	user, ok := os.LookupEnv("DB_USER")
 	if !ok {
-		gclog.Env("DB_USER")
+		gclog.Environ("DB_USER")
 	}
 
 	pswd, ok := os.LookupEnv("DB_PSWD")
 	if !ok {
-		gclog.Env("DB_PSWD")
+		gclog.Environ("DB_PSWD")
 	}
 
 	addr, ok := os.LookupEnv("DB_ADDR")
 	if !ok {
-		gclog.Env("DB_ADDR")
+		gclog.Environ("DB_ADDR")
 	}
 
 	port, ok := os.LookupEnv("DB_PORT")
 	if !ok {
-		gclog.Env("DB_PORT")
+		gclog.Environ("DB_PORT")
 	}
 
 	name, ok := os.LookupEnv("DB_NAME")
 	if !ok {
-		gclog.Env("DB_NAME")
+		gclog.Environ("DB_NAME")
 	}
 
 	// Get formatted string
@@ -89,6 +89,7 @@ func queryMessageQuantity(db *sql.DB, uname username) (int, error) {
 	row := db.QueryRow(query, string(uname))
 	err := row.Scan(&size)
 	if err != nil {
+		gclog.DBError(err)
 		return -1, err
 	}
 
@@ -111,6 +112,7 @@ func queryMessages(db *sql.DB, uname username, size int) (*[]Message, error) {
 
 	rows, err := db.Query(query, uname)
 	if err != nil {
+		gclog.DBError(err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -148,6 +150,7 @@ func queryUsernames(db *sql.DB) (string, error) {
 
 	rows, err := db.Query(query)
 	if err != nil {
+		gclog.DBError(err)
 		return "", err
 	}
 	defer rows.Close()
@@ -181,6 +184,7 @@ func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
 	row := db.QueryRow(query, string(uname))
 	err := row.Scan(&pubkey)
 	if err != nil {
+		gclog.DBError(err)
 		if err == sql.ErrNoRows {
 			// User does not exist
 			return nil, ErrorDoesNotExist
@@ -213,6 +217,7 @@ func queryUserPerms(db *sql.DB, uname username) (Permission, error) {
 	row := db.QueryRow(query, string(uname))
 	err := row.Scan(&perms)
 	if err != nil {
+		gclog.DBError(err)
 		if err == sql.ErrNoRows {
 			// User does not exist
 			return -1, ErrorDoesNotExist
@@ -239,6 +244,7 @@ func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 
 	_, err := db.Exec(query, uname, string(pubkey))
 	if err != nil {
+		gclog.DBError(err)
 		return err
 	}
 
@@ -267,6 +273,7 @@ func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
 
 	_, err := db.Exec(query, src, dst, str)
 	if err != nil {
+		gclog.DBError(err)
 		return err
 	}
 
@@ -283,6 +290,7 @@ func removeKey(db *sql.DB, uname username) error {
 
 	_, err := db.Exec(query, uname)
 	if err != nil {
+		gclog.DBError(err)
 		return err
 	}
 
@@ -299,6 +307,7 @@ func changePermissions(db *sql.DB, uname username, perm Permission) error {
 
 	_, err := db.Exec(query, perm, uname)
 	if err != nil {
+		gclog.DBError(err)
 		return err
 	}
 
@@ -316,6 +325,7 @@ func removeUser(db *sql.DB, uname username) error {
 
 	_, err := db.Exec(query, uname)
 	if err != nil {
+		gclog.DBError(err)
 		// Unwrap error as driver error
 		var sqlerr *myqsl.MySQLError
 		ok := errors.As(err, &sqlerr)
@@ -343,6 +353,7 @@ func removeMessages(db *sql.DB, uname username, stamp int64) error {
 
 	_, err := db.Exec(query, uname, stamp)
 	if err != nil {
+		gclog.DBError(err)
 		return err
 	}
 
