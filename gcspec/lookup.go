@@ -1,23 +1,24 @@
 package gcspec
 
-import (
-	"errors"
-)
-
 /* PREDEFINED VALUES */
 
-const NullID Action = 0
+const NullOp Action = 0
+const NullID ID = 0
+const MaxID ID = 1<<10 - 1
 const EmptyInfo byte = 0xFF
 
+const HeaderSize int = 8
+const MaxArgs int = 1<<4 - 1
+const MaxPayload int = 1<<14 - 1
+const MaxArgSize int = 1<<11 - 1
+
 const ProtocolVersion uint8 = 1
-const HeaderSize int = 6
-const MaxArgs int = 1<<2 - 1
-const MaxPayload int = 1<<10 - 1
 const RSABitSize int = 4096
 const UsernameSize int = 32
 
-const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
-const CypherLength int = 128
+const LoginTimeout int = 2 // Minutes
+const ReadTimeout int = 10 // Minutes
+const MaxClients int = 20
 
 /* ACTION CODES */
 
@@ -32,149 +33,150 @@ const (
 	REQ
 	USRS
 	RECIV
-	CONN
+	LOGIN
 	MSG
-	DISCN
+	LOGOUT
 	DEREG
 	SHTDWN
+	ADMIN
+	KEEP
 )
 
-var codeToid map[byte]Action = map[byte]Action{
-	0x01: OK,
-	0x02: ERR,
-	0x03: REG,
-	0x04: VERIF,
-	0x05: REQ,
-	0x06: USRS,
-	0x07: RECIV,
-	0x08: CONN,
-	0x09: MSG,
-	0x0A: DISCN,
-	0x0B: DEREG,
-	0x0C: SHTDWN,
+// Identifies an operation to be performed
+type lookup struct {
+	op   Action
+	hex  uint8
+	str  string
+	args uint8
 }
 
-var idToCode map[Action]byte = map[Action]byte{
-	OK:     0x01,
-	ERR:    0x02,
-	REG:    0x03,
-	VERIF:  0x04,
-	REQ:    0x05,
-	USRS:   0x06,
-	RECIV:  0x07,
-	CONN:   0x08,
-	MSG:    0x09,
-	DISCN:  0x0A,
-	DEREG:  0x0B,
-	SHTDWN: 0x0C,
+var (
+	okLookup     = lookup{OK, 0x01, "OK", 0}
+	errLookup    = lookup{ERR, 0x02, "ERR", 0}
+	regLookup    = lookup{REG, 0x03, "REG", 2}
+	verifLookup  = lookup{VERIF, 0x04, "VERIF", 2}
+	reqLookup    = lookup{REQ, 0x05, "REQ", 1}
+	usrsLookup   = lookup{USRS, 0x06, "USRS", 0}
+	recivLookup  = lookup{RECIV, 0x07, "RECIV", 3}
+	loginLookup  = lookup{LOGIN, 0x08, "LOGIN", 1}
+	msgLookup    = lookup{MSG, 0x09, "MSG", 3}
+	logoutLookup = lookup{LOGOUT, 0x0A, "LOGOUT", 0}
+	deregLookup  = lookup{DEREG, 0x0B, "DEREG", 0}
+	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", 0}
+	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0}
+	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0}
+)
+
+// Args represents the amount of arguments the server needs
+var lookupByOperation map[Action]lookup = map[Action]lookup{
+	OK:     okLookup,
+	ERR:    errLookup,
+	REG:    regLookup,
+	VERIF:  verifLookup,
+	REQ:    reqLookup,
+	USRS:   usrsLookup,
+	RECIV:  recivLookup,
+	LOGIN:  loginLookup,
+	MSG:    msgLookup,
+	LOGOUT: logoutLookup,
+	DEREG:  deregLookup,
+	SHTDWN: shtdwnLookup,
+	ADMIN:  adminLookup,
+	KEEP:   keepLookup,
 }
 
-var stringToCode map[string]Action = map[string]Action{
-	"OK":     OK,
-	"ERR":    ERR,
-	"REG":    REG,
-	"VERIF":  VERIF,
-	"REQ":    REQ,
-	"USRS":   USRS,
-	"RECIV":  RECIV,
-	"CONN":   CONN,
-	"MSG":    MSG,
-	"DISCN":  DISCN,
-	"DEREG":  DEREG,
-	"SHTDWN": SHTDWN,
-}
-
-var codeToString map[Action]string = map[Action]string{
-	OK:     "OK",
-	ERR:    "ERR",
-	REG:    "REG",
-	VERIF:  "VERIF",
-	REQ:    "REQ",
-	USRS:   "USRS",
-	RECIV:  "RECIV",
-	CONN:   "CONN",
-	MSG:    "MSG",
-	DISCN:  "DISCN",
-	DEREG:  "DEREG",
-	SHTDWN: "SHTDWN",
+var lookupByString map[string]lookup = map[string]lookup{
+	"OK":     okLookup,
+	"ERR":    errLookup,
+	"REG":    regLookup,
+	"VERIF":  verifLookup,
+	"REQ":    reqLookup,
+	"USRS":   usrsLookup,
+	"RECIV":  recivLookup,
+	"LOGIN":  loginLookup,
+	"MSG":    msgLookup,
+	"LOGOUT": logoutLookup,
+	"DEREG":  deregLookup,
+	"SHTDWN": shtdwnLookup,
+	"ADMIN":  adminLookup,
+	"KEEP":   keepLookup,
 }
 
 // Returns the ID associated to a byte code
 func CodeToID(b byte) Action {
-	v, ok := codeToid[b]
+	v, ok := lookupByOperation[Action(b)]
 	if !ok {
-		return NullID
+		return NullOp
 	}
-	return v
+	return v.op
 }
 
 // Returns the byte code asocciated to an ID
 func IDToCode(a Action) byte {
-	v, ok := idToCode[a]
+	v, ok := lookupByOperation[a]
 	if !ok {
 		return 0x0
 	}
-	return v
+	return v.hex
 }
 
 // Returns the ID associated to a string
 func StringToCode(s string) Action {
-	v, ok := stringToCode[s]
+	v, ok := lookupByString[s]
 	if !ok {
 		return 0x0
 	}
-	return v
+	return v.op
 }
 
 // Returns the ID associated to a string
-func CodeToString(i Action) string {
-	v, ok := codeToString[i]
+func CodeToString(a Action) string {
+	v, ok := lookupByOperation[a]
 	if !ok {
 		return ""
 	}
-	return v
+	return v.str
+}
+
+func IDToArgs(a Action) int {
+	v, ok := lookupByOperation[a]
+	if !ok {
+		return -1
+	}
+	return int(v.args)
 }
 
 /* ERROR CODES */
 
-// Determines a generic undefined error
-var ErrorUndefined error = errors.New("Undefined problem")
-
-// Invalid operation performed
-var ErrorInvalid error = errors.New("Invalid operation performed")
-
-// Content could not be found
-var ErrorNotFound error = errors.New("Content not found")
-
-// Versions do not match
-var ErrorVersion error = errors.New("Versions do not match")
-
-// Verification handshake failed
-var ErrorHandshake error = errors.New("Handshake failed")
-
-// Invalid arguments given
-var ErrorArguments error = errors.New("Invalid arguments")
-
-// Payload size too big
-var ErrorMaxSize error = errors.New("Payload size too big")
-
-// Header processing failed
-var ErrorHeader error = errors.New("Invalid header provided")
-
-// User is not logged in
-var ErrorNoSession error = errors.New("User is not connected")
-
-var errorCodes map[error]byte = map[error]byte{
-	ErrorUndefined: 0x00,
-	ErrorInvalid:   0x01,
-	ErrorNotFound:  0x02,
-	ErrorVersion:   0x03,
-	ErrorHandshake: 0x04,
-	ErrorArguments: 0x05,
-	ErrorMaxSize:   0x06,
-	ErrorHeader:    0x07,
-	ErrorNoSession: 0x08,
+// Specific GCError struct that implements the error interface
+type GCError struct {
+	Code uint8
+	Text string
 }
+
+func (err GCError) Error() string {
+	return err.Text
+}
+
+var (
+	ErrorUndefined  error = GCError{0x00, "undefined problem occured"}
+	ErrorInvalid    error = GCError{0x01, "invalid operation performed"}
+	ErrorNotFound   error = GCError{0x02, "content can not be found"}
+	ErrorVersion    error = GCError{0x03, "server and client versions do not match"}
+	ErrorHandshake  error = GCError{0x04, "handshake process failed"}
+	ErrorArguments  error = GCError{0x05, "invalid arguments given"}
+	ErrorMaxSize    error = GCError{0x06, "data size is too big"}
+	ErrorHeader     error = GCError{0x07, "invalid header provided"}
+	ErrorNoSession  error = GCError{0x08, "user is not connected"}
+	ErrorLogin      error = GCError{0x09, "user can not be logged in"}
+	ErrorConnection error = GCError{0x0A, "connection problem occured"}
+	ErrorEmpty      error = GCError{0x0B, "queried data is empty"}
+	ErrorPacket     error = GCError{0x0C, "packet could not be delivered"}
+	ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
+	ErrorServer     error = GCError{0x0E, "server operation failed"}
+	ErrorIdle       error = GCError{0x0F, "user has been idle for too long"}
+	ErrorExists     error = GCError{0x10, "content already exists"}
+)
 
 var codeToError map[byte]error = map[byte]error{
 	0x00: ErrorUndefined,
@@ -186,15 +188,24 @@ var codeToError map[byte]error = map[byte]error{
 	0x06: ErrorMaxSize,
 	0x07: ErrorHeader,
 	0x08: ErrorNoSession,
+	0x09: ErrorLogin,
+	0x0A: ErrorConnection,
+	0x0B: ErrorEmpty,
+	0x0C: ErrorPacket,
+	0x0D: ErrorPrivileges,
+	0x0E: ErrorServer,
+	0x0F: ErrorIdle,
+	0x10: ErrorExists,
 }
 
 // Returns the error code or the empty information field if not found
 func ErrorCode(err error) byte {
-	v, ok := errorCodes[err]
-	if !ok {
+	switch v := err.(type) {
+	case GCError:
+		return v.Code
+	default:
 		return EmptyInfo
 	}
-	return v
 }
 
 // Returns the error or nil if the error doesn't exist, by its error code
@@ -202,6 +213,33 @@ func ErrorCodeToError(b byte) error {
 	v, ok := codeToError[b]
 	if !ok {
 		return nil
+	}
+	return v
+}
+
+/* ADMIN OPERATIONS */
+
+const (
+	AdminShutdown   = 0x00
+	AdminDeregister = 0x01
+	AdminBroadcast  = 0x02
+	AdminPromote    = 0x03
+	AdminDisconnect = 0x04
+)
+
+var codeToAdmin map[byte]string = map[byte]string{
+	0x00: "ADMIN_SHTDWN",
+	0x01: "ADMIN_DEREG",
+	0x02: "ADMIN_BRDCAST",
+	0x03: "ADMIN_PROMOTE",
+	0x04: "ADMIN_KICK",
+}
+
+// Returns the error code or the empty information field if not found
+func AdminString(a uint8) string {
+	v, ok := codeToAdmin[a]
+	if !ok {
+		return ""
 	}
 	return v
 }

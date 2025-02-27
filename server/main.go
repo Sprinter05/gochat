@@ -2,40 +2,117 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net"
+	"os"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/joho/godotenv"
 )
 
-func main() {
-	// Create a new server listening on the adress
-	l, err := net.Listen("tcp4", "127.0.0.1:6969")
-	if err != nil {
-		log.Fatal(err)
+// Global log
+var gclog Logging
+
+// Sets up logging
+// Reads environment file from first cli argument
+// init() always runs when the program starts
+func init() {
+	// If we default to stderr it won't print unless debugged
+	log.SetOutput(os.Stdout)
+
+	if len(os.Args) < 2 {
+		// No environment file supplied
+		gclog.Fatal("loading env file", ErrorCLIArgs)
+		return
 	}
 
-	// Run hun that processes commands
-	hub := Hub{
-		req:   make(chan Request),
-		users: make(map[ip]*User),
+	// Argument 0 is the pathname to the executable
+	err := godotenv.Load(os.Args[1])
+	if err != nil {
+		gclog.Fatal("env file reading", err)
 	}
-	go hub.Run()
+
+	// Setup logging levels
+	lv := os.Getenv("LOG_LEVL")
+	switch lv {
+	case "ALL":
+		gclog = ALL
+	case "INFO":
+		gclog = INFO
+	case "ERROR":
+		gclog = ERROR
+	default:
+		gclog = FATAL
+	}
+
+}
+
+// Creates a hub with all channels, caches and database
+// Indicates the hub to start running
+func setupHub() *Hub {
+	// Allocate all data structures
+	hub := Hub{
+		clean:  make(chan net.Conn, gc.MaxClients/2),
+		shtdwn: make(chan bool),
+		users: table[*User]{
+			tab: make(map[net.Conn]*User),
+		},
+		verifs: table[*Verif]{
+			tab: make(map[net.Conn]*Verif),
+		},
+		db: connectDB(),
+	}
+
+	go hub.Start()
+
+	return &hub
+}
+
+func main() {
+	addr := fmt.Sprintf(
+		"%s:%s",
+		os.Getenv("SRV_ADDR"),
+		os.Getenv("SRV_PORT"),
+	)
+	l, err := net.Listen("tcp4", addr)
+	if err != nil {
+		gclog.Fatal("socket setup", err)
+	}
+
+	hub := setupHub()
+
+	// Indicate that the server is up and running
+	fmt.Printf("-- Server running and listening for connections! --\n")
 
 	// Endless loop to listen for connections
+	var count int
 	for {
+		// If we exceed the client count we just wait until a spot is free
+		if count == gc.MaxClients {
+			continue
+		}
+
 		c, err := l.Accept()
 		if err != nil {
-			//* Error with the connection
-			log.Println(err)
-			continue // Keep seeking clients
+			gclog.Error("connection accept", err)
+			// Keep accepting clients
+			continue
 		}
+		count++
 
 		cl := &gc.Connection{
 			Conn: c,
 			RD:   bufio.NewReader(c),
 		}
 
-		go ListenConnection(cl, hub.req)
+		// Buffered channel for intercommunication
+		req := make(chan Request, MaxUserRequests)
+
+		// Listens to the client's packets
+		go ListenConnection(cl, req, hub.clean)
+
+		// Runs the client's commands
+		go runTask(hub, req)
 	}
 }

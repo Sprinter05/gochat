@@ -1,6 +1,7 @@
 package gcspec
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -9,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"time"
 )
 
 /* TYPES */
@@ -41,7 +43,7 @@ type Command struct {
 func (c Command) Print() {
 	fmt.Println("-------- HEADER --------")
 	fmt.Printf("* Version: %d\n", c.HD.Ver)
-	fmt.Printf("* Action: %d\n", c.HD.Op)
+	fmt.Printf("* Action: %d (%s)\n", c.HD.Op, CodeToString(c.HD.Op))
 	fmt.Printf("* Info: %d\n", c.HD.Info)
 	fmt.Printf("* Args: %d\n", c.HD.Args)
 	fmt.Printf("* Length: %d\n", c.HD.Len)
@@ -84,8 +86,24 @@ func (hd Header) Check() error {
 		return ErrorVersion
 	}
 
-	if hd.Op == NullID {
-		return ErrorInvalid
+	if hd.Op == NullOp {
+		return ErrorHeader
+	}
+
+	check := hd.Op != USRS && hd.Op != ADMIN && hd.Op != ERR
+	// The operation cannot accept non-empty info field
+	if check && hd.Info != EmptyInfo {
+		return ErrorHeader
+	}
+
+	// ID 0 is reserved for reciv
+	if hd.ID == NullID && hd.Op != RECIV {
+		return ErrorHeader
+	}
+
+	// Admin operations can have variable arguments
+	if hd.Op != ADMIN && (int(hd.Args) != IDToArgs(hd.Op)) {
+		return ErrorHeader
 	}
 
 	return nil
@@ -93,16 +111,47 @@ func (hd Header) Check() error {
 
 // Splits a the byte header into its fields
 func NewHeader(hdr []byte) Header {
-	h := binary.BigEndian.Uint32(hdr[:HeaderSize-2])
-	id := binary.BigEndian.Uint16(hdr[HeaderSize-2 : HeaderSize])
+	h := binary.BigEndian.Uint64(hdr[:HeaderSize])
 	return Header{
-		Ver:  uint8(h >> 28),
-		Op:   CodeToID(uint8(h >> 20)),
-		Info: uint8(h >> 12),
-		Args: (uint8(h >> 10)) &^ 0xFC,
-		Len:  uint16(h) &^ 0xFC00,
-		ID:   ID(id),
+		Ver:  uint8(h >> 60),
+		Op:   CodeToID(uint8(h >> 52)),
+		Info: uint8(h >> 44),
+		Args: (uint8(h >> 40)) &^ 0xF0,        // 0b1111_0000
+		Len:  (uint16(h >> 26)) &^ 0xC000,     // 0b1100_0000_0000_0000
+		ID:   ID((uint16(h >> 16)) &^ 0xFC00), // 0b1111_1100_0000_0000
 	}
+}
+
+/* UNIX STAMP FUNCTIONS */
+
+// Returns a byte array with the current unix timestamp
+func UnixStampNow() []byte {
+	t := time.Now().Unix()
+	p := make([]byte, binary.Size(t))
+	p = binary.AppendVarint(p, t)
+	return p
+}
+
+// Uses int64 format for conversion
+func UnixStampToBytes(s int64) []byte {
+	p := make([]byte, binary.Size(s))
+	p = binary.AppendVarint(p, s)
+	return p
+}
+
+// Uses 4 bytes that it will turn to a unix timestamp
+func NewUnixStamp(b []byte) int64 {
+	if len(b) < 4 {
+		return -1
+	}
+
+	buf := bytes.NewBuffer(b[:4])
+	stamp, err := binary.ReadVarint(buf)
+	if err != nil {
+		return -1
+	}
+
+	return stamp
 }
 
 /* PACKET FUNCTIONS */
@@ -117,11 +166,21 @@ func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
 		return nil, ErrorArguments
 	}
 
+	// Check that the ID is not over the bit size
+	if id > MaxID {
+		return nil, ErrorArguments
+	}
+
 	// Check total payload size
 	tot := 0
 	if l != 0 {
 		for _, v := range arg {
-			tot += len(v) + 2 // CRLF is 2 bytes
+			le := len(v) + 2 // CRLF is 2 bytes
+			// Over the single argument size
+			if le > MaxArgSize {
+				return nil, ErrorMaxSize
+			}
+			tot += le
 		}
 		if tot > MaxPayload {
 			return nil, ErrorMaxSize
@@ -133,15 +192,16 @@ func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
 	p := make([]byte, 0, HeaderSize+tot+2)
 
 	// Set all header bits
-	b := (uint32(ProtocolVersion) << 28) |
-		(uint32(IDToCode(op)) << 20) |
-		(uint32(inf) << 12) |
-		(uint32(l) << 10) |
-		(uint32(tot))
+	b := (uint64(ProtocolVersion) << 60) |
+		(uint64(IDToCode(op)) << 52) |
+		(uint64(inf) << 44) |
+		(uint64(l) << 40) |
+		(uint64(tot) << 26) |
+		(uint64(id) << 16) |
+		0xFFFF // Reserved (not in use)
 
-	// Append header and packet order
-	p = binary.BigEndian.AppendUint32(p, b)
-	p = binary.BigEndian.AppendUint16(p, uint16(id))
+	// Append header
+	p = binary.BigEndian.AppendUint64(p, b)
 
 	// CRLF termination
 	p = append(p, "\r\n"...)
@@ -227,7 +287,7 @@ func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 		break // Fall through
 	}
 
-	return nil, errors.New("Key type is not RSA")
+	return nil, errors.New("key type is not RSA")
 }
 
 // Encrypts a text using OAEP with SHA256
@@ -236,7 +296,7 @@ func EncryptText(t []byte, pub *rsa.PublicKey) ([]byte, error) {
 	hash := sha256.New()
 	enc, err := rsa.EncryptOAEP(hash, rand.Reader, pub, t, nil)
 	if err != nil {
-		return nil, errors.New("Impossible to encrypt")
+		return nil, err
 	}
 	return enc, nil
 }
@@ -246,7 +306,7 @@ func DecryptText(e []byte, priv *rsa.PrivateKey) ([]byte, error) {
 	hash := sha256.New()
 	dec, err := rsa.DecryptOAEP(hash, rand.Reader, priv, e, nil)
 	if err != nil {
-		return nil, errors.New("Impossible to decrypt")
+		return nil, err
 	}
 	return dec, nil
 }

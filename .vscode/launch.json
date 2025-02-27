@@ -9,6 +9,9 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
+            "args": [
+                "../.env"
+            ],
             "program": "${workspaceFolder}/server",
         },
         {
