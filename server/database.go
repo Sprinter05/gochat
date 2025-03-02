@@ -5,13 +5,16 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 	"strings"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 
 	mysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	logger "gorm.io/gorm/logger"
 )
 
 /* UTILITIES */
@@ -45,7 +48,7 @@ func getDBEnv() string {
 
 	// Get formatted string
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s",
+		"%s:%s@tcp(%s:%s)/%s?parseTime=True",
 		user,
 		pswd,
 		addr,
@@ -54,27 +57,77 @@ func getDBEnv() string {
 	)
 }
 
+// Creates a log file for the database
+func dbLog() *log.Logger {
+	// Create the file used for logging
+	file, err := os.OpenFile(
+		os.Args[2],
+		os.O_RDWR|os.O_CREATE|os.O_APPEND,
+		0666,
+	)
+	if err != nil {
+		gclog.Fatal("db log file", err)
+	}
+
+	// Set the new db logger
+	dblog := log.New(file, "\n", log.LstdFlags)
+	return dblog
+}
+
 // Connects to the database using the environment file
-func connectDB() *sql.DB {
+func connectDB() *gorm.DB {
 	access := getDBEnv()
-	gdb, err := gorm.Open(mysql.Open(access), &gorm.Config{})
+	dblog := logger.New(
+		dbLog(),
+		logger.Config{
+			LogLevel:             logger.Info,
+			ParameterizedQueries: true,
+		},
+	)
+	db, err := gorm.Open(
+		mysql.Open(access),
+		&gorm.Config{
+			PrepareStmt: true,
+			Logger:      dblog,
+		},
+	)
 	if err != nil {
 		gclog.Fatal("database login", err)
 	}
 
-	// Turn to sql database
-	db, _ := gdb.DB()
-
-	// Test that the database works
-	e := db.Ping()
-	if e != nil {
-		gclog.Fatal("database ping", err)
-	}
+	// Run migrations
+	migrate(db)
 
 	return db
 }
 
 /* MODELS */
+
+type gcUser struct {
+	UserID     uint           `gorm:"primaryKey;autoIncrement;not null"`
+	Username   string         `gorm:"unique;not null;size:32"`
+	Pubkey     sql.NullString `gorm:"unique;size:2047"`
+	Permission uint8          `gorm:"not null;default:0"`
+}
+
+type gcMessage struct {
+	SrcUser     uint      `gorm:"not null;check:src_user <> dst_user"`
+	DstUser     uint      `gorm:"not null"`
+	Message     string    `gorm:"not null;size:2047"`
+	Stamp       time.Time `gorm:"not null;default:CURRENT_TIMESTAMP()"`
+	Source      gcUser    `gorm:"foreignKey:src_user;OnDelete:RESTRICT"`
+	Destination gcUser    `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
+}
+
+func migrate(db *gorm.DB) {
+	err := db.Set(
+		"gorm:table_options",
+		"ENGINE=InnoDB",
+	).AutoMigrate(&gcUser{}, &gcMessage{})
+	if err != nil {
+		gclog.Fatal("database migrations", err)
+	}
+}
 
 /* QUERIES */
 

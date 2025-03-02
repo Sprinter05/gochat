@@ -21,7 +21,7 @@ func init() {
 	// If we default to stderr it won't print unless debugged
 	log.SetOutput(os.Stdout)
 
-	if len(os.Args) < 2 {
+	if len(os.Args) < 3 {
 		// No environment file supplied
 		gclog.Fatal("loading env file", ErrorCLIArgs)
 	}
@@ -54,6 +54,8 @@ func init() {
 // Indicates the hub to start running
 func setupHub() *Hub {
 	// Allocate all data structures
+	gorm := connectDB()
+	sqldb, _ := gorm.DB()
 	hub := Hub{
 		clean:  make(chan net.Conn, gc.MaxClients/2),
 		shtdwn: make(chan bool),
@@ -63,7 +65,7 @@ func setupHub() *Hub {
 		verifs: table[*Verif]{
 			tab: make(map[net.Conn]*Verif),
 		},
-		db: connectDB(),
+		db: sqldb,
 	}
 
 	go hub.Start()
@@ -96,6 +98,10 @@ func setupConn() net.Listener {
 
 	return l
 }
+
+// TODO: struct tags and reflection
+// TODO: https://github.com/caarlos0/env
+// TODO: defer file and db closing
 
 func main() {
 	l := setupConn()

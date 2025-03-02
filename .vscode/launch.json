@@ -10,7 +10,8 @@
             "request": "launch",
             "mode": "debug",
             "args": [
-                "../.env"
+                "../.env",
+                "../logs/sql.log"
             ],
             "program": "${workspaceFolder}/server",
         },
