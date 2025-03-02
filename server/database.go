@@ -4,13 +4,14 @@ import (
 	"crypto/rsa"
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
-	myqsl "github.com/go-sql-driver/mysql"
+
+	mysql "gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 /* UTILITIES */
@@ -56,10 +57,13 @@ func getDBEnv() string {
 // Connects to the database using the environment file
 func connectDB() *sql.DB {
 	access := getDBEnv()
-	db, err := sql.Open("mysql", access)
+	gdb, err := gorm.Open(mysql.Open(access), &gorm.Config{})
 	if err != nil {
 		gclog.Fatal("database login", err)
 	}
+
+	// Turn to sql database
+	db, _ := gdb.DB()
 
 	// Test that the database works
 	e := db.Ping()
@@ -69,6 +73,8 @@ func connectDB() *sql.DB {
 
 	return db
 }
+
+/* MODELS */
 
 /* QUERIES */
 
@@ -327,12 +333,12 @@ func removeUser(db *sql.DB, uname username) error {
 	if err != nil {
 		gclog.DBError(err)
 		// Unwrap error as driver error
-		var sqlerr *myqsl.MySQLError
+		/*var sqlerr *myqsl.MySQLError
 		ok := errors.As(err, &sqlerr)
 		// Check if the error is the foreign key constraint
 		if ok && sqlerr.Number == 1451 {
 			return ErrorDBConstraint
-		}
+		}*/
 		return err
 	}
 
