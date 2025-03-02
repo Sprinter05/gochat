@@ -28,8 +28,9 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 		return ErrorConnection
 	}
 
-	// Make sure the size is appropaite
-	if len(b) < HeaderSize {
+	// Make sure the size is appropiate
+	// We add 2 due to the delimiter
+	if len(b) < HeaderSize+2 {
 		return ErrorHeader
 	}
 
