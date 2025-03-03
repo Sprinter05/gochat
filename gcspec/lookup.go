@@ -142,7 +142,7 @@ func CodeToString(a Action) string {
 	return v.str
 }
 
-// Amount of arguments to send to server
+// Minimum amount of arguments to send to server
 func ServerArgs(a Action) int {
 	v, ok := lookupByOperation[a]
 	if !ok {
@@ -151,7 +151,7 @@ func ServerArgs(a Action) int {
 	return int(v.sargs)
 }
 
-// Amount of arguments to send to client
+// Minimum amount of arguments to send to client
 func ClientArgs(a Action) int {
 	v, ok := lookupByOperation[a]
 	if !ok {

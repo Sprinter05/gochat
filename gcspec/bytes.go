@@ -102,8 +102,7 @@ func (hd Header) ServerCheck() error {
 		return ErrorHeader
 	}
 
-	// Admin operations can have variable arguments
-	if hd.Op != ADMIN && (int(hd.Args) != ServerArgs(hd.Op)) {
+	if int(hd.Args) < ServerArgs(hd.Op) {
 		return ErrorHeader
 	}
 
@@ -127,7 +126,7 @@ func (hd Header) ClientCheck() error {
 		return ErrorHeader
 	}
 
-	if int(hd.Args) != ClientArgs(hd.Op) {
+	if int(hd.Args) < ClientArgs(hd.Op) {
 		return ErrorHeader
 	}
 
