@@ -169,7 +169,7 @@ func queryUser(db *gorm.DB, uname username) (*User, error) {
 
 // Gets all messages from the user
 // It is expected for the size to be queried previously
-func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
+func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 	user, err := queryDBUser(db, uname)
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
 		message = append(message, temp)
 	}
 
-	return &message, nil
+	return message, nil
 }
 
 // Lists all usernames in the database

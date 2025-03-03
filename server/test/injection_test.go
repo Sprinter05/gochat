@@ -59,7 +59,7 @@ func TestREG(t *testing.T) {
 
 	// REG Packet
 	p1 := []gc.Arg{gc.Arg("pepe"), gc.Arg(b)}
-	test1, err := gc.NewPacket(gc.REG, gc.ID(976), gc.EmptyInfo, p1)
+	test1, err := gc.NewPacket(gc.REG, gc.ID(976), gc.EmptyInfo, p1...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestREG(t *testing.T) {
 
 	// Login
 	p2 := []gc.Arg{gc.Arg("pepe")}
-	test2, err := gc.NewPacket(gc.LOGIN, gc.ID(894), gc.EmptyInfo, p2)
+	test2, err := gc.NewPacket(gc.LOGIN, gc.ID(894), gc.EmptyInfo, p2...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestREG(t *testing.T) {
 
 	// Verify
 	p3 := []gc.Arg{gc.Arg("pepe"), gc.Arg(string(dec))}
-	test3, err := gc.NewPacket(gc.VERIF, gc.ID(113), gc.EmptyInfo, p3)
+	test3, err := gc.NewPacket(gc.VERIF, gc.ID(113), gc.EmptyInfo, p3...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestREG(t *testing.T) {
 		gc.Arg(gc.UnixStampToBytes(time.Now())),
 		gc.Arg("akjdaksjdsalkdjaslkdjsalkdjsalkdsj"),
 	}
-	test4, err := gc.NewPacket(gc.MSG, gc.ID(69), 0x01, p4)
+	test4, err := gc.NewPacket(gc.MSG, gc.ID(69), 0x01, p4...)
 	if err != nil {
 		t.Fatal(err)
 	}

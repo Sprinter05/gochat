@@ -114,10 +114,7 @@ func adminShutdown(h *Hub, u User, cmd gc.Command) {
 		h.shtdwn <- true
 	}()
 
-	args := []gc.Arg{
-		cmd.Args[0],
-	}
-	pak, e := gc.NewPacket(gc.SHTDWN, gc.NullID, gc.EmptyInfo, args)
+	pak, e := gc.NewPacket(gc.SHTDWN, gc.NullID, gc.EmptyInfo, cmd.Args[0])
 	if e != nil {
 		gclog.Packet(gc.SHTDWN, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
@@ -138,12 +135,11 @@ func adminShutdown(h *Hub, u User, cmd gc.Command) {
 // Requires 1 argument for the message
 func adminBroadcast(h *Hub, u User, cmd gc.Command) {
 	// Create packet with the message
-	arg := []gc.Arg{
-		gc.Arg(u.name + " [ADMIN]"),
+	pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo,
+		gc.Arg(u.name+" [ADMIN]"),
 		gc.UnixStampToBytes(time.Now()),
 		cmd.Args[0],
-	}
-	pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)
+	)
 	if e != nil {
 		gclog.Packet(gc.RECIV, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)

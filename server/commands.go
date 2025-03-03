@@ -93,10 +93,7 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 	}
 
 	// We create and send the packet with the enconded text
-	arg := []gc.Arg{
-		gc.Arg(enc),
-	}
-	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, arg)
+	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, gc.Arg(enc))
 	if e != nil {
 		gclog.Packet(gc.VERIF, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
@@ -222,11 +219,10 @@ func requestUser(h *Hub, u User, cmd gc.Command) {
 	}
 
 	// We reply with the username that was requested as well
-	arg := []gc.Arg{
+	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo,
 		gc.Arg(req.name),
 		gc.Arg(p),
-	}
-	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo, arg)
+	)
 	if e != nil {
 		gclog.Packet(gc.REQ, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
@@ -260,10 +256,7 @@ func listUsers(h *Hub, u User, cmd gc.Command) {
 		return
 	}
 
-	arg := []gc.Arg{
-		gc.Arg(usrs),
-	}
-	pak, e := gc.NewPacket(gc.USRS, cmd.HD.ID, gc.EmptyInfo, arg)
+	pak, e := gc.NewPacket(gc.USRS, cmd.HD.ID, gc.EmptyInfo, gc.Arg(usrs))
 	if e != nil {
 		gclog.Packet(gc.USRS, e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
@@ -285,12 +278,11 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	send, ok := h.findUser(username(cmd.Args[0]))
 	if ok {
 		// We send the message directly to the connection
-		arg := []gc.Arg{
+		pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo,
 			gc.Arg(u.name),
 			cmd.Args[1],
 			cmd.Args[2],
-		}
-		pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)
+		)
 		if e != nil {
 			gclog.Packet(gc.RECIV, e)
 			sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
@@ -330,12 +322,12 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 		}
 
 		// Internal database error
-		gclog.DBQuery("messages for"+string(u.name), err)
+		gclog.DBQuery("messages for "+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
 
-	chk := catchUp(u.conn, msgs, cmd.HD.ID) // send RECIV(s)
+	chk := catchUp(u.conn, cmd.HD.ID, msgs...) // send RECIV(s)
 	if chk != nil {
 		// We do not delete messages in this case
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
@@ -343,12 +335,12 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	}
 
 	// Get the timestamp of the newest message as threshold for deletion
-	size := len(*msgs)
-	ts := (*msgs)[size].stamp
+	size := len(msgs)
+	ts := msgs[size].stamp
 	e := removeMessages(h.db, u.name, ts)
 	if e != nil {
 		// We dont send an ERR here or we would be sending 2 packets
-		gclog.DBQuery("deleting cached messages for"+string(u.name), e)
+		gclog.DBQuery("deleting cached messages for "+string(u.name), e)
 	}
 
 	// Let the client know there are no more catch up RECIVs

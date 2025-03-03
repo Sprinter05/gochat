@@ -48,7 +48,7 @@ func init() {
 		gclog = FATAL
 		lv = "FATAL"
 	}
-	fmt.Printf("-> Logging with log level %s...\n", lv)
+	fmt.Printf("-> Logging with log level %s\n", lv)
 }
 
 // Creates a log file and returns both file and log

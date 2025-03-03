@@ -153,7 +153,7 @@ func BytesToUnixStamp(b []byte) *time.Time {
 // Creates a byte slice corresponding to the header fields
 // This function only checks size bounds not argument integrityy
 // like containg CRLF at the end of each argument
-func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
+func NewPacket(op Action, id ID, inf byte, arg ...Arg) ([]byte, error) {
 	// Verify number of arguments
 	l := len(arg)
 	if l > MaxArgs {
