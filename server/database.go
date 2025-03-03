@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -169,32 +170,38 @@ func queryUser(db *gorm.DB, uname username) (*User, error) {
 // Gets all messages from the user
 // It is expected for the size to be queried previously
 func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
-	query := `
-		SELECT username, msg, stamp
-		FROM message_cache mc JOIN users u ON mc.src_user = u.user_id 
-		WHERE mc.dest_user = ?
-		ORDER BY stamp ASC;
-	`
-
 	user, err := queryDBUser(db, uname)
 	if err != nil {
 		return nil, err
 	}
 
-	// Raw query for messages
-	rows, err := db.Raw(query, user.UserID).Rows()
+	// We give it a context so its safe to reuse
+	res := db.Model(&gcMessage{}).Select(
+		"username", "message", "stamp",
+	).Joins(
+		"JOIN gc_users u ON gc_messages.src_user = u.user_id",
+	).Where(
+		"gc_messages.dest_user = ?", user.UserID,
+	).WithContext(context.Background())
+
+	rows, err := res.Rows()
 	if err != nil {
 		gclog.DBError(err)
 		return nil, err
 	}
 	defer rows.Close()
 
-	// We create an array of length 0
-	// TODO: query amount
-	message := make([]Message, 0)
+	// We create a preallocated array
+	var size int64
+	res.Count(&size)
+	message := make([]Message, size)
 
-	i := 0
-	for ; rows.Next(); i++ {
+	// No results
+	if size == 0 {
+		return nil, gc.ErrorEmpty
+	}
+
+	for i := 0; rows.Next(); i++ {
 		var undec string
 		var temp Message
 
@@ -213,11 +220,6 @@ func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
 		temp.message = dec
 
 		message = append(message, temp)
-	}
-
-	// No results
-	if i == 0 {
-		return nil, gc.ErrorEmpty
 	}
 
 	return &message, nil
