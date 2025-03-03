@@ -170,7 +170,7 @@ func queryUser(db *gorm.DB, uname username) (*User, error) {
 // It is expected for the size to be queried previously
 func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
 	query := `
-		SELECT username, msg, UNIX_TIMESTAMP(stamp) 
+		SELECT username, msg, stamp
 		FROM message_cache mc JOIN users u ON mc.src_user = u.user_id 
 		WHERE mc.dest_user = ?
 		ORDER BY stamp ASC;
@@ -190,6 +190,7 @@ func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
 	defer rows.Close()
 
 	// We create an array of length 0
+	// TODO: query amount
 	message := make([]Message, 0)
 
 	i := 0
@@ -209,7 +210,7 @@ func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
 
 		// Conversion from hex string
 		dec, _ := hex.DecodeString(undec)
-		temp.message = string(dec)
+		temp.message = dec
 
 		message = append(message, temp)
 	}
@@ -271,8 +272,8 @@ func insertUser(db *gorm.DB, uname username, pubkey []byte) error {
 
 // Adds a message to the users message cache
 // The message must be in byte array format since its encrypted
-func cacheMessage(db *gorm.DB, src username, dst username, msg []byte) error {
-	srcuser, srcerr := queryDBUser(db, src)
+func cacheMessage(db *gorm.DB, dst username, msg Message) error {
+	srcuser, srcerr := queryDBUser(db, msg.sender)
 	if srcerr != nil {
 		return srcerr
 	}
@@ -283,11 +284,12 @@ func cacheMessage(db *gorm.DB, src username, dst username, msg []byte) error {
 	}
 
 	// Encode encrypted array to string
-	str := hex.EncodeToString(msg)
+	str := hex.EncodeToString([]byte(msg.message))
 	res := db.Create(&gcMessage{
 		SrcUser: srcuser.UserID,
 		DstUser: dstuser.UserID,
 		Message: str,
+		Stamp:   msg.stamp,
 	})
 
 	if res.Error != nil {
@@ -363,17 +365,19 @@ func removeUser(db *gorm.DB, uname username) error {
 
 // Removes all cached messages from a user before a given stamp
 // This is done to prevent messages from being lost
-func removeMessages(db *gorm.DB, uname username, stamp int64) error {
+func removeMessages(db *gorm.DB, uname username, stamp time.Time) error {
 	user, err := queryDBUser(db, uname)
 	if err != nil {
 		return err
 	}
 
 	// Delete checking the timestamp
-	res := db.Where(
-		"stamp <= FROM_UNIXTIME(?)",
+	res := db.Delete(
+		&gcMessage{},
+		"dst_user = ? AND stamp <= ?",
+		user.UserID,
 		stamp,
-	).Delete(&gcMessage{}, "dst_user = ?", user.UserID)
+	)
 
 	if res.Error != nil {
 		gclog.DBError(res.Error)

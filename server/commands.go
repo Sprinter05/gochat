@@ -304,7 +304,11 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 
 	// Otherwise we just send it to the message cache
 	uname := username(cmd.Args[0])
-	err := cacheMessage(h.db, u.name, uname, cmd.Args[2])
+	err := cacheMessage(h.db, uname, Message{
+		sender:  u.name,
+		message: cmd.Args[2],
+		stamp:   *gc.BytesToUnixStamp(cmd.Args[1]),
+	})
 	if err != nil {
 		// Error when inserting the message into the cache
 		gclog.DBQuery("message caching from "+string(u.name), err)

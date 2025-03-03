@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"net"
 	"testing"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -97,7 +98,7 @@ func TestREG(t *testing.T) {
 	// Msg
 	p4 := []gc.Arg{
 		gc.Arg("Sprinter05"),
-		gc.Arg(gc.UnixStampNow()),
+		gc.Arg(gc.UnixStampToBytes(time.Now())),
 		gc.Arg("akjdaksjdsalkdjaslkdjsalkdjsalkdsj"),
 	}
 	test4, err := gc.NewPacket(gc.MSG, gc.ID(69), 0x01, p4)

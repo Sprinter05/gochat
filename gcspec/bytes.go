@@ -124,34 +124,28 @@ func NewHeader(hdr []byte) Header {
 
 /* UNIX STAMP FUNCTIONS */
 
-// Returns a byte array with the current unix timestamp
-func UnixStampNow() []byte {
-	t := time.Now().Unix()
-	p := make([]byte, binary.Size(t))
-	p = binary.AppendVarint(p, t)
-	return p
-}
-
 // Uses int64 format for conversion
-func UnixStampToBytes(s int64) []byte {
-	p := make([]byte, binary.Size(s))
-	p = binary.AppendVarint(p, s)
+func UnixStampToBytes(s time.Time) []byte {
+	unix := s.Unix()
+	p := make([]byte, binary.Size(unix))
+	p = binary.AppendVarint(p, unix)
 	return p
 }
 
 // Uses 4 bytes that it will turn to a unix timestamp
-func NewUnixStamp(b []byte) int64 {
+func BytesToUnixStamp(b []byte) *time.Time {
 	if len(b) < 4 {
-		return -1
+		return nil
 	}
 
 	buf := bytes.NewBuffer(b[:4])
 	stamp, err := binary.ReadVarint(buf)
 	if err != nil {
-		return -1
+		return nil
 	}
 
-	return stamp
+	t := time.Unix(stamp, 0)
+	return &t
 }
 
 /* PACKET FUNCTIONS */

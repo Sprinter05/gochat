@@ -92,14 +92,14 @@ func adminOperation(h *Hub, u User, cmd gc.Command) {
 // Requires ADMIN or more
 // Uses 1 argument for the unix stamp
 func adminShutdown(h *Hub, u User, cmd gc.Command) {
-	stamp := gc.NewUnixStamp(cmd.Args[0])
-	if stamp == -1 {
+	stamp := gc.BytesToUnixStamp(cmd.Args[0])
+	if stamp == nil {
 		// Invalid number given
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
 
-	duration := stamp - time.Now().Unix()
+	duration := time.Until(*stamp)
 	if duration < 0 {
 		// Invalid duration
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
@@ -130,8 +130,7 @@ func adminShutdown(h *Hub, u User, cmd gc.Command) {
 		v.conn.Write(pak)
 	}
 
-	print := time.Unix(stamp, 0)
-	gclog.Notice("server shutdown on " + print.String())
+	gclog.Notice("server shutdown on " + stamp.String())
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
@@ -141,7 +140,7 @@ func adminBroadcast(h *Hub, u User, cmd gc.Command) {
 	// Create packet with the message
 	arg := []gc.Arg{
 		gc.Arg(u.name + " [ADMIN]"),
-		gc.UnixStampNow(),
+		gc.UnixStampToBytes(time.Now()),
 		cmd.Args[0],
 	}
 	pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo, arg)

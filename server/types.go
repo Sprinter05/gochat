@@ -66,8 +66,8 @@ type Verif struct {
 // Specifies a message to be received
 type Message struct {
 	sender  username
-	message string
-	stamp   int64
+	message []byte
+	stamp   time.Time
 }
 
 // Tables store pointers for modification
