@@ -23,8 +23,8 @@ func init() {
 	log.SetOutput(os.Stdout)
 
 	if len(os.Args) < 3 {
-		// No environment file supplied
-		gclog.Fatal("loading env file", ErrorCLIArgs)
+		// Not enough arguments supplied
+		gclog.Fatal("parsing cli arguments", ErrorCLIArgs)
 	}
 
 	// Argument 0 is the pathname to the executable
@@ -115,10 +115,11 @@ func setupConn() net.Listener {
 	return l
 }
 
-// TODO: struct tags and reflection
-// TODO: https://github.com/caarlos0/env
+// TODO: config file
 
 func main() {
+	/* SETUP */
+
 	// Set up listening server
 	l := setupConn()
 
@@ -138,7 +139,8 @@ func main() {
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")
 
-	// Endless loop to listen for connections
+	/* LISTENING FOR CONNECTIONS */
+
 	var count int
 	for {
 		// If we exceed the client count we just wait until a spot is free
