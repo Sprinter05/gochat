@@ -187,7 +187,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 
 	// Database error different than foreign key violation
 	if e != ErrorDBConstraint {
-		gclog.DB(string(u.name)+" deletion", e)
+		gclog.DBQuery(string(u.name)+" deletion", e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -195,7 +195,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 	// The user has cached messages so we just NULL the pubkey
 	err := removeKey(h.db, u.name)
 	if err != nil {
-		gclog.DB(string(u.name)+" pubkey to null", e)
+		gclog.DBQuery(string(u.name)+" pubkey to null", e)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -208,7 +208,7 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 func requestUser(h *Hub, u User, cmd gc.Command) {
 	k, err := queryUserKey(h.db, username(cmd.Args[0]))
 	if err != nil {
-		gclog.DB(string(u.name)+" pubkey", err)
+		gclog.DBQuery(string(u.name)+" pubkey", err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
 	}
@@ -306,7 +306,7 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	err := cacheMessage(h.db, u.name, uname, cmd.Args[2])
 	if err != nil {
 		// Error when inserting the message into the cache
-		gclog.DB("message caching from"+string(u.name), err)
+		gclog.DBQuery("message caching from"+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -319,7 +319,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	// Get the amount of messages needed for allocation
 	size, err := queryMessageQuantity(h.db, u.name)
 	if err != nil {
-		gclog.DB("message quantity for"+string(u.name), err)
+		gclog.DBQuery("message quantity for"+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -331,7 +331,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 
 	catch, err := queryMessages(h.db, u.name, size)
 	if err != nil {
-		gclog.DB("messages for"+string(u.name), err)
+		gclog.DBQuery("messages for"+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -348,7 +348,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	e := removeMessages(h.db, u.name, ts)
 	if e != nil {
 		// We dont send an ERR here or we would be sending 2 packets
-		gclog.DB("deleting cached messages for"+string(u.name), e)
+		gclog.DBQuery("deleting cached messages for"+string(u.name), e)
 	}
 
 	// Let the client know there are no more catch up RECIVs

@@ -90,9 +90,9 @@ func (hd Header) Check() error {
 		return ErrorHeader
 	}
 
-	check := hd.Op != USRS && hd.Op != ADMIN && hd.Op != ERR
-	// The operation cannot accept non-empty info field
-	if check && hd.Info != EmptyInfo {
+	// The operation cannot accept empty info field
+	check := hd.Op == USRS || hd.Op == ADMIN || hd.Op == ERR
+	if check && hd.Info == EmptyInfo {
 		return ErrorHeader
 	}
 

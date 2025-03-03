@@ -75,12 +75,12 @@ func setupHub() *Hub {
 func setupConn() net.Listener {
 	addr, ok := os.LookupEnv("SRV_ADDR")
 	if !ok {
-		gclog.Env("SRV_ADDR")
+		gclog.Environ("SRV_ADDR")
 	}
 
 	port, ok := os.LookupEnv("SRV_PORT")
 	if !ok {
-		gclog.Env("SRV_PORT")
+		gclog.Environ("SRV_PORT")
 	}
 
 	socket := fmt.Sprintf(
