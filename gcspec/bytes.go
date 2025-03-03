@@ -81,7 +81,8 @@ func (c Command) ShellPrint() {
 /* HEADER FUNCTIONS */
 
 // Checks the validity of the header fields
-func (hd Header) Check() error {
+// Only works for commands sent to the server
+func (hd Header) ServerCheck() error {
 	if hd.Ver != ProtocolVersion {
 		return ErrorVersion
 	}
@@ -90,19 +91,43 @@ func (hd Header) Check() error {
 		return ErrorHeader
 	}
 
-	// The operation cannot accept empty info field
+	// These operations cannot accept empty info field
 	check := hd.Op == USRS || hd.Op == ADMIN || hd.Op == ERR
 	if check && hd.Info == EmptyInfo {
 		return ErrorHeader
 	}
 
-	// ID 0 is reserved for reciv
-	if hd.ID == NullID && hd.Op != RECIV {
+	// No commands sent to server can have a null ID
+	if hd.ID == NullID {
 		return ErrorHeader
 	}
 
 	// Admin operations can have variable arguments
-	if hd.Op != ADMIN && (int(hd.Args) != IDToArgs(hd.Op)) {
+	if hd.Op != ADMIN && (int(hd.Args) != ServerArgs(hd.Op)) {
+		return ErrorHeader
+	}
+
+	return nil
+}
+
+// Checks the validity of the header fields
+// Only works for commands sent to the client
+func (hd Header) ClientCheck() error {
+	if hd.Ver != ProtocolVersion {
+		return ErrorVersion
+	}
+
+	if hd.Op == NullOp {
+		return ErrorHeader
+	}
+
+	// Only RECIV and SHTDWN can have a null ID
+	check := hd.Op == SHTDWN || hd.Op == RECIV
+	if !check && hd.ID == NullID {
+		return ErrorHeader
+	}
+
+	if int(hd.Args) != ClientArgs(hd.Op) {
 		return ErrorHeader
 	}
 

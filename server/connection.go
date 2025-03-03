@@ -64,6 +64,7 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 	)
 
 	for {
+		ip := cl.Conn.RemoteAddr().String()
 		cmd := new(gc.Command)
 
 		// Works as an idle timeout calling it each time
@@ -71,6 +72,11 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 
 		if processHeader(cl, cmd) != nil {
 			return
+		}
+
+		// Check that all header fields are correct
+		if err := cmd.HD.ServerCheck(); err != nil {
+			gclog.Read("header checking", ip, err)
 		}
 
 		// If there are no arguments we do not process the payload
