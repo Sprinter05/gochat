@@ -9,6 +9,7 @@ import (
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 	"github.com/joho/godotenv"
+	"gorm.io/gorm"
 )
 
 // Global log
@@ -50,11 +51,27 @@ func init() {
 	fmt.Printf("-> Logging with log level %s...\n", lv)
 }
 
+// Creates a log file and returns both file and log
+func logFile() *os.File {
+	// Create the file used for logging
+	file, err := os.OpenFile(
+		os.Args[2],
+		os.O_RDWR|os.O_CREATE|os.O_APPEND,
+		0666,
+	)
+	if err != nil {
+		gclog.Fatal("db log file", err)
+	}
+
+	// Set the new db logger
+	return file
+}
+
 // Creates a hub with all channels, caches and database
 // Indicates the hub to start running
-func setupHub() *Hub {
+func setupHub(db *gorm.DB) *Hub {
 	// Allocate all data structures
-	gormdb := connectDB()
+	gormdb := db
 	hub := Hub{
 		clean:  make(chan net.Conn, gc.MaxClients/2),
 		shtdwn: make(chan bool),
@@ -100,11 +117,23 @@ func setupConn() net.Listener {
 
 // TODO: struct tags and reflection
 // TODO: https://github.com/caarlos0/env
-// TODO: defer file and db closing
 
 func main() {
+	// Set up listening server
 	l := setupConn()
-	hub := setupHub()
+
+	// Set up database logging file
+	f := logFile()
+	defer f.Close()
+	dblog := log.New(f, "", log.LstdFlags)
+
+	// Setup database
+	db := connectDB(dblog)
+	sqldb, _ := db.DB()
+	defer sqldb.Close()
+
+	// Setup hub
+	hub := setupHub(db)
 
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")

@@ -57,28 +57,11 @@ func getDBEnv() string {
 	)
 }
 
-// Creates a log file for the database
-func dbLog() *log.Logger {
-	// Create the file used for logging
-	file, err := os.OpenFile(
-		os.Args[2],
-		os.O_RDWR|os.O_CREATE|os.O_APPEND,
-		0666,
-	)
-	if err != nil {
-		gclog.Fatal("db log file", err)
-	}
-
-	// Set the new db logger
-	dblog := log.New(file, "", log.LstdFlags)
-	return dblog
-}
-
 // Connects to the database using the environment file
-func connectDB() *gorm.DB {
+func connectDB(logfile *log.Logger) *gorm.DB {
 	access := getDBEnv()
 	dblog := logger.New(
-		dbLog(),
+		logfile,
 		logger.Config{
 			LogLevel:             logger.Info,
 			ParameterizedQueries: true,

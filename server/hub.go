@@ -162,9 +162,6 @@ func (h *Hub) findUser(uname username) (*User, bool) {
 
 // Handles generic server functions
 func (hub *Hub) Start() {
-	sqldb, _ := hub.db.DB()
-	defer sqldb.Close()
-
 	for {
 		select {
 		case <-hub.shtdwn:
