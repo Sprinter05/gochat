@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 	"github.com/joho/godotenv"
@@ -22,15 +23,13 @@ func init() {
 	// If we default to stderr it won't print unless debugged
 	log.SetOutput(os.Stdout)
 
-	if len(os.Args) < 3 {
-		// Not enough arguments supplied
-		gclog.Fatal("parsing cli arguments", ErrorCLIArgs)
-	}
-
 	// Argument 0 is the pathname to the executable
-	err := godotenv.Load(os.Args[1])
-	if err != nil {
-		gclog.Fatal("env file reading", err)
+	if len(os.Args) > 1 {
+		// Read argument 1 as .env if it exists
+		err := godotenv.Load(os.Args[1])
+		if err != nil {
+			gclog.Fatal("env file reading", err)
+		}
 	}
 
 	// Setup logging levels
@@ -53,15 +52,28 @@ func init() {
 
 // Creates a log file and returns both file and log
 func logFile() *os.File {
+	f, ok := os.LookupEnv("LOG_FILE")
+	if !ok {
+		f = "./database.log"
+	}
+
 	// Create the file used for logging
 	file, err := os.OpenFile(
-		os.Args[2],
+		f,
 		os.O_RDWR|os.O_CREATE|os.O_APPEND,
 		0666,
 	)
 	if err != nil {
 		gclog.Fatal("db log file", err)
 	}
+
+	// Print separator inside log file
+	stat, _ := file.Stat()
+	if stat.Size() != 0 {
+		// Not the first line of file
+		file.WriteString("\n")
+	}
+	file.WriteString("------ " + time.Now().String() + " ------\n\n")
 
 	// Set the new db logger
 	return file

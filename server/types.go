@@ -92,7 +92,6 @@ var (
 	ErrorDBConstraint        error = errors.New("database returned constraint on operation")
 	ErrorNoMessages          error = errors.New("user has no messages to receive")
 	ErrorInvalidValue        error = errors.New("data provided is invalid")
-	ErrorCLIArgs             error = errors.New("no CLI argument provided")
 )
 
 /* TABLE FUNCTIONS */
