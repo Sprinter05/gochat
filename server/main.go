@@ -22,8 +22,8 @@ func init() {
 	// If we default to stderr it won't print unless debugged
 	log.SetOutput(os.Stdout)
 
-	if len(os.Args) < 4 {
-		fmt.Printf("Format: gcserver <env file> <pem cert> <key cert>")
+	if len(os.Args) < 2 {
+		fmt.Printf("Format: gcserver <env file>")
 		return
 	}
 
@@ -68,6 +68,9 @@ func setupHub() *Hub {
 	return &hub
 }
 
+// TODO: Reusable verif tokens (TLS only)
+// TODO: Both TLS and non-TLS ports
+
 func main() {
 	addr := fmt.Sprintf(
 		"%s:%s",
@@ -76,7 +79,10 @@ func main() {
 	)
 
 	// Load TLS certificate
-	cert, err := tls.LoadX509KeyPair(os.Args[2], os.Args[3])
+	cert, err := tls.LoadX509KeyPair(
+		os.Getenv("TLS_CERT"),
+		os.Getenv("TLS_KEYF"),
+	)
 	if err != nil {
 		gclog.Fatal("tls loading", err)
 	}
