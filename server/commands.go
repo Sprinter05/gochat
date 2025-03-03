@@ -275,14 +275,15 @@ func listUsers(h *Hub, u User, cmd gc.Command) {
 // Replies with OK or ERR
 // Sends a RECIV if destination user is online
 func messageUser(h *Hub, u User, cmd gc.Command) {
+	// Cannot send to self
+	if username(cmd.Args[0]) == u.name {
+		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		return
+	}
+
 	// Check if its online cached
 	send, ok := h.findUser(username(cmd.Args[0]))
 	if ok {
-		if send.name == u.name {
-			sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
-			return
-		}
-
 		// We send the message directly to the connection
 		arg := []gc.Arg{
 			gc.Arg(u.name),
@@ -306,7 +307,7 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	err := cacheMessage(h.db, u.name, uname, cmd.Args[2])
 	if err != nil {
 		// Error when inserting the message into the cache
-		gclog.DBQuery("message caching from"+string(u.name), err)
+		gclog.DBQuery("message caching from "+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}

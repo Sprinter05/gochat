@@ -57,7 +57,7 @@ func TestREG(t *testing.T) {
 	b, _ := gc.PubkeytoPEM(&v.PublicKey)
 
 	// REG Packet
-	p1 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
+	p1 := []gc.Arg{gc.Arg("pepe"), gc.Arg(b)}
 	test1, err := gc.NewPacket(gc.REG, gc.ID(976), gc.EmptyInfo, p1)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ func TestREG(t *testing.T) {
 	r1.Print()
 
 	// Login
-	p2 := []gc.Arg{gc.Arg("Sprinter05")}
+	p2 := []gc.Arg{gc.Arg("pepe")}
 	test2, err := gc.NewPacket(gc.LOGIN, gc.ID(894), gc.EmptyInfo, p2)
 	if err != nil {
 		t.Fatal(err)
@@ -78,10 +78,13 @@ func TestREG(t *testing.T) {
 	vpak := readFromConn(conn) // VERIF packet
 	vpak.Print()
 
-	dec, _ := gc.DecryptText(vpak.Args[0], v)
+	dec, e := gc.DecryptText(vpak.Args[0], v)
+	if e != nil {
+		t.Fatal(e)
+	}
 
 	// Verify
-	p3 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(string(dec))}
+	p3 := []gc.Arg{gc.Arg("pepe"), gc.Arg(string(dec))}
 	test3, err := gc.NewPacket(gc.VERIF, gc.ID(113), gc.EmptyInfo, p3)
 	if err != nil {
 		t.Fatal(err)
@@ -103,10 +106,7 @@ func TestREG(t *testing.T) {
 	}
 	l.Write(test4)
 
-	r3 := readFromConn(conn) // RECIV packet
+	r3 := readFromConn(conn) // OK packet
 	r3.Print()
-
-	r4 := readFromConn(conn) // OK packet
-	r4.Print()
 
 }

@@ -48,7 +48,7 @@ func getDBEnv() string {
 
 	// Get formatted string
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s",
+		"%s:%s@tcp(%s:%s)/%s?parseTime=True",
 		user,
 		pswd,
 		addr,
@@ -64,7 +64,7 @@ func connectDB(logfile *log.Logger) *gorm.DB {
 		logfile,
 		logger.Config{
 			LogLevel:             logger.Info,
-			ParameterizedQueries: true,
+			ParameterizedQueries: false,
 		},
 	)
 	db, err := gorm.Open(
@@ -118,8 +118,8 @@ func migrate(db *gorm.DB) {
 // Returns a user by their username
 // This returns a user according to the db model
 func queryDBUser(db *gorm.DB, uname username) (*gcUser, error) {
-	user := gcUser{Username: string(uname)}
-	res := db.First(&user)
+	var user gcUser
+	res := db.First(&user, "username = ?", uname)
 	if res.Error != nil {
 		gclog.DBError(res.Error)
 		// No user with that username exists
@@ -373,9 +373,7 @@ func removeMessages(db *gorm.DB, uname username, stamp int64) error {
 	res := db.Where(
 		"stamp <= FROM_UNIXTIME(?)",
 		stamp,
-	).Delete(&gcMessage{
-		DstUser: user.UserID,
-	})
+	).Delete(&gcMessage{}, "dst_user = ?", user.UserID)
 
 	if res.Error != nil {
 		gclog.DBError(res.Error)
