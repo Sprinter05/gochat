@@ -54,8 +54,7 @@ func init() {
 // Indicates the hub to start running
 func setupHub() *Hub {
 	// Allocate all data structures
-	gorm := connectDB()
-	sqldb, _ := gorm.DB()
+	gormdb := connectDB()
 	hub := Hub{
 		clean:  make(chan net.Conn, gc.MaxClients/2),
 		shtdwn: make(chan bool),
@@ -65,7 +64,7 @@ func setupHub() *Hub {
 		verifs: table[*Verif]{
 			tab: make(map[net.Conn]*Verif),
 		},
-		db: sqldb,
+		db: gormdb,
 	}
 
 	go hub.Start()

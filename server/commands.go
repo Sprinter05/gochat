@@ -206,14 +206,14 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 
 // Replies with REQ or ERR
 func requestUser(h *Hub, u User, cmd gc.Command) {
-	k, err := queryUserKey(h.db, username(cmd.Args[0]))
+	req, err := queryUser(h.db, username(cmd.Args[0]))
 	if err != nil {
 		gclog.DBQuery(string(u.name)+" pubkey", err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
 		return
 	}
 
-	p, e := gc.PubkeytoPEM(k)
+	p, e := gc.PubkeytoPEM(req.pubkey)
 	if e != nil {
 		//! This means the user's database is corrupted info
 		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
@@ -223,7 +223,7 @@ func requestUser(h *Hub, u User, cmd gc.Command) {
 
 	// We reply with the username that was requested as well
 	arg := []gc.Arg{
-		cmd.Args[0],
+		gc.Arg(req.name),
 		gc.Arg(p),
 	}
 	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo, arg)
@@ -316,27 +316,21 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 
 // Replies with RECIV or ERR
 func recivMessages(h *Hub, u User, cmd gc.Command) {
-	// Get the amount of messages needed for allocation
-	size, err := queryMessageQuantity(h.db, u.name)
+	msgs, err := queryMessages(h.db, u.name)
 	if err != nil {
-		gclog.DBQuery("message quantity for"+string(u.name), err)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
-		return
-	}
-	if size == 0 {
-		// Nothing to do
-		sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
-		return
-	}
+		// No messages to query
+		if err == gc.ErrorEmpty {
+			sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
+			return
+		}
 
-	catch, err := queryMessages(h.db, u.name, size)
-	if err != nil {
+		// Internal database error
 		gclog.DBQuery("messages for"+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
 
-	chk := catchUp(u.conn, catch, cmd.HD.ID) // send RECIV(s)
+	chk := catchUp(u.conn, msgs, cmd.HD.ID) // send RECIV(s)
 	if chk != nil {
 		// We do not delete messages in this case
 		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
@@ -344,7 +338,8 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	}
 
 	// Get the timestamp of the newest message as threshold for deletion
-	ts := (*catch)[size].stamp
+	size := len(*msgs)
+	ts := (*msgs)[size].stamp
 	e := removeMessages(h.db, u.name, ts)
 	if e != nil {
 		// We dont send an ERR here or we would be sending 2 packets

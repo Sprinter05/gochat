@@ -74,26 +74,18 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 
 	// Check if the user is in the database
 	u := username(r.cmd.Args[0])
-	key, e := queryUserKey(h.db, u)
+	user, e := queryUser(h.db, u)
 	if e != nil {
+		// Error is handled in the calling function
 		if e != ErrorDoesNotExist {
 			sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
 		}
 		return nil, e
 	}
 
-	p, err := queryUserPerms(h.db, u)
-	if err != nil {
-		p = USER // Set to default value
-	}
-
-	ret := &User{
-		conn:   r.cl,
-		name:   u,
-		perms:  p,
-		pubkey: key,
-	}
-	return ret, nil
+	// Assign connection and return
+	user.conn = r.cl
+	return user, nil
 }
 
 // Check if the user is already logged in from the cache
@@ -170,7 +162,8 @@ func (h *Hub) findUser(uname username) (*User, bool) {
 
 // Handles generic server functions
 func (hub *Hub) Start() {
-	defer hub.db.Close()
+	sqldb, _ := hub.db.DB()
+	defer sqldb.Close()
 
 	for {
 		select {

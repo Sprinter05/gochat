@@ -1,9 +1,9 @@
 package main
 
 import (
-	"crypto/rsa"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +12,7 @@ import (
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 
-	mysql "gorm.io/driver/mysql"
+	driver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	logger "gorm.io/gorm/logger"
 )
@@ -48,7 +48,7 @@ func getDBEnv() string {
 
 	// Get formatted string
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?parseTime=True",
+		"%s:%s@tcp(%s:%s)/%s",
 		user,
 		pswd,
 		addr,
@@ -70,7 +70,7 @@ func dbLog() *log.Logger {
 	}
 
 	// Set the new db logger
-	dblog := log.New(file, "\n", log.LstdFlags)
+	dblog := log.New(file, "", log.LstdFlags)
 	return dblog
 }
 
@@ -85,10 +85,11 @@ func connectDB() *gorm.DB {
 		},
 	)
 	db, err := gorm.Open(
-		mysql.Open(access),
+		driver.Open(access),
 		&gorm.Config{
-			PrepareStmt: true,
-			Logger:      dblog,
+			PrepareStmt:    true,
+			TranslateError: true,
+			Logger:         dblog,
 		},
 	)
 	if err != nil {
@@ -107,7 +108,7 @@ type gcUser struct {
 	UserID     uint           `gorm:"primaryKey;autoIncrement;not null"`
 	Username   string         `gorm:"unique;not null;size:32"`
 	Pubkey     sql.NullString `gorm:"unique;size:2047"`
-	Permission uint8          `gorm:"not null;default:0"`
+	Permission Permission     `gorm:"not null;default:0"`
 }
 
 type gcMessage struct {
@@ -131,98 +132,131 @@ func migrate(db *gorm.DB) {
 
 /* QUERIES */
 
-// Queries the amount of messages cached for that user
-func queryMessageQuantity(db *sql.DB, uname username) (int, error) {
-	var size int
-	query := `
-		SELECT COUNT(msg) 
-		FROM message_cache mc 
-		JOIN users u ON mc.src_user = u.user_id 
-		WHERE mc.dest_user = (
-			SELECT user_id 
-			FROM users 
-			WHERE username = ?
-		);
-	`
+// Returns a user by their username
+// This returns a user according to the db model
+func queryDBUser(db *gorm.DB, uname username) (*gcUser, error) {
+	user := gcUser{Username: string(uname)}
+	res := db.First(&user)
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		// No user with that username exists
+		if res.Error == gorm.ErrRecordNotFound {
+			return nil, ErrorDoesNotExist
+		}
 
-	row := db.QueryRow(query, string(uname))
-	err := row.Scan(&size)
-	if err != nil {
-		gclog.DBError(err)
-		return -1, err
+		return nil, res.Error
 	}
 
-	return size, nil
+	return &user, nil
+}
+
+// Returns a user struct by their username
+func queryUser(db *gorm.DB, uname username) (*User, error) {
+	dbuser, err := queryDBUser(db, uname)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that the permissions are correct
+	if dbuser.Permission > OWNER {
+		return nil, ErrorInvalidValue
+	}
+
+	// Check that the public key is not null
+	if !dbuser.Pubkey.Valid {
+		return nil, ErrorDeregistered
+	}
+
+	// Turn it into a public key from PEM certificate
+	key, err := gc.PEMToPubkey([]byte(dbuser.Pubkey.String))
+	if err != nil {
+		return nil, err
+	}
+
+	// Connection should be assigned by the calling function
+	// Only if necessary
+	return &User{
+		conn:   nil,
+		name:   uname,
+		pubkey: key,
+		perms:  dbuser.Permission,
+	}, nil
 }
 
 // Gets all messages from the user
 // It is expected for the size to be queried previously
-func queryMessages(db *sql.DB, uname username, size int) (*[]Message, error) {
+func queryMessages(db *gorm.DB, uname username) (*[]Message, error) {
 	query := `
 		SELECT username, msg, UNIX_TIMESTAMP(stamp) 
 		FROM message_cache mc JOIN users u ON mc.src_user = u.user_id 
-		WHERE mc.dest_user = (
-			SELECT user_id 
-			FROM users 
-			WHERE username = ?
-		) 
+		WHERE mc.dest_user = ?
 		ORDER BY stamp ASC;
 	`
 
-	rows, err := db.Query(query, uname)
+	user, err := queryDBUser(db, uname)
+	if err != nil {
+		return nil, err
+	}
+
+	// Raw query for messages
+	rows, err := db.Raw(query, user.UserID).Rows()
 	if err != nil {
 		gclog.DBError(err)
 		return nil, err
 	}
 	defer rows.Close()
 
-	// We allocate for the necessary messages
-	message := make([]Message, size)
+	// We create an array of length 0
+	message := make([]Message, 0)
 
-	for i := 0; rows.Next(); i++ {
-		var temp string
+	i := 0
+	for ; rows.Next(); i++ {
+		var undec string
+		var temp Message
+
 		err := rows.Scan(
-			&message[i].sender,
-			&temp,
-			&message[i].stamp,
+			&temp.sender,
+			&undec,
+			&temp.stamp,
 		)
-
-		// Conversion from hex string
-		dec, _ := hex.DecodeString(temp)
-		message[i].message = string(dec)
 
 		if err != nil {
 			return nil, err
 		}
+
+		// Conversion from hex string
+		dec, _ := hex.DecodeString(undec)
+		temp.message = string(dec)
+
+		message = append(message, temp)
+	}
+
+	// No results
+	if i == 0 {
+		return nil, gc.ErrorEmpty
 	}
 
 	return &message, nil
 }
 
 // Lists all usernames in the database
-func queryUsernames(db *sql.DB) (string, error) {
+func queryUsernames(db *gorm.DB) (string, error) {
 	var users strings.Builder
-	query := `
-		SELECT username 
-		FROM users;
-	`
+	var dbusers []gcUser
 
-	rows, err := db.Query(query)
-	if err != nil {
-		gclog.DBError(err)
-		return "", err
+	res := db.Select("username").Find(&dbusers)
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		return "", res.Error
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var temp string
-		// Without temp variable it'd be overwritten
-		e := rows.Scan(&temp)
-		if e != nil {
-			return "", e
-		}
+	if len(dbusers) == 0 {
+		return "", gc.ErrorEmpty
+	}
+
+	for _, v := range dbusers {
 		// Append to buffer
-		users.WriteString(temp + "\n")
+		users.WriteString(v.Username + "\n")
 	}
 
 	// Return result without the last newline
@@ -231,80 +265,22 @@ func queryUsernames(db *sql.DB) (string, error) {
 	return slice[:l-1], nil
 }
 
-// Retrieves the user public key if it exists wih a nil net.Conn
-func queryUserKey(db *sql.DB, uname username) (*rsa.PublicKey, error) {
-	var pubkey sql.NullString
-	query := `
-		SELECT pubkey 
-		FROM users 
-		WHERE username = ?;
-	`
-
-	row := db.QueryRow(query, string(uname))
-	err := row.Scan(&pubkey)
-	if err != nil {
-		gclog.DBError(err)
-		if err == sql.ErrNoRows {
-			// User does not exist
-			return nil, ErrorDoesNotExist
-		}
-		return nil, err
-	}
-
-	// Check if the user has been deregisterd
-	if !pubkey.Valid {
-		return nil, ErrorDeregistered
-	}
-
-	key, err := gc.PEMToPubkey([]byte(pubkey.String))
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
-}
-
-// Returns the privilege level of the user
-func queryUserPerms(db *sql.DB, uname username) (Permission, error) {
-	var perms Permission
-	query := `
-		SELECT permission
-		FROM users 
-		WHERE username = ?;
-	`
-
-	row := db.QueryRow(query, string(uname))
-	err := row.Scan(&perms)
-	if err != nil {
-		gclog.DBError(err)
-		if err == sql.ErrNoRows {
-			// User does not exist
-			return -1, ErrorDoesNotExist
-		}
-		return -1, err
-	}
-
-	if perms > OWNER {
-		// Already max permissions
-		return -1, ErrorInvalidValue
-	}
-
-	return perms, nil
-}
-
-/* INSERTIONS AND UPDATES */
+/* INSERTIONS */
 
 // Inserts a user into a database, key must be in PEM format
-func insertUser(db *sql.DB, uname username, pubkey []byte) error {
-	query := `
-		INSERT INTO users(username, pubkey) 
-		VALUES (?, ?);
-	`
+func insertUser(db *gorm.DB, uname username, pubkey []byte) error {
+	// Public key must be a sql null string
+	res := db.Create(&gcUser{
+		Username: string(uname),
+		Pubkey: sql.NullString{
+			String: string(pubkey),
+			Valid:  true,
+		},
+	})
 
-	_, err := db.Exec(query, uname, string(pubkey))
-	if err != nil {
-		gclog.DBError(err)
-		return err
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		return res.Error
 	}
 
 	return nil
@@ -312,62 +288,69 @@ func insertUser(db *sql.DB, uname username, pubkey []byte) error {
 
 // Adds a message to the users message cache
 // The message must be in byte array format since its encrypted
-func cacheMessage(db *sql.DB, src username, dst username, msg []byte) error {
-	query := `
-		INSERT INTO message_cache(src_user, dest_user, msg) 
-		VALUES (
-			(
-				SELECT user_id 
-				FROM users 
-				WHERE username = ?
-			), 
-			(
-				SELECT user_id 
-				FROM users 
-				WHERE username = ?
-			), 
-		?);
-	`
-	str := hex.EncodeToString(msg)
+func cacheMessage(db *gorm.DB, src username, dst username, msg []byte) error {
+	srcuser, srcerr := queryDBUser(db, src)
+	if srcerr != nil {
+		return srcerr
+	}
 
-	_, err := db.Exec(query, src, dst, str)
-	if err != nil {
-		gclog.DBError(err)
-		return err
+	dstuser, dsterr := queryDBUser(db, dst)
+	if dsterr != nil {
+		return dsterr
+	}
+
+	// Encode encrypted array to string
+	str := hex.EncodeToString(msg)
+	res := db.Create(&gcMessage{
+		SrcUser: srcuser.UserID,
+		DstUser: dstuser.UserID,
+		Message: str,
+	})
+
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		return res.Error
 	}
 
 	return nil
 }
 
-// Prevents a user from logging in
-func removeKey(db *sql.DB, uname username) error {
-	query := `
-		UPDATE users 
-		SET pubkey = NULL 
-		WHERE username = ?;
-	`
+/* UPDATES */
 
-	_, err := db.Exec(query, uname)
+// Prevents a user from logging in
+func removeKey(db *gorm.DB, uname username) error {
+	user, err := queryDBUser(db, uname)
 	if err != nil {
-		gclog.DBError(err)
 		return err
+	}
+
+	// Set public key to null
+	user.Pubkey = sql.NullString{
+		Valid: false,
+	}
+
+	res := db.Save(&user)
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		return res.Error
 	}
 
 	return nil
 }
 
 // Changes the permissions of a user
-func changePermissions(db *sql.DB, uname username, perm Permission) error {
-	query := `
-		UPDATE users
-		SET permission = ?
-		WHERE username = ?;
-	`
-
-	_, err := db.Exec(query, perm, uname)
+func changePermissions(db *gorm.DB, uname username, perm Permission) error {
+	user, err := queryDBUser(db, uname)
 	if err != nil {
-		gclog.DBError(err)
 		return err
+	}
+
+	user.Permission = perm
+
+	res := db.Save(&user)
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		return res.Error
 	}
 
 	return nil
@@ -376,23 +359,20 @@ func changePermissions(db *sql.DB, uname username, perm Permission) error {
 /* DELETIONS */
 
 // Removes a user from the database
-func removeUser(db *sql.DB, uname username) error {
-	query := `
-		DELETE FROM users 
-		WHERE username = ?
-	`
-
-	_, err := db.Exec(query, uname)
+func removeUser(db *gorm.DB, uname username) error {
+	user, err := queryDBUser(db, uname)
 	if err != nil {
-		gclog.DBError(err)
-		// Unwrap error as driver error
-		/*var sqlerr *myqsl.MySQLError
-		ok := errors.As(err, &sqlerr)
-		// Check if the error is the foreign key constraint
-		if ok && sqlerr.Number == 1451 {
-			return ErrorDBConstraint
-		}*/
 		return err
+	}
+
+	res := db.Delete(&user)
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		// Check if the error is the foreign key constraint
+		if errors.Is(res.Error, gorm.ErrForeignKeyViolated) {
+			return ErrorDBConstraint
+		}
+		return res.Error
 	}
 
 	return nil
@@ -400,20 +380,23 @@ func removeUser(db *sql.DB, uname username) error {
 
 // Removes all cached messages from a user before a given stamp
 // This is done to prevent messages from being lost
-func removeMessages(db *sql.DB, uname username, stamp int64) error {
-	query := `
-		DELETE FROM message_cache 
-		WHERE dest_user = (
-			SELECT user_id 
-			FROM users 
-			WHERE username = ?
-		) AND stamp <= FROM_UNIXTIME(?);
-	`
-
-	_, err := db.Exec(query, uname, stamp)
+func removeMessages(db *gorm.DB, uname username, stamp int64) error {
+	user, err := queryDBUser(db, uname)
 	if err != nil {
-		gclog.DBError(err)
 		return err
+	}
+
+	// Delete checking the timestamp
+	res := db.Where(
+		"stamp <= FROM_UNIXTIME(?)",
+		stamp,
+	).Delete(&gcMessage{
+		DstUser: user.UserID,
+	})
+
+	if res.Error != nil {
+		gclog.DBError(res.Error)
+		return res.Error
 	}
 
 	return nil

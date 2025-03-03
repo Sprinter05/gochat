@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/rsa"
-	"database/sql"
 	"errors"
 	"math/rand"
 	"net"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
+	"gorm.io/gorm"
 )
 
 /* TYPE DEFINITIONS */
@@ -73,7 +73,7 @@ type Message struct {
 // Tables store pointers for modification
 // But functions should not use the pointer
 type Hub struct {
-	db     *sql.DB
+	db     *gorm.DB
 	clean  chan net.Conn
 	shtdwn chan bool
 	users  table[*User]

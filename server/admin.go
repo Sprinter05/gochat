@@ -176,14 +176,14 @@ func adminDeregister(h *Hub, u User, cmd gc.Command) {
 // Requires OWNER or more
 // Requires 1 argument for the user
 func adminPromote(h *Hub, u User, cmd gc.Command) {
-	curr, err := queryUserPerms(h.db, username(cmd.Args[0]))
+	target, err := queryDBUser(h.db, username(cmd.Args[0]))
 	if err != nil {
 		// Invalid user provided
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
 
-	if curr >= ADMIN {
+	if target.Permission >= ADMIN {
 		// Cannot promote more
 		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
 		return
