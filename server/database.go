@@ -61,13 +61,18 @@ func getDBEnv() string {
 // Connects to the database using the environment file
 func connectDB(logfile *log.Logger) *gorm.DB {
 	access := getDBEnv()
-	dblog := logger.New(
-		logfile,
-		logger.Config{
-			LogLevel:             logger.Info,
-			ParameterizedQueries: false,
-		},
-	)
+
+	var dblog logger.Interface = nil
+	if logfile != nil {
+		dblog = logger.New(
+			logfile,
+			logger.Config{
+				LogLevel:             logger.Info,
+				ParameterizedQueries: false,
+			},
+		)
+	}
+
 	db, err := gorm.Open(
 		driver.Open(access),
 		&gorm.Config{

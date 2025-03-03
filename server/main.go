@@ -127,8 +127,6 @@ func setupConn() net.Listener {
 	return l
 }
 
-// TODO: config file
-
 func main() {
 	/* SETUP */
 
@@ -136,9 +134,13 @@ func main() {
 	l := setupConn()
 
 	// Set up database logging file
-	f := logFile()
-	defer f.Close()
-	dblog := log.New(f, "", log.LstdFlags)
+	// Only if logging is INFO or more
+	var dblog *log.Logger = nil
+	if gclog >= INFO {
+		f := logFile()
+		defer f.Close()
+		dblog = log.New(f, "", log.LstdFlags)
+	}
 
 	// Setup database
 	db := connectDB(dblog)

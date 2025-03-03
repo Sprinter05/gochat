@@ -99,7 +99,6 @@ func catchUp(cl net.Conn, id gc.ID, msgs ...Message) error {
 		// Turn timestamp to byte array and create packet
 		stp := gc.UnixStampToBytes(v.stamp)
 
-		// The packet ID is not used for RECIV
 		pak, err := gc.NewPacket(gc.RECIV, id, gc.EmptyInfo,
 			gc.Arg(v.sender),
 			gc.Arg(stp),
