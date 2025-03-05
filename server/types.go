@@ -31,6 +31,12 @@ type table[T any] struct {
 	tab map[net.Conn]T
 }
 
+// Global counter for the amount of clients
+type Counter struct {
+	mut sync.Mutex
+	val int
+}
+
 // Specifies a permission
 type Permission int8
 
@@ -51,6 +57,7 @@ const MaxUserRequests int = 5
 // Specifies a logged in user
 type User struct {
 	conn   net.Conn
+	secure bool
 	name   username
 	perms  Permission
 	pubkey *rsa.PublicKey
@@ -143,6 +150,28 @@ func (t *table[T]) GetAll() []T {
 	}
 
 	return array
+}
+
+/* COUNTER FUNCTIONS */
+
+func (c *Counter) Get() int {
+	c.mut.Lock()
+	defer c.mut.Unlock()
+	return c.val
+}
+
+func (c *Counter) Inc() {
+	c.mut.Lock()
+	defer c.mut.Unlock()
+	c.val++
+}
+
+func (c *Counter) Dec() {
+	c.mut.Lock()
+	defer c.mut.Unlock()
+	if c.val > 0 {
+		c.val--
+	}
 }
 
 /* AUXILIARY FUNCTIONS */

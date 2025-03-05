@@ -33,7 +33,7 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 }
 
 // Cleans up the connection upon exit
-func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
+func cleanup(cl net.Conn, c *Counter, ch chan<- Request, hub chan<- net.Conn) {
 	// Close the requests channel
 	close(ch)
 
@@ -42,12 +42,15 @@ func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
 
 	// Close connection
 	cl.Close()
+
+	// Decrease amount of connected clients
+	c.Dec()
 }
 
 // Listens from a client and communicates with the hub through the channels
-func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Conn) {
+func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl chan<- net.Conn) {
 	// Cleanup connection on error
-	defer cleanup(cl.Conn, req, hubcl)
+	defer cleanup(cl.Conn, c, req, hubcl)
 
 	// Check if the TLS is valid
 	_, ok := cl.Conn.(*tls.Conn)

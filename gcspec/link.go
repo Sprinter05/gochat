@@ -13,6 +13,7 @@ import (
 type Connection struct {
 	Conn net.Conn
 	RD   *bufio.Reader
+	TLS  bool
 }
 
 /* CONNECTION FUNCTIONS */
