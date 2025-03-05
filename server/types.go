@@ -50,6 +50,7 @@ const (
 type Request struct {
 	cl  net.Conn
 	cmd gc.Command
+	tls bool
 }
 
 const MaxUserRequests int = 5

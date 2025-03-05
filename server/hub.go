@@ -92,6 +92,7 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		name:   u,
 		perms:  p,
 		pubkey: key,
+		secure: r.tls,
 	}
 	return ret, nil
 }

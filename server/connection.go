@@ -85,6 +85,7 @@ func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl c
 
 		req <- Request{
 			cl:  cl.Conn,
+			tls: cl.TLS,
 			cmd: *cmd,
 		}
 	}
