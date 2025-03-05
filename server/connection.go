@@ -45,6 +45,12 @@ func cleanup(cl net.Conn, c *Counter, ch chan<- Request, hub chan<- net.Conn) {
 
 	// Decrease amount of connected clients
 	c.Dec()
+
+	// Log connection close
+	gclog.Connection(
+		cl.RemoteAddr().String(),
+		true,
+	)
 }
 
 // Listens from a client and communicates with the hub through the channels
@@ -61,7 +67,14 @@ func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl c
 	// Timeout
 	deadline := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
 
+	// Log connection
+	gclog.Connection(
+		cl.Conn.RemoteAddr().String(),
+		false,
+	)
+
 	for {
+		ip := cl.Conn.RemoteAddr().String()
 		cmd := new(gc.Command)
 
 		// Works as an idle timeout calling it each time
@@ -69,6 +82,11 @@ func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl c
 
 		if processHeader(cl, cmd) != nil {
 			return
+		}
+
+		// Check that all header fields are correct
+		if err := cmd.HD.ServerCheck(); err != nil {
+			gclog.Read("header checking", ip, err)
 		}
 
 		// If there are no arguments we do not process the payload
@@ -118,13 +136,13 @@ func catchUp(cl net.Conn, msgs *[]Message, id gc.ID) error {
 // Wraps concurrency with each client's command
 func runTask(hub *Hub, req <-chan Request) {
 	for r := range req {
-		// Print command info
-		r.cmd.Print()
+		// Show request
+		ip := r.cl.RemoteAddr().String()
+		gclog.Request(ip, r.cmd)
 
 		// Check if the user can be served
 		u, err := hub.checkSession(r)
 		if err != nil {
-			ip := r.cl.RemoteAddr().String()
 			gclog.Error("session checking for "+ip, err)
 			continue // Next request
 		}

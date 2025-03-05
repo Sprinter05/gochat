@@ -72,7 +72,8 @@ If the user was offline and got new messages while offline, it can request a "**
 
 `RECIV` _Client_
 
-The server will reply with **as many packets as messages** are pending.
+The server will reply with **as many packets as messages** are pending, sending an OK once all "**catch up**" messages have been sent.
+> **NOTE**: `RECIV` may also be sent to receive a message while online, but in this case, said `RECIV` will come with a _Null ID_.
 
 `RECIV <username> <unix_stamp> <cypher_message>` _Server_
 

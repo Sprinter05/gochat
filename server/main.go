@@ -23,11 +23,19 @@ func init() {
 	log.SetOutput(os.Stdout)
 
 	if len(os.Args) < 2 {
-		fmt.Printf("Format: gcserver <env file>")
-		return
+		// No environment file supplied
+		gclog.Fatal("loading env file", ErrorCLIArgs)
+	}
+
+	// Argument 0 is the pathname to the executable
+	err := godotenv.Load(os.Args[1])
+	if err != nil {
+		gclog.Fatal("env file reading", err)
 	}
 
 	// Setup logging levels
+	// No need to check if the env var exists
+	// We just default to FATAL
 	lv := os.Getenv("LOG_LEVL")
 	switch lv {
 	case "ALL":
@@ -38,13 +46,9 @@ func init() {
 		gclog = ERROR
 	default:
 		gclog = FATAL
+		lv = "FATAL"
 	}
-
-	// Argument 0 is the pathname to the executable
-	err := godotenv.Load(os.Args[1])
-	if err != nil {
-		gclog.Fatal("env file reading", err)
-	}
+	fmt.Printf("-> Logging with log level %s...\n", lv)
 }
 
 // Creates a hub with all channels, caches and database
@@ -68,8 +72,68 @@ func setupHub() *Hub {
 	return &hub
 }
 
-// TODO: Reusable verif tokens (TLS only)
-// TODO: Both TLS and non-TLS ports
+// Creates a listener for the socket
+func setupConn() net.Listener {
+	addr, ok := os.LookupEnv("SRV_ADDR")
+	if !ok {
+		gclog.Environ("SRV_ADDR")
+	}
+
+	port, ok := os.LookupEnv("SRV_PORT")
+	if !ok {
+		gclog.Environ("SRV_PORT")
+	}
+
+	socket := fmt.Sprintf(
+		"%s:%s",
+		addr,
+		port,
+	)
+
+	l, err := net.Listen("tcp4", socket)
+	if err != nil {
+		gclog.Fatal("socket setup", err)
+	}
+
+	return l
+}
+
+// Create a TLS listener for the socket
+func setupTLSConn() net.Listener {
+	addr, ok := os.LookupEnv("SRV_ADDR")
+	if !ok {
+		gclog.Environ("SRV_ADDR")
+	}
+
+	port, ok := os.LookupEnv("TLS_PORT")
+	if !ok {
+		gclog.Environ("TLS_PORT")
+	}
+
+	socket := fmt.Sprintf(
+		"%s:%s",
+		addr,
+		port,
+	)
+
+	cert, err := tls.LoadX509KeyPair(
+		os.Getenv("TLS_CERT"),
+		os.Getenv("TLS_KEYF"),
+	)
+	if err != nil {
+		gclog.Fatal("tls loading", err)
+	}
+	config := tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+	l, err := tls.Listen("tcp4", socket, &config)
+	if err != nil {
+		gclog.Fatal("tls socket setup", err)
+	}
+
+	return l
+}
 
 func run(l net.Listener, hub *Hub, count *Counter) {
 	for {
@@ -106,44 +170,12 @@ func run(l net.Listener, hub *Hub, count *Counter) {
 	}
 }
 
+// TODO: Reusable verif tokens (TLS only)
+// TODO: Both TLS and non-TLS ports
+
 func main() {
-	// Unsecure socket
-	addr := fmt.Sprintf(
-		"%s:%s",
-		os.Getenv("SRV_ADDR"),
-		os.Getenv("SRV_PORT"),
-	)
-
-	// TLS socket
-	secaddr := fmt.Sprintf(
-		"%s:%s",
-		os.Getenv("SRV_ADDR"),
-		os.Getenv("TLS_PORT"),
-	)
-
-	// Load TLS certificate
-	cert, err := tls.LoadX509KeyPair(
-		os.Getenv("TLS_CERT"),
-		os.Getenv("TLS_KEYF"),
-	)
-	if err != nil {
-		gclog.Fatal("tls loading", err)
-	}
-	config := tls.Config{
-		Certificates: []tls.Certificate{cert},
-	}
-
-	// Listen on TLS port
-	t, err := tls.Listen("tcp4", secaddr, &config)
-	if err != nil {
-		gclog.Fatal("tls socket setup", err)
-	}
-
-	// Listen on standard port
-	l, err := net.Listen("tcp4", addr)
-	if err != nil {
-		gclog.Fatal("normal socket setup", err)
-	}
+	sock := setupConn()
+	tlssock := setupTLSConn()
 
 	// Create hub
 	hub := setupHub()
@@ -153,6 +185,6 @@ func main() {
 
 	// Endless loop to listen for connections
 	count := new(Counter)
-	run(t, hub, count)
-	run(l, hub, count)
+	run(sock, hub, count)
+	run(tlssock, hub, count)
 }

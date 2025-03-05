@@ -13,7 +13,7 @@ import (
 [E] ERROR -> Log server related errors
 [X] FATAL -> Logs when it crashes the program
 */
-type Logging int
+type Logging uint
 
 // FATAL is the lowest, ALL is the highest
 const (
@@ -29,6 +29,18 @@ func (l Logging) Notice(msg string) {
 	log.Printf(
 		"[*] Notifying %s...\n	",
 		msg,
+	)
+}
+
+// Requires FATAL
+// Informs of a missing environment variable
+func (l Logging) Environ(envvar string) {
+	if l < FATAL {
+		return
+	}
+	log.Fatalf(
+		"[X] Missing environment variable %s!\n",
+		envvar,
 	)
 }
 
@@ -86,8 +98,20 @@ func (l Logging) IP(msg string, ip net.Addr) {
 }
 
 // Requires ERROR or higher
+// Internal database problem
+func (l Logging) DBError(err error) {
+	if l < ERROR {
+		return
+	}
+	log.Printf(
+		"[E] Database error: %s\n",
+		err,
+	)
+}
+
+// Requires ERROR or higher
 // Problem running a SQL statement
-func (l Logging) DB(data string, err error) {
+func (l Logging) DBQuery(data string, err error) {
 	if l < ERROR {
 		return
 	}
@@ -105,7 +129,7 @@ func (l Logging) Packet(op gc.Action, err error) {
 		return
 	}
 	log.Printf(
-		"[E] Creation of packet %s due to %s\n",
+		"[E] Failure in creation of packet %s due to %s\n",
 		gc.CodeToString(op),
 		err,
 	)
@@ -118,7 +142,7 @@ func (l Logging) Timeout(user string, msg string) {
 		return
 	}
 	log.Printf(
-		"[I] Timeout during %s for %s\n",
+		"[I] Action timeout during %s for %s\n",
 		msg,
 		user,
 	)
@@ -131,7 +155,7 @@ func (l Logging) User(user string, data string, err error) {
 		return
 	}
 	log.Printf(
-		"[I] Problem in %s's %s request due to %s\n",
+		"[I] Problem with %s in %s request due to %s\n",
 		user,
 		data,
 		err,
@@ -163,6 +187,25 @@ func (l Logging) Invalid(op string, user string) {
 		op,
 		user,
 	)
+}
+
+// Requires ALL
+// Prints a new connection
+func (l Logging) Connection(ip string, closed bool) {
+	if l < ALL {
+		return
+	}
+	if closed {
+		log.Printf(
+			"[-] Connection from %s closed!",
+			ip,
+		)
+	} else {
+		log.Printf(
+			"[-] New connection from %s!",
+			ip,
+		)
+	}
 }
 
 // Requires ALL
