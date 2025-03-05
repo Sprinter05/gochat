@@ -81,8 +81,22 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
-// Replies with VERIF or ERR
+// Replies with VERIF, OK or ERR
 func loginUser(h *Hub, u User, cmd gc.Command) {
+	// Check if it can be logged in through a reusable token
+	if int(cmd.HD.Args) > gc.ServerArgs(cmd.HD.Op) {
+		err := h.checkToken(u, string(cmd.Args[1]))
+		if err != nil {
+			sendErrorPacket(cmd.HD.ID, err, u.conn)
+			return
+		}
+
+		// Cache the user
+		h.users.Add(u.conn, &u)
+		sendOKPacket(cmd.HD.ID, u.conn)
+		return
+	}
+
 	ran := randText()
 	enc, err := gc.EncryptText(ran, u.pubkey)
 	if err != nil {
@@ -109,11 +123,13 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 
 	// Add to pending verifications
 	ins := &Verif{
-		name:   u.name,
-		text:   string(ran),
-		cancel: cancl,
+		conn:    u.conn,
+		name:    u.name,
+		text:    string(ran),
+		cancel:  cancl,
+		pending: true,
 	}
-	h.verifs.Add(u.conn, ins)
+	h.verifs.Add(u.name, ins)
 
 	// Wait timeout and remove the entry
 	// This function is a closure
@@ -122,7 +138,7 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 		select {
 		case <-time.After(w):
 			gclog.Timeout(string(u.name), "verification")
-			h.verifs.Remove(u.conn)
+			h.verifs.Remove(u.name)
 		case <-ctx.Done():
 			// Verification completed by VERIF
 			return
@@ -132,7 +148,7 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 
 // Replies with OK or ERR
 func verifyUser(h *Hub, u User, cmd gc.Command) {
-	verif, ok := h.verifs.Get(u.conn)
+	verif, ok := h.verifs.Get(u.name)
 
 	if !ok {
 		gclog.User(string(u.name), "verification", ErrorDoesNotExist)
@@ -140,7 +156,7 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 		return
 	}
 
-	if verif.text != string(cmd.Args[1]) || verif.name != u.name {
+	if verif.text != string(cmd.Args[1]) || verif.conn != u.conn {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
 		h.cleanupUser(u.conn)
@@ -152,7 +168,14 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 	// We modify the tables and cancel the goroutine
 	verif.cancel()
 	h.users.Add(u.conn, &u)
-	h.verifs.Remove(u.conn)
+
+	if u.secure {
+		// If we are using TLS we mark a soft delete
+		verif.pending = false
+	} else {
+		// Otherwise we remove it
+		h.verifs.Remove(u.name)
+	}
 
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
@@ -160,7 +183,7 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 // Replies with OK or ERR
 func logoutUser(h *Hub, u User, cmd gc.Command) {
 	_, uok := h.users.Get(u.conn)
-	_, vok := h.verifs.Get(u.conn)
+	_, vok := h.verifs.Get(u.name)
 
 	if !uok && !vok {
 		// If user is in none of the caches we error

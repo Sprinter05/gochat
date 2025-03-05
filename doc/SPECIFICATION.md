@@ -17,11 +17,11 @@ The client application must create an RSA key pair and then send **both** the pu
 
 ### Verification handshake
 
-The client must send its public key to connect to the server.
+The client must send its **username** to log into the server, additionally it can provide a **reusable token** to login, which will only be accepted if the connection is secure. If the token is not correct, an error will be replied.
 
-`LOGIN <username>` _Client_
+`LOGIN <username> [token]` _Client_
 
-The server will reply with a **cyphered random text** to verify that the user owns the private key, or an error if no user with that username exists.
+If not using a **reusable token**, the server will reply with a **cyphered random text** to verify that the user owns the private key, or an error if no user with that username exists.
 
 `VERIF <cypher_text>` _Server_
 
@@ -30,7 +30,7 @@ The client must return the decyphered text to the server.
 `VERIF <username> <decyphered_text>` _Client_
 > **NOTE**: The verification of the decyphered text has a 2 minutes timeout.
 
-If the text is incorrect an error is replied. Any future commands from that user **will be tied to the connection** until the user disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location.
+If the text is incorrect an error is replied. Any future commands from that user **will be tied to the connection** until the user disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text will be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process.
 
 ### User disconnection
 Informs the server that the user should be marked as **offline**. No parameters apart from the action code are needed as the IP is tied to the user. The server must then **release the IP from the user**.

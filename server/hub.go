@@ -17,7 +17,17 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 	h.users.Remove(cl)
 
 	// Cleanup on the verification table
-	h.verifs.Remove(cl)
+	list := h.verifs.GetAll()
+	for _, v := range list {
+		if v.conn == cl {
+			h.verifs.Remove(v.name)
+			if !v.pending {
+				// If not in verif we readd it with nil connection
+				v.conn = nil
+				h.verifs.Add(v.name, v)
+			}
+		}
+	}
 }
 
 // Check if a session is present using the auxiliary functions
@@ -156,15 +166,36 @@ func (h *Hub) userlist(online bool) string {
 func (h *Hub) findUser(uname username) (*User, bool) {
 	// This function does not use the generic functions
 	// Therefore it must use the asocciated mutex
-	h.users.mut.RLock()
-	defer h.users.mut.RUnlock()
-	for _, v := range h.users.tab {
+	list := h.users.GetAll()
+	for _, v := range list {
 		if v.name == uname {
 			return v, true
 		}
 	}
 
 	return nil, false
+}
+
+// Checks a reusable token session
+func (h *Hub) checkToken(u User, text string) error {
+	if !u.secure {
+		return gc.ErrorUnescure
+	}
+
+	v, ok := h.verifs.Get(u.name)
+	if !ok {
+		return gc.ErrorNotFound
+	}
+
+	if v.pending {
+		return gc.ErrorInvalid
+	}
+
+	if v.text != text {
+		return gc.ErrorHandshake
+	}
+
+	return nil
 }
 
 /* HUB MAIN */

@@ -26,9 +26,9 @@ type username string
 type action func(*Hub, User, gc.Command)
 
 // Table used for storing thread safe maps
-type table[T any] struct {
+type table[I comparable, T any] struct {
 	mut sync.RWMutex
-	tab map[net.Conn]T
+	tab map[I]T
 }
 
 // Global counter for the amount of clients
@@ -66,9 +66,11 @@ type User struct {
 
 // Specifies a verification in process
 type Verif struct {
-	name   username
-	text   string
-	cancel context.CancelFunc
+	conn    net.Conn
+	name    username
+	text    string
+	pending bool
+	cancel  context.CancelFunc
 }
 
 // Specifies a message to be received
@@ -84,8 +86,8 @@ type Hub struct {
 	db     *sql.DB
 	clean  chan net.Conn
 	shtdwn chan bool
-	users  table[*User]
-	verifs table[*Verif]
+	users  table[net.Conn, *User]
+	verifs table[username, *Verif]
 }
 
 /* INTERNAL ERRORS */
@@ -106,21 +108,21 @@ var (
 /* TABLE FUNCTIONS */
 
 // Thread safe write
-func (t *table[T]) Add(i net.Conn, v T) {
+func (t *table[I, T]) Add(i I, v T) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 	t.tab[i] = v
 }
 
 // Thread safe write
-func (t *table[T]) Remove(i net.Conn) {
+func (t *table[I, T]) Remove(i I) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 	delete(t.tab, i)
 }
 
 // Thread safe read
-func (t *table[T]) Get(i net.Conn) (T, bool) {
+func (t *table[I, T]) Get(i I) (T, bool) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 	v, ok := t.tab[i]
@@ -135,7 +137,7 @@ func (t *table[T]) Get(i net.Conn) (T, bool) {
 }
 
 // Thread safe read
-func (t *table[T]) GetAll() []T {
+func (t *table[I, T]) GetAll() []T {
 	l := len(t.tab)
 	if l == 0 {
 		return nil

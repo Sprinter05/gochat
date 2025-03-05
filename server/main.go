@@ -58,11 +58,11 @@ func setupHub() *Hub {
 	hub := Hub{
 		clean:  make(chan net.Conn, gc.MaxClients/2),
 		shtdwn: make(chan bool),
-		users: table[*User]{
+		users: table[net.Conn, *User]{
 			tab: make(map[net.Conn]*User),
 		},
-		verifs: table[*Verif]{
-			tab: make(map[net.Conn]*Verif),
+		verifs: table[username, *Verif]{
+			tab: make(map[username]*Verif),
 		},
 		db: connectDB(),
 	}
@@ -135,6 +135,7 @@ func setupTLSConn() net.Listener {
 	return l
 }
 
+// Runs a socket to accept connections
 func run(l net.Listener, hub *Hub, count *Counter) {
 	for {
 		// If we exceed the client count we just wait until a spot is free
@@ -169,8 +170,6 @@ func run(l net.Listener, hub *Hub, count *Counter) {
 		go runTask(hub, req)
 	}
 }
-
-// TODO: Reusable verif tokens (TLS only)
 
 func main() {
 	sock := setupConn()
