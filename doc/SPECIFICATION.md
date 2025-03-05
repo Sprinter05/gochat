@@ -30,7 +30,7 @@ The client must return the decyphered text to the server.
 `VERIF <username> <decyphered_text>` _Client_
 > **NOTE**: The verification of the decyphered text has a 2 minutes timeout.
 
-If the text is incorrect an error is replied. Any future commands from that user **will be tied to the connection** until the user disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text will be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process.
+If the text is incorrect an error is replied. Any future commands from that user **will be tied to the connection** until the user disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text will be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process. Said token will also have an expiry date, after which the token will be deleted.
 
 ### User disconnection
 Informs the server that the user should be marked as **offline**. No parameters apart from the action code are needed as the IP is tied to the user. The server must then **release the IP from the user**.

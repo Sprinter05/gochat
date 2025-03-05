@@ -71,6 +71,7 @@ type Verif struct {
 	text    string
 	pending bool
 	cancel  context.CancelFunc
+	expiry  time.Time
 }
 
 // Specifies a message to be received

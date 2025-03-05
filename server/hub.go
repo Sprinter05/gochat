@@ -24,6 +24,9 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 			if !v.pending {
 				// If not in verif we readd it with nil connection
 				v.conn = nil
+				v.expiry = time.Now().Add(
+					time.Duration(gc.TokenExpiration) * time.Minute,
+				)
 				h.verifs.Add(v.name, v)
 			}
 		}
@@ -189,6 +192,12 @@ func (h *Hub) checkToken(u User, text string) error {
 
 	if v.pending {
 		return gc.ErrorInvalid
+	}
+
+	// Check if it has expired
+	if time.Until(v.expiry) <= 0 {
+		h.verifs.Remove(u.name)
+		return gc.ErrorNotFound
 	}
 
 	if v.text != text {
