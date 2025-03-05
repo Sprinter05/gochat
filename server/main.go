@@ -171,7 +171,6 @@ func run(l net.Listener, hub *Hub, count *Counter) {
 }
 
 // TODO: Reusable verif tokens (TLS only)
-// TODO: Both TLS and non-TLS ports
 
 func main() {
 	sock := setupConn()

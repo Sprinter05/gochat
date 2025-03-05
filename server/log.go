@@ -111,7 +111,7 @@ func (l Logging) DBError(err error) {
 
 // Requires ERROR or higher
 // Problem running a SQL statement
-func (l Logging) DBQuery(data string, err error) {
+func (l Logging) DB(data string, err error) {
 	if l < ERROR {
 		return
 	}

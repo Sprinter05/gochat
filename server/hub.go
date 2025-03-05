@@ -144,7 +144,7 @@ func (h *Hub) userlist(online bool) string {
 	} else {
 		ret, err = queryUsernames(h.db)
 		if err != nil {
-			gclog.DBQuery("userlist", err)
+			gclog.DB("userlist", err)
 		}
 	}
 

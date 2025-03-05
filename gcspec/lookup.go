@@ -190,6 +190,7 @@ var (
 	ErrorServer     error = GCError{0x0E, "server operation failed"}
 	ErrorIdle       error = GCError{0x0F, "user has been idle for too long"}
 	ErrorExists     error = GCError{0x10, "content already exists"}
+	ErrorUnescure   error = GCError{0x10, "connection is not secure"}
 )
 
 var codeToError map[byte]error = map[byte]error{
