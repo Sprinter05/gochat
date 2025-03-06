@@ -10,9 +10,10 @@
             "request": "launch",
             "mode": "debug",
             "args": [
-                "../.env"
+                ".env"
             ],
             "program": "${workspaceFolder}/server",
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "Server Test",

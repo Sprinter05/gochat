@@ -12,13 +12,13 @@ import (
 )
 
 func setup(t *testing.T) net.Conn {
-	cert, _ := tls.LoadX509KeyPair("certs/client.pem", "certs/client.key")
+	cert, _ := tls.LoadX509KeyPair("certs/gochat.crt", "certs/gochat.key")
 	config := tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: true,
 	}
 
-	l, err := tls.Dial("tcp4", "127.0.0.1:9037", &config)
+	l, err := tls.Dial("tcp4", "127.0.0.1:8037", &config)
 	if err != nil {
 		t.Fatal(err)
 	}

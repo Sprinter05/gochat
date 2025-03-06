@@ -1,5 +1,7 @@
 build/
+certs/
 *.key
 *.pem
+*.crt
 *.env
 *.db
