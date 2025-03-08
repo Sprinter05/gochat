@@ -57,7 +57,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	uname := username(cmd.Args[0])
 
 	if len(uname) > gc.UsernameSize {
-		gclog.User(string(u.name), "username registration", gc.ErrorMaxSize)
+		gclog.User(string(uname), "username registration", gc.ErrorMaxSize)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
 		return
 	}
@@ -73,7 +73,7 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 	// Register user into the database
 	e := insertUser(h.db, uname, cmd.Args[1])
 	if e != nil {
-		gclog.User(string(u.name), "registration", gc.ErrorExists)
+		gclog.User(string(uname), "registration", gc.ErrorExists)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorExists, u.conn)
 		return
 	}
@@ -325,8 +325,9 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 		stamp:   *gc.BytesToUnixStamp(cmd.Args[1]),
 	})
 	if err != nil {
+		// TODO: Check that the error is not user not found
 		// Error when inserting the message into the cache
-		gclog.DB("message caching from"+string(u.name), err)
+		gclog.DB("message caching from "+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
 		return
 	}
@@ -363,6 +364,6 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	e := removeMessages(h.db, u.name, ts)
 	if e != nil {
 		// We dont send an ERR here or we would be sending 2 packets
-		gclog.DB("deleting cached messages for"+string(u.name), e)
+		gclog.DB("deleting cached messages for "+string(u.name), e)
 	}
 }

@@ -45,6 +45,12 @@ func (c Command) Print() {
 	fmt.Printf("* Version: %d\n", c.HD.Ver)
 	fmt.Printf("* Action: %d (%s)\n", c.HD.Op, CodeToString(c.HD.Op))
 	fmt.Printf("* Info: %d\n", c.HD.Info)
+	if c.HD.Op == ERR {
+		fmt.Printf("* Error: %s\n", ErrorCodeToError(c.HD.Info))
+	}
+	if c.HD.Op == ADMIN {
+		fmt.Printf("* Admin: %s\n", AdminString(c.HD.Info))
+	}
 	fmt.Printf("* Args: %d\n", c.HD.Args)
 	fmt.Printf("* Length: %d\n", c.HD.Len)
 	fmt.Printf("* ID: %d\n", c.HD.ID)

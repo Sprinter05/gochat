@@ -54,7 +54,7 @@ func init() {
 
 // Creates a log file and returns both file and log
 func logFile() *os.File {
-	f, ok := os.LookupEnv("LOG_FILE")
+	f, ok := os.LookupEnv("DB_LOGF")
 	if !ok {
 		f = "./database.log"
 	}
