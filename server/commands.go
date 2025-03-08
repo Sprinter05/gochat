@@ -325,7 +325,10 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 		stamp:   *gc.BytesToUnixStamp(cmd.Args[1]),
 	})
 	if err != nil {
-		// TODO: Check that the error is not user not found
+		if err == ErrorDoesNotExist {
+			sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+			return
+		}
 		// Error when inserting the message into the cache
 		gclog.DB("message caching from "+string(u.name), err)
 		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
