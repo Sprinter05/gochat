@@ -34,11 +34,7 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 		return ErrorHeader
 	}
 
-	// Create and check the header
 	cmd.HD = NewHeader(b)
-	if err := cmd.HD.Check(); err != nil {
-		return err
-	}
 
 	// Header processed
 	return nil
