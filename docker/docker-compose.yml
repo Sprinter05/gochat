@@ -1,0 +1,16 @@
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: trolleado
+      MYSQL_USER: troller
+      MYSQL_PASSWORD: trolleado
+      MYSQL_DATABASE: gochat
+    ports:
+      - "3306:3306"
+    volumes:
+      - "gochat_db:/var/lib/mysql"
+volumes:
+  gochat_db:
+
