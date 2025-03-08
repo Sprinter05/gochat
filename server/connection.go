@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"net"
 	"time"
 
@@ -32,7 +33,7 @@ func processPayload(cl *gc.Connection, cmd *gc.Command) error {
 }
 
 // Cleans up the connection upon exit
-func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
+func cleanup(cl net.Conn, c *Counter, ch chan<- Request, hub chan<- net.Conn) {
 	// Close the requests channel
 	close(ch)
 
@@ -42,6 +43,9 @@ func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
 	// Close connection
 	cl.Close()
 
+	// Decrease amount of connected clients
+	c.Dec()
+
 	// Log connection close
 	gclog.Connection(
 		cl.RemoteAddr().String(),
@@ -50,9 +54,15 @@ func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
 }
 
 // Listens from a client and communicates with the hub through the channels
-func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Conn) {
+func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl chan<- net.Conn) {
 	// Cleanup connection on error
-	defer cleanup(cl.Conn, req, hubcl)
+	defer cleanup(cl.Conn, c, req, hubcl)
+
+	// Check if the TLS is valid
+	_, ok := cl.Conn.(*tls.Conn)
+	if !ok {
+		gclog.IP("failed tls verification", cl.Conn.RemoteAddr())
+	}
 
 	// Timeout
 	deadline := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
@@ -64,6 +74,7 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 	)
 
 	for {
+		ip := cl.Conn.RemoteAddr().String()
 		cmd := new(gc.Command)
 
 		// Works as an idle timeout calling it each time
@@ -71,6 +82,11 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 
 		if processHeader(cl, cmd) != nil {
 			return
+		}
+
+		// Check that all header fields are correct
+		if err := cmd.HD.ServerCheck(); err != nil {
+			gclog.Read("header checking", ip, err)
 		}
 
 		// If there are no arguments we do not process the payload
@@ -87,6 +103,7 @@ func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Co
 
 		req <- Request{
 			cl:  cl.Conn,
+			tls: cl.TLS,
 			cmd: *cmd,
 		}
 	}

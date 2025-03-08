@@ -1,4 +1,8 @@
 build/
 logs/
+certs/
+*.key
+*.pem
+*.crt
 *.env
 *.db

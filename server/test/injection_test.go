@@ -4,18 +4,23 @@ import (
 	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
-	"net"
+	"crypto/tls"
 	"testing"
 	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
 
-func setup(t *testing.T) net.Conn {
-	l, err := net.Dial("tcp4", "127.0.0.1:9037")
+func setup(t *testing.T) *tls.Conn {
+	config := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
+	l, err := tls.Dial("tcp4", "127.0.0.1:8037", config)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return l
 }
 

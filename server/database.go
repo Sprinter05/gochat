@@ -189,6 +189,14 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 		"gc_messages.dest_user = ?", user.UserID,
 	).WithContext(context.Background())
 
+	var size int64
+	res.Count(&size)
+
+	// No results
+	if size == 0 {
+		return nil, gc.ErrorEmpty
+	}
+
 	rows, err := res.Rows()
 	if err != nil {
 		gclog.DBError(err)
@@ -197,14 +205,7 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 	defer rows.Close()
 
 	// We create a preallocated array
-	var size int64
-	res.Count(&size)
 	message := make([]Message, size)
-
-	// No results
-	if size == 0 {
-		return nil, gc.ErrorEmpty
-	}
 
 	for i := 0; rows.Next(); i++ {
 		var undec string

@@ -16,8 +16,9 @@ const ProtocolVersion uint8 = 1
 const RSABitSize int = 4096
 const UsernameSize int = 32
 
-const LoginTimeout int = 2 // Minutes
-const ReadTimeout int = 10 // Minutes
+const LoginTimeout int = 2     // Minutes
+const ReadTimeout int = 10     // Minutes
+const TokenExpiration int = 30 // Minutes
 const MaxClients int = 20
 
 /* ACTION CODES */
@@ -43,28 +44,32 @@ const (
 )
 
 // Identifies an operation to be performed
+// sargs indicates the arguments to send to server
+// cargs indicates the arguments to send to client
 type lookup struct {
-	op   Action
-	hex  uint8
-	str  string
-	args uint8
+	op    Action
+	hex   uint8
+	str   string
+	sargs int8
+	cargs int8
 }
 
+// -1 indicates the command cannot be used for client and/or server
 var (
-	okLookup     = lookup{OK, 0x01, "OK", 0}
-	errLookup    = lookup{ERR, 0x02, "ERR", 0}
-	regLookup    = lookup{REG, 0x03, "REG", 2}
-	verifLookup  = lookup{VERIF, 0x04, "VERIF", 2}
-	reqLookup    = lookup{REQ, 0x05, "REQ", 1}
-	usrsLookup   = lookup{USRS, 0x06, "USRS", 0}
-	recivLookup  = lookup{RECIV, 0x07, "RECIV", 3}
-	loginLookup  = lookup{LOGIN, 0x08, "LOGIN", 1}
-	msgLookup    = lookup{MSG, 0x09, "MSG", 3}
-	logoutLookup = lookup{LOGOUT, 0x0A, "LOGOUT", 0}
-	deregLookup  = lookup{DEREG, 0x0B, "DEREG", 0}
-	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", 0}
-	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0}
-	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0}
+	okLookup     = lookup{OK, 0x01, "OK", -1, 0}
+	errLookup    = lookup{ERR, 0x02, "ERR", -1, 0}
+	regLookup    = lookup{REG, 0x03, "REG", 2, -1}
+	verifLookup  = lookup{VERIF, 0x04, "VERIF", 2, 1}
+	reqLookup    = lookup{REQ, 0x05, "REQ", 1, 2}
+	usrsLookup   = lookup{USRS, 0x06, "USRS", 0, 1}
+	recivLookup  = lookup{RECIV, 0x07, "RECIV", 0, 3}
+	loginLookup  = lookup{LOGIN, 0x08, "LOGIN", 1, -1}
+	msgLookup    = lookup{MSG, 0x09, "MSG", 3, -1}
+	logoutLookup = lookup{LOGOUT, 0x0A, "LOGOUT", 0, -1}
+	deregLookup  = lookup{DEREG, 0x0B, "DEREG", 0, -1}
+	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", 0, -1}
+	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0, -1}
+	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0, -1}
 )
 
 // Args represents the amount of arguments the server needs
@@ -138,12 +143,22 @@ func CodeToString(a Action) string {
 	return v.str
 }
 
-func IDToArgs(a Action) int {
+// Minimum amount of arguments to send to server
+func ServerArgs(a Action) int {
 	v, ok := lookupByOperation[a]
 	if !ok {
 		return -1
 	}
-	return int(v.args)
+	return int(v.sargs)
+}
+
+// Minimum amount of arguments to send to client
+func ClientArgs(a Action) int {
+	v, ok := lookupByOperation[a]
+	if !ok {
+		return -1
+	}
+	return int(v.cargs)
 }
 
 /* ERROR CODES */
@@ -176,6 +191,7 @@ var (
 	ErrorServer     error = GCError{0x0E, "server operation failed"}
 	ErrorIdle       error = GCError{0x0F, "user has been idle for too long"}
 	ErrorExists     error = GCError{0x10, "content already exists"}
+	ErrorUnescure   error = GCError{0x10, "connection is not secure"}
 )
 
 var codeToError map[byte]error = map[byte]error{

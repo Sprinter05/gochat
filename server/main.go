@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
@@ -87,11 +89,11 @@ func setupHub(db *gorm.DB) *Hub {
 	hub := Hub{
 		clean:  make(chan net.Conn, gc.MaxClients/2),
 		shtdwn: make(chan bool),
-		users: table[*User]{
+		users: table[net.Conn, *User]{
 			tab: make(map[net.Conn]*User),
 		},
-		verifs: table[*Verif]{
-			tab: make(map[net.Conn]*Verif),
+		verifs: table[username, *Verif]{
+			tab: make(map[username]*Verif),
 		},
 		db: gormdb,
 	}
@@ -127,11 +129,86 @@ func setupConn() net.Listener {
 	return l
 }
 
-func main() {
-	/* SETUP */
+// Create a TLS listener for the socket
+func setupTLSConn() net.Listener {
+	addr, ok := os.LookupEnv("SRV_ADDR")
+	if !ok {
+		gclog.Environ("SRV_ADDR")
+	}
 
-	// Set up listening server
-	l := setupConn()
+	port, ok := os.LookupEnv("TLS_PORT")
+	if !ok {
+		gclog.Environ("TLS_PORT")
+	}
+
+	socket := fmt.Sprintf(
+		"%s:%s",
+		addr,
+		port,
+	)
+
+	cert, err := tls.LoadX509KeyPair(
+		os.Getenv("TLS_CERT"),
+		os.Getenv("TLS_KEYF"),
+	)
+	if err != nil {
+		gclog.Fatal("tls loading", err)
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+	l, err := tls.Listen("tcp4", socket, config)
+	if err != nil {
+		gclog.Fatal("tls socket setup", err)
+	}
+
+	return l
+}
+
+// Runs a socket to accept connections
+func run(l net.Listener, hub *Hub, count *Counter, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for {
+		// If we exceed the client count we just wait until a spot is free
+		if count.Get() == gc.MaxClients {
+			continue
+		}
+
+		c, err := l.Accept()
+		if err != nil {
+			gclog.Error("connection accept", err)
+			// Keep accepting clients
+			continue
+		}
+		count.Inc()
+
+		// Check if its tls
+		_, ok := c.(*tls.Conn)
+
+		cl := &gc.Connection{
+			Conn: c,
+			RD:   bufio.NewReader(c),
+			TLS:  ok,
+		}
+
+		// Buffered channel for intercommunication
+		req := make(chan Request, MaxUserRequests)
+
+		// Listens to the client's packets
+		go ListenConnection(cl, count, req, hub.clean)
+
+		// Runs the client's commands
+		go runTask(hub, req)
+	}
+}
+
+func main() {
+	// Setup sockets
+	sock := setupConn()
+	tlssock := setupTLSConn()
 
 	// Set up database logging file
 	// Only if logging is INFO or more
@@ -153,35 +230,12 @@ func main() {
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")
 
-	/* LISTENING FOR CONNECTIONS */
+	// Endless loop to listen for connections
+	var wg sync.WaitGroup
+	count := new(Counter)
+	wg.Add(2)
+	go run(sock, hub, count, &wg)
+	go run(tlssock, hub, count, &wg)
 
-	var count int
-	for {
-		// If we exceed the client count we just wait until a spot is free
-		if count == gc.MaxClients {
-			continue
-		}
-
-		c, err := l.Accept()
-		if err != nil {
-			gclog.Error("connection accept", err)
-			// Keep accepting clients
-			continue
-		}
-		count++
-
-		cl := &gc.Connection{
-			Conn: c,
-			RD:   bufio.NewReader(c),
-		}
-
-		// Buffered channel for intercommunication
-		req := make(chan Request, MaxUserRequests)
-
-		// Listens to the client's packets
-		go ListenConnection(cl, req, hub.clean)
-
-		// Runs the client's commands
-		go runTask(hub, req)
-	}
+	wg.Wait()
 }

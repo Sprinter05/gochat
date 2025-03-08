@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -84,6 +85,19 @@ func (l Logging) Error(msg string, err error) {
 }
 
 // Requires ERROR or higher
+// Notifies an error on an IP
+func (l Logging) IP(msg string, ip net.Addr) {
+	if l < ERROR {
+		return
+	}
+	log.Printf(
+		"[E] Problem with connection from %s due to %s\n",
+		ip.String(),
+		msg,
+	)
+}
+
+// Requires ERROR or higher
 // Internal database problem
 func (l Logging) DBError(err error) {
 	if l < ERROR {
@@ -97,7 +111,7 @@ func (l Logging) DBError(err error) {
 
 // Requires ERROR or higher
 // Problem running a SQL statement
-func (l Logging) DBQuery(data string, err error) {
+func (l Logging) DB(data string, err error) {
 	if l < ERROR {
 		return
 	}

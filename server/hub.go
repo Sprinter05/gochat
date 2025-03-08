@@ -17,7 +17,20 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 	h.users.Remove(cl)
 
 	// Cleanup on the verification table
-	h.verifs.Remove(cl)
+	list := h.verifs.GetAll()
+	for _, v := range list {
+		if v.conn == cl {
+			h.verifs.Remove(v.name)
+			if !v.pending {
+				// If not in verif we readd it with nil connection
+				v.conn = nil
+				v.expiry = time.Now().Add(
+					time.Duration(gc.TokenExpiration) * time.Minute,
+				)
+				h.verifs.Add(v.name, v)
+			}
+		}
+	}
 }
 
 // Check if a session is present using the auxiliary functions
@@ -83,8 +96,9 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		return nil, e
 	}
 
-	// Assign connection and return
+	// Assign connection and if its secure
 	user.conn = r.cl
+	user.secure = r.tls
 	return user, nil
 }
 
@@ -135,7 +149,7 @@ func (h *Hub) userlist(online bool) string {
 	} else {
 		ret, err = queryUsernames(h.db)
 		if err != nil {
-			gclog.DBQuery("userlist", err)
+			gclog.DB("userlist", err)
 		}
 	}
 
@@ -147,15 +161,42 @@ func (h *Hub) userlist(online bool) string {
 func (h *Hub) findUser(uname username) (*User, bool) {
 	// This function does not use the generic functions
 	// Therefore it must use the asocciated mutex
-	h.users.mut.RLock()
-	defer h.users.mut.RUnlock()
-	for _, v := range h.users.tab {
+	list := h.users.GetAll()
+	for _, v := range list {
 		if v.name == uname {
 			return v, true
 		}
 	}
 
 	return nil, false
+}
+
+// Checks a reusable token session
+func (h *Hub) checkToken(u User, text string) error {
+	if !u.secure {
+		return gc.ErrorUnescure
+	}
+
+	v, ok := h.verifs.Get(u.name)
+	if !ok {
+		return gc.ErrorNotFound
+	}
+
+	if v.pending {
+		return gc.ErrorInvalid
+	}
+
+	// Check if it has expired
+	if time.Until(v.expiry) <= 0 {
+		h.verifs.Remove(u.name)
+		return gc.ErrorNotFound
+	}
+
+	if v.text != text {
+		return gc.ErrorHandshake
+	}
+
+	return nil
 }
 
 /* HUB MAIN */
