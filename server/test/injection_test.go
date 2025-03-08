@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"net"
 	"testing"
+	"time"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 )
@@ -18,11 +19,13 @@ func setup(t *testing.T) net.Conn {
 		InsecureSkipVerify: true,
 	}
 
-	l, err := tls.Dial("tcp4", "127.0.0.1:8037", &config)
+	l, err := net.DialTimeout("tcp4", "127.0.0.1:8037", 10*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return l
+	tls := tls.Client(l, &config)
+
+	return tls
 }
 
 func readFromConn(c *gc.Connection) gc.Command {
