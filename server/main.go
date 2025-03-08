@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 
 	gc "github.com/Sprinter05/gochat/gcspec"
 	"github.com/joho/godotenv"
@@ -123,11 +124,12 @@ func setupTLSConn() net.Listener {
 	if err != nil {
 		gclog.Fatal("tls loading", err)
 	}
-	config := tls.Config{
+
+	config := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}
 
-	l, err := tls.Listen("tcp4", socket, &config)
+	l, err := tls.Listen("tcp4", socket, config)
 	if err != nil {
 		gclog.Fatal("tls socket setup", err)
 	}
@@ -136,7 +138,9 @@ func setupTLSConn() net.Listener {
 }
 
 // Runs a socket to accept connections
-func run(l net.Listener, hub *Hub, count *Counter) {
+func run(l net.Listener, hub *Hub, count *Counter, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	for {
 		// If we exceed the client count we just wait until a spot is free
 		if count.Get() == gc.MaxClients {
@@ -182,7 +186,11 @@ func main() {
 	fmt.Printf("-- Server running and listening for connections! --\n")
 
 	// Endless loop to listen for connections
+	var wg sync.WaitGroup
 	count := new(Counter)
-	run(sock, hub, count)
-	run(tlssock, hub, count)
+	wg.Add(2)
+	go run(sock, hub, count, &wg)
+	go run(tlssock, hub, count, &wg)
+
+	wg.Wait()
 }
