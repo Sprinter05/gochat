@@ -222,7 +222,10 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 		}
 
 		// Conversion from hex string
-		dec, _ := hex.DecodeString(undec)
+		dec, e := hex.DecodeString(undec)
+		if e != nil {
+			gclog.DBFatal("encripted hex message", string(uname), e)
+		}
 		temp.message = dec
 
 		message = append(message, temp)
