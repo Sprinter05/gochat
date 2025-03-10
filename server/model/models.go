@@ -51,9 +51,9 @@ type Table[I comparable, T any] struct {
 
 /* FUNCTIONS */
 
-// Allocates the data
-func (t *Table[I, T]) Init() {
-	t.data = make(map[I]T)
+// Allocates the data table
+func (t *Table[I, T]) Init(size int) {
+	t.data = make(map[I]T, size)
 }
 
 // Thread safe write

@@ -13,11 +13,16 @@ import (
 	"gorm.io/gorm"
 )
 
-/* TYPE DEFINITIONS */
+/* CONSTANTS */
 
 // Cypher values
 const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
 const CypherLength int = 128
+
+// Used for the size of the queue of requests
+const MaxUserRequests int = 5
+
+/* TYPE DEFINITIONS */
 
 // Specifies the functions to run depending on the ID
 type action func(*Hub, User, spec.Command)
@@ -29,8 +34,6 @@ type Request struct {
 	tls bool
 }
 
-const MaxUserRequests int = 5
-
 // Specifies a logged in user
 type User struct {
 	conn   net.Conn
@@ -41,6 +44,7 @@ type User struct {
 }
 
 // Specifies a verification in process
+// Can also be used for reusable tokens
 type Verif struct {
 	conn    net.Conn
 	name    model.Username

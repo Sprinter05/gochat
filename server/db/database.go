@@ -17,12 +17,12 @@ import (
 
 	driver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	logger "gorm.io/gorm/logger"
+	"gorm.io/gorm/logger"
 )
 
 /* UTILITIES */
 
-// Gets the environment variables necessary
+// Gets the necessary environment variables
 func getDBEnv() string {
 	user, ok := os.LookupEnv("DB_USER")
 	if !ok {
@@ -95,6 +95,7 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 
 /* MODELS */
 
+// Identifies the model of a user in the database
 type User struct {
 	UserID     uint             `gorm:"primaryKey;autoIncrement;not null"`
 	Username   model.Username   `gorm:"unique;not null;size:32"`
@@ -102,6 +103,7 @@ type User struct {
 	Permission model.Permission `gorm:"not null;default:0"`
 }
 
+// Identifies the model of a message in the database
 type Message struct {
 	SrcUser     uint      `gorm:"not null;check:src_user <> dst_user"`
 	DstUser     uint      `gorm:"not null"`
@@ -111,6 +113,7 @@ type Message struct {
 	Destination User      `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
 }
 
+// Runs migrations for the database
 func Migrate(db *gorm.DB) {
 	err := db.Set(
 		"gorm:table_options",
@@ -142,7 +145,6 @@ func QueryUser(db *gorm.DB, uname model.Username) (*User, error) {
 }
 
 // Gets all messages from the user
-// It is expected for the size to be queried previously
 func QueryMessages(db *gorm.DB, uname model.Username) ([]model.Message, error) {
 	user, err := QueryUser(db, uname)
 	if err != nil {
@@ -251,7 +253,6 @@ func InsertUser(db *gorm.DB, uname model.Username, pubkey []byte) error {
 }
 
 // Adds a message to the users message cache
-// The message must be in byte array format since its encrypted
 func CacheMessage(db *gorm.DB, dst model.Username, msg model.Message) error {
 	srcuser, srcerr := QueryUser(db, msg.Sender)
 	if srcerr != nil {
@@ -324,6 +325,7 @@ func ChangePermission(db *gorm.DB, uname model.Username, perm model.Permission) 
 /* DELETIONS */
 
 // Removes a user from the database
+// Fails if the user has messages pending
 func RemoveUser(db *gorm.DB, uname model.Username) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
@@ -344,14 +346,14 @@ func RemoveUser(db *gorm.DB, uname model.Username) error {
 }
 
 // Removes all cached messages from a user before a given stamp
-// This is done to prevent messages from being lost
+// This is done to prevent messages from being lost due to concurrency
 func RemoveMessages(db *gorm.DB, uname model.Username, stamp time.Time) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
 	}
 
-	// Delete checking the timestamp
+	// Delete, checking the timestamp
 	res := db.Delete(
 		&Message{},
 		"dst_user = ? AND stamp <= ?",

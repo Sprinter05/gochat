@@ -169,6 +169,7 @@ func run(l net.Listener, hub *Hub, count *model.Counter, wg *sync.WaitGroup) {
 	for {
 		// If we exceed the client count we just wait until a spot is free
 		if count.Get() == spec.MaxClients {
+			// TODO: make the thread sleep
 			continue
 		}
 

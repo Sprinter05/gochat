@@ -14,14 +14,14 @@ import (
 
 /* HUB WRAPPER FUNCTIONS */
 
-// Returns a user struct by the database one
+// Returns a user struct by querying the database one
 func (hub *Hub) GetUserFromDB(uname model.Username) (*User, error) {
 	dbuser, err := db.QueryUser(hub.db, uname)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check that the permissions are correct
+	// Check that the permissions int is not out of bounds
 	if dbuser.Permission > model.OWNER {
 		return nil, model.ErrorInvalidValue
 	}
@@ -37,10 +37,12 @@ func (hub *Hub) GetUserFromDB(uname model.Username) (*User, error) {
 		return nil, err
 	}
 
-	// Connection should be assigned by the calling function
-	// Only if necessary
+	// Connection remains null as we don't know if it will be online
+	// Should be assigned by the calling function if necessary
+	// Connection is also not secure because its not connected
 	return &User{
 		conn:   nil,
+		secure: false,
 		name:   uname,
 		pubkey: key,
 		perms:  dbuser.Permission,
@@ -57,6 +59,7 @@ func (h *Hub) CleanupUser(cl net.Conn) {
 	for _, v := range list {
 		if v.conn == cl {
 			h.verifs.Remove(v.name)
+			// If not pending we assume the connection was secure
 			if !v.pending {
 				// If not in verif we readd it with nil connection
 				v.conn = nil
@@ -73,7 +76,7 @@ func (h *Hub) CleanupUser(cl net.Conn) {
 func (hub *Hub) CheckSession(r Request) (*User, error) {
 	op := r.cmd.HD.Op
 
-	// Cant be REG LOGIN or VERIF
+	// Can not be REG LOGIN or VERIF if checking in the cache
 	if op != spec.REG && op != spec.LOGIN && op != spec.VERIF {
 		cached, err := hub.cachedLogin(r)
 		if err == nil {
@@ -85,11 +88,11 @@ func (hub *Hub) CheckSession(r Request) (*User, error) {
 		}
 	}
 
-	// Can only be LOGIN or VERIF
+	// Can only be LOGIN or VERIF if checking in the database
 	if op == spec.LOGIN || op == spec.VERIF {
 		user, e := hub.dbLogin(r)
 		if e == nil {
-			// User found in database so we return it
+			// User found in database so we serve request
 			return user, nil
 		} else if e != model.ErrorDoesNotExist {
 			// We do not create a new user if its a different error
@@ -97,7 +100,8 @@ func (hub *Hub) CheckSession(r Request) (*User, error) {
 		}
 	}
 
-	// Can only be REG
+	// Can only be REG if no user was found
+	// So if its not REG we error
 	if op != spec.REG {
 		if op == spec.LOGIN {
 			// User does not exist when trying to login
@@ -111,6 +115,7 @@ func (hub *Hub) CheckSession(r Request) (*User, error) {
 
 	// Newly created user
 	// The REG function is expected to fill the rest of the struct
+	// Its thread safe because the pointer is not yet in the cache
 	return &User{
 		conn: r.cl,
 	}, nil
@@ -120,7 +125,6 @@ func (hub *Hub) CheckSession(r Request) (*User, error) {
 
 // Check if there is a user entry from the database
 func (h *Hub) dbLogin(r Request) (*User, error) {
-
 	// Check if the user is in the database
 	u := model.Username(r.cmd.Args[0])
 	user, e := h.GetUserFromDB(u)
@@ -132,7 +136,7 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 		return nil, e
 	}
 
-	// Assign connection and if its secure
+	// Assign connection and if said connection is secure
 	user.conn = r.cl
 	user.secure = r.tls
 	return user, nil
@@ -195,8 +199,6 @@ func (h *Hub) Userlist(online bool) string {
 
 // Returns an online user if it exists (thread-safe)
 func (h *Hub) FindUser(uname model.Username) (*User, bool) {
-	// This function does not use the generic functions
-	// Therefore it must use the asocciated mutex
 	list := h.users.GetAll()
 	for _, v := range list {
 		if v.name == uname {
@@ -207,9 +209,11 @@ func (h *Hub) FindUser(uname model.Username) (*User, bool) {
 	return nil, false
 }
 
-// Checks a reusable token session
+// Checks if a reusable token is valid
 func (h *Hub) CheckToken(u User, text string) error {
 	if !u.secure {
+		// We do not remove the verif
+		// This allows trying again with a secure connection
 		return spec.ErrorUnescure
 	}
 
@@ -239,9 +243,9 @@ func (h *Hub) CheckToken(u User, text string) error {
 
 // Handles generic server functions
 func (hub *Hub) Start() {
-	// Allocate tables
-	hub.users.Init()
-	hub.verifs.Init()
+	// Allocate tables with the max clients we may have
+	hub.users.Init(spec.MaxClients)
+	hub.verifs.Init(spec.MaxClients)
 
 	for {
 		select {
@@ -249,6 +253,7 @@ func (hub *Hub) Start() {
 			// Disconnect all users
 			list := hub.users.GetAll()
 			for _, v := range list {
+				// This should trigger the cleanup function too
 				v.conn.Close()
 			}
 
