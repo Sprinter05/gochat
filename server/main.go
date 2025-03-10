@@ -165,8 +165,15 @@ func run(l net.Listener, hub *hubs.Hub, count *model.Counter, wg *sync.WaitGroup
 			// Keep accepting clients
 			continue
 		}
-		// ? Connected socket should be notified
 		count.Inc()
+
+		// Notify the user they are connected
+		pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo, nil)
+		if e != nil {
+			log.Packet(spec.OK, e)
+		} else {
+			c.Write(pak)
+		}
 
 		// Check if its tls
 		_, ok := c.(*tls.Conn)

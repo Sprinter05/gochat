@@ -126,8 +126,8 @@ func (hd Header) ClientCheck() error {
 		return ErrorHeader
 	}
 
-	// Only RECIV and SHTDWN can have a null ID
-	check := hd.Op == SHTDWN || hd.Op == RECIV
+	// Only RECIV, ERR and SHTDWN can have a null ID
+	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK
 	if !check && hd.ID == NullID {
 		return ErrorHeader
 	}
@@ -181,8 +181,7 @@ func BytesToUnixStamp(b []byte) *time.Time {
 /* PACKET FUNCTIONS */
 
 // Creates a byte slice corresponding to the header fields
-// This function only checks size bounds not argument integrityy
-// like containg CRLF at the end of each argument
+// Also appends arguments with CRLF
 func NewPacket(op Action, id ID, inf byte, arg ...Arg) ([]byte, error) {
 	// Verify number of arguments
 	l := len(arg)

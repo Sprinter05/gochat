@@ -102,6 +102,11 @@ func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- hubs.Req
 		cl.Conn.SetReadDeadline(deadline)
 
 		cmd := wrapCommand(cl)
+		if cmd == nil {
+			// Malformed, cleanup connection
+			return
+		}
+
 		// Keep conection alive packet
 		if cmd.HD.Op == spec.KEEP {
 			continue
