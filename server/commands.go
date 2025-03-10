@@ -363,7 +363,7 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 
 	// Get the timestamp of the newest message as threshold for deletion
 	size := len(msgs)
-	ts := msgs[size].stamp
+	ts := msgs[size-1].stamp
 	e := removeMessages(h.db, u.name, ts)
 	if e != nil {
 		// We dont send an ERR here or we would be sending 2 packets
