@@ -94,27 +94,27 @@ func connectDB(logfile *stdlog.Logger) *gorm.DB {
 
 /* MODELS */
 
-type gcUser struct {
+type dbUser struct {
 	UserID     uint           `gorm:"primaryKey;autoIncrement;not null"`
 	Username   string         `gorm:"unique;not null;size:32"`
 	Pubkey     sql.NullString `gorm:"unique;size:2047"`
 	Permission Permission     `gorm:"not null;default:0"`
 }
 
-type gcMessage struct {
+type dbMessage struct {
 	SrcUser     uint      `gorm:"not null;check:src_user <> dst_user"`
 	DstUser     uint      `gorm:"not null"`
 	Message     string    `gorm:"not null;size:2047"`
 	Stamp       time.Time `gorm:"not null;default:CURRENT_TIMESTAMP()"`
-	Source      gcUser    `gorm:"foreignKey:src_user;OnDelete:RESTRICT"`
-	Destination gcUser    `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
+	Source      dbUser    `gorm:"foreignKey:src_user;OnDelete:RESTRICT"`
+	Destination dbUser    `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
 }
 
 func migrate(db *gorm.DB) {
 	err := db.Set(
 		"gorm:table_options",
 		"ENGINE=InnoDB",
-	).AutoMigrate(&gcUser{}, &gcMessage{})
+	).AutoMigrate(&dbUser{}, &dbMessage{})
 	if err != nil {
 		log.Fatal("database migrations", err)
 	}
@@ -124,8 +124,8 @@ func migrate(db *gorm.DB) {
 
 // Returns a user by their username
 // This returns a user according to the db model
-func queryDBUser(db *gorm.DB, uname username) (*gcUser, error) {
-	var user gcUser
+func queryDBUser(db *gorm.DB, uname username) (*dbUser, error) {
+	var user dbUser
 	res := db.First(&user, "username = ?", uname)
 	if res.Error != nil {
 		log.DBError(res.Error)
@@ -182,7 +182,7 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 	}
 
 	// We give it a context so its safe to reuse
-	res := db.Model(&gcMessage{}).Select(
+	res := db.Model(&dbMessage{}).Select(
 		"username", "message", "stamp",
 	).Joins(
 		"JOIN gc_users u ON gc_messages.src_user = u.user_id",
@@ -238,7 +238,7 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 // Lists all usernames in the database
 func queryUsernames(db *gorm.DB) (string, error) {
 	var users strings.Builder
-	var dbusers []gcUser
+	var dbusers []dbUser
 
 	res := db.Select("username").Find(&dbusers)
 	if res.Error != nil {
@@ -266,7 +266,7 @@ func queryUsernames(db *gorm.DB) (string, error) {
 // Inserts a user into a database, key must be in PEM format
 func insertUser(db *gorm.DB, uname username, pubkey []byte) error {
 	// Public key must be a sql null string
-	res := db.Create(&gcUser{
+	res := db.Create(&dbUser{
 		Username: string(uname),
 		Pubkey: sql.NullString{
 			String: string(pubkey),
@@ -297,7 +297,7 @@ func cacheMessage(db *gorm.DB, dst username, msg Message) error {
 
 	// Encode encrypted array to string
 	str := hex.EncodeToString([]byte(msg.message))
-	res := db.Create(&gcMessage{
+	res := db.Create(&dbMessage{
 		SrcUser: srcuser.UserID,
 		DstUser: dstuser.UserID,
 		Message: str,
@@ -385,7 +385,7 @@ func removeMessages(db *gorm.DB, uname username, stamp time.Time) error {
 
 	// Delete checking the timestamp
 	res := db.Delete(
-		&gcMessage{},
+		&dbMessage{},
 		"dst_user = ? AND stamp <= ?",
 		user.UserID,
 		stamp,
