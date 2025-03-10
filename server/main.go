@@ -167,7 +167,7 @@ func run(l net.Listener, hub *hubs.Hub, count *model.Counter, wg *sync.WaitGroup
 		count.Inc()
 
 		// Notify the user they are connected
-		pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo, nil)
+		pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
 		if e != nil {
 			log.Packet(spec.OK, e)
 		} else {

@@ -58,6 +58,9 @@ func TestREG(t *testing.T) {
 		RD:   bufio.NewReader(l),
 	}
 
+	// Initial handshake
+	readFromConn(conn) // ignored OK
+
 	// Create rsa key
 	v, _ := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	b, _ := spec.PubkeytoPEM(&v.PublicKey)

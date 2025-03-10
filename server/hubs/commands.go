@@ -68,8 +68,13 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	// Register user into the database
 	e := db.InsertUser(h.db, uname, cmd.Args[1])
 	if e != nil {
-		log.User(string(uname), "registration", spec.ErrorExists)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
+		log.User(string(uname), "registration", e)
+		if err == model.ErrorDuplicatedKey {
+			sendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
+			return
+		}
+		// Something went wrong
+		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 

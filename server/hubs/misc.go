@@ -89,7 +89,7 @@ func catchUp(cl net.Conn, id spec.ID, msgs ...model.Message) error {
 
 // Wrap the error sending function
 func sendErrorPacket(id spec.ID, err error, cl net.Conn) {
-	pak, e := spec.NewPacket(spec.ERR, id, spec.ErrorCode(err), nil)
+	pak, e := spec.NewPacket(spec.ERR, id, spec.ErrorCode(err))
 	if e != nil {
 		log.Packet(spec.ERR, e)
 	} else {
@@ -99,7 +99,7 @@ func sendErrorPacket(id spec.ID, err error, cl net.Conn) {
 
 // Wrap the acknowledgement sending function
 func sendOKPacket(id spec.ID, cl net.Conn) {
-	pak, e := spec.NewPacket(spec.OK, id, spec.EmptyInfo, nil)
+	pak, e := spec.NewPacket(spec.OK, id, spec.EmptyInfo)
 	if e != nil {
 		log.Packet(spec.OK, e)
 	} else {

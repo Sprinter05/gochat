@@ -18,7 +18,7 @@ func processHeader(cl *spec.Connection, cmd *spec.Command) error {
 		log.Read("header", ip, err)
 
 		// Send error packet
-		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err), nil)
+		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
 		if e != nil {
 			log.Packet(spec.ERR, e)
 		} else {
@@ -37,7 +37,7 @@ func processPayload(cl *spec.Connection, cmd *spec.Command) error {
 		log.Read("payload", ip, err)
 
 		// Send error packet
-		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err), nil)
+		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
 		if e != nil {
 			log.Packet(spec.ERR, e)
 		} else {

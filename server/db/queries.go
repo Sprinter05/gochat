@@ -137,6 +137,10 @@ func InsertUser(db *gorm.DB, uname model.Username, pubkey []byte) error {
 
 	if res.Error != nil {
 		log.DBError(res.Error)
+		// Content already exists
+		if res.Error == gorm.ErrDuplicatedKey {
+			return model.ErrorDuplicatedKey
+		}
 		return res.Error
 	}
 

@@ -37,6 +37,7 @@ var (
 	ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
 	ErrorNoAccount           error = errors.New("user tried performing an operation with no account")
 	ErrorDBConstraint        error = errors.New("database returned constraint on operation")
+	ErrorDuplicatedKey       error = errors.New("database key already exists")
 	ErrorNoMessages          error = errors.New("user has no messages to receive")
 	ErrorInvalidValue        error = errors.New("data provided is invalid")
 )
