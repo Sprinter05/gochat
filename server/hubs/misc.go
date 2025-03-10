@@ -1,4 +1,4 @@
-package main
+package hubs
 
 import (
 	"context"
@@ -29,9 +29,9 @@ type action func(*Hub, User, spec.Command)
 
 // Determines a request to be processed by a thread
 type Request struct {
-	cl  net.Conn
-	cmd spec.Command
-	tls bool
+	Conn    net.Conn
+	Command spec.Command
+	TLS     bool
 }
 
 // Specifies a logged in user
@@ -65,6 +65,27 @@ type Hub struct {
 }
 
 /* AUXILIARY FUNCTIONS */
+
+// Catches up messages for the logged connection
+func catchUp(cl net.Conn, id spec.ID, msgs ...model.Message) error {
+	for _, v := range msgs {
+		// Turn timestamp to byte array and create packet
+		stp := spec.UnixStampToBytes(v.Stamp)
+
+		pak, err := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo,
+			spec.Arg(v.Sender),
+			spec.Arg(stp),
+			spec.Arg(v.Content),
+		)
+		if err != nil {
+			log.Packet(spec.RECIV, err)
+			return err
+		}
+		cl.Write(pak)
+	}
+
+	return nil
+}
 
 // Wrap the error sending function
 func sendErrorPacket(id spec.ID, err error, cl net.Conn) {

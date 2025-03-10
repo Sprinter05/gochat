@@ -1,4 +1,4 @@
-package main
+package hubs
 
 import (
 	"time"
@@ -11,54 +11,31 @@ import (
 
 /* LOOKUP */
 
-// Argument mapping table
-func getAdminArguments(ad uint8) uint8 {
-	args := map[uint8]uint8{
-		spec.AdminShutdown:   1,
-		spec.AdminBroadcast:  1,
-		spec.AdminDeregister: 1,
-		spec.AdminPromote:    1,
-		spec.AdminDisconnect: 1,
-	}
-
-	// Ok has to be checked on lookup first
-	v := args[ad]
-	return v
+var adminArgs map[uint8]uint8 = map[uint8]uint8{
+	spec.AdminShutdown:   1,
+	spec.AdminBroadcast:  1,
+	spec.AdminDeregister: 1,
+	spec.AdminPromote:    1,
+	spec.AdminDisconnect: 1,
 }
 
-// Permission mapping table
-func getAdminPermission(ad uint8) model.Permission {
-	perms := map[uint8]model.Permission{
-		spec.AdminShutdown:   model.ADMIN,
-		spec.AdminBroadcast:  model.ADMIN,
-		spec.AdminDeregister: model.ADMIN,
-		spec.AdminPromote:    model.OWNER,
-		spec.AdminDisconnect: model.ADMIN,
-	}
-
-	// Ok has to be checked on lookup first
-	v := perms[ad]
-	return v
+var adminPerms map[uint8]model.Permission = map[uint8]model.Permission{
+	spec.AdminShutdown:   model.ADMIN,
+	spec.AdminBroadcast:  model.ADMIN,
+	spec.AdminDeregister: model.ADMIN,
+	spec.AdminPromote:    model.OWNER,
+	spec.AdminDisconnect: model.ADMIN,
 }
 
-// Admin function mapping table
-// We do not use a variable as a map cannot be const
-func lookupAdmin(ad uint8) (action, error) {
-	lookup := map[uint8]action{
-		spec.AdminShutdown:   adminShutdown,
-		spec.AdminBroadcast:  adminBroadcast,
-		spec.AdminDeregister: adminDeregister,
-		spec.AdminPromote:    adminPromote,
-		spec.AdminDisconnect: adminDisconnect,
-	}
-
-	v, ok := lookup[ad]
-	if !ok {
-		return nil, model.ErrorDoesNotExist
-	}
-
-	return v, nil
+var adminLookup map[uint8]action = map[uint8]action{
+	spec.AdminShutdown:   adminShutdown,
+	spec.AdminBroadcast:  adminBroadcast,
+	spec.AdminDeregister: adminDeregister,
+	spec.AdminPromote:    adminPromote,
+	spec.AdminDisconnect: adminDisconnect,
 }
+
+/* WRAPPER FUNCTIONS */
 
 // Every admin operation replies with either ERR or OK
 func adminOperation(h *Hub, u User, cmd spec.Command) {
@@ -67,21 +44,21 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	fun, err := lookupAdmin(cmd.HD.Info)
-	if err != nil {
+	fun, ok := adminLookup[cmd.HD.Info]
+	if !ok {
 		// Invalid action is trying to be ran
 		log.Invalid(spec.AdminString(cmd.HD.Info), string(u.name))
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
-	args := getAdminArguments(cmd.HD.Info)
+	args := adminArgs[cmd.HD.Info]
 	if cmd.HD.Args != args {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
-	perms := getAdminPermission(cmd.HD.Info)
+	perms := adminPerms[cmd.HD.Info]
 	if u.perms < perms {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return

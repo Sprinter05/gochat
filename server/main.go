@@ -13,10 +13,10 @@ import (
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/db"
+	"github.com/Sprinter05/gochat/server/hubs"
 	"github.com/Sprinter05/gochat/server/model"
 
 	"github.com/joho/godotenv"
-	"gorm.io/gorm"
 )
 
 // Sets up logging
@@ -80,22 +80,6 @@ func logFile() *os.File {
 
 	// Set the new db logger
 	return file
-}
-
-// Creates a hub with all channels, caches and database
-// Indicates the hub to start running
-func setupHub(db *gorm.DB) *Hub {
-	gormdb := db
-	hub := Hub{
-		clean:  make(chan net.Conn, spec.MaxClients/2),
-		shtdwn: make(chan bool),
-		users:  model.Table[net.Conn, *User]{},
-		verifs: model.Table[model.Username, *Verif]{},
-		db:     gormdb,
-	}
-
-	go hub.Start()
-	return &hub
 }
 
 // Creates a listener for the socket
@@ -163,7 +147,7 @@ func setupTLSConn() net.Listener {
 }
 
 // Runs a socket to accept connections
-func run(l net.Listener, hub *Hub, count *model.Counter, wg *sync.WaitGroup) {
+func run(l net.Listener, hub *hubs.Hub, count *model.Counter, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
@@ -191,13 +175,13 @@ func run(l net.Listener, hub *Hub, count *model.Counter, wg *sync.WaitGroup) {
 		}
 
 		// Buffered channel for intercommunication
-		req := make(chan Request, MaxUserRequests)
+		req := make(chan hubs.Request, hubs.MaxUserRequests)
 
 		// Listens to the client's packets
-		go ListenConnection(cl, count, req, hub.clean)
+		go ListenConnection(cl, count, req, hub)
 
 		// Runs the client's commands
-		go runTask(hub, req)
+		go RunTask(hub, req)
 	}
 }
 
@@ -221,17 +205,27 @@ func main() {
 	defer sqldb.Close()
 
 	// Setup hub
-	hub := setupHub(database)
+	hub := hubs.Create(database)
+
+	// This will wait until the hub ends
+	// Then it will end the program
+	go func() {
+		hub.Wait()
+		os.Exit(0)
+	}()
 
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")
 
-	// Endless loop to listen for connections
+	// We wait for both sockets to end
 	var wg sync.WaitGroup
 	count := new(model.Counter)
 	wg.Add(2)
+
+	// Endless loop to listen for connections
 	go run(sock, hub, count, &wg)
 	go run(tlssock, hub, count, &wg)
 
+	// Condition to end program
 	wg.Wait()
 }

@@ -1,8 +1,7 @@
-package main
+package hubs
 
 import (
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -10,12 +9,13 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/db"
 	"github.com/Sprinter05/gochat/server/model"
+	"gorm.io/gorm"
 )
 
 /* HUB WRAPPER FUNCTIONS */
 
 // Returns a user struct by querying the database one
-func (hub *Hub) GetUserFromDB(uname model.Username) (*User, error) {
+func (hub *Hub) userFromDB(uname model.Username) (*User, error) {
 	dbuser, err := db.QueryUser(hub.db, uname)
 	if err != nil {
 		return nil, err
@@ -49,16 +49,48 @@ func (hub *Hub) GetUserFromDB(uname model.Username) (*User, error) {
 	}, nil
 }
 
+// Checks if a reusable token is valid
+func (hub *Hub) checkToken(u User, text string) error {
+	if !u.secure {
+		// We do not remove the verif
+		// This allows trying again with a secure connection
+		return spec.ErrorUnescure
+	}
+
+	v, ok := hub.verifs.Get(u.name)
+	if !ok {
+		return spec.ErrorNotFound
+	}
+
+	if v.pending {
+		return spec.ErrorInvalid
+	}
+
+	// Check if it has expired
+	if time.Until(v.expiry) <= 0 {
+		hub.verifs.Remove(u.name)
+		return spec.ErrorNotFound
+	}
+
+	if v.text != text {
+		return spec.ErrorHandshake
+	}
+
+	return nil
+}
+
+/* HUB HELPER FUNCTIONS */
+
 // Cleans any mention to a connection in the caches
-func (h *Hub) CleanupUser(cl net.Conn) {
+func (hub *Hub) Cleanup(cl net.Conn) {
 	// Cleanup on the users table
-	h.users.Remove(cl)
+	hub.users.Remove(cl)
 
 	// Cleanup on the verification table
-	list := h.verifs.GetAll()
+	list := hub.verifs.GetAll()
 	for _, v := range list {
 		if v.conn == cl {
-			h.verifs.Remove(v.name)
+			hub.verifs.Remove(v.name)
 			// If not pending we assume the connection was secure
 			if !v.pending {
 				// If not in verif we readd it with nil connection
@@ -66,15 +98,15 @@ func (h *Hub) CleanupUser(cl net.Conn) {
 				v.expiry = time.Now().Add(
 					time.Duration(spec.TokenExpiration) * time.Minute,
 				)
-				h.verifs.Add(v.name, v)
+				hub.verifs.Add(v.name, v)
 			}
 		}
 	}
 }
 
 // Check if a session is present using the auxiliary functions
-func (hub *Hub) CheckSession(r Request) (*User, error) {
-	op := r.cmd.HD.Op
+func (hub *Hub) Session(r Request) (*User, error) {
+	op := r.Command.HD.Op
 
 	// Can not be REG LOGIN or VERIF if checking in the cache
 	if op != spec.REG && op != spec.LOGIN && op != spec.VERIF {
@@ -105,10 +137,10 @@ func (hub *Hub) CheckSession(r Request) (*User, error) {
 	if op != spec.REG {
 		if op == spec.LOGIN {
 			// User does not exist when trying to login
-			sendErrorPacket(r.cmd.HD.ID, spec.ErrorNotFound, r.cl)
+			sendErrorPacket(r.Command.HD.ID, spec.ErrorNotFound, r.Conn)
 		} else {
 			// Cannot do anything without an account
-			sendErrorPacket(r.cmd.HD.ID, spec.ErrorNoSession, r.cl)
+			sendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
 		}
 		return nil, model.ErrorNoAccount
 	}
@@ -117,36 +149,36 @@ func (hub *Hub) CheckSession(r Request) (*User, error) {
 	// The REG function is expected to fill the rest of the struct
 	// Its thread safe because the pointer is not yet in the cache
 	return &User{
-		conn: r.cl,
+		conn: r.Conn,
 	}, nil
 }
 
 /* HUB LOGIN FUNCTIONS */
 
 // Check if there is a user entry from the database
-func (h *Hub) dbLogin(r Request) (*User, error) {
+func (hub *Hub) dbLogin(r Request) (*User, error) {
 	// Check if the user is in the database
-	u := model.Username(r.cmd.Args[0])
-	user, e := h.GetUserFromDB(u)
+	u := model.Username(r.Command.Args[0])
+	user, e := hub.userFromDB(u)
 	if e != nil {
 		// Error is handled in the calling function
 		if e != model.ErrorDoesNotExist {
-			sendErrorPacket(r.cmd.HD.ID, spec.ErrorLogin, r.cl)
+			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
 		}
 		return nil, e
 	}
 
 	// Assign connection and if said connection is secure
-	user.conn = r.cl
-	user.secure = r.tls
+	user.conn = r.Conn
+	user.secure = r.TLS
 	return user, nil
 }
 
 // Check if the user is already logged in from the cache
-func (h *Hub) cachedLogin(r Request) (*User, error) {
-	id := r.cmd.HD.Op
+func (hub *Hub) cachedLogin(r Request) (*User, error) {
+	id := r.Command.HD.Op
 
-	v, ok := h.users.Get(r.cl)
+	v, ok := hub.users.Get(r.Conn)
 	if ok {
 		// User is cached and the session can be returned
 		return v, nil
@@ -154,10 +186,10 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 
 	if id == spec.LOGIN {
 		// We check if the user is logged in from another IP
-		_, ipok := h.FindUser(model.Username(r.cmd.Args[0]))
+		_, ipok := hub.FindUser(model.Username(r.Command.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
-			sendErrorPacket(r.cmd.HD.ID, spec.ErrorLogin, r.cl)
+			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
 			return nil, model.ErrorDuplicatedSession
 
 		}
@@ -170,13 +202,13 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 /* HUB QUERY FUNCTIONS */
 
 // Lists all users in the server
-func (h *Hub) Userlist(online bool) string {
+func (hub *Hub) Userlist(online bool) string {
 	var str strings.Builder
 	var ret string = ""
 	var err error
 
 	if online {
-		list := h.users.GetAll()
+		list := hub.users.GetAll()
 		for _, v := range list {
 			str.WriteString(string(v.name) + "\n")
 		}
@@ -187,7 +219,7 @@ func (h *Hub) Userlist(online bool) string {
 		// Remove the last newline
 		ret = ret[:l-1]
 	} else {
-		ret, err = db.QueryUsernames(h.db)
+		ret, err = db.QueryUsernames(hub.db)
 		if err != nil {
 			log.DB("userlist", err)
 		}
@@ -198,8 +230,8 @@ func (h *Hub) Userlist(online bool) string {
 }
 
 // Returns an online user if it exists (thread-safe)
-func (h *Hub) FindUser(uname model.Username) (*User, bool) {
-	list := h.users.GetAll()
+func (hub *Hub) FindUser(uname model.Username) (*User, bool) {
+	list := hub.users.GetAll()
 	for _, v := range list {
 		if v.name == uname {
 			return v, true
@@ -209,63 +241,39 @@ func (h *Hub) FindUser(uname model.Username) (*User, bool) {
 	return nil, false
 }
 
-// Checks if a reusable token is valid
-func (h *Hub) CheckToken(u User, text string) error {
-	if !u.secure {
-		// We do not remove the verif
-		// This allows trying again with a secure connection
-		return spec.ErrorUnescure
-	}
-
-	v, ok := h.verifs.Get(u.name)
-	if !ok {
-		return spec.ErrorNotFound
-	}
-
-	if v.pending {
-		return spec.ErrorInvalid
-	}
-
-	// Check if it has expired
-	if time.Until(v.expiry) <= 0 {
-		h.verifs.Remove(u.name)
-		return spec.ErrorNotFound
-	}
-
-	if v.text != text {
-		return spec.ErrorHandshake
-	}
-
-	return nil
-}
-
 /* HUB MAIN */
 
-// Handles generic server functions
-func (hub *Hub) Start() {
-	// Allocate tables with the max clients we may have
+// Initialises all data structures
+func Create(database *gorm.DB) *Hub {
+	hub := &Hub{
+		clean:  make(chan net.Conn, spec.MaxClients/2),
+		shtdwn: make(chan bool),
+		users:  model.Table[net.Conn, *User]{},
+		verifs: model.Table[model.Username, *Verif]{},
+		db:     database,
+	}
+
 	hub.users.Init(spec.MaxClients)
 	hub.verifs.Init(spec.MaxClients)
 
-	for {
-		select {
-		case <-hub.shtdwn:
-			// Disconnect all users
-			list := hub.users.GetAll()
-			for _, v := range list {
-				// This should trigger the cleanup function too
-				v.conn.Close()
-			}
+	return hub
+}
 
-			// Wait a bit for everything to close
-			time.Sleep(5 * time.Second)
-
-			// Perform a server shutdown
-			log.Notice("inminent server shutdown")
-			os.Exit(0)
-		case c := <-hub.clean:
-			// Remove all mentions of the user in the cache
-			hub.CleanupUser(c)
+// Waits until the hub has to shutdown
+func (hub *Hub) Wait() {
+	// Wait until the shutdown happens
+	for range hub.shtdwn {
+		// Disconnect all users
+		list := hub.users.GetAll()
+		for _, v := range list {
+			// This should trigger the cleanup function too
+			v.conn.Close()
 		}
+
+		// Wait a bit for everything to close
+		time.Sleep(5 * time.Second)
+
+		// Perform a server shutdown
+		log.Notice("inminent server shutdown")
 	}
 }

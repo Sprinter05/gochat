@@ -1,4 +1,4 @@
-package main
+package hubs
 
 import (
 	"context"
@@ -13,49 +13,41 @@ import (
 /* LOOKUP */
 
 // Function mapping table
-// We do not use a variable as a map cannot be const
-func lookupCommand(op spec.Action) (action, error) {
-	lookup := map[spec.Action]action{
-		spec.REG:    registerUser,
-		spec.LOGIN:  loginUser,
-		spec.VERIF:  verifyUser,
-		spec.LOGOUT: logoutUser,
-		spec.DEREG:  deregisterUser,
-		spec.REQ:    requestUser,
-		spec.USRS:   listUsers,
-		spec.MSG:    messageUser,
-		spec.RECIV:  recivMessages,
-		spec.ADMIN:  adminOperation,
-	}
-
-	v, ok := lookup[op]
-	if !ok {
-		return nil, model.ErrorDoesNotExist
-	}
-
-	return v, nil
+var cmdLookup map[spec.Action]action = map[spec.Action]action{
+	spec.REG:    registerUser,
+	spec.LOGIN:  loginUser,
+	spec.VERIF:  verifyUser,
+	spec.LOGOUT: logoutUser,
+	spec.DEREG:  deregisterUser,
+	spec.REQ:    requestUser,
+	spec.USRS:   listUsers,
+	spec.MSG:    messageUser,
+	spec.RECIV:  recivMessages,
+	spec.ADMIN:  adminOperation,
 }
 
-// Check which action to perform
-func procRequest(h *Hub, r Request, u *User) {
-	id := r.cmd.HD.Op
+/* WRAPPER FUNCTIONS */
 
-	fun, err := lookupCommand(id)
-	if err != nil {
+// Check which action to perform and run it
+func Process(h *Hub, r Request, u *User) {
+	id := r.Command.HD.Op
+
+	fun, ok := cmdLookup[r.Command.HD.Op]
+	if !ok {
 		// Invalid action is trying to be ran
 		log.Invalid(spec.CodeToString(id), string(u.name))
-		sendErrorPacket(r.cmd.HD.ID, spec.ErrorInvalid, r.cl)
+		sendErrorPacket(r.Command.HD.ID, spec.ErrorInvalid, r.Conn)
 		return
 	}
 
 	// Run command
-	fun(h, *u, r.cmd)
+	fun(h, *u, r.Command)
 }
 
 /* COMMANDS */
 
 // Replies with OK or ERR
-// Uses a user with only the net.Conn
+// Gets a user with only the net.Conn assigned to it
 func registerUser(h *Hub, u User, cmd spec.Command) {
 	uname := model.Username(cmd.Args[0])
 
@@ -88,7 +80,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 func loginUser(h *Hub, u User, cmd spec.Command) {
 	// Check if it can be logged in through a reusable token
 	if int(cmd.HD.Args) > spec.ServerArgs(cmd.HD.Op) {
-		err := h.CheckToken(u, string(cmd.Args[1]))
+		err := h.checkToken(u, string(cmd.Args[1]))
 		if err != nil {
 			sendErrorPacket(cmd.HD.ID, err, u.conn)
 			return
@@ -159,7 +151,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	if verif.text != string(cmd.Args[1]) || verif.conn != u.conn {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
-		h.CleanupUser(u.conn)
+		h.Cleanup(u.conn)
 		log.User(string(u.name), "verification", model.ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorHandshake, u.conn)
 		return
@@ -193,7 +185,7 @@ func logoutUser(h *Hub, u User, cmd spec.Command) {
 	}
 
 	// Otherwise we cleanup
-	h.CleanupUser(u.conn)
+	h.Cleanup(u.conn)
 
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
@@ -203,7 +195,7 @@ func deregisterUser(h *Hub, u User, cmd spec.Command) {
 	// Delete user if message cache is empty
 	e := db.RemoveUser(h.db, u.name)
 	if e == nil {
-		h.CleanupUser(u.conn)
+		h.Cleanup(u.conn)
 		sendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
@@ -223,13 +215,13 @@ func deregisterUser(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	h.CleanupUser(u.conn)
+	h.Cleanup(u.conn)
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Replies with REQ or ERR
 func requestUser(h *Hub, u User, cmd spec.Command) {
-	req, err := h.GetUserFromDB(model.Username(cmd.Args[0]))
+	req, err := h.userFromDB(model.Username(cmd.Args[0]))
 	if err != nil {
 		log.DB(string(u.name)+"'s pubkey", err)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
@@ -293,6 +285,7 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 
 // Replies with OK or ERR
 // Sends a RECIV if destination user is online
+// Otherwise stores to the database
 func messageUser(h *Hub, u User, cmd spec.Command) {
 	// Cannot send to self
 	if model.Username(cmd.Args[0]) == u.name {

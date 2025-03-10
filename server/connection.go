@@ -2,11 +2,11 @@ package main
 
 import (
 	"crypto/tls"
-	"net"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/hubs"
 	"github.com/Sprinter05/gochat/server/model"
 )
 
@@ -17,7 +17,15 @@ func processHeader(cl *spec.Connection, cmd *spec.Command) error {
 	if err := cl.ListenHeader(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Read("header", ip, err)
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
+
+		// Send error packet
+		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err), nil)
+		if e != nil {
+			log.Packet(spec.ERR, e)
+		} else {
+			cl.Conn.Write(pak)
+		}
+
 		return err
 	}
 	return nil
@@ -28,37 +36,38 @@ func processPayload(cl *spec.Connection, cmd *spec.Command) error {
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Read("payload", ip, err)
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
+
+		// Send error packet
+		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err), nil)
+		if e != nil {
+			log.Packet(spec.ERR, e)
+		} else {
+			cl.Conn.Write(pak)
+		}
+
 		return err
 	}
 	return nil
 }
 
-// Cleans up the connection upon exit
-func cleanup(cl net.Conn, c *model.Counter, ch chan<- Request, hub chan<- net.Conn) {
-	// Close the requests channel
-	close(ch)
-
-	// Request cleaning the tables
-	hub <- cl
-
-	// Close connection
-	cl.Close()
-
-	// Decrease amount of connected clients
-	c.Dec()
-
-	// Log connection close
-	log.Connection(
-		cl.RemoteAddr().String(),
-		true,
-	)
-}
-
 // Listens from a client and communicates with the hub through the channels
-func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- Request, hubcl chan<- net.Conn) {
-	// Cleanup connection on error
-	defer cleanup(cl.Conn, c, req, hubcl)
+func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
+	// Cleanup connection on exit
+	defer func() {
+		// Close the requests channel
+		close(req)
+		// Request cleaning the tables
+		hub.Cleanup(cl.Conn)
+		// Close connection socket
+		cl.Conn.Close()
+		// Decrease amount of connected clients
+		c.Dec()
+		// Log connection close
+		log.Connection(
+			cl.Conn.RemoteAddr().String(),
+			true,
+		)
+	}()
 
 	// Check if the TLS is valid
 	_, ok := cl.Conn.(*tls.Conn)
@@ -103,50 +112,29 @@ func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- Request,
 			continue
 		}
 
-		req <- Request{
-			cl:  cl.Conn,
-			tls: cl.TLS,
-			cmd: *cmd,
+		req <- hubs.Request{
+			Conn:    cl.Conn,
+			TLS:     cl.TLS,
+			Command: *cmd,
 		}
 	}
 
-}
-
-// Catches up messages for the logged connection
-func catchUp(cl net.Conn, id spec.ID, msgs ...model.Message) error {
-	for _, v := range msgs {
-		// Turn timestamp to byte array and create packet
-		stp := spec.UnixStampToBytes(v.Stamp)
-
-		pak, err := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo,
-			spec.Arg(v.Sender),
-			spec.Arg(stp),
-			spec.Arg(v.Content),
-		)
-		if err != nil {
-			log.Packet(spec.RECIV, err)
-			return err
-		}
-		cl.Write(pak)
-	}
-
-	return nil
 }
 
 // Wraps concurrency with each client's command
-func runTask(hub *Hub, req <-chan Request) {
+func RunTask(hub *hubs.Hub, req <-chan hubs.Request) {
 	for r := range req {
 		// Show request
-		ip := r.cl.RemoteAddr().String()
-		log.Request(ip, r.cmd)
+		ip := r.Conn.RemoteAddr().String()
+		log.Request(ip, r.Command)
 
 		// Check if the user can be served
-		u, err := hub.CheckSession(r)
+		u, err := hub.Session(r)
 		if err != nil {
 			log.Error("session checking for "+ip, err)
 			continue // Next request
 		}
 
-		procRequest(hub, r, u)
+		hubs.Process(hub, r, u)
 	}
 }
