@@ -7,6 +7,7 @@ import (
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/model"
 )
 
 // FUNCTIONS
@@ -34,7 +35,7 @@ func processPayload(cl *spec.Connection, cmd *spec.Command) error {
 }
 
 // Cleans up the connection upon exit
-func cleanup(cl net.Conn, c *Counter, ch chan<- Request, hub chan<- net.Conn) {
+func cleanup(cl net.Conn, c *model.Counter, ch chan<- Request, hub chan<- net.Conn) {
 	// Close the requests channel
 	close(ch)
 
@@ -55,7 +56,7 @@ func cleanup(cl net.Conn, c *Counter, ch chan<- Request, hub chan<- net.Conn) {
 }
 
 // Listens from a client and communicates with the hub through the channels
-func ListenConnection(cl *spec.Connection, c *Counter, req chan<- Request, hubcl chan<- net.Conn) {
+func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- Request, hubcl chan<- net.Conn) {
 	// Cleanup connection on error
 	defer cleanup(cl.Conn, c, req, hubcl)
 
@@ -112,15 +113,15 @@ func ListenConnection(cl *spec.Connection, c *Counter, req chan<- Request, hubcl
 }
 
 // Catches up messages for the logged connection
-func catchUp(cl net.Conn, id spec.ID, msgs ...Message) error {
+func catchUp(cl net.Conn, id spec.ID, msgs ...model.Message) error {
 	for _, v := range msgs {
 		// Turn timestamp to byte array and create packet
-		stp := spec.UnixStampToBytes(v.stamp)
+		stp := spec.UnixStampToBytes(v.Stamp)
 
 		pak, err := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo,
-			spec.Arg(v.sender),
+			spec.Arg(v.Sender),
 			spec.Arg(stp),
-			spec.Arg(v.message),
+			spec.Arg(v.Content),
 		)
 		if err != nil {
 			log.Packet(spec.RECIV, err)
@@ -140,7 +141,7 @@ func runTask(hub *Hub, req <-chan Request) {
 		log.Request(ip, r.cmd)
 
 		// Check if the user can be served
-		u, err := hub.checkSession(r)
+		u, err := hub.CheckSession(r)
 		if err != nil {
 			log.Error("session checking for "+ip, err)
 			continue // Next request

@@ -6,6 +6,8 @@ import (
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/db"
+	"github.com/Sprinter05/gochat/server/model"
 )
 
 /* LOOKUP */
@@ -28,7 +30,7 @@ func lookupCommand(op spec.Action) (action, error) {
 
 	v, ok := lookup[op]
 	if !ok {
-		return nil, ErrorDoesNotExist
+		return nil, model.ErrorDoesNotExist
 	}
 
 	return v, nil
@@ -55,7 +57,7 @@ func procRequest(h *Hub, r Request, u *User) {
 // Replies with OK or ERR
 // Uses a user with only the net.Conn
 func registerUser(h *Hub, u User, cmd spec.Command) {
-	uname := username(cmd.Args[0])
+	uname := model.Username(cmd.Args[0])
 
 	if len(uname) > spec.UsernameSize {
 		log.User(string(uname), "username registration", spec.ErrorMaxSize)
@@ -66,13 +68,13 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	// Check if public key is usable
 	_, err := spec.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		log.User(string(uname), "pubkey registration", ErrorInvalidValue)
+		log.User(string(uname), "pubkey registration", model.ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
 	// Register user into the database
-	e := insertUser(h.db, uname, cmd.Args[1])
+	e := db.InsertUser(h.db, uname, cmd.Args[1])
 	if e != nil {
 		log.User(string(uname), "registration", spec.ErrorExists)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
@@ -86,7 +88,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 func loginUser(h *Hub, u User, cmd spec.Command) {
 	// Check if it can be logged in through a reusable token
 	if int(cmd.HD.Args) > spec.ServerArgs(cmd.HD.Op) {
-		err := h.checkToken(u, string(cmd.Args[1]))
+		err := h.CheckToken(u, string(cmd.Args[1]))
 		if err != nil {
 			sendErrorPacket(cmd.HD.ID, err, u.conn)
 			return
@@ -149,7 +151,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	verif, ok := h.verifs.Get(u.name)
 
 	if !ok {
-		log.User(string(u.name), "verification", ErrorDoesNotExist)
+		log.User(string(u.name), "verification", model.ErrorDoesNotExist)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
@@ -157,8 +159,8 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	if verif.text != string(cmd.Args[1]) || verif.conn != u.conn {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
-		h.cleanupUser(u.conn)
-		log.User(string(u.name), "verification", ErrorInvalidValue)
+		h.CleanupUser(u.conn)
+		log.User(string(u.name), "verification", model.ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorHandshake, u.conn)
 		return
 	}
@@ -191,7 +193,7 @@ func logoutUser(h *Hub, u User, cmd spec.Command) {
 	}
 
 	// Otherwise we cleanup
-	h.cleanupUser(u.conn)
+	h.CleanupUser(u.conn)
 
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
@@ -199,35 +201,35 @@ func logoutUser(h *Hub, u User, cmd spec.Command) {
 // Replies with OK or ERR
 func deregisterUser(h *Hub, u User, cmd spec.Command) {
 	// Delete user if message cache is empty
-	e := removeUser(h.db, u.name)
+	e := db.RemoveUser(h.db, u.name)
 	if e == nil {
-		h.cleanupUser(u.conn)
+		h.CleanupUser(u.conn)
 		sendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
 
 	// Database error different than foreign key violation
-	if e != ErrorDBConstraint {
+	if e != model.ErrorDBConstraint {
 		log.DB(string(u.name)+"'s deletion", e)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
 	// The user has cached messages so we just NULL the pubkey
-	err := removeKey(h.db, u.name)
+	err := db.RemoveKey(h.db, u.name)
 	if err != nil {
 		log.DB(string(u.name)+"'s pubkey to null", e)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
-	h.cleanupUser(u.conn)
+	h.CleanupUser(u.conn)
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Replies with REQ or ERR
 func requestUser(h *Hub, u User, cmd spec.Command) {
-	req, err := queryUser(h.db, username(cmd.Args[0]))
+	req, err := h.GetUserFromDB(model.Username(cmd.Args[0]))
 	if err != nil {
 		log.DB(string(u.name)+"'s pubkey", err)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
@@ -264,12 +266,12 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 
 	// 0x01 is show online
 	if online == 0x01 {
-		usrs = h.userlist(true)
+		usrs = h.Userlist(true)
 	} else if online == 0x00 {
-		usrs = h.userlist(false)
+		usrs = h.Userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		log.User(string(u.name), "list argument", ErrorInvalidValue)
+		log.User(string(u.name), "list argument", model.ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
@@ -293,13 +295,13 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 // Sends a RECIV if destination user is online
 func messageUser(h *Hub, u User, cmd spec.Command) {
 	// Cannot send to self
-	if username(cmd.Args[0]) == u.name {
+	if model.Username(cmd.Args[0]) == u.name {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
 	// Check if its online cached
-	send, ok := h.findUser(username(cmd.Args[0]))
+	send, ok := h.FindUser(model.Username(cmd.Args[0]))
 	if ok {
 		// We send the message directly to the connection
 		pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
@@ -319,14 +321,14 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 	}
 
 	// Otherwise we just send it to the message cache
-	uname := username(cmd.Args[0])
-	err := cacheMessage(h.db, uname, Message{
-		sender:  u.name,
-		message: cmd.Args[2],
-		stamp:   *spec.BytesToUnixStamp(cmd.Args[1]),
+	uname := model.Username(cmd.Args[0])
+	err := db.CacheMessage(h.db, uname, model.Message{
+		Sender:  u.name,
+		Content: cmd.Args[2],
+		Stamp:   *spec.BytesToUnixStamp(cmd.Args[1]),
 	})
 	if err != nil {
-		if err == ErrorDoesNotExist {
+		if err == model.ErrorDoesNotExist {
 			sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 			return
 		}
@@ -341,7 +343,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 
 // Replies with RECIV or ERR
 func recivMessages(h *Hub, u User, cmd spec.Command) {
-	msgs, err := queryMessages(h.db, u.name)
+	msgs, err := db.QueryMessages(h.db, u.name)
 	if err != nil {
 		// No messages to query
 		if err == spec.ErrorEmpty {
@@ -364,8 +366,8 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 
 	// Get the timestamp of the newest message as threshold for deletion
 	size := len(msgs)
-	ts := msgs[size-1].stamp
-	e := removeMessages(h.db, u.name, ts)
+	ts := msgs[size-1].Stamp
+	e := db.RemoveMessages(h.db, u.name, ts)
 	if e != nil {
 		// We dont send an ERR here or we would be sending 2 packets
 		log.DB("deleting cached messages for "+string(u.name), e)

@@ -8,12 +8,47 @@ import (
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/db"
+	"github.com/Sprinter05/gochat/server/model"
 )
 
 /* HUB WRAPPER FUNCTIONS */
 
+// Returns a user struct by the database one
+func (hub *Hub) GetUserFromDB(uname model.Username) (*User, error) {
+	dbuser, err := db.QueryUser(hub.db, uname)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that the permissions are correct
+	if dbuser.Permission > model.OWNER {
+		return nil, model.ErrorInvalidValue
+	}
+
+	// Check that the public key is not null
+	if !dbuser.Pubkey.Valid {
+		return nil, model.ErrorDeregistered
+	}
+
+	// Turn it into a public key from PEM certificate
+	key, err := spec.PEMToPubkey([]byte(dbuser.Pubkey.String))
+	if err != nil {
+		return nil, err
+	}
+
+	// Connection should be assigned by the calling function
+	// Only if necessary
+	return &User{
+		conn:   nil,
+		name:   uname,
+		pubkey: key,
+		perms:  dbuser.Permission,
+	}, nil
+}
+
 // Cleans any mention to a connection in the caches
-func (h *Hub) cleanupUser(cl net.Conn) {
+func (h *Hub) CleanupUser(cl net.Conn) {
 	// Cleanup on the users table
 	h.users.Remove(cl)
 
@@ -35,7 +70,7 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 }
 
 // Check if a session is present using the auxiliary functions
-func (hub *Hub) checkSession(r Request) (*User, error) {
+func (hub *Hub) CheckSession(r Request) (*User, error) {
 	op := r.cmd.HD.Op
 
 	// Cant be REG LOGIN or VERIF
@@ -44,7 +79,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 		if err == nil {
 			// Valid user found in cache, serve request
 			return cached, nil
-		} else if err != ErrorDoesNotExist {
+		} else if err != model.ErrorDoesNotExist {
 			// We do not search in the DB if its a different error
 			return nil, err
 		}
@@ -56,7 +91,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 		if e == nil {
 			// User found in database so we return it
 			return user, nil
-		} else if e != ErrorDoesNotExist {
+		} else if e != model.ErrorDoesNotExist {
 			// We do not create a new user if its a different error
 			return nil, e
 		}
@@ -71,7 +106,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 			// Cannot do anything without an account
 			sendErrorPacket(r.cmd.HD.ID, spec.ErrorNoSession, r.cl)
 		}
-		return nil, ErrorNoAccount
+		return nil, model.ErrorNoAccount
 	}
 
 	// Newly created user
@@ -87,11 +122,11 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 func (h *Hub) dbLogin(r Request) (*User, error) {
 
 	// Check if the user is in the database
-	u := username(r.cmd.Args[0])
-	user, e := queryUser(h.db, u)
+	u := model.Username(r.cmd.Args[0])
+	user, e := h.GetUserFromDB(u)
 	if e != nil {
 		// Error is handled in the calling function
-		if e != ErrorDoesNotExist {
+		if e != model.ErrorDoesNotExist {
 			sendErrorPacket(r.cmd.HD.ID, spec.ErrorLogin, r.cl)
 		}
 		return nil, e
@@ -115,23 +150,23 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 
 	if id == spec.LOGIN {
 		// We check if the user is logged in from another IP
-		_, ipok := h.findUser(username(r.cmd.Args[0]))
+		_, ipok := h.FindUser(model.Username(r.cmd.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
 			sendErrorPacket(r.cmd.HD.ID, spec.ErrorLogin, r.cl)
-			return nil, ErrorDuplicatedSession
+			return nil, model.ErrorDuplicatedSession
 
 		}
 	}
 
 	// Otherwise the user is not found
-	return nil, ErrorDoesNotExist
+	return nil, model.ErrorDoesNotExist
 }
 
 /* HUB QUERY FUNCTIONS */
 
 // Lists all users in the server
-func (h *Hub) userlist(online bool) string {
+func (h *Hub) Userlist(online bool) string {
 	var str strings.Builder
 	var ret string = ""
 	var err error
@@ -148,7 +183,7 @@ func (h *Hub) userlist(online bool) string {
 		// Remove the last newline
 		ret = ret[:l-1]
 	} else {
-		ret, err = queryUsernames(h.db)
+		ret, err = db.QueryUsernames(h.db)
 		if err != nil {
 			log.DB("userlist", err)
 		}
@@ -159,7 +194,7 @@ func (h *Hub) userlist(online bool) string {
 }
 
 // Returns an online user if it exists (thread-safe)
-func (h *Hub) findUser(uname username) (*User, bool) {
+func (h *Hub) FindUser(uname model.Username) (*User, bool) {
 	// This function does not use the generic functions
 	// Therefore it must use the asocciated mutex
 	list := h.users.GetAll()
@@ -173,7 +208,7 @@ func (h *Hub) findUser(uname username) (*User, bool) {
 }
 
 // Checks a reusable token session
-func (h *Hub) checkToken(u User, text string) error {
+func (h *Hub) CheckToken(u User, text string) error {
 	if !u.secure {
 		return spec.ErrorUnescure
 	}
@@ -204,6 +239,10 @@ func (h *Hub) checkToken(u User, text string) error {
 
 // Handles generic server functions
 func (hub *Hub) Start() {
+	// Allocate tables
+	hub.users.Init()
+	hub.verifs.Init()
+
 	for {
 		select {
 		case <-hub.shtdwn:
@@ -221,7 +260,7 @@ func (hub *Hub) Start() {
 			os.Exit(0)
 		case c := <-hub.clean:
 			// Remove all mentions of the user in the cache
-			hub.cleanupUser(c)
+			hub.CleanupUser(c)
 		}
 	}
 }

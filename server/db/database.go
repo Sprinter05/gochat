@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/model"
 
 	driver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -60,7 +61,7 @@ func getDBEnv() string {
 }
 
 // Connects to the database using the environment file
-func connectDB(logfile *stdlog.Logger) *gorm.DB {
+func Connect(logfile *stdlog.Logger) *gorm.DB {
 	access := getDBEnv()
 
 	var dblog logger.Interface = nil
@@ -87,34 +88,34 @@ func connectDB(logfile *stdlog.Logger) *gorm.DB {
 	}
 
 	// Run migrations
-	migrate(db)
+	Migrate(db)
 
 	return db
 }
 
 /* MODELS */
 
-type dbUser struct {
-	UserID     uint           `gorm:"primaryKey;autoIncrement;not null"`
-	Username   string         `gorm:"unique;not null;size:32"`
-	Pubkey     sql.NullString `gorm:"unique;size:2047"`
-	Permission Permission     `gorm:"not null;default:0"`
+type User struct {
+	UserID     uint             `gorm:"primaryKey;autoIncrement;not null"`
+	Username   model.Username   `gorm:"unique;not null;size:32"`
+	Pubkey     sql.NullString   `gorm:"unique;size:2047"`
+	Permission model.Permission `gorm:"not null;default:0"`
 }
 
-type dbMessage struct {
+type Message struct {
 	SrcUser     uint      `gorm:"not null;check:src_user <> dst_user"`
 	DstUser     uint      `gorm:"not null"`
 	Message     string    `gorm:"not null;size:2047"`
 	Stamp       time.Time `gorm:"not null;default:CURRENT_TIMESTAMP()"`
-	Source      dbUser    `gorm:"foreignKey:src_user;OnDelete:RESTRICT"`
-	Destination dbUser    `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
+	Source      User      `gorm:"foreignKey:src_user;OnDelete:RESTRICT"`
+	Destination User      `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
 }
 
-func migrate(db *gorm.DB) {
+func Migrate(db *gorm.DB) {
 	err := db.Set(
 		"gorm:table_options",
 		"ENGINE=InnoDB",
-	).AutoMigrate(&dbUser{}, &dbMessage{})
+	).AutoMigrate(&User{}, &Message{})
 	if err != nil {
 		log.Fatal("database migrations", err)
 	}
@@ -124,14 +125,14 @@ func migrate(db *gorm.DB) {
 
 // Returns a user by their username
 // This returns a user according to the db model
-func queryDBUser(db *gorm.DB, uname username) (*dbUser, error) {
-	var user dbUser
+func QueryUser(db *gorm.DB, uname model.Username) (*User, error) {
+	var user User
 	res := db.First(&user, "username = ?", uname)
 	if res.Error != nil {
 		log.DBError(res.Error)
 		// No user with that username exists
 		if res.Error == gorm.ErrRecordNotFound {
-			return nil, ErrorDoesNotExist
+			return nil, model.ErrorDoesNotExist
 		}
 
 		return nil, res.Error
@@ -140,49 +141,16 @@ func queryDBUser(db *gorm.DB, uname username) (*dbUser, error) {
 	return &user, nil
 }
 
-// Returns a user struct by their username
-func queryUser(db *gorm.DB, uname username) (*User, error) {
-	dbuser, err := queryDBUser(db, uname)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check that the permissions are correct
-	if dbuser.Permission > OWNER {
-		return nil, ErrorInvalidValue
-	}
-
-	// Check that the public key is not null
-	if !dbuser.Pubkey.Valid {
-		return nil, ErrorDeregistered
-	}
-
-	// Turn it into a public key from PEM certificate
-	key, err := spec.PEMToPubkey([]byte(dbuser.Pubkey.String))
-	if err != nil {
-		return nil, err
-	}
-
-	// Connection should be assigned by the calling function
-	// Only if necessary
-	return &User{
-		conn:   nil,
-		name:   uname,
-		pubkey: key,
-		perms:  dbuser.Permission,
-	}, nil
-}
-
 // Gets all messages from the user
 // It is expected for the size to be queried previously
-func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
-	user, err := queryDBUser(db, uname)
+func QueryMessages(db *gorm.DB, uname model.Username) ([]model.Message, error) {
+	user, err := QueryUser(db, uname)
 	if err != nil {
 		return nil, err
 	}
 
 	// We give it a context so its safe to reuse
-	res := db.Model(&dbMessage{}).Select(
+	res := db.Model(&Message{}).Select(
 		"username", "message", "stamp",
 	).Joins(
 		"JOIN gc_users u ON gc_messages.src_user = u.user_id",
@@ -206,16 +174,16 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 	defer rows.Close()
 
 	// We create a preallocated array
-	message := make([]Message, size)
+	message := make([]model.Message, size)
 
 	for i := 0; rows.Next(); i++ {
 		var undec string
-		var temp Message
+		var temp model.Message
 
 		err := rows.Scan(
-			&temp.sender,
+			&temp.Sender,
 			&undec,
-			&temp.stamp,
+			&temp.Stamp,
 		)
 
 		if err != nil {
@@ -227,7 +195,7 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 		if e != nil {
 			log.DBFatal("encripted hex message", string(uname), e)
 		}
-		temp.message = dec
+		temp.Content = dec
 
 		message = append(message, temp)
 	}
@@ -236,9 +204,9 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 }
 
 // Lists all usernames in the database
-func queryUsernames(db *gorm.DB) (string, error) {
+func QueryUsernames(db *gorm.DB) (string, error) {
 	var users strings.Builder
-	var dbusers []dbUser
+	var dbusers []User
 
 	res := db.Select("username").Find(&dbusers)
 	if res.Error != nil {
@@ -252,7 +220,7 @@ func queryUsernames(db *gorm.DB) (string, error) {
 
 	for _, v := range dbusers {
 		// Append to buffer
-		users.WriteString(v.Username + "\n")
+		users.WriteString(string(v.Username) + "\n")
 	}
 
 	// Return result without the last newline
@@ -264,10 +232,10 @@ func queryUsernames(db *gorm.DB) (string, error) {
 /* INSERTIONS */
 
 // Inserts a user into a database, key must be in PEM format
-func insertUser(db *gorm.DB, uname username, pubkey []byte) error {
+func InsertUser(db *gorm.DB, uname model.Username, pubkey []byte) error {
 	// Public key must be a sql null string
-	res := db.Create(&dbUser{
-		Username: string(uname),
+	res := db.Create(&User{
+		Username: uname,
 		Pubkey: sql.NullString{
 			String: string(pubkey),
 			Valid:  true,
@@ -284,24 +252,24 @@ func insertUser(db *gorm.DB, uname username, pubkey []byte) error {
 
 // Adds a message to the users message cache
 // The message must be in byte array format since its encrypted
-func cacheMessage(db *gorm.DB, dst username, msg Message) error {
-	srcuser, srcerr := queryDBUser(db, msg.sender)
+func CacheMessage(db *gorm.DB, dst model.Username, msg model.Message) error {
+	srcuser, srcerr := QueryUser(db, msg.Sender)
 	if srcerr != nil {
 		return srcerr
 	}
 
-	dstuser, dsterr := queryDBUser(db, dst)
+	dstuser, dsterr := QueryUser(db, dst)
 	if dsterr != nil {
 		return dsterr
 	}
 
 	// Encode encrypted array to string
-	str := hex.EncodeToString([]byte(msg.message))
-	res := db.Create(&dbMessage{
+	str := hex.EncodeToString([]byte(msg.Content))
+	res := db.Create(&Message{
 		SrcUser: srcuser.UserID,
 		DstUser: dstuser.UserID,
 		Message: str,
-		Stamp:   msg.stamp,
+		Stamp:   msg.Stamp,
 	})
 
 	if res.Error != nil {
@@ -315,8 +283,8 @@ func cacheMessage(db *gorm.DB, dst username, msg Message) error {
 /* UPDATES */
 
 // Prevents a user from logging in
-func removeKey(db *gorm.DB, uname username) error {
-	user, err := queryDBUser(db, uname)
+func RemoveKey(db *gorm.DB, uname model.Username) error {
+	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
 	}
@@ -336,8 +304,8 @@ func removeKey(db *gorm.DB, uname username) error {
 }
 
 // Changes the permissions of a user
-func changePermissions(db *gorm.DB, uname username, perm Permission) error {
-	user, err := queryDBUser(db, uname)
+func ChangePermission(db *gorm.DB, uname model.Username, perm model.Permission) error {
+	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
 	}
@@ -356,8 +324,8 @@ func changePermissions(db *gorm.DB, uname username, perm Permission) error {
 /* DELETIONS */
 
 // Removes a user from the database
-func removeUser(db *gorm.DB, uname username) error {
-	user, err := queryDBUser(db, uname)
+func RemoveUser(db *gorm.DB, uname model.Username) error {
+	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
 	}
@@ -367,7 +335,7 @@ func removeUser(db *gorm.DB, uname username) error {
 		log.DBError(res.Error)
 		// Check if the error is the foreign key constraint
 		if errors.Is(res.Error, gorm.ErrForeignKeyViolated) {
-			return ErrorDBConstraint
+			return model.ErrorDBConstraint
 		}
 		return res.Error
 	}
@@ -377,15 +345,15 @@ func removeUser(db *gorm.DB, uname username) error {
 
 // Removes all cached messages from a user before a given stamp
 // This is done to prevent messages from being lost
-func removeMessages(db *gorm.DB, uname username, stamp time.Time) error {
-	user, err := queryDBUser(db, uname)
+func RemoveMessages(db *gorm.DB, uname model.Username, stamp time.Time) error {
+	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
 	}
 
 	// Delete checking the timestamp
 	res := db.Delete(
-		&dbMessage{},
+		&Message{},
 		"dst_user = ? AND stamp <= ?",
 		user.UserID,
 		stamp,

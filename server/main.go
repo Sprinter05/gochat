@@ -12,6 +12,8 @@ import (
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/db"
+	"github.com/Sprinter05/gochat/server/model"
 
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
@@ -83,22 +85,16 @@ func logFile() *os.File {
 // Creates a hub with all channels, caches and database
 // Indicates the hub to start running
 func setupHub(db *gorm.DB) *Hub {
-	// Allocate all data structures
 	gormdb := db
 	hub := Hub{
 		clean:  make(chan net.Conn, spec.MaxClients/2),
 		shtdwn: make(chan bool),
-		users: table[net.Conn, *User]{
-			tab: make(map[net.Conn]*User),
-		},
-		verifs: table[username, *Verif]{
-			tab: make(map[username]*Verif),
-		},
-		db: gormdb,
+		users:  model.Table[net.Conn, *User]{},
+		verifs: model.Table[model.Username, *Verif]{},
+		db:     gormdb,
 	}
 
 	go hub.Start()
-
 	return &hub
 }
 
@@ -167,7 +163,7 @@ func setupTLSConn() net.Listener {
 }
 
 // Runs a socket to accept connections
-func run(l net.Listener, hub *Hub, count *Counter, wg *sync.WaitGroup) {
+func run(l net.Listener, hub *Hub, count *model.Counter, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
@@ -219,19 +215,19 @@ func main() {
 	}
 
 	// Setup database
-	db := connectDB(dblog)
-	sqldb, _ := db.DB()
+	database := db.Connect(dblog)
+	sqldb, _ := database.DB()
 	defer sqldb.Close()
 
 	// Setup hub
-	hub := setupHub(db)
+	hub := setupHub(database)
 
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")
 
 	// Endless loop to listen for connections
 	var wg sync.WaitGroup
-	count := new(Counter)
+	count := new(model.Counter)
 	wg.Add(2)
 	go run(sock, hub, count, &wg)
 	go run(tlssock, hub, count, &wg)

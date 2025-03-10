@@ -5,6 +5,8 @@ import (
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/db"
+	"github.com/Sprinter05/gochat/server/model"
 )
 
 /* LOOKUP */
@@ -25,13 +27,13 @@ func getAdminArguments(ad uint8) uint8 {
 }
 
 // Permission mapping table
-func getAdminPermission(ad uint8) Permission {
-	perms := map[uint8]Permission{
-		spec.AdminShutdown:   ADMIN,
-		spec.AdminBroadcast:  ADMIN,
-		spec.AdminDeregister: ADMIN,
-		spec.AdminPromote:    OWNER,
-		spec.AdminDisconnect: ADMIN,
+func getAdminPermission(ad uint8) model.Permission {
+	perms := map[uint8]model.Permission{
+		spec.AdminShutdown:   model.ADMIN,
+		spec.AdminBroadcast:  model.ADMIN,
+		spec.AdminDeregister: model.ADMIN,
+		spec.AdminPromote:    model.OWNER,
+		spec.AdminDisconnect: model.ADMIN,
 	}
 
 	// Ok has to be checked on lookup first
@@ -52,7 +54,7 @@ func lookupAdmin(ad uint8) (action, error) {
 
 	v, ok := lookup[ad]
 	if !ok {
-		return nil, ErrorDoesNotExist
+		return nil, model.ErrorDoesNotExist
 	}
 
 	return v, nil
@@ -60,7 +62,7 @@ func lookupAdmin(ad uint8) (action, error) {
 
 // Every admin operation replies with either ERR or OK
 func adminOperation(h *Hub, u User, cmd spec.Command) {
-	if u.perms == USER {
+	if u.perms == model.USER {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return
 	}
@@ -159,7 +161,7 @@ func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDeregister(h *Hub, u User, cmd spec.Command) {
-	err := removeKey(h.db, username(cmd.Args[0]))
+	err := db.RemoveKey(h.db, model.Username(cmd.Args[0]))
 	if err != nil {
 		// Failed to change the key of the user
 		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
@@ -172,20 +174,20 @@ func adminDeregister(h *Hub, u User, cmd spec.Command) {
 // Requires OWNER or more
 // Requires 1 argument for the user
 func adminPromote(h *Hub, u User, cmd spec.Command) {
-	target, err := queryDBUser(h.db, username(cmd.Args[0]))
+	target, err := db.QueryUser(h.db, model.Username(cmd.Args[0]))
 	if err != nil {
 		// Invalid user provided
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
-	if target.Permission >= ADMIN {
+	if target.Permission >= model.ADMIN {
 		// Cannot promote more
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
-	e := changePermissions(h.db, u.name, ADMIN)
+	e := db.ChangePermission(h.db, u.name, model.ADMIN)
 	if e != nil {
 		//! This shouldnt happen as the user was already queried before
 		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
@@ -199,7 +201,7 @@ func adminPromote(h *Hub, u User, cmd spec.Command) {
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDisconnect(h *Hub, u User, cmd spec.Command) {
-	dc, ok := h.findUser(username(cmd.Args[0]))
+	dc, ok := h.FindUser(model.Username(cmd.Args[0]))
 	if !ok {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 		return
