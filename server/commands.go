@@ -4,25 +4,26 @@ import (
 	"context"
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 /* LOOKUP */
 
 // Function mapping table
 // We do not use a variable as a map cannot be const
-func lookupCommand(op gc.Action) (action, error) {
-	lookup := map[gc.Action]action{
-		gc.REG:    registerUser,
-		gc.LOGIN:  loginUser,
-		gc.VERIF:  verifyUser,
-		gc.LOGOUT: logoutUser,
-		gc.DEREG:  deregisterUser,
-		gc.REQ:    requestUser,
-		gc.USRS:   listUsers,
-		gc.MSG:    messageUser,
-		gc.RECIV:  recivMessages,
-		gc.ADMIN:  adminOperation,
+func lookupCommand(op spec.Action) (action, error) {
+	lookup := map[spec.Action]action{
+		spec.REG:    registerUser,
+		spec.LOGIN:  loginUser,
+		spec.VERIF:  verifyUser,
+		spec.LOGOUT: logoutUser,
+		spec.DEREG:  deregisterUser,
+		spec.REQ:    requestUser,
+		spec.USRS:   listUsers,
+		spec.MSG:    messageUser,
+		spec.RECIV:  recivMessages,
+		spec.ADMIN:  adminOperation,
 	}
 
 	v, ok := lookup[op]
@@ -40,8 +41,8 @@ func procRequest(h *Hub, r Request, u *User) {
 	fun, err := lookupCommand(id)
 	if err != nil {
 		// Invalid action is trying to be ran
-		gclog.Invalid(gc.CodeToString(id), string(u.name))
-		sendErrorPacket(r.cmd.HD.ID, gc.ErrorInvalid, r.cl)
+		log.Invalid(spec.CodeToString(id), string(u.name))
+		sendErrorPacket(r.cmd.HD.ID, spec.ErrorInvalid, r.cl)
 		return
 	}
 
@@ -53,28 +54,28 @@ func procRequest(h *Hub, r Request, u *User) {
 
 // Replies with OK or ERR
 // Uses a user with only the net.Conn
-func registerUser(h *Hub, u User, cmd gc.Command) {
+func registerUser(h *Hub, u User, cmd spec.Command) {
 	uname := username(cmd.Args[0])
 
-	if len(uname) > gc.UsernameSize {
-		gclog.User(string(uname), "username registration", gc.ErrorMaxSize)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+	if len(uname) > spec.UsernameSize {
+		log.User(string(uname), "username registration", spec.ErrorMaxSize)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
 	// Check if public key is usable
-	_, err := gc.PEMToPubkey(cmd.Args[1])
+	_, err := spec.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		gclog.User(string(uname), "pubkey registration", ErrorInvalidValue)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		log.User(string(uname), "pubkey registration", ErrorInvalidValue)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
 	// Register user into the database
 	e := insertUser(h.db, uname, cmd.Args[1])
 	if e != nil {
-		gclog.User(string(uname), "registration", gc.ErrorExists)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorExists, u.conn)
+		log.User(string(uname), "registration", spec.ErrorExists)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
 		return
 	}
 
@@ -82,9 +83,9 @@ func registerUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with VERIF, OK or ERR
-func loginUser(h *Hub, u User, cmd gc.Command) {
+func loginUser(h *Hub, u User, cmd spec.Command) {
 	// Check if it can be logged in through a reusable token
-	if int(cmd.HD.Args) > gc.ServerArgs(cmd.HD.Op) {
+	if int(cmd.HD.Args) > spec.ServerArgs(cmd.HD.Op) {
 		err := h.checkToken(u, string(cmd.Args[1]))
 		if err != nil {
 			sendErrorPacket(cmd.HD.ID, err, u.conn)
@@ -98,19 +99,19 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 	}
 
 	ran := randText()
-	enc, err := gc.EncryptText(ran, u.pubkey)
+	enc, err := spec.EncryptText(ran, u.pubkey)
 	if err != nil {
 		//! This shouldnt happen, it means the database for the user is corrupted
-		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		gclog.DBFatal("pubkey", string(u.name), err)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
+		log.DBFatal("pubkey", string(u.name), err)
 		return
 	}
 
 	// We create and send the packet with the enconded text
-	vpak, e := gc.NewPacket(gc.VERIF, cmd.HD.ID, gc.EmptyInfo, gc.Arg(enc))
+	vpak, e := spec.NewPacket(spec.VERIF, cmd.HD.ID, spec.EmptyInfo, spec.Arg(enc))
 	if e != nil {
-		gclog.Packet(gc.VERIF, e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
+		log.Packet(spec.VERIF, e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 	u.conn.Write(vpak) // send VERIF
@@ -131,10 +132,10 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 	// Wait timeout and remove the entry
 	// This function is a closure
 	go func() {
-		w := time.Duration(gc.LoginTimeout) * time.Minute
+		w := time.Duration(spec.LoginTimeout) * time.Minute
 		select {
 		case <-time.After(w):
-			gclog.Timeout(string(u.name), "verification")
+			log.Timeout(string(u.name), "verification")
 			h.verifs.Remove(u.name)
 		case <-ctx.Done():
 			// Verification completed by VERIF
@@ -144,12 +145,12 @@ func loginUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with OK or ERR
-func verifyUser(h *Hub, u User, cmd gc.Command) {
+func verifyUser(h *Hub, u User, cmd spec.Command) {
 	verif, ok := h.verifs.Get(u.name)
 
 	if !ok {
-		gclog.User(string(u.name), "verification", ErrorDoesNotExist)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		log.User(string(u.name), "verification", ErrorDoesNotExist)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
@@ -157,8 +158,8 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
 		h.cleanupUser(u.conn)
-		gclog.User(string(u.name), "verification", ErrorInvalidValue)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorHandshake, u.conn)
+		log.User(string(u.name), "verification", ErrorInvalidValue)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorHandshake, u.conn)
 		return
 	}
 
@@ -178,14 +179,14 @@ func verifyUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with OK or ERR
-func logoutUser(h *Hub, u User, cmd gc.Command) {
+func logoutUser(h *Hub, u User, cmd spec.Command) {
 	_, uok := h.users.Get(u.conn)
 	_, vok := h.verifs.Get(u.name)
 
 	if !uok && !vok {
 		// If user is in none of the caches we error
-		gclog.User(string(u.name), "logout", gc.ErrorNoSession)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorNoSession, u.conn)
+		log.User(string(u.name), "logout", spec.ErrorNoSession)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorNoSession, u.conn)
 		return
 	}
 
@@ -196,7 +197,7 @@ func logoutUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with OK or ERR
-func deregisterUser(h *Hub, u User, cmd gc.Command) {
+func deregisterUser(h *Hub, u User, cmd spec.Command) {
 	// Delete user if message cache is empty
 	e := removeUser(h.db, u.name)
 	if e == nil {
@@ -207,16 +208,16 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 
 	// Database error different than foreign key violation
 	if e != ErrorDBConstraint {
-		gclog.DB(string(u.name)+"'s deletion", e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
+		log.DB(string(u.name)+"'s deletion", e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
 	// The user has cached messages so we just NULL the pubkey
 	err := removeKey(h.db, u.name)
 	if err != nil {
-		gclog.DB(string(u.name)+"'s pubkey to null", e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
+		log.DB(string(u.name)+"'s pubkey to null", e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
@@ -225,37 +226,37 @@ func deregisterUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with REQ or ERR
-func requestUser(h *Hub, u User, cmd gc.Command) {
+func requestUser(h *Hub, u User, cmd spec.Command) {
 	req, err := queryUser(h.db, username(cmd.Args[0]))
 	if err != nil {
-		gclog.DB(string(u.name)+"'s pubkey", err)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+		log.DB(string(u.name)+"'s pubkey", err)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 		return
 	}
 
-	p, e := gc.PubkeytoPEM(req.pubkey)
+	p, e := spec.PubkeytoPEM(req.pubkey)
 	if e != nil {
 		//! This means the user's database is corrupted info
-		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		gclog.DBFatal("pubkey", string(u.name), err)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
+		log.DBFatal("pubkey", string(u.name), err)
 		return
 	}
 
 	// We reply with the username that was requested as well
-	pak, e := gc.NewPacket(gc.REQ, cmd.HD.ID, gc.EmptyInfo,
-		gc.Arg(req.name),
-		gc.Arg(p),
+	pak, e := spec.NewPacket(spec.REQ, cmd.HD.ID, spec.EmptyInfo,
+		spec.Arg(req.name),
+		spec.Arg(p),
 	)
 	if e != nil {
-		gclog.Packet(gc.REQ, e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
+		log.Packet(spec.REQ, e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 	u.conn.Write(pak) // send REQ
 }
 
 // Replies with USRS or ERR
-func listUsers(h *Hub, u User, cmd gc.Command) {
+func listUsers(h *Hub, u User, cmd spec.Command) {
 	var usrs string
 
 	// Show online users or all
@@ -268,21 +269,21 @@ func listUsers(h *Hub, u User, cmd gc.Command) {
 		usrs = h.userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		gclog.User(string(u.name), "list argument", ErrorInvalidValue)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorHeader, u.conn)
+		log.User(string(u.name), "list argument", ErrorInvalidValue)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
 
 	if usrs == "" {
 		// Could not find any users matching
-		sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
 		return
 	}
 
-	pak, e := gc.NewPacket(gc.USRS, cmd.HD.ID, gc.EmptyInfo, gc.Arg(usrs))
+	pak, e := spec.NewPacket(spec.USRS, cmd.HD.ID, spec.EmptyInfo, spec.Arg(usrs))
 	if e != nil {
-		gclog.Packet(gc.USRS, e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
+		log.Packet(spec.USRS, e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 	u.conn.Write(pak) // send USRS
@@ -290,10 +291,10 @@ func listUsers(h *Hub, u User, cmd gc.Command) {
 
 // Replies with OK or ERR
 // Sends a RECIV if destination user is online
-func messageUser(h *Hub, u User, cmd gc.Command) {
+func messageUser(h *Hub, u User, cmd spec.Command) {
 	// Cannot send to self
 	if username(cmd.Args[0]) == u.name {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
@@ -301,14 +302,14 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	send, ok := h.findUser(username(cmd.Args[0]))
 	if ok {
 		// We send the message directly to the connection
-		pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo,
-			gc.Arg(u.name),
+		pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
+			spec.Arg(u.name),
 			cmd.Args[1],
 			cmd.Args[2],
 		)
 		if e != nil {
-			gclog.Packet(gc.RECIV, e)
-			sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
+			log.Packet(spec.RECIV, e)
+			sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 			return
 		}
 		send.conn.Write(pak) // send RECIV (to destination)
@@ -322,16 +323,16 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 	err := cacheMessage(h.db, uname, Message{
 		sender:  u.name,
 		message: cmd.Args[2],
-		stamp:   *gc.BytesToUnixStamp(cmd.Args[1]),
+		stamp:   *spec.BytesToUnixStamp(cmd.Args[1]),
 	})
 	if err != nil {
 		if err == ErrorDoesNotExist {
-			sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+			sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 			return
 		}
 		// Error when inserting the message into the cache
-		gclog.DB("message caching from "+string(u.name), err)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
+		log.DB("message caching from "+string(u.name), err)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
@@ -339,25 +340,25 @@ func messageUser(h *Hub, u User, cmd gc.Command) {
 }
 
 // Replies with RECIV or ERR
-func recivMessages(h *Hub, u User, cmd gc.Command) {
+func recivMessages(h *Hub, u User, cmd spec.Command) {
 	msgs, err := queryMessages(h.db, u.name)
 	if err != nil {
 		// No messages to query
-		if err == gc.ErrorEmpty {
-			sendErrorPacket(cmd.HD.ID, gc.ErrorEmpty, u.conn)
+		if err == spec.ErrorEmpty {
+			sendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
 			return
 		}
 
 		// Internal database error
-		gclog.DB("messages for "+string(u.name), err)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
+		log.DB("messages for "+string(u.name), err)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
 	chk := catchUp(u.conn, cmd.HD.ID, msgs...) // send RECIV(s)
 	if chk != nil {
 		// We do not delete messages in this case
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 
@@ -367,6 +368,6 @@ func recivMessages(h *Hub, u User, cmd gc.Command) {
 	e := removeMessages(h.db, u.name, ts)
 	if e != nil {
 		// We dont send an ERR here or we would be sending 2 packets
-		gclog.DB("deleting cached messages for "+string(u.name), e)
+		log.DB("deleting cached messages for "+string(u.name), e)
 	}
 }

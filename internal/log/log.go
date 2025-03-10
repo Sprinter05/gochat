@@ -1,10 +1,10 @@
-package main
+package log
 
 import (
 	"log"
 	"net"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 /*
@@ -14,6 +14,9 @@ import (
 [X] FATAL -> Logs when it crashes the program
 */
 type Logging uint
+
+// Global variable
+var Level Logging = FATAL
 
 // FATAL is the lowest, ALL is the highest
 const (
@@ -25,7 +28,7 @@ const (
 
 // Logs in any case
 // Notifies any generic server message
-func (l Logging) Notice(msg string) {
+func Notice(msg string) {
 	log.Printf(
 		"[*] Notifying %s...\n	",
 		msg,
@@ -34,8 +37,8 @@ func (l Logging) Notice(msg string) {
 
 // Requires FATAL
 // Informs of a missing environment variable
-func (l Logging) Environ(envvar string) {
-	if l < FATAL {
+func Environ(envvar string) {
+	if Level < FATAL {
 		return
 	}
 	log.Fatalf(
@@ -46,8 +49,8 @@ func (l Logging) Environ(envvar string) {
 
 // Requires FATAL
 // Generic fatal error
-func (l Logging) Fatal(msg string, err error) {
-	if l < FATAL {
+func Fatal(msg string, err error) {
+	if Level < FATAL {
 		return
 	}
 	log.Fatalf(
@@ -59,8 +62,8 @@ func (l Logging) Fatal(msg string, err error) {
 
 // Requires FATAL
 // Consistency error on the database
-func (l Logging) DBFatal(data string, user string, err error) {
-	if l < FATAL {
+func DBFatal(data string, user string, err error) {
+	if Level < FATAL {
 		return
 	}
 	log.Fatalf(
@@ -73,8 +76,8 @@ func (l Logging) DBFatal(data string, user string, err error) {
 
 // Requires ERROR or higher
 // Generic error
-func (l Logging) Error(msg string, err error) {
-	if l < ERROR {
+func Error(msg string, err error) {
+	if Level < ERROR {
 		return
 	}
 	log.Printf(
@@ -86,8 +89,8 @@ func (l Logging) Error(msg string, err error) {
 
 // Requires ERROR or higher
 // Notifies an error on an IP
-func (l Logging) IP(msg string, ip net.Addr) {
-	if l < ERROR {
+func IP(msg string, ip net.Addr) {
+	if Level < ERROR {
 		return
 	}
 	log.Printf(
@@ -99,8 +102,8 @@ func (l Logging) IP(msg string, ip net.Addr) {
 
 // Requires ERROR or higher
 // Internal database problem
-func (l Logging) DBError(err error) {
-	if l < ERROR {
+func DBError(err error) {
+	if Level < ERROR {
 		return
 	}
 	log.Printf(
@@ -111,8 +114,8 @@ func (l Logging) DBError(err error) {
 
 // Requires ERROR or higher
 // Problem running a SQL statement
-func (l Logging) DB(data string, err error) {
-	if l < ERROR {
+func DB(data string, err error) {
+	if Level < ERROR {
 		return
 	}
 	log.Printf(
@@ -124,21 +127,21 @@ func (l Logging) DB(data string, err error) {
 
 // Requires ERROR or higher
 // Problem when creating packet
-func (l Logging) Packet(op gc.Action, err error) {
-	if l < ERROR {
+func Packet(op spec.Action, err error) {
+	if Level < ERROR {
 		return
 	}
 	log.Printf(
 		"[E] Failure in creation of packet %s due to %s\n",
-		gc.CodeToString(op),
+		spec.CodeToString(op),
 		err,
 	)
 }
 
 // Requires INFO or higher
 // Timeout due to timer finishing
-func (l Logging) Timeout(user string, msg string) {
-	if l < INFO {
+func Timeout(user string, msg string) {
+	if Level < INFO {
 		return
 	}
 	log.Printf(
@@ -150,8 +153,8 @@ func (l Logging) Timeout(user string, msg string) {
 
 // Requires INFO or higher
 // Error with data
-func (l Logging) User(user string, data string, err error) {
-	if l < INFO {
+func User(user string, data string, err error) {
+	if Level < INFO {
 		return
 	}
 	log.Printf(
@@ -164,8 +167,8 @@ func (l Logging) User(user string, data string, err error) {
 
 // Requires INFO or higher
 // Problem when reading from a socket
-func (l Logging) Read(subj string, ip string, err error) {
-	if l < INFO {
+func Read(subj string, ip string, err error) {
+	if Level < INFO {
 		return
 	}
 	log.Printf(
@@ -178,8 +181,8 @@ func (l Logging) Read(subj string, ip string, err error) {
 
 // Requires INFO or higher
 // Invalid operation
-func (l Logging) Invalid(op string, user string) {
-	if l < INFO {
+func Invalid(op string, user string) {
+	if Level < INFO {
 		return
 	}
 	log.Printf(
@@ -191,8 +194,8 @@ func (l Logging) Invalid(op string, user string) {
 
 // Requires ALL
 // Prints a new connection
-func (l Logging) Connection(ip string, closed bool) {
-	if l < ALL {
+func Connection(ip string, closed bool) {
+	if Level < ALL {
 		return
 	}
 	if closed {
@@ -210,8 +213,8 @@ func (l Logging) Connection(ip string, closed bool) {
 
 // Requires ALL
 // Prints packet information
-func (l Logging) Request(ip string, cmd gc.Command) {
-	if l < ALL {
+func Request(ip string, cmd spec.Command) {
+	if Level < ALL {
 		return
 	}
 	log.Printf(

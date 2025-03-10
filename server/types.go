@@ -9,7 +9,8 @@ import (
 	"sync"
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +24,7 @@ const CypherLength int = 128
 type username string
 
 // Specifies the functions to run depending on the ID
-type action func(*Hub, User, gc.Command)
+type action func(*Hub, User, spec.Command)
 
 // Table used for storing thread safe maps
 type table[I comparable, T any] struct {
@@ -49,7 +50,7 @@ const (
 // Determines a request to be processed by a thread
 type Request struct {
 	cl  net.Conn
-	cmd gc.Command
+	cmd spec.Command
 	tls bool
 }
 
@@ -181,20 +182,20 @@ func (c *Counter) Dec() {
 /* AUXILIARY FUNCTIONS */
 
 // Wrap the error sending function
-func sendErrorPacket(id gc.ID, err error, cl net.Conn) {
-	pak, e := gc.NewPacket(gc.ERR, id, gc.ErrorCode(err), nil)
+func sendErrorPacket(id spec.ID, err error, cl net.Conn) {
+	pak, e := spec.NewPacket(spec.ERR, id, spec.ErrorCode(err), nil)
 	if e != nil {
-		gclog.Packet(gc.ERR, e)
+		log.Packet(spec.ERR, e)
 	} else {
 		cl.Write(pak)
 	}
 }
 
 // Wrap the acknowledgement sending function
-func sendOKPacket(id gc.ID, cl net.Conn) {
-	pak, e := gc.NewPacket(gc.OK, id, gc.EmptyInfo, nil)
+func sendOKPacket(id spec.ID, cl net.Conn) {
+	pak, e := spec.NewPacket(spec.OK, id, spec.EmptyInfo, nil)
 	if e != nil {
-		gclog.Packet(gc.OK, e)
+		log.Packet(spec.OK, e)
 	} else {
 		cl.Write(pak)
 	}

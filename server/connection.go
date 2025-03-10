@@ -5,27 +5,28 @@ import (
 	"net"
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 // FUNCTIONS
 
-func processHeader(cl *gc.Connection, cmd *gc.Command) error {
+func processHeader(cl *spec.Connection, cmd *spec.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cl.ListenHeader(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		gclog.Read("header", ip, err)
+		log.Read("header", ip, err)
 		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return err
 	}
 	return nil
 }
 
-func processPayload(cl *gc.Connection, cmd *gc.Command) error {
+func processPayload(cl *spec.Connection, cmd *spec.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cl.ListenPayload(cmd); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		gclog.Read("payload", ip, err)
+		log.Read("payload", ip, err)
 		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return err
 	}
@@ -47,35 +48,35 @@ func cleanup(cl net.Conn, c *Counter, ch chan<- Request, hub chan<- net.Conn) {
 	c.Dec()
 
 	// Log connection close
-	gclog.Connection(
+	log.Connection(
 		cl.RemoteAddr().String(),
 		true,
 	)
 }
 
 // Listens from a client and communicates with the hub through the channels
-func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl chan<- net.Conn) {
+func ListenConnection(cl *spec.Connection, c *Counter, req chan<- Request, hubcl chan<- net.Conn) {
 	// Cleanup connection on error
 	defer cleanup(cl.Conn, c, req, hubcl)
 
 	// Check if the TLS is valid
 	_, ok := cl.Conn.(*tls.Conn)
 	if !ok {
-		gclog.IP("failed tls verification", cl.Conn.RemoteAddr())
+		log.IP("failed tls verification", cl.Conn.RemoteAddr())
 	}
 
 	// Timeout
-	deadline := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
+	deadline := time.Now().Add(time.Duration(spec.ReadTimeout) * time.Minute)
 
 	// Log connection
-	gclog.Connection(
+	log.Connection(
 		cl.Conn.RemoteAddr().String(),
 		false,
 	)
 
 	for {
 		ip := cl.Conn.RemoteAddr().String()
-		cmd := new(gc.Command)
+		cmd := new(spec.Command)
 
 		// Works as an idle timeout calling it each time
 		cl.Conn.SetReadDeadline(deadline)
@@ -86,7 +87,7 @@ func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl c
 
 		// Check that all header fields are correct
 		if err := cmd.HD.ServerCheck(); err != nil {
-			gclog.Read("header checking", ip, err)
+			log.Read("header checking", ip, err)
 		}
 
 		// If there are no arguments we do not process the payload
@@ -97,7 +98,7 @@ func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl c
 		}
 
 		// Keep conection alive packet
-		if cmd.HD.Op == gc.KEEP {
+		if cmd.HD.Op == spec.KEEP {
 			continue
 		}
 
@@ -111,18 +112,18 @@ func ListenConnection(cl *gc.Connection, c *Counter, req chan<- Request, hubcl c
 }
 
 // Catches up messages for the logged connection
-func catchUp(cl net.Conn, id gc.ID, msgs ...Message) error {
+func catchUp(cl net.Conn, id spec.ID, msgs ...Message) error {
 	for _, v := range msgs {
 		// Turn timestamp to byte array and create packet
-		stp := gc.UnixStampToBytes(v.stamp)
+		stp := spec.UnixStampToBytes(v.stamp)
 
-		pak, err := gc.NewPacket(gc.RECIV, id, gc.EmptyInfo,
-			gc.Arg(v.sender),
-			gc.Arg(stp),
-			gc.Arg(v.message),
+		pak, err := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo,
+			spec.Arg(v.sender),
+			spec.Arg(stp),
+			spec.Arg(v.message),
 		)
 		if err != nil {
-			gclog.Packet(gc.RECIV, err)
+			log.Packet(spec.RECIV, err)
 			return err
 		}
 		cl.Write(pak)
@@ -136,12 +137,12 @@ func runTask(hub *Hub, req <-chan Request) {
 	for r := range req {
 		// Show request
 		ip := r.cl.RemoteAddr().String()
-		gclog.Request(ip, r.cmd)
+		log.Request(ip, r.cmd)
 
 		// Check if the user can be served
 		u, err := hub.checkSession(r)
 		if err != nil {
-			gclog.Error("session checking for "+ip, err)
+			log.Error("session checking for "+ip, err)
 			continue // Next request
 		}
 

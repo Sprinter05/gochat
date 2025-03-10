@@ -5,36 +5,36 @@ import (
 	"crypto/rsa"
 	"testing"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 func TestEncdec(t *testing.T) {
 	// Create key
-	key, err := rsa.GenerateKey(rand.Reader, gc.RSABitSize)
+	key, err := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Go through PEM array
-	pempub, err := gc.PubkeytoPEM(&key.PublicKey)
+	pempub, err := spec.PubkeytoPEM(&key.PublicKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pempriv := gc.PrivkeytoPEM(key)
+	pempriv := spec.PrivkeytoPEM(key)
 
 	// Turn back to key
-	pub, err := gc.PEMToPubkey(pempub)
+	pub, err := spec.PEMToPubkey(pempub)
 	if err != nil {
 		t.Fatal(err)
 	}
-	priv, err := gc.PEMToPrivkey(pempriv)
+	priv, err := spec.PEMToPrivkey(pempriv)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Encrypt text
 	text := "Man this is so cumbersome"
-	enc, err := gc.EncryptText(
+	enc, err := spec.EncryptText(
 		[]byte(text),
 		pub,
 	)
@@ -43,7 +43,7 @@ func TestEncdec(t *testing.T) {
 	}
 
 	// Decrypt text
-	dec, err := gc.DecryptText(enc, priv)
+	dec, err := spec.DecryptText(enc, priv)
 	if err != nil {
 		t.Fatal(err)
 	}

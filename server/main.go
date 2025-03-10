@@ -4,33 +4,32 @@ import (
 	"bufio"
 	"crypto/tls"
 	"fmt"
-	"log"
+	stdlog "log"
 	"net"
 	"os"
 	"sync"
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
+
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
-
-// Global log
-var gclog Logging
 
 // Sets up logging
 // Reads environment file from first cli argument
 // init() always runs when the program starts
 func init() {
 	// If we default to stderr it won't print unless debugged
-	log.SetOutput(os.Stdout)
+	stdlog.SetOutput(os.Stdout)
 
 	// Argument 0 is the pathname to the executable
 	if len(os.Args) > 1 {
 		// Read argument 1 as .env if it exists
 		err := godotenv.Load(os.Args[1])
 		if err != nil {
-			gclog.Fatal("env file reading", err)
+			log.Fatal("env file reading", err)
 		}
 	}
 
@@ -40,13 +39,13 @@ func init() {
 	lv := os.Getenv("LOG_LEVL")
 	switch lv {
 	case "ALL":
-		gclog = ALL
+		log.Level = log.ALL
 	case "INFO":
-		gclog = INFO
+		log.Level = log.INFO
 	case "ERROR":
-		gclog = ERROR
+		log.Level = log.ERROR
 	default:
-		gclog = FATAL
+		log.Level = log.FATAL
 		lv = "FATAL"
 	}
 	fmt.Printf("-> Logging with log level %s\n", lv)
@@ -66,7 +65,7 @@ func logFile() *os.File {
 		0666,
 	)
 	if err != nil {
-		gclog.Fatal("db log file", err)
+		log.Fatal("db log file", err)
 	}
 
 	// Print separator inside log file
@@ -87,7 +86,7 @@ func setupHub(db *gorm.DB) *Hub {
 	// Allocate all data structures
 	gormdb := db
 	hub := Hub{
-		clean:  make(chan net.Conn, gc.MaxClients/2),
+		clean:  make(chan net.Conn, spec.MaxClients/2),
 		shtdwn: make(chan bool),
 		users: table[net.Conn, *User]{
 			tab: make(map[net.Conn]*User),
@@ -107,12 +106,12 @@ func setupHub(db *gorm.DB) *Hub {
 func setupConn() net.Listener {
 	addr, ok := os.LookupEnv("SRV_ADDR")
 	if !ok {
-		gclog.Environ("SRV_ADDR")
+		log.Environ("SRV_ADDR")
 	}
 
 	port, ok := os.LookupEnv("SRV_PORT")
 	if !ok {
-		gclog.Environ("SRV_PORT")
+		log.Environ("SRV_PORT")
 	}
 
 	socket := fmt.Sprintf(
@@ -123,7 +122,7 @@ func setupConn() net.Listener {
 
 	l, err := net.Listen("tcp4", socket)
 	if err != nil {
-		gclog.Fatal("socket setup", err)
+		log.Fatal("socket setup", err)
 	}
 
 	return l
@@ -133,12 +132,12 @@ func setupConn() net.Listener {
 func setupTLSConn() net.Listener {
 	addr, ok := os.LookupEnv("SRV_ADDR")
 	if !ok {
-		gclog.Environ("SRV_ADDR")
+		log.Environ("SRV_ADDR")
 	}
 
 	port, ok := os.LookupEnv("TLS_PORT")
 	if !ok {
-		gclog.Environ("TLS_PORT")
+		log.Environ("TLS_PORT")
 	}
 
 	socket := fmt.Sprintf(
@@ -152,7 +151,7 @@ func setupTLSConn() net.Listener {
 		os.Getenv("TLS_KEYF"),
 	)
 	if err != nil {
-		gclog.Fatal("tls loading", err)
+		log.Fatal("tls loading", err)
 	}
 
 	config := &tls.Config{
@@ -161,7 +160,7 @@ func setupTLSConn() net.Listener {
 
 	l, err := tls.Listen("tcp4", socket, config)
 	if err != nil {
-		gclog.Fatal("tls socket setup", err)
+		log.Fatal("tls socket setup", err)
 	}
 
 	return l
@@ -173,13 +172,13 @@ func run(l net.Listener, hub *Hub, count *Counter, wg *sync.WaitGroup) {
 
 	for {
 		// If we exceed the client count we just wait until a spot is free
-		if count.Get() == gc.MaxClients {
+		if count.Get() == spec.MaxClients {
 			continue
 		}
 
 		c, err := l.Accept()
 		if err != nil {
-			gclog.Error("connection accept", err)
+			log.Error("connection accept", err)
 			// Keep accepting clients
 			continue
 		}
@@ -188,7 +187,7 @@ func run(l net.Listener, hub *Hub, count *Counter, wg *sync.WaitGroup) {
 		// Check if its tls
 		_, ok := c.(*tls.Conn)
 
-		cl := &gc.Connection{
+		cl := &spec.Connection{
 			Conn: c,
 			RD:   bufio.NewReader(c),
 			TLS:  ok,
@@ -212,11 +211,11 @@ func main() {
 
 	// Set up database logging file
 	// Only if logging is INFO or more
-	var dblog *log.Logger = nil
-	if gclog >= INFO {
+	var dblog *stdlog.Logger = nil
+	if log.Level >= log.INFO {
 		f := logFile()
 		defer f.Close()
-		dblog = log.New(f, "", log.LstdFlags)
+		dblog = stdlog.New(f, "", stdlog.LstdFlags)
 	}
 
 	// Setup database

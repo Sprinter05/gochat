@@ -1,4 +1,4 @@
-package gcspec
+package spec
 
 /* PREDEFINED VALUES */
 

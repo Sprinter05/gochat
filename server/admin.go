@@ -3,7 +3,8 @@ package main
 import (
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 /* LOOKUP */
@@ -11,11 +12,11 @@ import (
 // Argument mapping table
 func getAdminArguments(ad uint8) uint8 {
 	args := map[uint8]uint8{
-		gc.AdminShutdown:   1,
-		gc.AdminBroadcast:  1,
-		gc.AdminDeregister: 1,
-		gc.AdminPromote:    1,
-		gc.AdminDisconnect: 1,
+		spec.AdminShutdown:   1,
+		spec.AdminBroadcast:  1,
+		spec.AdminDeregister: 1,
+		spec.AdminPromote:    1,
+		spec.AdminDisconnect: 1,
 	}
 
 	// Ok has to be checked on lookup first
@@ -26,11 +27,11 @@ func getAdminArguments(ad uint8) uint8 {
 // Permission mapping table
 func getAdminPermission(ad uint8) Permission {
 	perms := map[uint8]Permission{
-		gc.AdminShutdown:   ADMIN,
-		gc.AdminBroadcast:  ADMIN,
-		gc.AdminDeregister: ADMIN,
-		gc.AdminPromote:    OWNER,
-		gc.AdminDisconnect: ADMIN,
+		spec.AdminShutdown:   ADMIN,
+		spec.AdminBroadcast:  ADMIN,
+		spec.AdminDeregister: ADMIN,
+		spec.AdminPromote:    OWNER,
+		spec.AdminDisconnect: ADMIN,
 	}
 
 	// Ok has to be checked on lookup first
@@ -42,11 +43,11 @@ func getAdminPermission(ad uint8) Permission {
 // We do not use a variable as a map cannot be const
 func lookupAdmin(ad uint8) (action, error) {
 	lookup := map[uint8]action{
-		gc.AdminShutdown:   adminShutdown,
-		gc.AdminBroadcast:  adminBroadcast,
-		gc.AdminDeregister: adminDeregister,
-		gc.AdminPromote:    adminPromote,
-		gc.AdminDisconnect: adminDisconnect,
+		spec.AdminShutdown:   adminShutdown,
+		spec.AdminBroadcast:  adminBroadcast,
+		spec.AdminDeregister: adminDeregister,
+		spec.AdminPromote:    adminPromote,
+		spec.AdminDisconnect: adminDisconnect,
 	}
 
 	v, ok := lookup[ad]
@@ -58,29 +59,29 @@ func lookupAdmin(ad uint8) (action, error) {
 }
 
 // Every admin operation replies with either ERR or OK
-func adminOperation(h *Hub, u User, cmd gc.Command) {
+func adminOperation(h *Hub, u User, cmd spec.Command) {
 	if u.perms == USER {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return
 	}
 
 	fun, err := lookupAdmin(cmd.HD.Info)
 	if err != nil {
 		// Invalid action is trying to be ran
-		gclog.Invalid(gc.AdminString(cmd.HD.Info), string(u.name))
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		log.Invalid(spec.AdminString(cmd.HD.Info), string(u.name))
+		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
 	args := getAdminArguments(cmd.HD.Info)
 	if cmd.HD.Args != args {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
 	perms := getAdminPermission(cmd.HD.Info)
 	if u.perms < perms {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPrivileges, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return
 	}
 
@@ -91,18 +92,18 @@ func adminOperation(h *Hub, u User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Uses 1 argument for the unix stamp
-func adminShutdown(h *Hub, u User, cmd gc.Command) {
-	stamp := gc.BytesToUnixStamp(cmd.Args[0])
+func adminShutdown(h *Hub, u User, cmd spec.Command) {
+	stamp := spec.BytesToUnixStamp(cmd.Args[0])
 	if stamp == nil {
 		// Invalid number given
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
 	duration := time.Until(*stamp)
 	if duration < 0 {
 		// Invalid duration
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
@@ -114,10 +115,10 @@ func adminShutdown(h *Hub, u User, cmd gc.Command) {
 		h.shtdwn <- true
 	}()
 
-	pak, e := gc.NewPacket(gc.SHTDWN, gc.NullID, gc.EmptyInfo, cmd.Args[0])
+	pak, e := spec.NewPacket(spec.SHTDWN, spec.NullID, spec.EmptyInfo, cmd.Args[0])
 	if e != nil {
-		gclog.Packet(gc.SHTDWN, e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
+		log.Packet(spec.SHTDWN, e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 
@@ -127,22 +128,22 @@ func adminShutdown(h *Hub, u User, cmd gc.Command) {
 		v.conn.Write(pak)
 	}
 
-	gclog.Notice("server shutdown on " + stamp.String())
+	log.Notice("server shutdown on " + stamp.String())
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Requires ADMIN or more
 // Requires 1 argument for the message
-func adminBroadcast(h *Hub, u User, cmd gc.Command) {
+func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	// Create packet with the message
-	pak, e := gc.NewPacket(gc.RECIV, gc.NullID, gc.EmptyInfo,
-		gc.Arg(u.name+" [ADMIN]"),
-		gc.UnixStampToBytes(time.Now()),
+	pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
+		spec.Arg(u.name+" [ADMIN]"),
+		spec.UnixStampToBytes(time.Now()),
 		cmd.Args[0],
 	)
 	if e != nil {
-		gclog.Packet(gc.RECIV, e)
-		sendErrorPacket(cmd.HD.ID, gc.ErrorPacket, u.conn)
+		log.Packet(spec.RECIV, e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 
@@ -157,11 +158,11 @@ func adminBroadcast(h *Hub, u User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Requires 1 argument for the user
-func adminDeregister(h *Hub, u User, cmd gc.Command) {
+func adminDeregister(h *Hub, u User, cmd spec.Command) {
 	err := removeKey(h.db, username(cmd.Args[0]))
 	if err != nil {
 		// Failed to change the key of the user
-		sendErrorPacket(cmd.HD.ID, gc.ErrorServer, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
@@ -170,25 +171,25 @@ func adminDeregister(h *Hub, u User, cmd gc.Command) {
 
 // Requires OWNER or more
 // Requires 1 argument for the user
-func adminPromote(h *Hub, u User, cmd gc.Command) {
+func adminPromote(h *Hub, u User, cmd spec.Command) {
 	target, err := queryDBUser(h.db, username(cmd.Args[0]))
 	if err != nil {
 		// Invalid user provided
-		sendErrorPacket(cmd.HD.ID, gc.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
 	if target.Permission >= ADMIN {
 		// Cannot promote more
-		sendErrorPacket(cmd.HD.ID, gc.ErrorInvalid, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
 	e := changePermissions(h.db, u.name, ADMIN)
 	if e != nil {
 		//! This shouldnt happen as the user was already queried before
-		sendErrorPacket(cmd.HD.ID, gc.ErrorUndefined, u.conn)
-		gclog.Fatal("promotion for "+string(u.name), e)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
+		log.Fatal("promotion for "+string(u.name), e)
 		return
 	}
 
@@ -197,10 +198,10 @@ func adminPromote(h *Hub, u User, cmd gc.Command) {
 
 // Requires ADMIN or more
 // Requires 1 argument for the user
-func adminDisconnect(h *Hub, u User, cmd gc.Command) {
+func adminDisconnect(h *Hub, u User, cmd spec.Command) {
 	dc, ok := h.findUser(username(cmd.Args[0]))
 	if !ok {
-		sendErrorPacket(cmd.HD.ID, gc.ErrorNotFound, u.conn)
+		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 		return
 	}
 

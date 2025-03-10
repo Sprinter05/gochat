@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 /* HUB WRAPPER FUNCTIONS */
@@ -25,7 +26,7 @@ func (h *Hub) cleanupUser(cl net.Conn) {
 				// If not in verif we readd it with nil connection
 				v.conn = nil
 				v.expiry = time.Now().Add(
-					time.Duration(gc.TokenExpiration) * time.Minute,
+					time.Duration(spec.TokenExpiration) * time.Minute,
 				)
 				h.verifs.Add(v.name, v)
 			}
@@ -38,7 +39,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 	op := r.cmd.HD.Op
 
 	// Cant be REG LOGIN or VERIF
-	if op != gc.REG && op != gc.LOGIN && op != gc.VERIF {
+	if op != spec.REG && op != spec.LOGIN && op != spec.VERIF {
 		cached, err := hub.cachedLogin(r)
 		if err == nil {
 			// Valid user found in cache, serve request
@@ -50,7 +51,7 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 	}
 
 	// Can only be LOGIN or VERIF
-	if op == gc.LOGIN || op == gc.VERIF {
+	if op == spec.LOGIN || op == spec.VERIF {
 		user, e := hub.dbLogin(r)
 		if e == nil {
 			// User found in database so we return it
@@ -62,13 +63,13 @@ func (hub *Hub) checkSession(r Request) (*User, error) {
 	}
 
 	// Can only be REG
-	if op != gc.REG {
-		if op == gc.LOGIN {
+	if op != spec.REG {
+		if op == spec.LOGIN {
 			// User does not exist when trying to login
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorNotFound, r.cl)
+			sendErrorPacket(r.cmd.HD.ID, spec.ErrorNotFound, r.cl)
 		} else {
 			// Cannot do anything without an account
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorNoSession, r.cl)
+			sendErrorPacket(r.cmd.HD.ID, spec.ErrorNoSession, r.cl)
 		}
 		return nil, ErrorNoAccount
 	}
@@ -91,7 +92,7 @@ func (h *Hub) dbLogin(r Request) (*User, error) {
 	if e != nil {
 		// Error is handled in the calling function
 		if e != ErrorDoesNotExist {
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
+			sendErrorPacket(r.cmd.HD.ID, spec.ErrorLogin, r.cl)
 		}
 		return nil, e
 	}
@@ -112,12 +113,12 @@ func (h *Hub) cachedLogin(r Request) (*User, error) {
 		return v, nil
 	}
 
-	if id == gc.LOGIN {
+	if id == spec.LOGIN {
 		// We check if the user is logged in from another IP
 		_, ipok := h.findUser(username(r.cmd.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
-			sendErrorPacket(r.cmd.HD.ID, gc.ErrorLogin, r.cl)
+			sendErrorPacket(r.cmd.HD.ID, spec.ErrorLogin, r.cl)
 			return nil, ErrorDuplicatedSession
 
 		}
@@ -149,7 +150,7 @@ func (h *Hub) userlist(online bool) string {
 	} else {
 		ret, err = queryUsernames(h.db)
 		if err != nil {
-			gclog.DB("userlist", err)
+			log.DB("userlist", err)
 		}
 	}
 
@@ -174,26 +175,26 @@ func (h *Hub) findUser(uname username) (*User, bool) {
 // Checks a reusable token session
 func (h *Hub) checkToken(u User, text string) error {
 	if !u.secure {
-		return gc.ErrorUnescure
+		return spec.ErrorUnescure
 	}
 
 	v, ok := h.verifs.Get(u.name)
 	if !ok {
-		return gc.ErrorNotFound
+		return spec.ErrorNotFound
 	}
 
 	if v.pending {
-		return gc.ErrorInvalid
+		return spec.ErrorInvalid
 	}
 
 	// Check if it has expired
 	if time.Until(v.expiry) <= 0 {
 		h.verifs.Remove(u.name)
-		return gc.ErrorNotFound
+		return spec.ErrorNotFound
 	}
 
 	if v.text != text {
-		return gc.ErrorHandshake
+		return spec.ErrorHandshake
 	}
 
 	return nil
@@ -216,7 +217,7 @@ func (hub *Hub) Start() {
 			time.Sleep(5 * time.Second)
 
 			// Perform a server shutdown
-			gclog.Notice("inminent server shutdown")
+			log.Notice("inminent server shutdown")
 			os.Exit(0)
 		case c := <-hub.clean:
 			// Remove all mentions of the user in the cache

@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	stdlog "log"
 	"os"
 	"strings"
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
 
 	driver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -24,27 +25,27 @@ import (
 func getDBEnv() string {
 	user, ok := os.LookupEnv("DB_USER")
 	if !ok {
-		gclog.Environ("DB_USER")
+		log.Environ("DB_USER")
 	}
 
 	pswd, ok := os.LookupEnv("DB_PSWD")
 	if !ok {
-		gclog.Environ("DB_PSWD")
+		log.Environ("DB_PSWD")
 	}
 
 	addr, ok := os.LookupEnv("DB_ADDR")
 	if !ok {
-		gclog.Environ("DB_ADDR")
+		log.Environ("DB_ADDR")
 	}
 
 	port, ok := os.LookupEnv("DB_PORT")
 	if !ok {
-		gclog.Environ("DB_PORT")
+		log.Environ("DB_PORT")
 	}
 
 	name, ok := os.LookupEnv("DB_NAME")
 	if !ok {
-		gclog.Environ("DB_NAME")
+		log.Environ("DB_NAME")
 	}
 
 	// Get formatted string
@@ -59,7 +60,7 @@ func getDBEnv() string {
 }
 
 // Connects to the database using the environment file
-func connectDB(logfile *log.Logger) *gorm.DB {
+func connectDB(logfile *stdlog.Logger) *gorm.DB {
 	access := getDBEnv()
 
 	var dblog logger.Interface = nil
@@ -82,7 +83,7 @@ func connectDB(logfile *log.Logger) *gorm.DB {
 		},
 	)
 	if err != nil {
-		gclog.Fatal("database login", err)
+		log.Fatal("database login", err)
 	}
 
 	// Run migrations
@@ -115,7 +116,7 @@ func migrate(db *gorm.DB) {
 		"ENGINE=InnoDB",
 	).AutoMigrate(&gcUser{}, &gcMessage{})
 	if err != nil {
-		gclog.Fatal("database migrations", err)
+		log.Fatal("database migrations", err)
 	}
 }
 
@@ -127,7 +128,7 @@ func queryDBUser(db *gorm.DB, uname username) (*gcUser, error) {
 	var user gcUser
 	res := db.First(&user, "username = ?", uname)
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		// No user with that username exists
 		if res.Error == gorm.ErrRecordNotFound {
 			return nil, ErrorDoesNotExist
@@ -157,7 +158,7 @@ func queryUser(db *gorm.DB, uname username) (*User, error) {
 	}
 
 	// Turn it into a public key from PEM certificate
-	key, err := gc.PEMToPubkey([]byte(dbuser.Pubkey.String))
+	key, err := spec.PEMToPubkey([]byte(dbuser.Pubkey.String))
 	if err != nil {
 		return nil, err
 	}
@@ -194,12 +195,12 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 
 	// No results
 	if size == 0 {
-		return nil, gc.ErrorEmpty
+		return nil, spec.ErrorEmpty
 	}
 
 	rows, err := res.Rows()
 	if err != nil {
-		gclog.DBError(err)
+		log.DBError(err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -224,7 +225,7 @@ func queryMessages(db *gorm.DB, uname username) ([]Message, error) {
 		// Conversion from hex string
 		dec, e := hex.DecodeString(undec)
 		if e != nil {
-			gclog.DBFatal("encripted hex message", string(uname), e)
+			log.DBFatal("encripted hex message", string(uname), e)
 		}
 		temp.message = dec
 
@@ -241,12 +242,12 @@ func queryUsernames(db *gorm.DB) (string, error) {
 
 	res := db.Select("username").Find(&dbusers)
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		return "", res.Error
 	}
 
 	if len(dbusers) == 0 {
-		return "", gc.ErrorEmpty
+		return "", spec.ErrorEmpty
 	}
 
 	for _, v := range dbusers {
@@ -274,7 +275,7 @@ func insertUser(db *gorm.DB, uname username, pubkey []byte) error {
 	})
 
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		return res.Error
 	}
 
@@ -304,7 +305,7 @@ func cacheMessage(db *gorm.DB, dst username, msg Message) error {
 	})
 
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		return res.Error
 	}
 
@@ -327,7 +328,7 @@ func removeKey(db *gorm.DB, uname username) error {
 
 	res := db.Save(&user)
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		return res.Error
 	}
 
@@ -345,7 +346,7 @@ func changePermissions(db *gorm.DB, uname username, perm Permission) error {
 
 	res := db.Save(&user)
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		return res.Error
 	}
 
@@ -363,7 +364,7 @@ func removeUser(db *gorm.DB, uname username) error {
 
 	res := db.Delete(&user)
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		// Check if the error is the foreign key constraint
 		if errors.Is(res.Error, gorm.ErrForeignKeyViolated) {
 			return ErrorDBConstraint
@@ -391,7 +392,7 @@ func removeMessages(db *gorm.DB, uname username, stamp time.Time) error {
 	)
 
 	if res.Error != nil {
-		gclog.DBError(res.Error)
+		log.DBError(res.Error)
 		return res.Error
 	}
 
