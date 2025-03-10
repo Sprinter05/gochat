@@ -19,6 +19,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+/* INIT */
+
 // Sets up logging
 // Reads environment file from first cli argument
 // init() always runs when the program starts
@@ -52,6 +54,8 @@ func init() {
 	}
 	fmt.Printf("-> Logging with log level %s\n", lv)
 }
+
+/* SETUP FUNCTIONS */
 
 // Creates a log file and returns both file and log
 func logFile() *os.File {
@@ -146,23 +150,22 @@ func setupTLSConn() net.Listener {
 	return l
 }
 
+/* MAIN FUNCTIONS */
+
 // Runs a socket to accept connections
 func run(l net.Listener, hub *hubs.Hub, count *model.Counter, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
-		// If we exceed the client count we just wait until a spot is free
-		if count.Get() == spec.MaxClients {
-			// TODO: make the thread sleep
-			continue
-		}
 
+		// This will block until a spot is free
 		c, err := l.Accept()
 		if err != nil {
 			log.Error("connection accept", err)
 			// Keep accepting clients
 			continue
 		}
+		// ? Connected socket should be notified
 		count.Inc()
 
 		// Check if its tls
@@ -219,7 +222,7 @@ func main() {
 
 	// We wait for both sockets to end
 	var wg sync.WaitGroup
-	count := new(model.Counter)
+	count := model.NewCounter(spec.MaxClients)
 	wg.Add(2)
 
 	// Endless loop to listen for connections

@@ -109,31 +109,46 @@ func (t *Table[I, T]) GetAll() []T {
 
 // Global counter for the amount of clients
 type Counter struct {
-	mut sync.Mutex
-	val int
+	cond sync.Cond
+	val  int
+	max  int
 }
 
 /* FUNCTIONS */
 
+// Creates a new counter with the max value it can have
+func NewCounter(max int) *Counter {
+	return &Counter{
+		max: max,
+	}
+}
+
 // Returns the value of the counter
 func (c *Counter) Get() int {
-	c.mut.Lock()
-	defer c.mut.Unlock()
+	c.cond.L.Lock()
+	defer c.cond.L.Unlock()
 	return c.val
 }
 
 // Increases the value of the counter
 func (c *Counter) Inc() {
-	c.mut.Lock()
-	defer c.mut.Unlock()
+	c.cond.L.Lock()
+	defer c.cond.L.Unlock()
+	for c.val == c.max {
+		c.cond.Wait()
+	}
 	c.val++
 }
 
 // Decreases the value of the counter
+// Blocks until a thread increases again
 func (c *Counter) Dec() {
-	c.mut.Lock()
-	defer c.mut.Unlock()
+	c.cond.L.Lock()
+	defer c.cond.L.Unlock()
 	if c.val > 0 {
 		c.val--
 	}
+
+	// Notify all waiting goroutines
+	c.cond.Broadcast()
 }

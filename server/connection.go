@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -50,63 +49,59 @@ func processPayload(cl *spec.Connection, cmd *spec.Command) error {
 	return nil
 }
 
-// Listens from a client and communicates with the hub through the channels
+// Returns a newly created command
+func wrapCommand(cl *spec.Connection) *spec.Command {
+	cmd := new(spec.Command)
+	ip := cl.Conn.RemoteAddr().String()
+
+	// Error logged by the function
+	if processHeader(cl, cmd) != nil {
+		return nil
+	}
+
+	// Check that all header fields are correct
+	if err := cmd.HD.ServerCheck(); err != nil {
+		log.Read("header checking", ip, err)
+		return nil
+	}
+
+	// If there are no arguments we do not process the payload
+	if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
+		// Error logged by the function
+		if processPayload(cl, cmd) != nil {
+			return nil
+		}
+	}
+
+	return cmd
+}
+
+// Listens for packets from a client connection
 func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
 	// Cleanup connection on exit
 	defer func() {
-		// Close the requests channel
-		close(req)
-		// Request cleaning the tables
 		hub.Cleanup(cl.Conn)
-		// Close connection socket
 		cl.Conn.Close()
-		// Decrease amount of connected clients
+		close(req)
 		c.Dec()
-		// Log connection close
 		log.Connection(
 			cl.Conn.RemoteAddr().String(),
 			true,
 		)
 	}()
 
-	// Check if the TLS is valid
-	_, ok := cl.Conn.(*tls.Conn)
-	if !ok {
-		log.IP("failed tls verification", cl.Conn.RemoteAddr())
-	}
-
-	// Timeout
+	// Set timeout and log connection
 	deadline := time.Now().Add(time.Duration(spec.ReadTimeout) * time.Minute)
-
-	// Log connection
 	log.Connection(
 		cl.Conn.RemoteAddr().String(),
 		false,
 	)
 
 	for {
-		ip := cl.Conn.RemoteAddr().String()
-		cmd := new(spec.Command)
-
 		// Works as an idle timeout calling it each time
 		cl.Conn.SetReadDeadline(deadline)
 
-		if processHeader(cl, cmd) != nil {
-			return
-		}
-
-		// Check that all header fields are correct
-		if err := cmd.HD.ServerCheck(); err != nil {
-			log.Read("header checking", ip, err)
-		}
-
-		// If there are no arguments we do not process the payload
-		if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
-			if processPayload(cl, cmd) != nil {
-				return
-			}
-		}
-
+		cmd := wrapCommand(cl)
 		// Keep conection alive packet
 		if cmd.HD.Op == spec.KEEP {
 			continue
