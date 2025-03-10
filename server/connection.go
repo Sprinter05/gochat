@@ -9,7 +9,7 @@ import (
 	"github.com/Sprinter05/gochat/server/model"
 )
 
-// FUNCTIONS
+/* COMMAND FUNCTIONS */
 
 func processHeader(cl *spec.Connection, cmd *spec.Command) error {
 	// Reads using the reader assigned to the connection
@@ -75,6 +75,8 @@ func wrapCommand(cl *spec.Connection) *spec.Command {
 
 	return cmd
 }
+
+/* THREADED FUNCTIONS */
 
 // Listens for packets from a client connection
 func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {

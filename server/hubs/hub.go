@@ -248,13 +248,10 @@ func Create(database *gorm.DB) *Hub {
 	hub := &Hub{
 		clean:  make(chan net.Conn, spec.MaxClients/2),
 		shtdwn: make(chan bool),
-		users:  model.Table[net.Conn, *User]{},
-		verifs: model.Table[model.Username, *Verif]{},
+		users:  model.NewTable[net.Conn, *User](spec.MaxClients),
+		verifs: model.NewTable[model.Username, *Verif](spec.MaxClients),
 		db:     database,
 	}
-
-	hub.users.Init(spec.MaxClients)
-	hub.verifs.Init(spec.MaxClients)
 
 	return hub
 }

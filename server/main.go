@@ -157,7 +157,6 @@ func run(l net.Listener, hub *hubs.Hub, count *model.Counter, wg *sync.WaitGroup
 	defer wg.Done()
 
 	for {
-
 		// This will block until a spot is free
 		c, err := l.Accept()
 		if err != nil {
