@@ -85,7 +85,7 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 
 			// Allocate new array
 			// Do not append CRLF
-			cmd.Args[i] = make([]byte, siz)
+			cmd.Args[i] = make([]byte, siz-2)
 			copy(cmd.Args[i], b[:siz-2])
 
 			// Empty buffer and go to next argument
