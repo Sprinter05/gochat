@@ -111,6 +111,11 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 		return "", spec.ErrorEmpty
 	}
 
+	// Preallocate strings builder
+	for _, v := range dbusers {
+		users.Grow(len(v.Username))
+	}
+
 	for _, v := range dbusers {
 		// Append to buffer
 		users.WriteString(string(v.Username) + "\n")

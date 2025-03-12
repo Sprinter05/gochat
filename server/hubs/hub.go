@@ -209,6 +209,12 @@ func (hub *Hub) Userlist(online bool) string {
 
 	if online {
 		list := hub.users.GetAll()
+
+		// Preallocate strings builder
+		for _, v := range list {
+			str.Grow(len(v.name))
+		}
+
 		for _, v := range list {
 			str.WriteString(string(v.name) + "\n")
 		}
