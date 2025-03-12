@@ -5,17 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Server",
+            "name": "Server Debug",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "args": [
-                "../.env"
+                ".env"
             ],
             "program": "${workspaceFolder}/server",
+            "cwd": "${workspaceFolder}",
+            "console": "externalTerminal"
         },
         {
-            "name": "Server Test",
+            "name": "Injection Test (Server)",
             "type": "go",
             "request": "launch",
             "mode": "test",

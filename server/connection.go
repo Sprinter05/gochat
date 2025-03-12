@@ -1,141 +1,145 @@
 package main
 
 import (
-	"net"
 	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/hubs"
+	"github.com/Sprinter05/gochat/server/model"
 )
 
-// FUNCTIONS
+/* COMMAND FUNCTIONS */
 
-func processHeader(cl *gc.Connection, cmd *gc.Command) error {
+func withHeader(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
 	// Reads using the reader assigned to the connection
-	if err := cl.ListenHeader(cmd); err != nil {
+	if err := cmd.ListenHeader(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		gclog.Read("header", ip, err)
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
-		return err
+		log.Read("header", ip, err)
+
+		// Send error packet
+		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
+		if e != nil {
+			log.Packet(spec.ERR, e)
+		} else {
+			cl.Conn.Write(pak)
+		}
+
+		return cmd, err
 	}
-	return nil
+	return cmd, nil
 }
 
-func processPayload(cl *gc.Connection, cmd *gc.Command) error {
+func withPayload(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
 	// Reads using the reader assigned to the connection
-	if err := cl.ListenPayload(cmd); err != nil {
+	if err := cmd.ListenPayload(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
-		gclog.Read("payload", ip, err)
-		sendErrorPacket(cmd.HD.ID, err, cl.Conn)
-		return err
+		log.Read("payload", ip, err)
+
+		// Send error packet
+		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
+		if e != nil {
+			log.Packet(spec.ERR, e)
+		} else {
+			cl.Conn.Write(pak)
+		}
+
+		return cmd, err
 	}
-	return nil
+	return cmd, nil
 }
 
-// Cleans up the connection upon exit
-func cleanup(cl net.Conn, ch chan<- Request, hub chan<- net.Conn) {
-	// Close the requests channel
-	close(ch)
+// Returns a newly created command
+func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
+	ip := cl.Conn.RemoteAddr().String()
 
-	// Request cleaning the tables
-	hub <- cl
+	// Error logged by the function
+	if cmd, err = withHeader(cl, cmd); err != nil {
+		return cmd, err
+	}
 
-	// Close connection
-	cl.Close()
+	// Check that all header fields are correct
+	if err := cmd.HD.ServerCheck(); err != nil {
+		log.Read("header checking", ip, err)
+		return cmd, err
+	}
 
-	// Log connection close
-	gclog.Connection(
-		cl.RemoteAddr().String(),
-		true,
-	)
+	// If there are no arguments we do not process the payload
+	if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
+		// Error logged by the function
+		if cmd, err = withPayload(cl, cmd); err != nil {
+			return cmd, err
+		}
+	}
+
+	return cmd, nil
 }
 
-// Listens from a client and communicates with the hub through the channels
-func ListenConnection(cl *gc.Connection, req chan<- Request, hubcl chan<- net.Conn) {
-	// Cleanup connection on error
-	defer cleanup(cl.Conn, req, hubcl)
+/* THREADED FUNCTIONS */
 
-	// Timeout
-	deadline := time.Now().Add(time.Duration(gc.ReadTimeout) * time.Minute)
+// Listens for packets from a client connection
+func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
+	// Cleanup connection on exit
+	defer func() {
+		hub.Cleanup(cl.Conn)
+		cl.Conn.Close()
+		close(req)
+		c.Dec()
+		log.Connection(
+			cl.Conn.RemoteAddr().String(),
+			true,
+		)
+	}()
 
-	// Log connection
-	gclog.Connection(
+	// Set timeout and log connection
+	ip := cl.Conn.RemoteAddr().String()
+	deadline := time.Now().Add(time.Duration(spec.ReadTimeout) * time.Minute)
+	log.Connection(
 		cl.Conn.RemoteAddr().String(),
 		false,
 	)
 
 	for {
-		ip := cl.Conn.RemoteAddr().String()
-		cmd := new(gc.Command)
-
 		// Works as an idle timeout calling it each time
-		cl.Conn.SetReadDeadline(deadline)
+		err := cl.Conn.SetReadDeadline(deadline)
+		if err != nil {
+			log.Read("deadline setup", ip, err)
+		}
 
-		if processHeader(cl, cmd) != nil {
+		cmd, err := wrapCommand(cl)
+		if err != nil {
+			// Malformed, cleanup connection
 			return
 		}
 
-		// Check that all header fields are correct
-		if err := cmd.HD.ServerCheck(); err != nil {
-			gclog.Read("header checking", ip, err)
-		}
-
-		// If there are no arguments we do not process the payload
-		if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
-			if processPayload(cl, cmd) != nil {
-				return
-			}
-		}
-
 		// Keep conection alive packet
-		if cmd.HD.Op == gc.KEEP {
+		if cmd.HD.Op == spec.KEEP {
 			continue
 		}
 
-		req <- Request{
-			cl:  cl.Conn,
-			cmd: *cmd,
+		req <- hubs.Request{
+			Conn:    cl.Conn,
+			TLS:     cl.TLS,
+			Command: cmd,
 		}
 	}
 
-}
-
-// Catches up messages for the logged connection
-func catchUp(cl net.Conn, msgs *[]Message, id gc.ID) error {
-	for _, v := range *msgs {
-		// Turn timestamp to byte array and create packet
-		stp := gc.UnixStampToBytes(v.stamp)
-		arg := []gc.Arg{
-			gc.Arg(v.sender),
-			gc.Arg(stp),
-			gc.Arg(v.message),
-		}
-
-		// The packet ID is not used for RECIV
-		pak, err := gc.NewPacket(gc.RECIV, id, gc.EmptyInfo, arg)
-		if err != nil {
-			gclog.Packet(gc.RECIV, err)
-			return err
-		}
-		cl.Write(pak)
-	}
-
-	return nil
 }
 
 // Wraps concurrency with each client's command
-func runTask(hub *Hub, req <-chan Request) {
+func RunTask(hub *hubs.Hub, req <-chan hubs.Request) {
 	for r := range req {
 		// Show request
-		ip := r.cl.RemoteAddr().String()
-		gclog.Request(ip, r.cmd)
+		ip := r.Conn.RemoteAddr().String()
+		log.Request(ip, r.Command)
 
 		// Check if the user can be served
-		u, err := hub.checkSession(r)
+		u, err := hub.Session(r)
 		if err != nil {
-			gclog.Error("session checking for "+ip, err)
+			log.Error("session checking for "+ip, err)
 			continue // Next request
 		}
 
-		procRequest(hub, r, u)
+		hubs.Process(hub, r, u)
 	}
 }

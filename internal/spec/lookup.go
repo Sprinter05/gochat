@@ -1,4 +1,4 @@
-package gcspec
+package spec
 
 /* PREDEFINED VALUES */
 
@@ -16,8 +16,9 @@ const ProtocolVersion uint8 = 1
 const RSABitSize int = 4096
 const UsernameSize int = 32
 
-const LoginTimeout int = 2 // Minutes
-const ReadTimeout int = 10 // Minutes
+const LoginTimeout int = 2     // Minutes
+const ReadTimeout int = 10     // Minutes
+const TokenExpiration int = 30 // Minutes
 const MaxClients int = 20
 
 /* ACTION CODES */
@@ -142,7 +143,7 @@ func CodeToString(a Action) string {
 	return v.str
 }
 
-// Amount of arguments to send to server
+// Minimum amount of arguments to send to server
 func ServerArgs(a Action) int {
 	v, ok := lookupByOperation[a]
 	if !ok {
@@ -151,7 +152,7 @@ func ServerArgs(a Action) int {
 	return int(v.sargs)
 }
 
-// Amount of arguments to send to client
+// Minimum amount of arguments to send to client
 func ClientArgs(a Action) int {
 	v, ok := lookupByOperation[a]
 	if !ok {
@@ -190,6 +191,7 @@ var (
 	ErrorServer     error = GCError{0x0E, "server operation failed"}
 	ErrorIdle       error = GCError{0x0F, "user has been idle for too long"}
 	ErrorExists     error = GCError{0x10, "content already exists"}
+	ErrorUnescure   error = GCError{0x10, "connection is not secure"}
 )
 
 var codeToError map[byte]error = map[byte]error{

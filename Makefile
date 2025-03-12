@@ -3,7 +3,9 @@ CC = go
 BUILD = build
 
 .PHONY: clean
-default: $(BUILD)/gcserver
+all: $(BUILD)/gcserver $(BUILD)/gcclient
+server: $(BUILD)/gcserver
+client $(BUILD)/gcclient
 
 # Create build folder if it doesn't exist
 $(BUILD):
@@ -16,6 +18,9 @@ ifeq ($(OS),Windows_NT)
 else 
 	$(CC) build -o $(BUILD)/gcserver ./server
 endif
+
+$(BUILD)/gcclient: $(BUILD)
+	echo TBD
 
 # Clean build folder
 clean: $(BUILD)

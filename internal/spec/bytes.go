@@ -1,4 +1,4 @@
-package gcspec
+package spec
 
 import (
 	"bytes"
@@ -25,16 +25,13 @@ type Header struct {
 	ID   ID
 }
 
-// Used to specify its coming from a command
-type Arg []byte
-
 // Specifies the ID of the packet that has been sent
 type ID uint16
 
 // Specifies a command
 type Command struct {
 	HD   Header
-	Args []Arg
+	Args [][]byte
 }
 
 /* COMMAND FUNCTIONS */
@@ -45,6 +42,12 @@ func (c Command) Print() {
 	fmt.Printf("* Version: %d\n", c.HD.Ver)
 	fmt.Printf("* Action: %d (%s)\n", c.HD.Op, CodeToString(c.HD.Op))
 	fmt.Printf("* Info: %d\n", c.HD.Info)
+	if c.HD.Op == ERR {
+		fmt.Printf("* Error: %s\n", ErrorCodeToError(c.HD.Info))
+	}
+	if c.HD.Op == ADMIN {
+		fmt.Printf("* Admin: %s\n", AdminString(c.HD.Info))
+	}
 	fmt.Printf("* Args: %d\n", c.HD.Args)
 	fmt.Printf("* Length: %d\n", c.HD.Len)
 	fmt.Printf("* ID: %d\n", c.HD.ID)
@@ -102,8 +105,7 @@ func (hd Header) ServerCheck() error {
 		return ErrorHeader
 	}
 
-	// Admin operations can have variable arguments
-	if hd.Op != ADMIN && (int(hd.Args) != ServerArgs(hd.Op)) {
+	if int(hd.Args) < ServerArgs(hd.Op) {
 		return ErrorHeader
 	}
 
@@ -121,13 +123,13 @@ func (hd Header) ClientCheck() error {
 		return ErrorHeader
 	}
 
-	// Only RECIV and SHTDWN can have a null ID
-	check := hd.Op == SHTDWN || hd.Op == RECIV
+	// Only RECIV, ERR and SHTDWN can have a null ID
+	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK
 	if !check && hd.ID == NullID {
 		return ErrorHeader
 	}
 
-	if int(hd.Args) != ClientArgs(hd.Op) {
+	if int(hd.Args) < ClientArgs(hd.Op) {
 		return ErrorHeader
 	}
 
@@ -149,42 +151,34 @@ func NewHeader(hdr []byte) Header {
 
 /* UNIX STAMP FUNCTIONS */
 
-// Returns a byte array with the current unix timestamp
-func UnixStampNow() []byte {
-	t := time.Now().Unix()
-	p := make([]byte, binary.Size(t))
-	p = binary.AppendVarint(p, t)
-	return p
-}
-
 // Uses int64 format for conversion
-func UnixStampToBytes(s int64) []byte {
-	p := make([]byte, binary.Size(s))
-	p = binary.AppendVarint(p, s)
+func UnixStampToBytes(s time.Time) []byte {
+	unix := s.Unix()
+	p := make([]byte, binary.Size(unix))
+	p = binary.AppendVarint(p, unix)
 	return p
 }
 
 // Uses 4 bytes that it will turn to a unix timestamp
-func NewUnixStamp(b []byte) int64 {
+func BytesToUnixStamp(b []byte) (t time.Time, e error) {
 	if len(b) < 4 {
-		return -1
+		return t, ErrorArguments
 	}
 
 	buf := bytes.NewBuffer(b[:4])
 	stamp, err := binary.ReadVarint(buf)
 	if err != nil {
-		return -1
+		return t, ErrorArguments
 	}
 
-	return stamp
+	return time.Unix(stamp, 0), nil
 }
 
 /* PACKET FUNCTIONS */
 
 // Creates a byte slice corresponding to the header fields
-// This function only checks size bounds not argument integrityy
-// like containg CRLF at the end of each argument
-func NewPacket(op Action, id ID, inf byte, arg []Arg) ([]byte, error) {
+// Also appends arguments with CRLF
+func NewPacket(op Action, id ID, inf byte, arg ...[]byte) ([]byte, error) {
 	// Verify number of arguments
 	l := len(arg)
 	if l > MaxArgs {

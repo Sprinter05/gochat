@@ -1,4 +1,4 @@
-package gcspec
+package spec
 
 import (
 	"bufio"
@@ -13,12 +13,13 @@ import (
 type Connection struct {
 	Conn net.Conn
 	RD   *bufio.Reader
+	TLS  bool
 }
 
 /* CONNECTION FUNCTIONS */
 
 // Reads the header of a connection and verifies it is correct
-func (cl *Connection) ListenHeader(cmd *Command) error {
+func (cmd *Command) ListenHeader(cl Connection) error {
 	// Read from the wire
 	b, err := cl.RD.ReadBytes('\n')
 	if err != nil {
@@ -41,13 +42,13 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 }
 
 // Reads a payload to put it into a command
-func (cl *Connection) ListenPayload(cmd *Command) error {
+func (cmd *Command) ListenPayload(cl Connection) error {
 	// Buffer and total length
 	var buf bytes.Buffer
 	var tot int
 
 	// Allocate the arguments
-	cmd.Args = make([]Arg, cmd.HD.Args)
+	cmd.Args = make([][]byte, cmd.HD.Args)
 
 	// Read until all arguments have been processed
 	for i := 0; i < int(cmd.HD.Args); {
@@ -58,8 +59,10 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		}
 
 		// Write into the buffer and get length
+		grow := len(b)
+		buf.Grow(grow)
 		l, err := buf.Write(b)
-		if err != nil {
+		if err != nil || grow != l {
 			// This implies the payload is too big
 			return err
 		}
@@ -77,18 +80,18 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 
 		// Check if it ends in CRLF
 		// Also checks if it has at least 2 bytes
-		if len(b) >= 2 && string(b[l-2]) == "\r" {
-			b := buf.Bytes()
-			siz := buf.Len()
+		if l >= 2 && b[l-2] == '\r' {
+			total := buf.Bytes()
+			size := buf.Len()
 
 			// Allocate new array
-			mem := make([]byte, siz)
-			copy(mem, b)
-
 			// Do not append CRLF
-			cmd.Args[i] = mem[:siz-2]
-			buf.Reset() // Empty the buffer
-			i++         // Next argument
+			cmd.Args[i] = make([]byte, size-2)
+			copy(cmd.Args[i], total[:size-2])
+
+			// Empty buffer and go to next argument
+			buf.Reset()
+			i++
 		}
 	}
 

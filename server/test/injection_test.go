@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"net"
 	"testing"
+	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 func setup(t *testing.T) net.Conn {
@@ -15,13 +17,26 @@ func setup(t *testing.T) net.Conn {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return l
 }
 
-func readFromConn(c *gc.Connection) gc.Command {
-	cmd := new(gc.Command)
-	c.ListenHeader(cmd)
-	c.ListenPayload(cmd)
+func setupTLS(t *testing.T) *tls.Conn {
+	config := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	l, err := tls.Dial("tcp4", "127.0.0.1:8037", config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return l
+}
+
+func readFromConn(c spec.Connection) spec.Command {
+	cmd := new(spec.Command)
+	cmd.ListenHeader(c)
+	cmd.ListenPayload(c)
 	return *cmd
 }
 
@@ -41,24 +56,27 @@ func readFromConn(c *gc.Connection) gc.Command {
 
 func TestREG(t *testing.T) {
 	l := setup(t)
+	_ = setupTLS(t)
 	defer l.Close()
 
 	//pub := readKeyFile("public.pem")
 	//priv := readKeyFile("private.pem")
-	//dekey, _ := gc.PEMToPrivkey(priv)
+	//dekey, _ := spec.PEMToPrivkey(priv)
 
-	conn := &gc.Connection{
+	conn := spec.Connection{
 		Conn: l,
 		RD:   bufio.NewReader(l),
 	}
 
+	// Initial handshake
+	readFromConn(conn) // ignored OK
+
 	// Create rsa key
-	v, _ := rsa.GenerateKey(rand.Reader, gc.RSABitSize)
-	b, _ := gc.PubkeytoPEM(&v.PublicKey)
+	v, _ := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
+	b, _ := spec.PubkeytoPEM(&v.PublicKey)
 
 	// REG Packet
-	p1 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(b)}
-	test1, err := gc.NewPacket(gc.REG, gc.ID(976), gc.EmptyInfo, p1)
+	test1, err := spec.NewPacket(spec.REG, spec.ID(976), spec.EmptyInfo, []byte("pepe"), b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,8 +86,7 @@ func TestREG(t *testing.T) {
 	r1.Print()
 
 	// Login
-	p2 := []gc.Arg{gc.Arg("Sprinter05")}
-	test2, err := gc.NewPacket(gc.LOGIN, gc.ID(894), gc.EmptyInfo, p2)
+	test2, err := spec.NewPacket(spec.LOGIN, spec.ID(894), spec.EmptyInfo, []byte("pepe"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,11 +95,13 @@ func TestREG(t *testing.T) {
 	vpak := readFromConn(conn) // VERIF packet
 	vpak.Print()
 
-	dec, _ := gc.DecryptText(vpak.Args[0], v)
+	dec, e := spec.DecryptText(vpak.Args[0], v)
+	if e != nil {
+		t.Fatal(e)
+	}
 
 	// Verify
-	p3 := []gc.Arg{gc.Arg("Sprinter05"), gc.Arg(string(dec))}
-	test3, err := gc.NewPacket(gc.VERIF, gc.ID(113), gc.EmptyInfo, p3)
+	test3, err := spec.NewPacket(spec.VERIF, spec.ID(113), spec.EmptyInfo, []byte("pepe"), dec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,21 +111,13 @@ func TestREG(t *testing.T) {
 	r2.Print()
 
 	// Msg
-	p4 := []gc.Arg{
-		gc.Arg("Sprinter05"),
-		gc.Arg(gc.UnixStampNow()),
-		gc.Arg("akjdaksjdsalkdjaslkdjsalkdjsalkdsj"),
-	}
-	test4, err := gc.NewPacket(gc.MSG, gc.ID(69), 0x01, p4)
+	test4, err := spec.NewPacket(spec.MSG, spec.ID(69), 0x01, []byte("Sprinter05"), spec.UnixStampToBytes(time.Now()), []byte("hola q tal"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	l.Write(test4)
 
-	r3 := readFromConn(conn) // RECIV packet
+	r3 := readFromConn(conn) // OK packet
 	r3.Print()
-
-	r4 := readFromConn(conn) // OK packet
-	r4.Print()
 
 }

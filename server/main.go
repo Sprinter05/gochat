@@ -2,34 +2,41 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"crypto/tls"
 	"fmt"
-	"log"
+	stdlog "log"
 	"net"
 	"os"
+	"os/signal"
+	"sync"
+	"time"
 
-	gc "github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/spec"
+	"github.com/Sprinter05/gochat/server/db"
+	"github.com/Sprinter05/gochat/server/hubs"
+	"github.com/Sprinter05/gochat/server/model"
+
 	"github.com/joho/godotenv"
 )
 
-// Global log
-var gclog Logging
+/* INIT */
 
 // Sets up logging
 // Reads environment file from first cli argument
 // init() always runs when the program starts
 func init() {
 	// If we default to stderr it won't print unless debugged
-	log.SetOutput(os.Stdout)
-
-	if len(os.Args) < 2 {
-		// No environment file supplied
-		gclog.Fatal("loading env file", ErrorCLIArgs)
-	}
+	stdlog.SetOutput(os.Stdout)
 
 	// Argument 0 is the pathname to the executable
-	err := godotenv.Load(os.Args[1])
-	if err != nil {
-		gclog.Fatal("env file reading", err)
+	if len(os.Args) > 1 {
+		// Read argument 1 as .env if it exists
+		err := godotenv.Load(os.Args[1])
+		if err != nil {
+			log.Fatal("env file reading", err)
+		}
 	}
 
 	// Setup logging levels
@@ -38,49 +45,59 @@ func init() {
 	lv := os.Getenv("LOG_LEVL")
 	switch lv {
 	case "ALL":
-		gclog = ALL
+		log.Level = log.ALL
 	case "INFO":
-		gclog = INFO
+		log.Level = log.INFO
 	case "ERROR":
-		gclog = ERROR
+		log.Level = log.ERROR
 	default:
-		gclog = FATAL
+		log.Level = log.FATAL
 		lv = "FATAL"
 	}
-	fmt.Printf("-> Logging with log level %s...\n", lv)
+	fmt.Printf("-> Logging with log level %s\n", lv)
 }
 
-// Creates a hub with all channels, caches and database
-// Indicates the hub to start running
-func setupHub() *Hub {
-	// Allocate all data structures
-	hub := Hub{
-		clean:  make(chan net.Conn, gc.MaxClients/2),
-		shtdwn: make(chan bool),
-		users: table[*User]{
-			tab: make(map[net.Conn]*User),
-		},
-		verifs: table[*Verif]{
-			tab: make(map[net.Conn]*Verif),
-		},
-		db: connectDB(),
+/* SETUP FUNCTIONS */
+
+// Creates a log file and returns both file and log
+func logFile() *os.File {
+	f, ok := os.LookupEnv("DB_LOGF")
+	if !ok {
+		f = "./database.log"
 	}
 
-	go hub.Start()
+	// Create the file used for logging
+	file, err := os.OpenFile(
+		f,
+		os.O_RDWR|os.O_CREATE|os.O_APPEND,
+		0666,
+	)
+	if err != nil {
+		log.Fatal("db log file", err)
+	}
 
-	return &hub
+	// Print separator inside log file
+	stat, _ := file.Stat()
+	if stat.Size() != 0 {
+		// Not the first line of file
+		file.WriteString("\n")
+	}
+	file.WriteString("------ " + time.Now().String() + " ------\n\n")
+
+	// Set the new db logger
+	return file
 }
 
 // Creates a listener for the socket
 func setupConn() net.Listener {
 	addr, ok := os.LookupEnv("SRV_ADDR")
 	if !ok {
-		gclog.Environ("SRV_ADDR")
+		log.Environ("SRV_ADDR")
 	}
 
 	port, ok := os.LookupEnv("SRV_PORT")
 	if !ok {
-		gclog.Environ("SRV_PORT")
+		log.Environ("SRV_PORT")
 	}
 
 	socket := fmt.Sprintf(
@@ -91,47 +108,167 @@ func setupConn() net.Listener {
 
 	l, err := net.Listen("tcp4", socket)
 	if err != nil {
-		gclog.Fatal("socket setup", err)
+		log.Fatal("socket setup", err)
 	}
 
 	return l
 }
 
+// Create a TLS listener for the socket
+func setupTLSConn() net.Listener {
+	addr, ok := os.LookupEnv("SRV_ADDR")
+	if !ok {
+		log.Environ("SRV_ADDR")
+	}
+
+	port, ok := os.LookupEnv("TLS_PORT")
+	if !ok {
+		log.Environ("TLS_PORT")
+	}
+
+	socket := fmt.Sprintf(
+		"%s:%s",
+		addr,
+		port,
+	)
+
+	cert, err := tls.LoadX509KeyPair(
+		os.Getenv("TLS_CERT"),
+		os.Getenv("TLS_KEYF"),
+	)
+	if err != nil {
+		log.Fatal("tls loading", err)
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+	l, err := tls.Listen("tcp4", socket, config)
+	if err != nil {
+		log.Fatal("tls socket setup", err)
+	}
+
+	return l
+}
+
+/* MAIN FUNCTIONS */
+
+// TODO: Document everything (100go.co #15)
+// TODO: Pass linter and formatter
+//? TODO: Accept UTF-8 encoding
+//? https://github.com/uber-go/automaxprocs
+
+// Identifies a running socket
+type Server struct {
+	wg    sync.WaitGroup
+	count model.Counter
+	ctx   context.Context
+}
+
+// Runs a socket to accept connections
+func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
+	defer sock.wg.Done()
+
+	for {
+		// This will block until a spot is free
+		c, err := l.Accept()
+		if err != nil {
+			select {
+			case <-sock.ctx.Done():
+				// Server is shutting down
+				return
+			default:
+				log.Error("connection accept", err)
+				// Keep accepting clients
+				continue
+			}
+		}
+		sock.count.Inc()
+
+		// Notify the user they are connected
+		pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
+		if e != nil {
+			log.Packet(spec.OK, e)
+		} else {
+			c.Write(pak)
+		}
+
+		// Check if its tls
+		_, ok := c.(*tls.Conn)
+
+		cl := spec.Connection{
+			Conn: c,
+			RD:   bufio.NewReader(c),
+			TLS:  ok,
+		}
+
+		// Buffered channel for intercommunication
+		req := make(chan hubs.Request, hubs.MaxUserRequests)
+
+		// Listens to the client's packets
+		go ListenConnection(cl, &sock.count, req, hub)
+
+		// Runs the client's commands
+		go RunTask(hub, req)
+	}
+}
+
+// Waits on a CTRL-C signal by the OS
+func manual(close context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// Wait on ctrl c
+	<-c
+
+	log.Notice("manual shutdown signal sent! closing resources...")
+
+	// Send shutdown signal
+	close()
+}
+
 func main() {
-	l := setupConn()
-	hub := setupHub()
+	// Setup sockets
+	sock := setupConn()
+	tlssock := setupTLSConn()
+
+	// Set up database logging file
+	// Only if logging is INFO or more
+	var dblog *stdlog.Logger
+	if log.Level >= log.INFO {
+		f := logFile()
+		defer f.Close()
+		dblog = stdlog.New(f, "", stdlog.LstdFlags)
+	}
+
+	// Setup database
+	database := db.Connect(dblog)
+	sqldb, _ := database.DB()
+	defer sqldb.Close()
+
+	// Setup hub and wait until a shutdown signal is sent
+	ctx, cancel := context.WithCancel(context.Background())
+	hub := hubs.Create(database, ctx, cancel)
+	go hub.Wait(sock, tlssock)
+
+	// Just in case a CTRL-C signal happens
+	go manual(cancel)
 
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")
 
-	// Endless loop to listen for connections
-	var count int
-	for {
-		// If we exceed the client count we just wait until a spot is free
-		if count == gc.MaxClients {
-			continue
-		}
-
-		c, err := l.Accept()
-		if err != nil {
-			gclog.Error("connection accept", err)
-			// Keep accepting clients
-			continue
-		}
-		count++
-
-		cl := &gc.Connection{
-			Conn: c,
-			RD:   bufio.NewReader(c),
-		}
-
-		// Buffered channel for intercommunication
-		req := make(chan Request, MaxUserRequests)
-
-		// Listens to the client's packets
-		go ListenConnection(cl, req, hub.clean)
-
-		// Runs the client's commands
-		go runTask(hub, req)
+	// Used for managing all possible sockets
+	server := Server{
+		ctx:   ctx,
+		count: model.NewCounter(spec.MaxClients),
 	}
+
+	// Endless loop to listen for connections
+	server.wg.Add(2)
+	go server.Run(sock, hub)
+	go server.Run(tlssock, hub)
+
+	// Condition to end program
+	server.wg.Wait()
 }
