@@ -321,10 +321,15 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 
 	// Otherwise we just send it to the message cache
 	uname := string(cmd.Args[0])
+	stamp, e := spec.BytesToUnixStamp(cmd.Args[1])
+	if e != nil {
+		sendErrorPacket(cmd.HD.ID, e, u.conn)
+		return
+	}
 	err := db.CacheMessage(h.db, uname, model.Message{
 		Sender:  u.name,
 		Content: cmd.Args[2],
-		Stamp:   *spec.BytesToUnixStamp(cmd.Args[1]),
+		Stamp:   stamp,
 	})
 	if err != nil {
 		if err == model.ErrorDoesNotExist {

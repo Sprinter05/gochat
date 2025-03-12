@@ -203,12 +203,9 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 /* HUB QUERY FUNCTIONS */
 
 // Lists all users in the server
-func (hub *Hub) Userlist(online bool) string {
-	var str strings.Builder
-	var ret string
-	var err error
-
+func (hub *Hub) Userlist(online bool) (ret string) {
 	if online {
+		var str strings.Builder
 		list := hub.users.GetAll()
 
 		// Preallocate strings builder
@@ -226,10 +223,11 @@ func (hub *Hub) Userlist(online bool) string {
 		// Remove the last newline
 		ret = ret[:l-1]
 	} else {
-		ret, err = db.QueryUsernames(hub.db)
+		query, err := db.QueryUsernames(hub.db)
 		if err != nil {
 			log.DB("userlist", err)
 		}
+		ret = query
 	}
 
 	// Will return "" if nothing is found

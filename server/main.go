@@ -154,7 +154,6 @@ func setupTLSConn() net.Listener {
 
 // TODO: Document everything (100go.co #15)
 // TODO: Pass linter and formatter
-// TODO: Remove unnecessary type conversions
 // TODO: 100 Go Mistakes (#41 onwards)
 //? TODO: Accept UTF-8 encoding
 

@@ -72,14 +72,14 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 // Requires ADMIN or more
 // Uses 1 argument for the unix stamp
 func adminShutdown(h *Hub, u User, cmd spec.Command) {
-	stamp := spec.BytesToUnixStamp(cmd.Args[0])
-	if stamp == nil {
+	stamp, err := spec.BytesToUnixStamp(cmd.Args[0])
+	if err != nil {
 		// Invalid number given
-		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		sendErrorPacket(cmd.HD.ID, err, u.conn)
 		return
 	}
 
-	duration := time.Until(*stamp)
+	duration := time.Until(stamp)
 	if duration < 0 {
 		// Invalid duration
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
