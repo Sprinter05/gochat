@@ -1,6 +1,7 @@
 package hubs
 
 import (
+	"bytes"
 	"net"
 	"strings"
 	"time"
@@ -50,7 +51,7 @@ func (hub *Hub) userFromDB(uname string) (*User, error) {
 }
 
 // Checks if a reusable token is valid
-func (hub *Hub) checkToken(u User, text string) error {
+func (hub *Hub) checkToken(u User, text []byte) error {
 	if !u.secure {
 		// We do not remove the verif
 		// This allows trying again with a secure connection
@@ -72,7 +73,7 @@ func (hub *Hub) checkToken(u User, text string) error {
 		return spec.ErrorNotFound
 	}
 
-	if v.text != text {
+	if !bytes.Equal(v.text, text) {
 		return spec.ErrorHandshake
 	}
 

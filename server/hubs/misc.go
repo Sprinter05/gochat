@@ -48,7 +48,7 @@ type User struct {
 type Verif struct {
 	conn    net.Conn
 	name    string
-	text    string
+	text    []byte
 	pending bool
 	cancel  context.CancelFunc
 	expiry  time.Time

@@ -1,6 +1,7 @@
 package hubs
 
 import (
+	"bytes"
 	"context"
 	"time"
 
@@ -85,7 +86,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 func loginUser(h *Hub, u User, cmd spec.Command) {
 	// Check if it can be logged in through a reusable token
 	if int(cmd.HD.Args) > spec.ServerArgs(cmd.HD.Op) {
-		err := h.checkToken(u, string(cmd.Args[1]))
+		err := h.checkToken(u, cmd.Args[1])
 		if err != nil {
 			sendErrorPacket(cmd.HD.ID, err, u.conn)
 			return
@@ -122,7 +123,7 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 	ins := &Verif{
 		conn:    u.conn,
 		name:    u.name,
-		text:    string(ran),
+		text:    ran,
 		cancel:  cancl,
 		pending: true,
 	}
@@ -153,7 +154,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	if verif.text != string(cmd.Args[1]) || verif.conn != u.conn {
+	if !bytes.Equal(verif.text, cmd.Args[1]) || verif.conn != u.conn {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
 		h.Cleanup(u.conn)
