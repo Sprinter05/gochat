@@ -59,6 +59,7 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 		}
 
 		// Write into the buffer and get length
+		buf.Grow(len(b))
 		l, err := buf.Write(b)
 		if err != nil {
 			// This implies the payload is too big
@@ -83,13 +84,13 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 			siz := buf.Len()
 
 			// Allocate new array
-			mem := make([]byte, siz)
-			copy(mem, b)
-
 			// Do not append CRLF
-			cmd.Args[i] = mem[:siz-2]
-			buf.Reset() // Empty the buffer
-			i++         // Next argument
+			cmd.Args[i] = make([]byte, siz)
+			copy(cmd.Args[i], b[:siz-2])
+
+			// Empty buffer and go to next argument
+			buf.Reset()
+			i++
 		}
 	}
 
