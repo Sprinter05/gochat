@@ -119,8 +119,8 @@ type Counter struct {
 /* FUNCTIONS */
 
 // Creates a new counter with the max value it can have
-func NewCounter(max int) *Counter {
-	return &Counter{
+func NewCounter(max int) Counter {
+	return Counter{
 		max:  max,
 		cond: sync.NewCond(new(sync.Mutex)),
 	}

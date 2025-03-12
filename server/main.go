@@ -238,8 +238,8 @@ func main() {
 	wg.Add(2)
 
 	// Endless loop to listen for connections
-	go run(sock, hub, count, &wg)
-	go run(tlssock, hub, count, &wg)
+	go run(sock, hub, &count, &wg)
+	go run(tlssock, hub, &count, &wg)
 
 	// Condition to end program
 	wg.Wait()

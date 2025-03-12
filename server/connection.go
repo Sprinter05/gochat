@@ -11,7 +11,7 @@ import (
 
 /* COMMAND FUNCTIONS */
 
-func processHeader(cl spec.Connection, cmd *spec.Command) error {
+func withHeader(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
 	// Reads using the reader assigned to the connection
 	if err := cmd.ListenHeader(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
@@ -25,12 +25,12 @@ func processHeader(cl spec.Connection, cmd *spec.Command) error {
 			cl.Conn.Write(pak)
 		}
 
-		return err
+		return cmd, err
 	}
-	return nil
+	return cmd, nil
 }
 
-func processPayload(cl spec.Connection, cmd *spec.Command) error {
+func withPayload(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
 	// Reads using the reader assigned to the connection
 	if err := cmd.ListenPayload(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
@@ -44,36 +44,37 @@ func processPayload(cl spec.Connection, cmd *spec.Command) error {
 			cl.Conn.Write(pak)
 		}
 
-		return err
+		return cmd, err
 	}
-	return nil
+	return cmd, nil
 }
 
 // Returns a newly created command
-func wrapCommand(cl spec.Connection) *spec.Command {
-	cmd := new(spec.Command)
+func wrapCommand(cl spec.Connection) (spec.Command, error) {
+	var cmd spec.Command
+	var err error
 	ip := cl.Conn.RemoteAddr().String()
 
 	// Error logged by the function
-	if processHeader(cl, cmd) != nil {
-		return nil
+	if cmd, err = withHeader(cl, cmd); err != nil {
+		return cmd, err
 	}
 
 	// Check that all header fields are correct
 	if err := cmd.HD.ServerCheck(); err != nil {
 		log.Read("header checking", ip, err)
-		return nil
+		return cmd, err
 	}
 
 	// If there are no arguments we do not process the payload
 	if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
 		// Error logged by the function
-		if processPayload(cl, cmd) != nil {
-			return nil
+		if cmd, err = withPayload(cl, cmd); err != nil {
+			return cmd, err
 		}
 	}
 
-	return cmd
+	return cmd, nil
 }
 
 /* THREADED FUNCTIONS */
@@ -103,8 +104,8 @@ func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Requ
 		// Works as an idle timeout calling it each time
 		cl.Conn.SetReadDeadline(deadline)
 
-		cmd := wrapCommand(cl)
-		if cmd == nil {
+		cmd, err := wrapCommand(cl)
+		if err != nil {
 			// Malformed, cleanup connection
 			return
 		}
@@ -117,7 +118,7 @@ func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Requ
 		req <- hubs.Request{
 			Conn:    cl.Conn,
 			TLS:     cl.TLS,
-			Command: *cmd,
+			Command: cmd,
 		}
 	}
 
