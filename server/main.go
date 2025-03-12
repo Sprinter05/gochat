@@ -221,6 +221,8 @@ func manual(close context.CancelFunc) {
 	// Wait on ctrl c
 	<-c
 
+	log.Notice("manual shutdown signal sent! closing resources...")
+
 	// Send shutdown signal
 	close()
 }
@@ -247,7 +249,7 @@ func main() {
 	// Setup hub and wait until a shutdown signal is sent
 	ctx, cancel := context.WithCancel(context.Background())
 	hub := hubs.Create(database, ctx, cancel)
-	go hub.Wait()
+	go hub.Wait(sock, tlssock)
 
 	// Just in case a CTRL-C signal happens
 	go manual(cancel)

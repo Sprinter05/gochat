@@ -276,7 +276,10 @@ func (hub *Hub) Wait(socks ...net.Listener) {
 	}
 
 	// Wait a bit for everything to close
-	time.Sleep(10 * time.Second)
+	time.Sleep(time.Second)
+
+	// Perform a server shutdown
+	log.Notice("inminent server shutdown")
 
 	// Close sockets
 	hub.close()
@@ -284,7 +287,4 @@ func (hub *Hub) Wait(socks ...net.Listener) {
 		// This will stop the blocking and make them check the context
 		v.Close()
 	}
-
-	// Perform a server shutdown
-	log.Notice("inminent server shutdown")
 }

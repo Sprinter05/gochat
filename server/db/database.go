@@ -82,6 +82,12 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 		log.Fatal("database login", err)
 	}
 
+	// Check if the database can be pinged
+	sqldb, _ := db.DB()
+	if e := sqldb.Ping(); e != nil {
+		log.Fatal("database ping", e)
+	}
+
 	// Run migrations
 	Migrate(db)
 

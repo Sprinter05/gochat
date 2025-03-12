@@ -13,7 +13,8 @@
                 ".env"
             ],
             "program": "${workspaceFolder}/server",
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "console": "externalTerminal"
         },
         {
             "name": "Injection Test (Server)",
