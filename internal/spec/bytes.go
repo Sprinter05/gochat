@@ -25,16 +25,13 @@ type Header struct {
 	ID   ID
 }
 
-// Used to specify its coming from a command
-type Arg []byte
-
 // Specifies the ID of the packet that has been sent
 type ID uint16
 
 // Specifies a command
 type Command struct {
 	HD   Header
-	Args []Arg
+	Args [][]byte
 }
 
 /* COMMAND FUNCTIONS */
@@ -182,7 +179,7 @@ func BytesToUnixStamp(b []byte) *time.Time {
 
 // Creates a byte slice corresponding to the header fields
 // Also appends arguments with CRLF
-func NewPacket(op Action, id ID, inf byte, arg ...Arg) ([]byte, error) {
+func NewPacket(op Action, id ID, inf byte, arg ...[]byte) ([]byte, error) {
 	// Verify number of arguments
 	l := len(arg)
 	if l > MaxArgs {

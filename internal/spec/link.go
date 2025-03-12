@@ -48,7 +48,7 @@ func (cl *Connection) ListenPayload(cmd *Command) error {
 	var tot int
 
 	// Allocate the arguments
-	cmd.Args = make([]Arg, cmd.HD.Args)
+	cmd.Args = make([][]byte, cmd.HD.Args)
 
 	// Read until all arguments have been processed
 	for i := 0; i < int(cmd.HD.Args); {
