@@ -306,8 +306,6 @@ func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 	switch pub := pub.(type) {
 	case *rsa.PublicKey:
 		return pub, nil
-	default:
-		break // Fall through
 	}
 
 	return nil, errors.New("key type is not RSA")

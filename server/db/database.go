@@ -93,7 +93,7 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 // Identifies the model of a user in the database
 type User struct {
 	UserID     uint             `gorm:"primaryKey;autoIncrement;not null"`
-	Username   model.Username   `gorm:"unique;not null;size:32"`
+	Username   string           `gorm:"unique;not null;size:32"`
 	Pubkey     sql.NullString   `gorm:"unique;size:2047"`
 	Permission model.Permission `gorm:"not null;default:0"`
 }

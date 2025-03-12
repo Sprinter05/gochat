@@ -152,6 +152,10 @@ func setupTLSConn() net.Listener {
 
 /* MAIN FUNCTIONS */
 
+// TODO: Document everything (100go.co #15)
+// TODO: Pass linter and formatter
+//? TODO: Accept UTF-8 encoding
+
 // Runs a socket to accept connections
 func run(l net.Listener, hub *hubs.Hub, count *model.Counter, wg *sync.WaitGroup) {
 	defer wg.Done()

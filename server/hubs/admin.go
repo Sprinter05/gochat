@@ -138,7 +138,7 @@ func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDeregister(h *Hub, u User, cmd spec.Command) {
-	err := db.RemoveKey(h.db, model.Username(cmd.Args[0]))
+	err := db.RemoveKey(h.db, string(cmd.Args[0]))
 	if err != nil {
 		// Failed to change the key of the user
 		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
@@ -151,7 +151,7 @@ func adminDeregister(h *Hub, u User, cmd spec.Command) {
 // Requires OWNER or more
 // Requires 1 argument for the user
 func adminPromote(h *Hub, u User, cmd spec.Command) {
-	target, err := db.QueryUser(h.db, model.Username(cmd.Args[0]))
+	target, err := db.QueryUser(h.db, string(cmd.Args[0]))
 	if err != nil {
 		// Invalid user provided
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
@@ -178,7 +178,7 @@ func adminPromote(h *Hub, u User, cmd spec.Command) {
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDisconnect(h *Hub, u User, cmd spec.Command) {
-	dc, ok := h.FindUser(model.Username(cmd.Args[0]))
+	dc, ok := h.FindUser(string(cmd.Args[0]))
 	if !ok {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 		return

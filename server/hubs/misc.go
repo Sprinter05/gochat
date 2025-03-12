@@ -38,7 +38,7 @@ type Request struct {
 type User struct {
 	conn   net.Conn
 	secure bool
-	name   model.Username
+	name   string
 	perms  model.Permission
 	pubkey *rsa.PublicKey
 }
@@ -47,7 +47,7 @@ type User struct {
 // Can also be used for reusable tokens
 type Verif struct {
 	conn    net.Conn
-	name    model.Username
+	name    string
 	text    string
 	pending bool
 	cancel  context.CancelFunc
@@ -61,7 +61,7 @@ type Hub struct {
 	clean  chan net.Conn
 	shtdwn chan bool
 	users  model.Table[net.Conn, *User]
-	verifs model.Table[model.Username, *Verif]
+	verifs model.Table[string, *Verif]
 }
 
 /* AUXILIARY FUNCTIONS */

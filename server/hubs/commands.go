@@ -49,7 +49,7 @@ func Process(h *Hub, r Request, u *User) {
 // Replies with OK or ERR
 // Gets a user with only the net.Conn assigned to it
 func registerUser(h *Hub, u User, cmd spec.Command) {
-	uname := model.Username(cmd.Args[0])
+	uname := string(cmd.Args[0])
 
 	if len(uname) > spec.UsernameSize {
 		log.User(string(uname), "username registration", spec.ErrorMaxSize)
@@ -226,7 +226,7 @@ func deregisterUser(h *Hub, u User, cmd spec.Command) {
 
 // Replies with REQ or ERR
 func requestUser(h *Hub, u User, cmd spec.Command) {
-	req, err := h.userFromDB(model.Username(cmd.Args[0]))
+	req, err := h.userFromDB(string(cmd.Args[0]))
 	if err != nil {
 		log.DB(string(u.name)+"'s pubkey", err)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
@@ -293,13 +293,13 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 // Otherwise stores to the database
 func messageUser(h *Hub, u User, cmd spec.Command) {
 	// Cannot send to self
-	if model.Username(cmd.Args[0]) == u.name {
+	if string(cmd.Args[0]) == u.name {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
 	// Check if its online cached
-	send, ok := h.FindUser(model.Username(cmd.Args[0]))
+	send, ok := h.FindUser(string(cmd.Args[0]))
 	if ok {
 		// We send the message directly to the connection
 		pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
@@ -319,7 +319,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 	}
 
 	// Otherwise we just send it to the message cache
-	uname := model.Username(cmd.Args[0])
+	uname := string(cmd.Args[0])
 	err := db.CacheMessage(h.db, uname, model.Message{
 		Sender:  u.name,
 		Content: cmd.Args[2],

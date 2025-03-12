@@ -17,12 +17,9 @@ const (
 	OWNER
 )
 
-// Has to conform to UsernameSize on the specification
-type Username string
-
 // Specifies a message to be received
 type Message struct {
-	Sender  Username
+	Sender  string
 	Content []byte
 	Stamp   time.Time
 }

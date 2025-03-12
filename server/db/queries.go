@@ -19,7 +19,7 @@ import (
 
 // Returns a user by their username
 // This returns a user according to the db model
-func QueryUser(db *gorm.DB, uname model.Username) (*User, error) {
+func QueryUser(db *gorm.DB, uname string) (*User, error) {
 	var user User
 	res := db.First(&user, "username = ?", uname)
 	if res.Error != nil {
@@ -36,7 +36,7 @@ func QueryUser(db *gorm.DB, uname model.Username) (*User, error) {
 }
 
 // Gets all messages from the user
-func QueryMessages(db *gorm.DB, uname model.Username) ([]model.Message, error) {
+func QueryMessages(db *gorm.DB, uname string) ([]model.Message, error) {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 /* INSERTIONS */
 
 // Inserts a user into a database, key must be in PEM format
-func InsertUser(db *gorm.DB, uname model.Username, pubkey []byte) error {
+func InsertUser(db *gorm.DB, uname string, pubkey []byte) error {
 	// Public key must be a sql null string
 	res := db.Create(&User{
 		Username: uname,
@@ -148,7 +148,7 @@ func InsertUser(db *gorm.DB, uname model.Username, pubkey []byte) error {
 }
 
 // Adds a message to the users message cache
-func CacheMessage(db *gorm.DB, dst model.Username, msg model.Message) error {
+func CacheMessage(db *gorm.DB, dst string, msg model.Message) error {
 	srcuser, srcerr := QueryUser(db, msg.Sender)
 	if srcerr != nil {
 		return srcerr
@@ -179,7 +179,7 @@ func CacheMessage(db *gorm.DB, dst model.Username, msg model.Message) error {
 /* UPDATES */
 
 // Prevents a user from logging in
-func RemoveKey(db *gorm.DB, uname model.Username) error {
+func RemoveKey(db *gorm.DB, uname string) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func RemoveKey(db *gorm.DB, uname model.Username) error {
 }
 
 // Changes the permissions of a user
-func ChangePermission(db *gorm.DB, uname model.Username, perm model.Permission) error {
+func ChangePermission(db *gorm.DB, uname string, perm model.Permission) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
@@ -221,7 +221,7 @@ func ChangePermission(db *gorm.DB, uname model.Username, perm model.Permission) 
 
 // Removes a user from the database
 // Fails if the user has messages pending
-func RemoveUser(db *gorm.DB, uname model.Username) error {
+func RemoveUser(db *gorm.DB, uname string) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func RemoveUser(db *gorm.DB, uname model.Username) error {
 
 // Removes all cached messages from a user before a given stamp
 // This is done to prevent messages from being lost due to concurrency
-func RemoveMessages(db *gorm.DB, uname model.Username, stamp time.Time) error {
+func RemoveMessages(db *gorm.DB, uname string, stamp time.Time) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err

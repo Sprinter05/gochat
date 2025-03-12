@@ -15,7 +15,7 @@ import (
 /* HUB WRAPPER FUNCTIONS */
 
 // Returns a user struct by querying the database one
-func (hub *Hub) userFromDB(uname model.Username) (*User, error) {
+func (hub *Hub) userFromDB(uname string) (*User, error) {
 	dbuser, err := db.QueryUser(hub.db, uname)
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 // Check if there is a user entry from the database
 func (hub *Hub) dbLogin(r Request) (*User, error) {
 	// Check if the user is in the database
-	u := model.Username(r.Command.Args[0])
+	u := string(r.Command.Args[0])
 	user, e := hub.userFromDB(u)
 	if e != nil {
 		// Error is handled in the calling function
@@ -186,7 +186,7 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 	if id == spec.LOGIN {
 		// We check if the user is logged in from another IP
-		_, ipok := hub.FindUser(model.Username(r.Command.Args[0]))
+		_, ipok := hub.FindUser(string(r.Command.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
@@ -230,7 +230,7 @@ func (hub *Hub) Userlist(online bool) string {
 }
 
 // Returns an online user if it exists (thread-safe)
-func (hub *Hub) FindUser(uname model.Username) (*User, bool) {
+func (hub *Hub) FindUser(uname string) (*User, bool) {
 	list := hub.users.GetAll()
 	for _, v := range list {
 		if v.name == uname {
@@ -249,7 +249,7 @@ func Create(database *gorm.DB) *Hub {
 		clean:  make(chan net.Conn, spec.MaxClients/2),
 		shtdwn: make(chan bool),
 		users:  model.NewTable[net.Conn, *User](spec.MaxClients),
-		verifs: model.NewTable[model.Username, *Verif](spec.MaxClients),
+		verifs: model.NewTable[string, *Verif](spec.MaxClients),
 		db:     database,
 	}
 
