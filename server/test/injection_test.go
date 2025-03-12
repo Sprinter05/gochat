@@ -5,17 +5,26 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-func setup(t *testing.T) *tls.Conn {
+func setup(t *testing.T) net.Conn {
+	l, err := net.Dial("tcp4", "127.0.0.1:9037")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return l
+}
+
+func setupTLS(t *testing.T) *tls.Conn {
 	config := &tls.Config{
 		InsecureSkipVerify: true,
 	}
-
 	l, err := tls.Dial("tcp4", "127.0.0.1:8037", config)
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +56,7 @@ func readFromConn(c spec.Connection) spec.Command {
 
 func TestREG(t *testing.T) {
 	l := setup(t)
+	_ = setupTLS(t)
 	defer l.Close()
 
 	//pub := readKeyFile("public.pem")
