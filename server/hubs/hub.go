@@ -204,7 +204,7 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 // Lists all users in the server
 func (hub *Hub) Userlist(online bool) string {
 	var str strings.Builder
-	var ret string = ""
+	var ret string
 	var err error
 
 	if online {
