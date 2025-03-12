@@ -36,7 +36,7 @@ func QueryUser(db *gorm.DB, uname string) (*User, error) {
 }
 
 // Gets all messages from the user
-func QueryMessages(db *gorm.DB, uname string) ([]model.Message, error) {
+func QueryMessages(db *gorm.DB, uname string) ([]*model.Message, error) {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func QueryMessages(db *gorm.DB, uname string) ([]model.Message, error) {
 	defer rows.Close()
 
 	// We create a preallocated array
-	message := make([]model.Message, size)
+	message := make([]*model.Message, 0, size)
 
 	for i := 0; rows.Next(); i++ {
 		var undec string
@@ -90,7 +90,7 @@ func QueryMessages(db *gorm.DB, uname string) ([]model.Message, error) {
 		}
 		temp.Content = dec
 
-		message = append(message, temp)
+		message = append(message, &temp)
 	}
 
 	return message, nil

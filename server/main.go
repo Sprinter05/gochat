@@ -157,6 +157,7 @@ func setupTLSConn() net.Listener {
 // TODO: Document everything (100go.co #15)
 // TODO: Pass linter and formatter
 //? TODO: Accept UTF-8 encoding
+//? https://github.com/uber-go/automaxprocs
 
 // Identifies a running socket
 type Server struct {

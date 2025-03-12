@@ -68,7 +68,7 @@ type Hub struct {
 /* AUXILIARY FUNCTIONS */
 
 // Catches up messages for the logged connection
-func catchUp(cl net.Conn, id spec.ID, msgs ...model.Message) error {
+func catchUp(cl net.Conn, id spec.ID, msgs ...*model.Message) error {
 	for _, v := range msgs {
 		// Turn timestamp to byte array and create packet
 		stp := spec.UnixStampToBytes(v.Stamp)
