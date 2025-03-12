@@ -59,9 +59,10 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 		}
 
 		// Write into the buffer and get length
-		buf.Grow(len(b))
+		grow := len(b)
+		buf.Grow(grow)
 		l, err := buf.Write(b)
-		if err != nil {
+		if err != nil || grow != l {
 			// This implies the payload is too big
 			return err
 		}
@@ -79,14 +80,14 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 
 		// Check if it ends in CRLF
 		// Also checks if it has at least 2 bytes
-		if len(b) >= 2 && string(b[l-2]) == "\r" {
-			b := buf.Bytes()
-			siz := buf.Len()
+		if l >= 2 && b[l-2] == '\r' {
+			total := buf.Bytes()
+			size := buf.Len()
 
 			// Allocate new array
 			// Do not append CRLF
-			cmd.Args[i] = make([]byte, siz-2)
-			copy(cmd.Args[i], b[:siz-2])
+			cmd.Args[i] = make([]byte, size-2)
+			copy(cmd.Args[i], total[:size-2])
 
 			// Empty buffer and go to next argument
 			buf.Reset()
