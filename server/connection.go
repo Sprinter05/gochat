@@ -92,6 +92,7 @@ func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Requ
 	}()
 
 	// Set timeout and log connection
+	ip := cl.Conn.RemoteAddr().String()
 	deadline := time.Now().Add(time.Duration(spec.ReadTimeout) * time.Minute)
 	log.Connection(
 		cl.Conn.RemoteAddr().String(),
@@ -100,7 +101,10 @@ func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Requ
 
 	for {
 		// Works as an idle timeout calling it each time
-		cl.Conn.SetReadDeadline(deadline)
+		err := cl.Conn.SetReadDeadline(deadline)
+		if err != nil {
+			log.Read("deadline setup", ip, err)
+		}
 
 		cmd, err := wrapCommand(cl)
 		if err != nil {

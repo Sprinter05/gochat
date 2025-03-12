@@ -2,6 +2,7 @@ package hubs
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"strings"
 	"time"
@@ -249,10 +250,10 @@ func (hub *Hub) FindUser(uname string) (*User, bool) {
 /* HUB MAIN */
 
 // Initialises all data structures
-func Create(database *gorm.DB) *Hub {
+func Create(database *gorm.DB, cancel context.CancelFunc) *Hub {
 	hub := &Hub{
 		clean:  make(chan net.Conn, spec.MaxClients/2),
-		shtdwn: make(chan struct{}),
+		shtdwn: cancel,
 		users:  model.NewTable[net.Conn, *User](spec.MaxClients),
 		verifs: model.NewTable[string, *Verif](spec.MaxClients),
 		db:     database,
@@ -262,20 +263,21 @@ func Create(database *gorm.DB) *Hub {
 }
 
 // Waits until the hub has to shutdown
-func (hub *Hub) Wait() {
+func (hub *Hub) Shutdown() {
 	// Wait until the shutdown happens
-	for range hub.shtdwn {
-		// Disconnect all users
-		list := hub.users.GetAll()
-		for _, v := range list {
-			// This should trigger the cleanup function too
-			v.conn.Close()
-		}
-
-		// Wait a bit for everything to close
-		time.Sleep(5 * time.Second)
-
-		// Perform a server shutdown
-		log.Notice("inminent server shutdown")
+	// Disconnect all users
+	list := hub.users.GetAll()
+	for _, v := range list {
+		// This should trigger the cleanup function too
+		v.conn.Close()
 	}
+
+	// Wait a bit for everything to close
+	time.Sleep(5 * time.Second)
+
+	// Close sockets
+	hub.shtdwn()
+
+	// Perform a server shutdown
+	log.Notice("inminent server shutdown")
 }
