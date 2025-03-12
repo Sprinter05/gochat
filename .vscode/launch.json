@@ -21,8 +21,20 @@
             "type": "go",
             "request": "launch",
             "mode": "test",
-            "program": "${workspaceFolder}/server/test",
-            "preLaunchTask": "Clean_Test_Cache"
+            "program": "${workspaceFolder}/server/test/injection_test.go",
+            "args": [
+                "-test.v"
+            ],
+        },
+        {
+            "name": "Decryption Test (Headless)",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/server/test/decryption_test.go",
+            "args": [
+                "-test.v"
+            ],
         }
     ]
 }

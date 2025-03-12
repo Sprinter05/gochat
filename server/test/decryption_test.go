@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"testing"
+	"time"
 
 	"github.com/Sprinter05/gochat/internal/spec"
 )
@@ -51,4 +52,9 @@ func TestEncdec(t *testing.T) {
 	t.Logf("BEFORE: %s\n\n", text)
 	t.Logf("ENCRYPTED: %s\n\n", enc)
 	t.Logf("AFTER: %s\n\n", dec)
+
+	// Test timestamps
+	bef := spec.UnixStampToBytes(time.Now())
+	v, _ := spec.BytesToUnixStamp(bef)
+	t.Logf("STAMP: %s\n", v.String())
 }

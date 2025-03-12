@@ -154,7 +154,7 @@ func NewHeader(hdr []byte) Header {
 // Uses int64 format for conversion
 func UnixStampToBytes(s time.Time) []byte {
 	unix := s.Unix()
-	p := make([]byte, binary.Size(unix))
+	p := make([]byte, 0, binary.Size(unix))
 	p = binary.AppendVarint(p, unix)
 	return p
 }
@@ -165,7 +165,8 @@ func BytesToUnixStamp(b []byte) (t time.Time, e error) {
 		return t, ErrorArguments
 	}
 
-	buf := bytes.NewBuffer(b[:4])
+	len := binary.Size(t.Unix())
+	buf := bytes.NewBuffer(b[:len])
 	stamp, err := binary.ReadVarint(buf)
 	if err != nil {
 		return t, ErrorArguments
