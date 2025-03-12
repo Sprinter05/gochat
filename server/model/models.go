@@ -92,14 +92,13 @@ func (t *Table[I, T]) GetAll() []T {
 		return nil
 	}
 
-	array := make([]T, l)
-	i := 0
+	// Preallocate
+	array := make([]T, 0, l)
 
 	t.mut.RLock()
 	defer t.mut.RUnlock()
 	for _, v := range t.data {
-		array[i] = v
-		i++
+		array = append(array, v)
 	}
 
 	return array
