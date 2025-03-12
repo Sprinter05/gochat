@@ -66,8 +66,7 @@ func TestREG(t *testing.T) {
 	b, _ := spec.PubkeytoPEM(&v.PublicKey)
 
 	// REG Packet
-	p1 := []spec.Arg{spec.Arg("pepe"), spec.Arg(b)}
-	test1, err := spec.NewPacket(spec.REG, spec.ID(976), spec.EmptyInfo, p1...)
+	test1, err := spec.NewPacket(spec.REG, spec.ID(976), spec.EmptyInfo, []byte("pepe"), b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,8 +76,7 @@ func TestREG(t *testing.T) {
 	r1.Print()
 
 	// Login
-	p2 := []spec.Arg{spec.Arg("pepe")}
-	test2, err := spec.NewPacket(spec.LOGIN, spec.ID(894), spec.EmptyInfo, p2...)
+	test2, err := spec.NewPacket(spec.LOGIN, spec.ID(894), spec.EmptyInfo, []byte("pepe"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,8 +91,7 @@ func TestREG(t *testing.T) {
 	}
 
 	// Verify
-	p3 := []spec.Arg{spec.Arg("pepe"), spec.Arg(string(dec))}
-	test3, err := spec.NewPacket(spec.VERIF, spec.ID(113), spec.EmptyInfo, p3...)
+	test3, err := spec.NewPacket(spec.VERIF, spec.ID(113), spec.EmptyInfo, []byte("pepe"), dec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,12 +101,7 @@ func TestREG(t *testing.T) {
 	r2.Print()
 
 	// Msg
-	p4 := []spec.Arg{
-		spec.Arg("Sprinter05"),
-		spec.Arg(spec.UnixStampToBytes(time.Now())),
-		spec.Arg("akjdaksjdsalkdjaslkdjsalkdjsalkdsj"),
-	}
-	test4, err := spec.NewPacket(spec.MSG, spec.ID(69), 0x01, p4...)
+	test4, err := spec.NewPacket(spec.MSG, spec.ID(69), 0x01, []byte("Sprinter05"), spec.UnixStampToBytes(time.Now()), []byte("hola q tal"))
 	if err != nil {
 		t.Fatal(err)
 	}

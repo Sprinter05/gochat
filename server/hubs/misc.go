@@ -73,9 +73,9 @@ func catchUp(cl net.Conn, id spec.ID, msgs ...model.Message) error {
 		stp := spec.UnixStampToBytes(v.Stamp)
 
 		pak, err := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo,
-			spec.Arg(v.Sender),
-			spec.Arg(stp),
-			spec.Arg(v.Content),
+			[]byte(v.Sender),
+			stp,
+			v.Content,
 		)
 		if err != nil {
 			log.Packet(spec.RECIV, err)

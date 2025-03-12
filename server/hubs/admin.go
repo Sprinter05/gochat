@@ -116,7 +116,7 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	// Create packet with the message
 	pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
-		spec.Arg(u.name+" [ADMIN]"),
+		[]byte(u.name+" [ADMIN]"),
 		spec.UnixStampToBytes(time.Now()),
 		cmd.Args[0],
 	)

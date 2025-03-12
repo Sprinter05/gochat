@@ -108,7 +108,7 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 	}
 
 	// We create and send the packet with the enconded text
-	vpak, e := spec.NewPacket(spec.VERIF, cmd.HD.ID, spec.EmptyInfo, spec.Arg(enc))
+	vpak, e := spec.NewPacket(spec.VERIF, cmd.HD.ID, spec.EmptyInfo, enc)
 	if e != nil {
 		log.Packet(spec.VERIF, e)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
@@ -244,8 +244,8 @@ func requestUser(h *Hub, u User, cmd spec.Command) {
 
 	// We reply with the username that was requested as well
 	pak, e := spec.NewPacket(spec.REQ, cmd.HD.ID, spec.EmptyInfo,
-		spec.Arg(req.name),
-		spec.Arg(p),
+		[]byte(req.name),
+		p,
 	)
 	if e != nil {
 		log.Packet(spec.REQ, e)
@@ -280,7 +280,7 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	pak, e := spec.NewPacket(spec.USRS, cmd.HD.ID, spec.EmptyInfo, spec.Arg(usrs))
+	pak, e := spec.NewPacket(spec.USRS, cmd.HD.ID, spec.EmptyInfo, []byte(usrs))
 	if e != nil {
 		log.Packet(spec.USRS, e)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
@@ -304,7 +304,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 	if ok {
 		// We send the message directly to the connection
 		pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
-			spec.Arg(u.name),
+			[]byte(u.name),
 			cmd.Args[1],
 			cmd.Args[2],
 		)
