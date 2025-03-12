@@ -59,7 +59,7 @@ type Verif struct {
 type Hub struct {
 	db     *gorm.DB
 	clean  chan net.Conn
-	shtdwn chan bool
+	shtdwn chan struct{}
 	users  model.Table[net.Conn, *User]
 	verifs model.Table[string, *Verif]
 }

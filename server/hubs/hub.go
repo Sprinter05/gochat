@@ -252,7 +252,7 @@ func (hub *Hub) FindUser(uname string) (*User, bool) {
 func Create(database *gorm.DB) *Hub {
 	hub := &Hub{
 		clean:  make(chan net.Conn, spec.MaxClients/2),
-		shtdwn: make(chan bool),
+		shtdwn: make(chan struct{}),
 		users:  model.NewTable[net.Conn, *User](spec.MaxClients),
 		verifs: model.NewTable[string, *Verif](spec.MaxClients),
 		db:     database,

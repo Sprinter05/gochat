@@ -50,9 +50,7 @@ func withPayload(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
 }
 
 // Returns a newly created command
-func wrapCommand(cl spec.Connection) (spec.Command, error) {
-	var cmd spec.Command
-	var err error
+func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	ip := cl.Conn.RemoteAddr().String()
 
 	// Error logged by the function
