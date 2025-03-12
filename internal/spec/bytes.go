@@ -161,12 +161,12 @@ func UnixStampToBytes(s time.Time) []byte {
 
 // Uses 4 bytes that it will turn to a unix timestamp
 func BytesToUnixStamp(b []byte) (t time.Time, e error) {
-	if len(b) < 4 {
+	min := binary.Size(t.Unix())
+	if len(b) < min {
 		return t, ErrorArguments
 	}
 
-	len := binary.Size(t.Unix())
-	buf := bytes.NewBuffer(b[:len])
+	buf := bytes.NewBuffer(b[:min])
 	stamp, err := binary.ReadVarint(buf)
 	if err != nil {
 		return t, ErrorArguments
