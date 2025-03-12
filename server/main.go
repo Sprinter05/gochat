@@ -183,7 +183,7 @@ func run(l net.Listener, hub *hubs.Hub, count *model.Counter, wg *sync.WaitGroup
 		// Check if its tls
 		_, ok := c.(*tls.Conn)
 
-		cl := &spec.Connection{
+		cl := spec.Connection{
 			Conn: c,
 			RD:   bufio.NewReader(c),
 			TLS:  ok,

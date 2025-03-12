@@ -11,9 +11,9 @@ import (
 
 /* COMMAND FUNCTIONS */
 
-func processHeader(cl *spec.Connection, cmd *spec.Command) error {
+func processHeader(cl spec.Connection, cmd *spec.Command) error {
 	// Reads using the reader assigned to the connection
-	if err := cl.ListenHeader(cmd); err != nil {
+	if err := cmd.ListenHeader(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Read("header", ip, err)
 
@@ -30,9 +30,9 @@ func processHeader(cl *spec.Connection, cmd *spec.Command) error {
 	return nil
 }
 
-func processPayload(cl *spec.Connection, cmd *spec.Command) error {
+func processPayload(cl spec.Connection, cmd *spec.Command) error {
 	// Reads using the reader assigned to the connection
-	if err := cl.ListenPayload(cmd); err != nil {
+	if err := cmd.ListenPayload(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Read("payload", ip, err)
 
@@ -50,7 +50,7 @@ func processPayload(cl *spec.Connection, cmd *spec.Command) error {
 }
 
 // Returns a newly created command
-func wrapCommand(cl *spec.Connection) *spec.Command {
+func wrapCommand(cl spec.Connection) *spec.Command {
 	cmd := new(spec.Command)
 	ip := cl.Conn.RemoteAddr().String()
 
@@ -79,7 +79,7 @@ func wrapCommand(cl *spec.Connection) *spec.Command {
 /* THREADED FUNCTIONS */
 
 // Listens for packets from a client connection
-func ListenConnection(cl *spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
+func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
 	// Cleanup connection on exit
 	defer func() {
 		hub.Cleanup(cl.Conn)

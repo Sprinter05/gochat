@@ -19,7 +19,7 @@ type Connection struct {
 /* CONNECTION FUNCTIONS */
 
 // Reads the header of a connection and verifies it is correct
-func (cl *Connection) ListenHeader(cmd *Command) error {
+func (cmd *Command) ListenHeader(cl Connection) error {
 	// Read from the wire
 	b, err := cl.RD.ReadBytes('\n')
 	if err != nil {
@@ -42,7 +42,7 @@ func (cl *Connection) ListenHeader(cmd *Command) error {
 }
 
 // Reads a payload to put it into a command
-func (cl *Connection) ListenPayload(cmd *Command) error {
+func (cmd *Command) ListenPayload(cl Connection) error {
 	// Buffer and total length
 	var buf bytes.Buffer
 	var tot int

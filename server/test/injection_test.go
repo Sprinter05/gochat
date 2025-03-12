@@ -24,10 +24,10 @@ func setup(t *testing.T) *tls.Conn {
 	return l
 }
 
-func readFromConn(c *spec.Connection) spec.Command {
+func readFromConn(c spec.Connection) spec.Command {
 	cmd := new(spec.Command)
-	c.ListenHeader(cmd)
-	c.ListenPayload(cmd)
+	cmd.ListenHeader(c)
+	cmd.ListenPayload(c)
 	return *cmd
 }
 
@@ -53,7 +53,7 @@ func TestREG(t *testing.T) {
 	//priv := readKeyFile("private.pem")
 	//dekey, _ := spec.PEMToPrivkey(priv)
 
-	conn := &spec.Connection{
+	conn := spec.Connection{
 		Conn: l,
 		RD:   bufio.NewReader(l),
 	}
