@@ -8,6 +8,7 @@ import (
 	stdlog "log"
 	"net"
 	"os"
+	"os/signal"
 	"sync"
 	"time"
 
@@ -212,6 +213,18 @@ func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 	}
 }
 
+// Waits on a CTRL-C signal by the OS
+func manual(close context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// Wait on ctrl c
+	<-c
+
+	// Send shutdown signal
+	close()
+}
+
 func main() {
 	// Setup sockets
 	sock := setupConn()
@@ -235,6 +248,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	hub := hubs.Create(database, ctx, cancel)
 	go hub.Wait()
+
+	// Just in case a CTRL-C signal happens
+	go manual(cancel)
 
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")
