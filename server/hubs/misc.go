@@ -59,7 +59,8 @@ type Verif struct {
 type Hub struct {
 	db     *gorm.DB
 	clean  chan net.Conn
-	shtdwn context.CancelFunc
+	shtdwn context.Context
+	close  context.CancelFunc
 	users  model.Table[net.Conn, *User]
 	verifs model.Table[string, *Verif]
 }

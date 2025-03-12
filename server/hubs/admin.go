@@ -90,8 +90,8 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 		wait := time.Duration(duration) * time.Second
 		time.Sleep(wait)
 
-		// Send shutdown signal to server
-		h.Shutdown()
+		// Send shutdown signal to hub
+		h.close()
 	}()
 
 	pak, e := spec.NewPacket(spec.SHTDWN, spec.NullID, spec.EmptyInfo, cmd.Args[0])

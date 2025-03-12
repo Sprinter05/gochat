@@ -158,56 +158,57 @@ func setupTLSConn() net.Listener {
 //? TODO: Accept UTF-8 encoding
 
 // Identifies a running socket
-type Socket struct {
-	wg    *sync.WaitGroup
-	count *model.Counter
+type Server struct {
+	wg    sync.WaitGroup
+	count model.Counter
 	ctx   context.Context
 }
 
 // Runs a socket to accept connections
-func Run(l net.Listener, hub *hubs.Hub, sock *Socket) {
+func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 	defer sock.wg.Done()
 
 	for {
-		select {
-		case <-sock.ctx.Done():
-			return
-		default:
-			// This will block until a spot is free
-			c, err := l.Accept()
-			if err != nil {
+		// This will block until a spot is free
+		c, err := l.Accept()
+		if err != nil {
+			select {
+			case <-sock.ctx.Done():
+				// Server is shutting down
+				return
+			default:
 				log.Error("connection accept", err)
 				// Keep accepting clients
 				continue
 			}
-			sock.count.Inc()
-
-			// Notify the user they are connected
-			pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
-			if e != nil {
-				log.Packet(spec.OK, e)
-			} else {
-				c.Write(pak)
-			}
-
-			// Check if its tls
-			_, ok := c.(*tls.Conn)
-
-			cl := spec.Connection{
-				Conn: c,
-				RD:   bufio.NewReader(c),
-				TLS:  ok,
-			}
-
-			// Buffered channel for intercommunication
-			req := make(chan hubs.Request, hubs.MaxUserRequests)
-
-			// Listens to the client's packets
-			go ListenConnection(cl, sock.count, req, hub)
-
-			// Runs the client's commands
-			go RunTask(hub, req)
 		}
+		sock.count.Inc()
+
+		// Notify the user they are connected
+		pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
+		if e != nil {
+			log.Packet(spec.OK, e)
+		} else {
+			c.Write(pak)
+		}
+
+		// Check if its tls
+		_, ok := c.(*tls.Conn)
+
+		cl := spec.Connection{
+			Conn: c,
+			RD:   bufio.NewReader(c),
+			TLS:  ok,
+		}
+
+		// Buffered channel for intercommunication
+		req := make(chan hubs.Request, hubs.MaxUserRequests)
+
+		// Listens to the client's packets
+		go ListenConnection(cl, &sock.count, req, hub)
+
+		// Runs the client's commands
+		go RunTask(hub, req)
 	}
 }
 
@@ -218,7 +219,7 @@ func main() {
 
 	// Set up database logging file
 	// Only if logging is INFO or more
-	var dblog *stdlog.Logger = nil
+	var dblog *stdlog.Logger
 	if log.Level >= log.INFO {
 		f := logFile()
 		defer f.Close()
@@ -230,29 +231,25 @@ func main() {
 	sqldb, _ := database.DB()
 	defer sqldb.Close()
 
-	// Setup hub
+	// Setup hub and wait until a shutdown signal is sent
 	ctx, cancel := context.WithCancel(context.Background())
-	hub := hubs.Create(database, cancel)
+	hub := hubs.Create(database, ctx, cancel)
+	go hub.Wait()
 
 	// Indicate that the server is up and running
 	fmt.Printf("-- Server running and listening for connections! --\n")
 
-	// We wait for both sockets to end
-	var wg sync.WaitGroup
-	count := model.NewCounter(spec.MaxClients)
-	wg.Add(2)
-
-	// Used for safely cleaning up resrouces
-	comm := Socket{
-		wg:    &wg,
+	// Used for managing all possible sockets
+	server := Server{
 		ctx:   ctx,
-		count: &count,
+		count: model.NewCounter(spec.MaxClients),
 	}
 
 	// Endless loop to listen for connections
-	go Run(sock, hub, &comm)
-	go Run(tlssock, hub, &comm)
+	server.wg.Add(2)
+	go server.Run(sock, hub)
+	go server.Run(tlssock, hub)
 
 	// Condition to end program
-	wg.Wait()
+	server.wg.Wait()
 }

@@ -250,10 +250,11 @@ func (hub *Hub) FindUser(uname string) (*User, bool) {
 /* HUB MAIN */
 
 // Initialises all data structures
-func Create(database *gorm.DB, cancel context.CancelFunc) *Hub {
+func Create(database *gorm.DB, ctx context.Context, cancel context.CancelFunc) *Hub {
 	hub := &Hub{
 		clean:  make(chan net.Conn, spec.MaxClients/2),
-		shtdwn: cancel,
+		shtdwn: ctx,
+		close:  cancel,
 		users:  model.NewTable[net.Conn, *User](spec.MaxClients),
 		verifs: model.NewTable[string, *Verif](spec.MaxClients),
 		db:     database,
@@ -263,8 +264,10 @@ func Create(database *gorm.DB, cancel context.CancelFunc) *Hub {
 }
 
 // Waits until the hub has to shutdown
-func (hub *Hub) Shutdown() {
+func (hub *Hub) Wait(socks ...net.Listener) {
 	// Wait until the shutdown happens
+	<-hub.shtdwn.Done()
+
 	// Disconnect all users
 	list := hub.users.GetAll()
 	for _, v := range list {
@@ -273,10 +276,14 @@ func (hub *Hub) Shutdown() {
 	}
 
 	// Wait a bit for everything to close
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	// Close sockets
-	hub.shtdwn()
+	hub.close()
+	for _, v := range socks {
+		// This will stop the blocking and make them check the context
+		v.Close()
+	}
 
 	// Perform a server shutdown
 	log.Notice("inminent server shutdown")
