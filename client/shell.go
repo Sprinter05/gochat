@@ -6,11 +6,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
 
-	"github.com/Sprinter05/gochat/gcspec"
+	"slices"
+
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 // Text to be printed by the HELP command
@@ -51,17 +54,16 @@ const helpText = "EXIT: Closes the shell.\n\n" +
 // whether it should be printed or not.
 var IsVerbose bool = false
 
-// Type for commands with arguments
-// Globalizes the connection variable obtained by the NewShell argument
+// Globalizes the connection variable obtained by the NewShell argument.
 var gCon net.Conn
 
-// Initializes a client shell
-func NewShell(con net.Conn) {
+// Stores the current user using the shell
+var CurUser Client
 
+// Initializes a client shell.
 func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 	gCon = con
 	rd := bufio.NewReader(os.Stdin)
-
 	// Runs inconditionally until EXIT is executed
 	for {
 		ClearPrompt()
@@ -70,30 +72,48 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 		input, err := rd.ReadBytes('\n')
 		if err != nil {
 			fmt.Println(err)
+			continue
 		}
 		// Clears any leading an trailing spaces along with the newline character
 		input = bytes.TrimSpace(input)
-		// Splits the command and arguments
-		cmd := string(bytes.Fields(input)[0])
-
-		// Casts every arg byte array into Arg type to append it to the argument slice
-		var args []gcspec.Arg
-		for _, arg := range bytes.Fields(input)[1:] {
-			args = append(args, gcspec.Arg(arg))
+		// Asks for input again if the received input is empty after trimming
+		if len(input) == 0 {
+			continue
 		}
 
-		if cmd == "EXIT" {
-			// Closes the shell
+		// Splits the command and arguments
+		instruction := string(bytes.Fields(input)[0])
+
+		// Casts every arg byte array into Arg type to append it to the argument slice
+		var args [][]byte
+		args = append(args, bytes.Fields(input)[1:]...)
+
+		if instruction == "EXIT" {
 			return
 		}
 
-		// Checks if the command exists in order to execute it
-		v, ok := cmds[cmd]
+		v, ok := ClientCmds[instruction]
 		if !ok {
-			fmt.Printf("%s: No such command\n", cmd)
+			fmt.Printf("%s: No such command\n", instruction)
 		} else {
+			payloadLen := 0
+			for _, arg := range args {
+				payloadLen += len(arg) + 2 // + 2 to include the CRLF in each argument
+			}
+			// Creates header
+			header := spec.Header{
+				Ver:  spec.ProtocolVersion,
+				Op:   spec.Action(spec.StringToCode(instruction)),
+				Info: spec.EmptyInfo,
+				Args: uint8(len(args)),
+				Len:  uint16(payloadLen),
+				ID:   spec.ID(spec.GeneratePacketID(PendingBuffer)),
+			}
+			// Creates command
+			cmd := spec.Command{HD: header, Args: args}
+
 			// Runs command
-			err := v.Run(gcspec.Action(gcspec.StringToCode(cmd)), gcspec.ID(gcspec.GeneratePacketID(PacketBuffer)), gcspec.EmptyInfo, args, nArgs[cmd]) // TODO: Change "24"
+			err := v.Run(&cmd, NumArgs[instruction])
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -110,12 +130,11 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 	}
 }
 
-// Prints an ANSI escape code to reset the current line in case a message is received
+// Prints an ANSI escape code to reset the current line in case a message is received.
 func ClearPrompt() {
 	fmt.Print("\r\033[K")
 }
 
-// Prints the shell prompt
 func PrintPrompt() {
 	fmt.Print("gochat > ")
 }
