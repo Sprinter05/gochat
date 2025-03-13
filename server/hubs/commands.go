@@ -13,22 +13,22 @@ import (
 
 /* TYPES */
 
-// Specifies the functions to run depending on the ID
+// Specifies the functions to run depending on the action code.
 type action func(*Hub, User, spec.Command)
 
-// Determines a request to be processed by a thread
+// Determines a request coming from a listening thread.
 type Request struct {
-	Conn    net.Conn
-	Command spec.Command
-	TLS     bool
+	Conn    net.Conn     // TCP Connection
+	Command spec.Command // Entire command read from the connection
+	TLS     bool         // Whether the connection is secure or not
 }
 
-// Used for the size of the queue of requests
+// Max amount of requests that can be buffered,
+// the listening thread will block once this limit is reached.
 const MaxUserRequests int = 5
 
 /* LOOKUP */
 
-// Function mapping table
 var cmdLookup map[spec.Action]action = map[spec.Action]action{
 	spec.REG:    registerUser,
 	spec.LOGIN:  loginUser,
@@ -44,8 +44,11 @@ var cmdLookup map[spec.Action]action = map[spec.Action]action{
 
 /* WRAPPER FUNCTIONS */
 
-// Check which action to perform and run it
-func Process(h *Hub, r Request, u *User) {
+// Check which action is asocciated to an operation
+// and runs it, the request needs to have the necessary
+// fields for the command to run, and the user should
+// be retrieved using the Session() function.
+func Process(h *Hub, r Request, u User) {
 	id := r.Command.HD.Op
 
 	fun, ok := cmdLookup[r.Command.HD.Op]
@@ -57,13 +60,15 @@ func Process(h *Hub, r Request, u *User) {
 	}
 
 	// Run command
-	fun(h, *u, r.Command)
+	fun(h, u, r.Command)
 }
 
 /* COMMANDS */
 
+// Registers a new user into the database, also filling the
+// User struct, but does not log it in.
+//
 // Replies with OK or ERR
-// Gets a user with only the net.Conn assigned to it
 func registerUser(h *Hub, u User, cmd spec.Command) {
 	uname := string(cmd.Args[0])
 
@@ -73,7 +78,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	// Check if public key is usable
+	// Check if the public key is usable
 	_, err := spec.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		log.User(string(uname), "pubkey registration", spec.ErrorArguments)
@@ -97,6 +102,9 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Checks if a user exists in the database and sends a
+// verification packet to the requesting connection.
+//
 // Replies with VERIF, OK or ERR
 func loginUser(h *Hub, u User, cmd spec.Command) {
 	// Check if it can be logged in through a reusable token
@@ -145,7 +153,6 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 	h.verifs.Add(u.name, ins)
 
 	// Wait timeout and remove the entry
-	// This function is a closure
 	go func() {
 		w := time.Duration(spec.LoginTimeout) * time.Minute
 		select {
@@ -159,6 +166,9 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 	}()
 }
 
+// Checks if a verification token sent is valid and
+// log the user in if so.
+//
 // Replies with OK or ERR
 func verifyUser(h *Hub, u User, cmd spec.Command) {
 	verif, ok := h.verifs.Get(u.name)
@@ -178,12 +188,14 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
+	// If we get here, it means it was correctly verified
 	// We modify the tables and cancel the goroutine
 	verif.cancel()
 	h.users.Add(u.conn, &u)
 
 	if u.secure {
-		// If we are using TLS we mark a soft delete
+		// If we are using TLS we mark a soft delete,
+		// that way it can remain as a reusable token.
 		verif.pending = false
 	} else {
 		// Otherwise we remove it
@@ -193,6 +205,8 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Marks an online user as offline.
+//
 // Replies with OK or ERR
 func logoutUser(h *Hub, u User, cmd spec.Command) {
 	_, uok := h.users.Get(u.conn)
@@ -211,6 +225,8 @@ func logoutUser(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Removes a user from the database and also logs it out.
+//
 // Replies with OK or ERR
 func deregisterUser(h *Hub, u User, cmd spec.Command) {
 	// Delete user if message cache is empty
@@ -236,10 +252,13 @@ func deregisterUser(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
+	// Log the user out
 	h.Cleanup(u.conn)
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Requests the public key of another user.
+//
 // Replies with REQ or ERR
 func requestUser(h *Hub, u User, cmd spec.Command) {
 	req, err := h.userFromDB(string(cmd.Args[0]))
@@ -270,11 +289,14 @@ func requestUser(h *Hub, u User, cmd spec.Command) {
 	u.conn.Write(pak) // send REQ
 }
 
+// Returns a list (separated with '\n') of all user, either
+// only online or all, as specified by the information field.
+//
 // Replies with USRS or ERR
 func listUsers(h *Hub, u User, cmd spec.Command) {
 	var usrs string
 
-	// Show online users or all
+	// Online/All argument
 	online := cmd.HD.Info
 
 	// 0x01 is show online
@@ -304,9 +326,11 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 	u.conn.Write(pak) // send USRS
 }
 
+// Sends a message to a user, if said user is online, a RECIV
+// packet will be sent directly, otherwise it will be stored
+// in the database for future retrieval.
+//
 // Replies with OK or ERR
-// Sends a RECIV if destination user is online
-// Otherwise stores to the database
 func messageUser(h *Hub, u User, cmd spec.Command) {
 	// Cannot send to self
 	if string(cmd.Args[0]) == u.name {
@@ -360,6 +384,9 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Retrieves all pending messages directed to the user from
+// the database. Should be requested right after a log in.
+//
 // Replies with RECIV or ERR
 func recivMessages(h *Hub, u User, cmd spec.Command) {
 	msgs, err := db.QueryMessages(h.db, u.name)

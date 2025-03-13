@@ -2,6 +2,9 @@ package hubs
 
 import (
 	"bytes"
+	"context"
+	"crypto/rsa"
+	"net"
 	"strings"
 	"time"
 
@@ -10,16 +13,43 @@ import (
 	"github.com/Sprinter05/gochat/server/db"
 )
 
-/* CHECK FUNCTIONS */
+/* TYPES */
 
-// Returns a user struct by querying the database one
+// Specifies a user that is connected/online.
+// By design it is not safe to use concurrently,
+// but it depends on how is is being used.
+type User struct {
+	conn   net.Conn       // TCP Connection
+	secure bool           // Whether it is using TLS or not
+	name   string         // Username, must conform to the specification size
+	perms  db.Permission  // Level of permission
+	pubkey *rsa.PublicKey // Public RSA key
+}
+
+// Specifies a verification in process or
+// a reusable token. It is not safe to use
+// concurrently but it depends on how it is being used.
+type Verif struct {
+	conn    net.Conn           // TCP Connection
+	name    string             // Username, must conform to the specification size
+	text    []byte             // Random text in unencrypted state
+	pending bool               // If false, it is in reusable token state
+	cancel  context.CancelFunc // Function to stop the pending verification
+	expiry  time.Time          // How long it is available for after a disconnection
+}
+
+/* USER FUNCTIONS */
+
+// Queries and transforms a user from the database into
+// a hub user that is online. It also checks that the retrieved
+// user does not have malformed data.
 func (hub *Hub) userFromDB(uname string) (*User, error) {
 	dbuser, err := db.QueryUser(hub.db, uname)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check that the permissions int is not out of bounds
+	// Check that the permission int is not out of bounds
 	if dbuser.Permission > db.OWNER {
 		return nil, spec.ErrorServer
 	}
@@ -37,7 +67,7 @@ func (hub *Hub) userFromDB(uname string) (*User, error) {
 
 	// Connection remains null as we don't know if it will be online
 	// Should be assigned by the calling function if necessary
-	// Connection is also not secure because its not connected
+	// Connection is also by default not secure because its not connected
 	return &User{
 		conn:   nil,
 		secure: false,
@@ -47,7 +77,8 @@ func (hub *Hub) userFromDB(uname string) (*User, error) {
 	}, nil
 }
 
-// Checks if a reusable token is valid
+// Checks if a reusable token is applicable to a user and if
+// it is valid and safe to use.
 func (hub *Hub) checkToken(u User, text []byte) error {
 	if !u.secure {
 		// We do not remove the verif
@@ -79,7 +110,8 @@ func (hub *Hub) checkToken(u User, text []byte) error {
 
 /* EXPORTED FUNCTIONS */
 
-// Returns an online user if it exists (thread-safe)
+// Tries to find an online user, returning a boolean
+// that indicates if it was found or not.
 func (hub *Hub) FindUser(uname string) (*User, bool) {
 	list := hub.users.GetAll()
 	for _, v := range list {
@@ -91,7 +123,9 @@ func (hub *Hub) FindUser(uname string) (*User, bool) {
 	return nil, false
 }
 
-// Lists all users in the server
+// Provides a list of all registered users, if the "online"
+// parameter is true, it will only return online users.
+// If no results are found, an empty string will be returned.
 func (hub *Hub) Userlist(online bool) (ret string) {
 	if online {
 		var str strings.Builder

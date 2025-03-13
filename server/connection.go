@@ -140,6 +140,6 @@ func RunTask(hub *hubs.Hub, req <-chan hubs.Request) {
 			continue // Next request
 		}
 
-		hubs.Process(hub, r, u)
+		hubs.Process(hub, r, *u)
 	}
 }

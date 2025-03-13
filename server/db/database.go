@@ -114,6 +114,12 @@ const (
 	OWNER                   // Can designate new administrators
 )
 
+var permsToString map[Permission]string = map[Permission]string{
+	USER:  "USER",
+	ADMIN: "ADMIN",
+	OWNER: "OWNER",
+}
+
 /* MODELS */
 
 // Identifies users stored in the database
@@ -146,7 +152,19 @@ var (
 
 /* FUNCTIONS */
 
-// Runs migrations for the database
+// Returns the name string asocciated to a
+// permission level or an empty string if the
+// permission level was not found.
+func PermissionString(p Permission) string {
+	v, ok := permsToString[p]
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+// Runs database migrations, ensuring all tables
+// are up to date.
 func Migrate(db *gorm.DB) {
 	err := db.Set(
 		"gorm:table_options",

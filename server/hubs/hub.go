@@ -2,41 +2,16 @@ package hubs
 
 import (
 	"context"
-	"crypto/rsa"
 	"net"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
-	"github.com/Sprinter05/gochat/server/db"
 	"gorm.io/gorm"
 )
 
 /* TYPES */
-
-// Specifies a user that is connected/online.
-// By design it is not safe to use concurrently,
-// but it depends on how is is being used.
-type User struct {
-	conn   net.Conn       // TCP Connection
-	secure bool           // Whether it is using TLS or not
-	name   string         // Username, must conform to the specification size
-	perms  db.Permission  // Level of permission
-	pubkey *rsa.PublicKey // Public RSA key
-}
-
-// Specifies a verification in process or
-// a reusable token. It is not safe to use
-// concurrently but it depends on how it is being used.
-type Verif struct {
-	conn    net.Conn           // TCP Connection
-	name    string             // Username, must conform to the specification size
-	text    []byte             // Random text in unencrypted state
-	pending bool               // If false, it is in reusable token state
-	cancel  context.CancelFunc // Function to stop the pending verification
-	expiry  time.Time          // How long it is available for after a disconnection
-}
 
 // Main data structure that stores all information shared
 // by all client connections. It is safe to use concurrently.

@@ -36,7 +36,9 @@ var adminLookup map[uint8]action = map[uint8]action{
 
 /* WRAPPER FUNCTIONS */
 
-// Every admin operation replies with either ERR or OK
+// Runs an admin operation according to the information
+// header field and the arguments provided. All
+// admin commands will return either ERR or OK.
 func adminOperation(h *Hub, u User, cmd spec.Command) {
 	if u.perms == db.USER {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
@@ -52,7 +54,7 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 	}
 
 	args := adminArgs[cmd.HD.Info]
-	if cmd.HD.Args != args {
+	if cmd.HD.Args < args {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
@@ -68,7 +70,9 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 
 /* COMMANDS */
 
-// Requires ADMIN or more
+// Shuts down the server at a certain time.
+//
+// Requires ADMIN or more.
 // Uses 1 argument for the unix stamp
 func adminShutdown(h *Hub, u User, cmd spec.Command) {
 	stamp, err := spec.BytesToUnixStamp(cmd.Args[0])
@@ -85,6 +89,7 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
+	// Block until the specified time
 	go func() {
 		wait := time.Duration(duration) * time.Second
 		time.Sleep(wait)
@@ -110,12 +115,14 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Broadcasts a message to all online users.
+//
 // Requires ADMIN or more
 // Requires 1 argument for the message
 func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	// Create packet with the message
 	pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
-		[]byte(u.name+" [ADMIN]"),
+		[]byte(u.name+" ["+db.PermissionString(u.perms)+"]"),
 		spec.UnixStampToBytes(time.Now()),
 		cmd.Args[0],
 	)
@@ -134,6 +141,8 @@ func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Deregisters a user from the database.
+//
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDeregister(h *Hub, u User, cmd spec.Command) {
@@ -147,6 +156,8 @@ func adminDeregister(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Increases the permission level of a user
+//
 // Requires OWNER or more
 // Requires 1 argument for the user
 func adminPromote(h *Hub, u User, cmd spec.Command) {
@@ -174,6 +185,8 @@ func adminPromote(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Disconnects an online user if it's connected.
+//
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDisconnect(h *Hub, u User, cmd spec.Command) {
@@ -183,7 +196,7 @@ func adminDisconnect(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	// This should stop the client thread
-	// And also cleanup caches
+	// This should trigger the cleanup
+	// on the thread listening to the client
 	dc.conn.Close()
 }
