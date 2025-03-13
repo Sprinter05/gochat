@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Main method for the client
@@ -15,6 +17,13 @@ func main() {
 	}
 	// Closes conection once execution is over
 	defer con.Close()
+	dbpath, ok := os.LookupEnv("CLT_DB_PATH")
+	if !ok {
+		fmt.Print("error: variable CLT_DB_PATH not found\n")
+		return
+	}
+	DB, _ = sql.Open("sqlite3", dbpath)
+	DeleteEntries() // TODO: remove this
 
 	// Starts listening for server packets
 	go Listen(con, ctx, pctReceived)
