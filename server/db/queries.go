@@ -16,14 +16,13 @@ import (
 
 /* QUERIES */
 
-// Returns a user by their username
-// This returns a user according to the db model
+// Returns a database user according to their username
 func QueryUser(db *gorm.DB, uname string) (*User, error) {
 	var user User
 	res := db.First(&user, "username = ?", uname)
 	if res.Error != nil {
 		log.DBError(res.Error)
-		// No user with that username exists
+		// Abstract with errors of the db package
 		if res.Error == gorm.ErrRecordNotFound {
 			return nil, ErrorNotFound
 		}
@@ -34,7 +33,10 @@ func QueryUser(db *gorm.DB, uname string) (*User, error) {
 	return &user, nil
 }
 
-// Gets all messages from the user
+// Gets all messages directed to the specified user as an array of pointers,
+// this was it is easier to pass it around. It uses the specification
+// Message type and not the database one due to how messages are stored,
+// which will be returned in an encrypted state.
 func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	user, err := QueryUser(db, uname)
 	if err != nil {
@@ -42,6 +44,7 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	}
 
 	// We give it a context so its safe to reuse
+	// for first counting and then returning results
 	res := db.Model(&Message{}).Select(
 		"username", "message", "stamp",
 	).Joins(
@@ -69,7 +72,7 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	}
 	defer rows.Close()
 
-	// We create a preallocated array
+	// Preallocate space
 	messages := make([]*spec.Message, 0, size)
 
 	for i := 0; rows.Next(); i++ {
@@ -99,7 +102,9 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	return messages, nil
 }
 
-// Lists all usernames in the database
+// Returns a list of all users registered in the database
+// as a single string separated by '\n', or an error if
+// no users are registered.
 func QueryUsernames(db *gorm.DB) (string, error) {
 	var users strings.Builder
 	var dbusers []User
@@ -120,7 +125,6 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 	}
 
 	for _, v := range dbusers {
-		// Append to buffer
 		users.WriteString(string(v.Username) + "\n")
 	}
 
@@ -132,7 +136,9 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 
 /* INSERTIONS */
 
-// Inserts a user into a database, key must be in PEM format
+// Inserts a user into a database, the public key provided must be
+// in the PEM format that the specification uses to prevent future
+// errors on retrieval.
 func InsertUser(db *gorm.DB, uname string, pubkey []byte) error {
 	// Public key must be a sql null string
 	res := db.Create(&User{
@@ -145,7 +151,7 @@ func InsertUser(db *gorm.DB, uname string, pubkey []byte) error {
 
 	if res.Error != nil {
 		log.DBError(res.Error)
-		// Content already exists
+		// Abstract gorm database error
 		if res.Error == gorm.ErrDuplicatedKey {
 			return ErrorDuplicatedKey
 		}
@@ -155,7 +161,9 @@ func InsertUser(db *gorm.DB, uname string, pubkey []byte) error {
 	return nil
 }
 
-// Adds a message to the users message cache
+// Cache a message into the database for future retrieval
+// by the destination user. Message should be encrypted when
+// inserting, as the database makes no checks whatsoever.
 func CacheMessage(db *gorm.DB, dst string, msg spec.Message) error {
 	srcuser, srcerr := QueryUser(db, msg.Sender)
 	if srcerr != nil {
@@ -167,7 +175,8 @@ func CacheMessage(db *gorm.DB, dst string, msg spec.Message) error {
 		return dsterr
 	}
 
-	// Encode encrypted array to string
+	// Encode encrypted array to string for
+	// better compatibility
 	str := hex.EncodeToString([]byte(msg.Content))
 	res := db.Create(&Message{
 		SrcUser: srcuser.UserID,
@@ -186,14 +195,15 @@ func CacheMessage(db *gorm.DB, dst string, msg spec.Message) error {
 
 /* UPDATES */
 
-// Prevents a user from logging in
+// Prevents a user from logging in by nullifying their public
+// key, this is better than deletion in case some messages
+// related to this user are still cached.
 func RemoveKey(db *gorm.DB, uname string) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
 	}
 
-	// Set public key to null
 	user.Pubkey = sql.NullString{
 		Valid: false,
 	}
@@ -207,7 +217,8 @@ func RemoveKey(db *gorm.DB, uname string) error {
 	return nil
 }
 
-// Changes the permissions of a user
+// Changes the permission level of a user, according to the ones
+// provided in the Permission type.
 func ChangePermission(db *gorm.DB, uname string, perm Permission) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
@@ -227,8 +238,9 @@ func ChangePermission(db *gorm.DB, uname string, perm Permission) error {
 
 /* DELETIONS */
 
-// Removes a user from the database
-// Fails if the user has messages pending
+// Attempts to remove a user from the database,
+// fails if the user has messages pending, in which
+// case it is recommended to use the RemoveKey() function.
 func RemoveUser(db *gorm.DB, uname string) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
@@ -238,7 +250,7 @@ func RemoveUser(db *gorm.DB, uname string) error {
 	res := db.Delete(&user)
 	if res.Error != nil {
 		log.DBError(res.Error)
-		// Check if the error is the foreign key constraint
+		// Abstract gorm error to the caller
 		if errors.Is(res.Error, gorm.ErrForeignKeyViolated) {
 			return ErrorForeignKey
 		}
@@ -248,8 +260,10 @@ func RemoveUser(db *gorm.DB, uname string) error {
 	return nil
 }
 
-// Removes all cached messages from a user before a given stamp
-// This is done to prevent messages from being lost due to concurrency
+// Removes all cached messages destinated to a given user before a
+// given stamp, this is done to prevent messages from being lost
+// due to concurrent access. It is advised to use the timestamp
+// of the last retrieved message, as that should be the newest one.
 func RemoveMessages(db *gorm.DB, uname string, stamp time.Time) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {

@@ -1,3 +1,8 @@
+// This package is used to allow the server to abstract
+// the communication between itself and the database.
+//
+// It is important to know that it is only designed to work
+// with a MariaDB database.
 package db
 
 import (
@@ -18,6 +23,7 @@ import (
 /* UTILITIES */
 
 // Gets the necessary environment variables
+// to connect to the database.
 func getDBEnv() string {
 	user, ok := os.LookupEnv("DB_USER")
 	if !ok {
@@ -55,7 +61,8 @@ func getDBEnv() string {
 	)
 }
 
-// Connects to the database using the environment file
+// Connects to the database using an optional logger
+// that can be passed as a parameter
 func Connect(logfile *stdlog.Logger) *gorm.DB {
 	access := getDBEnv()
 
@@ -70,6 +77,7 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 		)
 	}
 
+	// Open the connection
 	db, err := gorm.Open(
 		driver.Open(access),
 		&gorm.Config{
@@ -96,18 +104,19 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 
 /* TYPES */
 
-// Specifies a permission
+// Specifies the permissions this database
+// implementation stores.
 type Permission int8
 
 const (
-	USER Permission = iota
-	ADMIN
-	OWNER
+	USER  Permission = iota // Lowest level
+	ADMIN                   // Can perform admin operations
+	OWNER                   // Can designate new administrators
 )
 
 /* MODELS */
 
-// Identifies the model of a user in the database
+// Identifies users stored in the database
 type User struct {
 	UserID     uint           `gorm:"primaryKey;autoIncrement;not null"`
 	Username   string         `gorm:"unique;not null;size:32"`
@@ -115,7 +124,7 @@ type User struct {
 	Permission Permission     `gorm:"not null;default:0"`
 }
 
-// Identifies the model of a message in the database
+// Identifies messages stored in the database
 type Message struct {
 	SrcUser     uint      `gorm:"not null;check:src_user <> dst_user"`
 	DstUser     uint      `gorm:"not null"`
@@ -128,11 +137,11 @@ type Message struct {
 /* ERRORS */
 
 var (
-	ErrorNotFound      = errors.New("record not found in the database")
-	ErrorDuplicatedKey = errors.New("unique key constraint violated due to duplicate")
-	ErrorForeignKey    = errors.New("foreign key restrict violation")
-	ErrorConsistency   = errors.New("invalid data found in the database")
-	ErrorEmpty         = errors.New("empty result found")
+	ErrorNotFound      = errors.New("record not found in the database")                // record not found in the database
+	ErrorDuplicatedKey = errors.New("unique key constraint violated due to duplicate") // unique key constraint violated due to duplicate
+	ErrorForeignKey    = errors.New("foreign key restrict violation")                  // foreign key restrict violation
+	ErrorConsistency   = errors.New("invalid data found in the database")              // invalid data found in the database
+	ErrorEmpty         = errors.New("empty result found")                              // empty result found
 )
 
 /* FUNCTIONS */
