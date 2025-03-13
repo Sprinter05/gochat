@@ -48,21 +48,22 @@ var ClientCmds = map[string]CommandFunc{
 
 // Map that associates the number of arguments required for each command.
 var NumArgs = map[string]uint8{
-	"VER":      0,
-	"HELP":     0,
-	"VERBOSE":  0,
-	"PENDING":  0,
-	"LOADUSER": 1,
-	"REGUSER":  2,
-	"REG":      2,
-	"LOGIN":    1,
-	"VERIF":    1,
-	"REQ":      1,
-	"USRS":     1,
-	"MSG":      3,
-	"RECIV":    0,
-	"LOGOUT":   0,
-	"DEREG":    0,
+	"VER":        0,
+	"HELP":       0,
+	"VERBOSE":    0,
+	"PENDING":    0,
+	"LOADUSER":   1,
+	"CREATEUSER": 1,
+	"REGUSER":    2,
+	"REG":        2,
+	"LOGIN":      1,
+	"VERIF":      1,
+	"REQ":        1,
+	"USRS":       1,
+	"MSG":        3,
+	"RECIV":      0,
+	"LOGOUT":     0,
+	"DEREG":      0,
 }
 
 // Map with all server commands
