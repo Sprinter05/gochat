@@ -362,7 +362,7 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 	msgs, err := db.QueryMessages(h.db, u.name)
 	if err != nil {
 		// No messages to query
-		if err == spec.ErrorEmpty {
+		if err == db.ErrorEmpty {
 			sendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
 			return
 		}

@@ -68,7 +68,7 @@ func (cmd *Command) Print() {
 	fmt.Println()
 }
 
-// TODO: Unnecessary?
+// ? Unnecessary
 // Prints summarized information about a packet for the client shell.
 func (cmd *Command) ShellPrint() {
 	// Initializes information message to EmptyInfo message

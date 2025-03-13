@@ -18,16 +18,18 @@ import (
 // Note that a established connection does not imply a
 // logged in user.
 type Connection struct {
-	Conn net.Conn
-	RD   *bufio.Reader
-	TLS  bool
+	Conn net.Conn      // TCP connection
+	RD   *bufio.Reader // Buffered reader of the connection
+	TLS  bool          // Whether it is connected through TLS
 }
 
-// Specifies a message to be received
+// Specifies a message that can be sent between clients
+// and that is either sent directly through the server
+// or stored in the database.
 type Message struct {
-	Sender  string
-	Content []byte
-	Stamp   time.Time
+	Sender  string    // Person that sent the message
+	Content []byte    // Encrypted content
+	Stamp   time.Time // Specifies when the message was sent
 }
 
 /* CONNECTION FUNCTIONS */

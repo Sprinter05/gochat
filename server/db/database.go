@@ -131,6 +131,8 @@ var (
 	ErrorNotFound      = errors.New("record not found in the database")
 	ErrorDuplicatedKey = errors.New("unique key constraint violated due to duplicate")
 	ErrorForeignKey    = errors.New("foreign key restrict violation")
+	ErrorConsistency   = errors.New("invalid data found in the database")
+	ErrorEmpty         = errors.New("empty result found")
 )
 
 /* FUNCTIONS */

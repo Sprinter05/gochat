@@ -59,7 +59,7 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 
 	// No results
 	if size == 0 {
-		return nil, spec.ErrorEmpty
+		return nil, ErrorEmpty
 	}
 
 	rows, err := res.Rows()
@@ -111,7 +111,7 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 	}
 
 	if len(dbusers) == 0 {
-		return "", spec.ErrorEmpty
+		return "", ErrorEmpty
 	}
 
 	// Preallocate strings builder

@@ -7,8 +7,9 @@ import (
 
 /* THREAD SAFE COUNTER */
 
-// Global counter for the amount of clients
-// Includes a priority system for waiting
+// Counter that can increase and decrease
+// up to a certain maximum value. It is implemented
+// so that it is safe to use concurrently.
 type Counter struct {
 	cond *sync.Cond
 	val  int
@@ -18,7 +19,7 @@ type Counter struct {
 
 /* FUNCTIONS */
 
-// Creates a new counter with the max value it can have
+// Creates a new counter with the maximum value it can have.
 func NewCounter(max int) Counter {
 	return Counter{
 		max:  max,
@@ -26,7 +27,7 @@ func NewCounter(max int) Counter {
 	}
 }
 
-// Returns the value of the counter
+// Returns the current value of the counter.
 func (c *Counter) Get() int {
 	c.cond.L.Lock()
 	defer c.cond.L.Unlock()
@@ -34,7 +35,8 @@ func (c *Counter) Get() int {
 }
 
 // Increases the value of the counter
-// Will block when the value is max
+// Will block the goroutine when the value
+// is max until it can be increased again.
 func (c *Counter) Inc() {
 	c.cond.L.Lock()
 	defer c.cond.L.Unlock()
@@ -48,6 +50,8 @@ func (c *Counter) Inc() {
 		for pos > 0 {
 			c.cond.Wait()
 			// Waking up means someone broadcasted
+			// We decrease on all waiting goroutines
+			// That way it works like a priority queue
 			pos--
 		}
 	}
@@ -55,7 +59,8 @@ func (c *Counter) Inc() {
 	c.val++
 }
 
-// Tries to increase the value unless it is max
+// Tries to increase the value, if the value is max
+// an error will be returned.
 func (c *Counter) TryInc() error {
 	c.cond.L.Lock()
 	defer c.cond.L.Unlock()
@@ -69,7 +74,8 @@ func (c *Counter) TryInc() error {
 }
 
 // Decreases the value of the counter
-// Notifies all waiting goroutines
+// Notifies anyone waiting to increase
+// the counter again.
 func (c *Counter) Dec() {
 	c.cond.L.Lock()
 	defer c.cond.L.Unlock()
