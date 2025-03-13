@@ -1,3 +1,6 @@
+// This package implements all functionality for working with
+// a concurrent access point for all common funcionality between
+// clients.
 package hubs
 
 import (

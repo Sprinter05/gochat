@@ -22,16 +22,17 @@ import (
 
 /* INIT */
 
-// Sets up logging
-// Reads environment file from first cli argument
-// init() always runs when the program starts
+// Sets up logging and read an environment file
+// from the first cli argument, if present.
+//
+// init() always runs first when the program starts
 func init() {
 	// If we default to stderr it won't print unless debugged
 	stdlog.SetOutput(os.Stdout)
 
-	// Argument 0 is the pathname to the executable
+	// Read argument 1 as .env if it exists
 	if len(os.Args) > 1 {
-		// Read argument 1 as .env if it exists
+		// Argument 0 is the pathname to the executable
 		err := godotenv.Load(os.Args[1])
 		if err != nil {
 			log.Fatal("env file reading", err)
@@ -58,7 +59,7 @@ func init() {
 
 /* SETUP FUNCTIONS */
 
-// Creates a log file and returns both file and log
+// Creates a log file and returns it.
 func logFile() *os.File {
 	f, ok := os.LookupEnv("DB_LOGF")
 	if !ok {
@@ -75,7 +76,8 @@ func logFile() *os.File {
 		log.Fatal("db log file", err)
 	}
 
-	// Print separator inside log file
+	// Prints that the server has started
+	// running inside log file
 	stat, _ := file.Stat()
 	if stat.Size() != 0 {
 		// Not the first line of file
@@ -83,11 +85,10 @@ func logFile() *os.File {
 	}
 	file.WriteString("------ " + time.Now().String() + " ------\n\n")
 
-	// Set the new db logger
 	return file
 }
 
-// Creates a listener for the socket
+// Creates an unencrypted TCP listener
 func setupConn() net.Listener {
 	addr, ok := os.LookupEnv("SRV_ADDR")
 	if !ok {
@@ -113,7 +114,7 @@ func setupConn() net.Listener {
 	return l
 }
 
-// Create a TLS listener for the socket
+// Create a TLS listener
 func setupTLSConn() net.Listener {
 	addr, ok := os.LookupEnv("SRV_ADDR")
 	if !ok {
@@ -153,18 +154,20 @@ func setupTLSConn() net.Listener {
 
 /* MAIN FUNCTIONS */
 
-// TODO: Document everything (100go.co #15)
 // TODO: Check hub error comparisons
 //? https://github.com/uber-go/automaxprocs
 
-// Identifies a running socket
+// Specifies a behaviour that is common to all
+// listening sockets, so that they can process
+// events all at the same time.
 type Server struct {
-	wg    sync.WaitGroup
-	count models.Counter
-	ctx   context.Context
+	wg    sync.WaitGroup  // How many sockets are running
+	count models.Counter  // How many clients are connected
+	ctx   context.Context // When to shut down the socket
 }
 
-// Runs a socket to accept connections
+// Runs a listener to accept connections until the
+// shutdown signal is received.
 func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 	defer sock.wg.Done()
 
@@ -195,7 +198,8 @@ func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 		// Check if its tls
 		_, ok := c.(*tls.Conn)
 
-		// Buffered channel for intercommunication
+		// Buffered channel for intercommunication between
+		// the listening goroutine and the processing goroutine
 		req := make(chan hubs.Request, hubs.MaxUserRequests)
 
 		// Listens to the client's packets
@@ -216,7 +220,7 @@ func manual(close context.CancelFunc) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
-	// Wait on ctrl c
+	// Wait for a CTRL-C
 	<-c
 
 	log.Notice("manual shutdown signal sent! closing resources...")
@@ -230,8 +234,8 @@ func main() {
 	sock := setupConn()
 	tlssock := setupTLSConn()
 
-	// Set up database logging file
-	// Only if logging is INFO or more
+	// Set up database logging file only
+	// if the logging level is INFO or more
 	var dblog *stdlog.Logger
 	if log.Level >= log.INFO {
 		f := logFile()
@@ -244,7 +248,7 @@ func main() {
 	sqldb, _ := database.DB()
 	defer sqldb.Close()
 
-	// Setup hub and wait until a shutdown signal is sent
+	// Setup hub and make it wait until a shutdown signal is sent
 	ctx, cancel := context.WithCancel(context.Background())
 	hub := hubs.NewHub(database, ctx, cancel, spec.MaxClients)
 	go hub.Wait(sock, tlssock)

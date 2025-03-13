@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-/* THREAD SAFE COUNTER */
+/* CONCURRENTLY SAFE COUNTER */
 
 // Counter that can increase and decrease
 // up to a certain maximum value. It is implemented

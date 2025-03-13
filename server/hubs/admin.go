@@ -196,7 +196,7 @@ func adminDisconnect(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	// This should trigger the cleanup
-	// on the thread listening to the client
+	// This should trigger the cleanup on
+	// the goroutine listening to the client
 	dc.conn.Close()
 }

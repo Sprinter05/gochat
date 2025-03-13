@@ -16,7 +16,7 @@ import (
 // Specifies the functions to run depending on the action code.
 type action func(*Hub, User, spec.Command)
 
-// Determines a request coming from a listening thread.
+// Determines a request coming from a listening connection.
 type Request struct {
 	Conn    net.Conn     // TCP Connection
 	Command spec.Command // Entire command read from the connection
@@ -24,7 +24,7 @@ type Request struct {
 }
 
 // Max amount of requests that can be buffered,
-// the listening thread will block once this limit is reached.
+// asocciated channel will block once this limit is reached.
 const MaxUserRequests int = 5
 
 /* LOOKUP */

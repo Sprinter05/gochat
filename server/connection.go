@@ -11,7 +11,8 @@ import (
 
 /* COMMAND FUNCTIONS */
 
-func withHeader(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
+// Reads a header of a comamnd from the TCP connection
+func withHeader(cl spec.Connection, cmd *spec.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cmd.ListenHeader(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
@@ -25,12 +26,13 @@ func withHeader(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
 			cl.Conn.Write(pak)
 		}
 
-		return cmd, err
+		return err
 	}
-	return cmd, nil
+	return nil
 }
 
-func withPayload(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
+// Reads the arguments of a command from the TCP connection
+func withPayload(cl spec.Connection, cmd *spec.Command) error {
 	// Reads using the reader assigned to the connection
 	if err := cmd.ListenPayload(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
@@ -44,17 +46,19 @@ func withPayload(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
 			cl.Conn.Write(pak)
 		}
 
-		return cmd, err
+		return err
 	}
-	return cmd, nil
+	return nil
 }
 
-// Returns a newly created command
+// Reads from a connection and returns a command according to the specification,
+// with all fields, or an error.
 func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	ip := cl.Conn.RemoteAddr().String()
 
 	// Error logged by the function
-	if cmd, err = withHeader(cl, cmd); err != nil {
+	read := new(spec.Command)
+	if err = withHeader(cl, read); err != nil {
 		return cmd, err
 	}
 
@@ -67,17 +71,17 @@ func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	// If there are no arguments we do not process the payload
 	if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
 		// Error logged by the function
-		if cmd, err = withPayload(cl, cmd); err != nil {
+		if err = withPayload(cl, read); err != nil {
 			return cmd, err
 		}
 	}
 
-	return cmd, nil
+	return *read, nil
 }
 
-/* THREADED FUNCTIONS */
+/* CONNECTION FUNCTIONS */
 
-// Listens for packets from a client connection
+// Listens for packets from a client connection until the connection is shut down
 func ListenConnection(cl spec.Connection, c *models.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
 	// Cleanup connection on exit
 	defer func() {
@@ -126,7 +130,7 @@ func ListenConnection(cl spec.Connection, c *models.Counter, req chan<- hubs.Req
 
 }
 
-// Wraps concurrency with each client's command
+// Runs all commands for a single client
 func RunTask(hub *hubs.Hub, req <-chan hubs.Request) {
 	for r := range req {
 		// Show request

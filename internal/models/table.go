@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-/* THREAD SAFE TABLE */
+/* CONCURRENTLY SAFE TABLE */
 
 // Table used for storing a map
 // that is safe to use concurrently.
@@ -26,8 +26,6 @@ func NewTable[I comparable, T any](size int) Table[I, T] {
 }
 
 // Adds an element to the table.
-//
-// Thread safe write.
 func (t *Table[I, T]) Add(i I, v T) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
@@ -36,8 +34,6 @@ func (t *Table[I, T]) Add(i I, v T) {
 
 // Removes an element from the table, no
 // error will be reported if its not found.
-//
-// Thread safe write.
 func (t *Table[I, T]) Remove(i I) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
@@ -46,8 +42,6 @@ func (t *Table[I, T]) Remove(i I) {
 
 // Returns an element from the table
 // and a boolean specifying if it exists.
-//
-// Thread safe read
 func (t *Table[I, T]) Get(i I) (T, bool) {
 	t.mut.RLock()
 	defer t.mut.RUnlock()
@@ -64,8 +58,6 @@ func (t *Table[I, T]) Get(i I) (T, bool) {
 
 // Returns all value elements of the
 // table in an array
-//
-// Thread safe read
 func (t *Table[I, T]) GetAll() []T {
 	l := len(t.data)
 	if l == 0 {
