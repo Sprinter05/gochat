@@ -11,8 +11,8 @@ import (
 	"github.com/Sprinter05/gochat/gcspec"
 )
 
-// Buffer where packets whose response is pending are allocated
-var PacketBuffer map[uint16]*[]byte = make(map[uint16]*[]byte)
+// Buffer where the pending packet's ID is allocated as a key with the operation code as its value
+var PendingBuffer map[uint16]uint8 = make(map[uint16]uint8)
 
 // Starts listening for packets
 func Listen(con net.Conn) {
