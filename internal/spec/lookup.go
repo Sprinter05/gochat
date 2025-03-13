@@ -185,24 +185,26 @@ func (err SpecError) Error() string {
 }
 
 var (
-	ErrorUndefined  error = SpecError{0x00, "undefined problem occured"}               // undefined problem occured
-	ErrorInvalid    error = SpecError{0x01, "invalid operation performed"}             // invalid operation performed
-	ErrorNotFound   error = SpecError{0x02, "content can not be found"}                // content can not be found
-	ErrorVersion    error = SpecError{0x03, "server and client versions do not match"} // server and client versions do not match
-	ErrorHandshake  error = SpecError{0x04, "handshake process failed"}                // handshake process failed
-	ErrorArguments  error = SpecError{0x05, "invalid arguments given"}                 // invalid arguments given
-	ErrorMaxSize    error = SpecError{0x06, "data size is too big"}                    // data size is too big
-	ErrorHeader     error = SpecError{0x07, "invalid header provided"}                 // invalid header provided
-	ErrorNoSession  error = SpecError{0x08, "user is not connected"}                   // user is not connected
-	ErrorLogin      error = SpecError{0x09, "user can not be logged in"}               // user can not be logged in
-	ErrorConnection error = SpecError{0x0A, "connection problem occured"}              // connection problem occured
-	ErrorEmpty      error = SpecError{0x0B, "queried data is empty"}                   // queried data is empty
-	ErrorPacket     error = SpecError{0x0C, "packet could not be delivered"}           // packet could not be delivered
-	ErrorPrivileges error = SpecError{0x0D, "missing privileges to run"}               // missing privileges to run
-	ErrorServer     error = SpecError{0x0E, "server operation failed"}                 // server operation failed
-	ErrorIdle       error = SpecError{0x0F, "user has been idle for too long"}         // user has been idle for too long
-	ErrorExists     error = SpecError{0x10, "content already exists"}                  // content already exists
-	ErrorUnescure   error = SpecError{0x10, "connection is not secure"}                // connection is not secure
+	ErrorUndefined    error = SpecError{0x00, "undefined problem occured"}               // undefined problem occured
+	ErrorInvalid      error = SpecError{0x01, "invalid operation performed"}             // invalid operation performed
+	ErrorNotFound     error = SpecError{0x02, "content can not be found"}                // content can not be found
+	ErrorVersion      error = SpecError{0x03, "server and client versions do not match"} // server and client versions do not match
+	ErrorHandshake    error = SpecError{0x04, "handshake process failed"}                // handshake process failed
+	ErrorArguments    error = SpecError{0x05, "invalid arguments given"}                 // invalid arguments given
+	ErrorMaxSize      error = SpecError{0x06, "data size is too big"}                    // data size is too big
+	ErrorHeader       error = SpecError{0x07, "invalid header provided"}                 // invalid header provided
+	ErrorNoSession    error = SpecError{0x08, "user is not connected"}                   // user is not connected
+	ErrorLogin        error = SpecError{0x09, "user can not be logged in"}               // user can not be logged in
+	ErrorConnection   error = SpecError{0x0A, "connection problem occured"}              // connection problem occured
+	ErrorEmpty        error = SpecError{0x0B, "queried data is empty"}                   // queried data is empty
+	ErrorPacket       error = SpecError{0x0C, "packet could not be delivered"}           // packet could not be delivered
+	ErrorPrivileges   error = SpecError{0x0D, "missing privileges to run"}               // missing privileges to run
+	ErrorServer       error = SpecError{0x0E, "server operation failed"}                 // server operation failed
+	ErrorIdle         error = SpecError{0x0F, "user has been idle for too long"}         // user has been idle for too long
+	ErrorExists       error = SpecError{0x10, "content already exists"}                  // content already exists
+	ErrorUnescure     error = SpecError{0x10, "connection is not secure"}                // connection is not secure
+	ErrorDeregistered error = SpecError{0x11, "user no longer exists"}                   // user no longer exists
+	ErrorDupSession   error = SpecError{0x12, "session exists in another endpoint"}      // session exists in another endpoint
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -223,6 +225,8 @@ var codeToError map[byte]error = map[byte]error{
 	0x0E: ErrorServer,
 	0x0F: ErrorIdle,
 	0x10: ErrorExists,
+	0x11: ErrorDeregistered,
+	0x12: ErrorDupSession,
 }
 
 // Returns the error asocciated to a hex byte.

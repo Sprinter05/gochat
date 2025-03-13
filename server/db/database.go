@@ -126,6 +126,7 @@ type Message struct {
 }
 
 /* ERRORS */
+
 var (
 	ErrorNotFound      = errors.New("record not found in the database")
 	ErrorDuplicatedKey = errors.New("unique key constraint violated due to duplicate")

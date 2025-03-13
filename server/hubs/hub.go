@@ -59,12 +59,12 @@ func (hub *Hub) userFromDB(uname string) (*User, error) {
 
 	// Check that the permissions int is not out of bounds
 	if dbuser.Permission > db.OWNER {
-		return nil, ErrorInvalidValue
+		return nil, spec.ErrorServer
 	}
 
 	// Check that the public key is not null
 	if !dbuser.Pubkey.Valid {
-		return nil, ErrorDeregistered
+		return nil, spec.ErrorDeregistered
 	}
 
 	// Turn it into a public key from PEM certificate
@@ -150,7 +150,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 		if err == nil {
 			// Valid user found in cache, serve request
 			return cached, nil
-		} else if err != ErrorDoesNotExist {
+		} else if err != spec.ErrorNotFound {
 			// We do not search in the DB if its a different error
 			return nil, err
 		}
@@ -162,7 +162,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 		if e == nil {
 			// User found in database so we serve request
 			return user, nil
-		} else if e != ErrorDoesNotExist {
+		} else if e != spec.ErrorNotFound {
 			// We do not create a new user if its a different error
 			return nil, e
 		}
@@ -178,7 +178,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 			// Cannot do anything without an account
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
 		}
-		return nil, ErrorNoAccount
+		return nil, spec.ErrorNoSession
 	}
 
 	// Newly created user
@@ -198,7 +198,7 @@ func (hub *Hub) dbLogin(r Request) (*User, error) {
 	user, e := hub.userFromDB(u)
 	if e != nil {
 		// Error is handled in the calling function
-		if e != ErrorDoesNotExist {
+		if e != spec.ErrorNotFound {
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
 		}
 		return nil, e
@@ -226,13 +226,13 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 		if ipok {
 			// Cannot have two sessions of the same user
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
-			return nil, ErrorDuplicatedSession
+			return nil, spec.ErrorDupSession
 
 		}
 	}
 
 	// Otherwise the user is not found
-	return nil, ErrorDoesNotExist
+	return nil, spec.ErrorNotFound
 }
 
 /* HUB QUERY FUNCTIONS */

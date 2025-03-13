@@ -60,6 +60,8 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_SERVER` (0x0E): Failed to perform a server-side operation.
 - `ERR_IDLE` (0x0F): User has been idle for too long.
 - `ERR_EXISTS` (0x10): Content already exists.
+- `ERR_DEREG` (0x11): User is no longer registered.
+- `ERR_DUPSESS` (0x10): Session already exists in another endpoint.
 
 ### Argument for USRS
 - `OFFLINE` (0x0): Show all users.

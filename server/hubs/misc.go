@@ -1,7 +1,6 @@
 package hubs
 
 import (
-	"errors"
 	"math/rand"
 	"net"
 	"time"
@@ -18,19 +17,6 @@ const CypherLength int = 128
 
 // Used for the size of the queue of requests
 const MaxUserRequests int = 5
-
-/* INTERNAL ERRORS */
-
-var (
-	ErrorDeregistered        error = errors.New("user has been deregistered")
-	ErrorDoesNotExist        error = errors.New("data does not exist")
-	ErrorSessionExists       error = errors.New("user is already logged in")
-	ErrorDuplicatedSession   error = errors.New("user is logged in from another endpoint")
-	ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
-	ErrorNoAccount           error = errors.New("user tried performing an operation with no account")
-	ErrorNoMessages          error = errors.New("user has no messages to receive")
-	ErrorInvalidValue        error = errors.New("data provided is invalid")
-)
 
 /* AUXILIARY FUNCTIONS */
 

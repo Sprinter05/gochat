@@ -73,7 +73,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	// Check if public key is usable
 	_, err := spec.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		log.User(string(uname), "pubkey registration", ErrorInvalidValue)
+		log.User(string(uname), "pubkey registration", spec.ErrorArguments)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
@@ -161,7 +161,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	verif, ok := h.verifs.Get(u.name)
 
 	if !ok {
-		log.User(string(u.name), "verification", ErrorDoesNotExist)
+		log.User(string(u.name), "verification existance", spec.ErrorNotFound)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
@@ -170,7 +170,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
 		h.Cleanup(u.conn)
-		log.User(string(u.name), "verification", ErrorInvalidValue)
+		log.User(string(u.name), "verification validation", spec.ErrorHandshake)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorHandshake, u.conn)
 		return
 	}
@@ -281,7 +281,7 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 		usrs = h.Userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		log.User(string(u.name), "list argument", ErrorInvalidValue)
+		log.User(string(u.name), "list argument", spec.ErrorHeader)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
@@ -344,7 +344,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 		Stamp:   stamp,
 	})
 	if err != nil {
-		if err == ErrorDoesNotExist {
+		if err == spec.ErrorNotFound {
 			sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 			return
 		}
