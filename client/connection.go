@@ -25,27 +25,18 @@ func Listen(con net.Conn) {
 	defer cl.Conn.Close()
 
 	for {
-		pct := gcspec.Command{}
-
-		// Reads header
-		err := cl.ListenHeader(&pct)
-		if err != nil {
-			// Connection closed by server
-			if err == io.EOF {
-				return
-			}
-			continue // Continues listening
+		pct := spec.Command{}
+		headerErr := pct.ListenHeader(cl)
+		if headerErr != nil {
+			fmt.Println("Error in header listen:")
+			fmt.Println(headerErr.Error())
+			pct.Print()
 		}
-		// Reads payload
-		err = cl.ListenPayload(&pct)
-		if err != nil {
-			log.Print(err)
-			// Connection closed by server
-			if err == io.EOF {
-				return
-			}
-
-			continue // Continues listening
+		payloadErr := pct.ListenPayload(cl)
+		if payloadErr != nil {
+			fmt.Println("Error in payload listen:")
+			fmt.Println(payloadErr.Error())
+			pct.Print()
 		}
 		// If the server packet was correct, by this point in the code, it has been completely received
 
@@ -54,12 +45,12 @@ func Listen(con net.Conn) {
 			pct.ShellPrint()
 			pct.Print()
 		}
-
-		// Clears shell prompt to print the packet
-		ClearPrompt()
-		// Prints received packet
-		pct.ShellPrint()
-		// Prints the shell prompt again
-		PrintPrompt()
+		// The packet is processed and the proper action is performed
+		processErr := ServerCmds[pct.HD.Op](&pct)
+		if !(pct.HD.Op == spec.VERIF || pct.HD.Op == spec.RECIV) {
+			pctReceived <- struct{}{}
+		}
+		if processErr != nil {
+			fmt.Println(processErr)
 	}
 }
