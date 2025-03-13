@@ -224,7 +224,7 @@ func ErrorCode(err error) byte {
 	}
 }
 
-// Returns the error or nil if the error doesn't exist, by its error code
+// Returns the error or the nil if not found
 func ErrorCodeToError(b byte) error {
 	v, ok := codeToError[b]
 	if !ok {
