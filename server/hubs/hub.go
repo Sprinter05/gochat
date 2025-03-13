@@ -1,11 +1,9 @@
 package hubs
 
 import (
-	"bytes"
 	"context"
 	"crypto/rsa"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -17,107 +15,44 @@ import (
 
 /* TYPES */
 
-// Specifies a logged in user
+// Specifies a user that is connected/online.
+// By design it is not safe to use concurrently,
+// but it depends on how is is being used.
 type User struct {
-	conn   net.Conn
-	secure bool
-	name   string
-	perms  db.Permission
-	pubkey *rsa.PublicKey
+	conn   net.Conn       // TCP Connection
+	secure bool           // Whether it is using TLS or not
+	name   string         // Username, must conform to the specification size
+	perms  db.Permission  // Level of permission
+	pubkey *rsa.PublicKey // Public RSA key
 }
 
-// Specifies a verification in process
-// Can also be used for reusable tokens
+// Specifies a verification in process or
+// a reusable token. It is not safe to use
+// concurrently but it depends on how it is being used.
 type Verif struct {
-	conn    net.Conn
-	name    string
-	text    []byte
-	pending bool
-	cancel  context.CancelFunc
-	expiry  time.Time
+	conn    net.Conn           // TCP Connection
+	name    string             // Username, must conform to the specification size
+	text    []byte             // Random text in unencrypted state
+	pending bool               // If false, it is in reusable token state
+	cancel  context.CancelFunc // Function to stop the pending verification
+	expiry  time.Time          // How long it is available for after a disconnection
 }
 
-// Tables store pointers for modification
-// But functions should not use the pointer
+// Main data structure that stores all information shared
+// by all client connections. It is safe to use concurrently.
 type Hub struct {
-	db     *gorm.DB
-	clean  chan net.Conn
-	shtdwn context.Context
-	close  context.CancelFunc
-	users  models.Table[net.Conn, *User]
-	verifs models.Table[string, *Verif]
+	db     *gorm.DB                      // Database with all relevant information
+	shtdwn context.Context               // Used to wait for a shutdown
+	close  context.CancelFunc            // Used to trigger a shutdown
+	users  models.Table[net.Conn, *User] // Stores all online users
+	verifs models.Table[string, *Verif]  // Stores all verifications and/or reusable tokens
 }
 
-/* HUB WRAPPER FUNCTIONS */
+/* HUB FUNCTIONS */
 
-// Returns a user struct by querying the database one
-func (hub *Hub) userFromDB(uname string) (*User, error) {
-	dbuser, err := db.QueryUser(hub.db, uname)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check that the permissions int is not out of bounds
-	if dbuser.Permission > db.OWNER {
-		return nil, spec.ErrorServer
-	}
-
-	// Check that the public key is not null
-	if !dbuser.Pubkey.Valid {
-		return nil, spec.ErrorDeregistered
-	}
-
-	// Turn it into a public key from PEM certificate
-	key, err := spec.PEMToPubkey([]byte(dbuser.Pubkey.String))
-	if err != nil {
-		return nil, err
-	}
-
-	// Connection remains null as we don't know if it will be online
-	// Should be assigned by the calling function if necessary
-	// Connection is also not secure because its not connected
-	return &User{
-		conn:   nil,
-		secure: false,
-		name:   uname,
-		pubkey: key,
-		perms:  dbuser.Permission,
-	}, nil
-}
-
-// Checks if a reusable token is valid
-func (hub *Hub) checkToken(u User, text []byte) error {
-	if !u.secure {
-		// We do not remove the verif
-		// This allows trying again with a secure connection
-		return spec.ErrorUnescure
-	}
-
-	v, ok := hub.verifs.Get(u.name)
-	if !ok {
-		return spec.ErrorNotFound
-	}
-
-	if v.pending {
-		return spec.ErrorInvalid
-	}
-
-	// Check if it has expired
-	if time.Until(v.expiry) <= 0 {
-		hub.verifs.Remove(u.name)
-		return spec.ErrorNotFound
-	}
-
-	if !bytes.Equal(v.text, text) {
-		return spec.ErrorHandshake
-	}
-
-	return nil
-}
-
-/* HUB HELPER FUNCTIONS */
-
-// Cleans any mention to a connection in the caches
+// Removes all mentions of a user that just disconnected
+// from the hub, except the reusable token if the connection
+// is secure (condition that is not checked here).
 func (hub *Hub) Cleanup(cl net.Conn) {
 	// Cleanup on the users table
 	hub.users.Remove(cl)
@@ -129,7 +64,7 @@ func (hub *Hub) Cleanup(cl net.Conn) {
 			hub.verifs.Remove(v.name)
 			// If not pending we assume the connection was secure
 			if !v.pending {
-				// If not in verif we readd it with nil connection
+				// We assign a nil connection to prevent any possible problems
 				v.conn = nil
 				v.expiry = time.Now().Add(
 					time.Duration(spec.TokenExpiration) * time.Minute,
@@ -140,11 +75,14 @@ func (hub *Hub) Cleanup(cl net.Conn) {
 	}
 }
 
-// Check if a session is present using the auxiliary functions
+// Checks if a session is present in the hub (including the database)
+// for a connection, and returns the corresponding user if so. If no user
+// exists and it is applicable, a newly created user will be returned,
+// which should be filled by the function processing the operation.
 func (hub *Hub) Session(r Request) (*User, error) {
 	op := r.Command.HD.Op
 
-	// Can not be REG LOGIN or VERIF if checking in the cache
+	// Can NOT BE REG LOGIN or VERIF if checking in the cache
 	if op != spec.REG && op != spec.LOGIN && op != spec.VERIF {
 		cached, err := hub.cachedLogin(r)
 		if err == nil {
@@ -156,7 +94,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 		}
 	}
 
-	// Can only be LOGIN or VERIF if checking in the database
+	// Can ONLY be LOGIN or VERIF if checking in the database
 	if op == spec.LOGIN || op == spec.VERIF {
 		user, e := hub.dbLogin(r)
 		if e == nil {
@@ -172,7 +110,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 	// So if its not REG we error
 	if op != spec.REG {
 		if op == spec.LOGIN {
-			// User does not exist when trying to login
+			// User did not exist when trying to search previously
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorNotFound, r.Conn)
 		} else {
 			// Cannot do anything without an account
@@ -183,7 +121,6 @@ func (hub *Hub) Session(r Request) (*User, error) {
 
 	// Newly created user
 	// The REG function is expected to fill the rest of the struct
-	// Its thread safe because the pointer is not yet in the cache
 	return &User{
 		conn: r.Conn,
 	}, nil
@@ -191,13 +128,12 @@ func (hub *Hub) Session(r Request) (*User, error) {
 
 /* HUB LOGIN FUNCTIONS */
 
-// Check if there is a user entry from the database
+// Checks if there is a user in the database
+// Be careful with sending error packets in the calling function
 func (hub *Hub) dbLogin(r Request) (*User, error) {
-	// Check if the user is in the database
 	u := string(r.Command.Args[0])
 	user, e := hub.userFromDB(u)
 	if e != nil {
-		// Error is handled in the calling function
 		if e != spec.ErrorNotFound {
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
 		}
@@ -210,7 +146,8 @@ func (hub *Hub) dbLogin(r Request) (*User, error) {
 	return user, nil
 }
 
-// Check if the user is already logged in from the cache
+// Check if the user is already online
+// Be careful with sending error packets in the calling function
 func (hub *Hub) cachedLogin(r Request) (*User, error) {
 	id := r.Command.HD.Op
 
@@ -225,7 +162,7 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 		_, ipok := hub.FindUser(string(r.Command.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
-			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
+			sendErrorPacket(r.Command.HD.ID, spec.ErrorDupSession, r.Conn)
 			return nil, spec.ErrorDupSession
 
 		}
@@ -235,69 +172,25 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 	return nil, spec.ErrorNotFound
 }
 
-/* HUB QUERY FUNCTIONS */
-
-// Lists all users in the server
-func (hub *Hub) Userlist(online bool) (ret string) {
-	if online {
-		var str strings.Builder
-		list := hub.users.GetAll()
-
-		// Preallocate strings builder
-		for _, v := range list {
-			str.Grow(len(v.name))
-		}
-
-		for _, v := range list {
-			str.WriteString(string(v.name) + "\n")
-		}
-
-		l := str.Len()
-		ret = str.String()
-
-		// Remove the last newline
-		ret = ret[:l-1]
-	} else {
-		query, err := db.QueryUsernames(hub.db)
-		if err != nil {
-			log.DB("userlist", err)
-		}
-		ret = query
-	}
-
-	// Will return "" if nothing is found
-	return ret
-}
-
-// Returns an online user if it exists (thread-safe)
-func (hub *Hub) FindUser(uname string) (*User, bool) {
-	list := hub.users.GetAll()
-	for _, v := range list {
-		if v.name == uname {
-			return v, true
-		}
-	}
-
-	return nil, false
-}
-
 /* HUB MAIN */
 
-// Initialises all data structures
-func Create(database *gorm.DB, ctx context.Context, cancel context.CancelFunc) *Hub {
+// Initialises all data structures the hub needs to function:
+// database, shutdown context and table sizes.
+func NewHub(database *gorm.DB, ctx context.Context, cancel context.CancelFunc, size int) *Hub {
 	hub := &Hub{
-		clean:  make(chan net.Conn, spec.MaxClients/2),
 		shtdwn: ctx,
 		close:  cancel,
-		users:  models.NewTable[net.Conn, *User](spec.MaxClients),
-		verifs: models.NewTable[string, *Verif](spec.MaxClients),
+		users:  models.NewTable[net.Conn, *User](size),
+		verifs: models.NewTable[string, *Verif](size),
 		db:     database,
 	}
 
 	return hub
 }
 
-// Waits until the hub has to shutdown
+// Blocking function that waits until a shutdown is triggered,
+// cleaning up all necessary resources and sockets, allowing for
+// the caling function to safely exit the program.
 func (hub *Hub) Wait(socks ...net.Listener) {
 	// Wait until the shutdown happens
 	<-hub.shtdwn.Done()
@@ -305,20 +198,21 @@ func (hub *Hub) Wait(socks ...net.Listener) {
 	// Disconnect all users
 	list := hub.users.GetAll()
 	for _, v := range list {
-		// This should trigger the cleanup function too
+		// This should trigger the cleanup function that is
+		// listening to connections
 		v.conn.Close()
 	}
 
 	// Wait a bit for everything to close
 	time.Sleep(time.Second)
 
-	// Perform a server shutdown
 	log.Notice("inminent server shutdown")
 
 	// Close sockets
 	hub.close()
 	for _, v := range socks {
-		// This will stop the blocking and make them check the context
+		// This will stop the blocking and make them check the context,
+		// triggering them to close
 		v.Close()
 	}
 }

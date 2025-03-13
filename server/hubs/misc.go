@@ -11,16 +11,17 @@ import (
 
 /* CONSTANTS */
 
-// Cypher values
-const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
-const CypherLength int = 128
+// Charset to be used by the random text generator
+const randTextCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
 
-// Used for the size of the queue of requests
-const MaxUserRequests int = 5
+// Amount of characters the random text should have
+const randTextLength int = 128
 
 /* AUXILIARY FUNCTIONS */
 
-// Catches up messages for the logged connection
+// Auxiliary function that sends all messages that were retrieved from
+// the database to the recently connected user. This function does not
+// touch the database, it just sends the messages.
 func catchUp(cl net.Conn, id spec.ID, msgs ...*spec.Message) error {
 	for _, v := range msgs {
 		// Turn timestamp to byte array and create packet
@@ -41,7 +42,7 @@ func catchUp(cl net.Conn, id spec.ID, msgs ...*spec.Message) error {
 	return nil
 }
 
-// Wrap the error sending function
+// Auxiliary function to reduce code when sending errors.
 func sendErrorPacket(id spec.ID, err error, cl net.Conn) {
 	pak, e := spec.NewPacket(spec.ERR, id, spec.ErrorCode(err))
 	if e != nil {
@@ -51,7 +52,7 @@ func sendErrorPacket(id spec.ID, err error, cl net.Conn) {
 	}
 }
 
-// Wrap the acknowledgement sending function
+// Auxiliary function to reduce code when sending ok packets.
 func sendOKPacket(id spec.ID, cl net.Conn) {
 	pak, e := spec.NewPacket(spec.OK, id, spec.EmptyInfo)
 	if e != nil {
@@ -61,15 +62,16 @@ func sendOKPacket(id spec.ID, cl net.Conn) {
 	}
 }
 
-// Generate a random text using the specification charset
+// Generate a random text using a fixed charset and size
+// This can be used for verification tokens.
 func randText() []byte {
 	// Set seed in nanoseconds for better randomness
 	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
-	set := []byte(CypherCharset)
+	set := []byte(randTextCharset)
 
-	r := make([]byte, CypherLength)
+	r := make([]byte, randTextLength)
 	for i := range r {
-		r[i] = set[seed.Intn(len(CypherCharset))]
+		r[i] = set[seed.Intn(len(randTextCharset))]
 	}
 
 	return r

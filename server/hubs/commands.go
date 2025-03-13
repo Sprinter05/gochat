@@ -23,6 +23,9 @@ type Request struct {
 	TLS     bool
 }
 
+// Used for the size of the queue of requests
+const MaxUserRequests int = 5
+
 /* LOOKUP */
 
 // Function mapping table

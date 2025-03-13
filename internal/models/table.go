@@ -9,8 +9,8 @@ import (
 
 /* THREAD SAFE TABLE */
 
-// Table used for storing maps
-// that are safe to use concurrently.
+// Table used for storing a map
+// that is safe to use concurrently.
 type Table[I comparable, T any] struct {
 	mut  sync.RWMutex // mutex
 	data map[I]T      // actual data

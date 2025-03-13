@@ -154,6 +154,7 @@ func setupTLSConn() net.Listener {
 /* MAIN FUNCTIONS */
 
 // TODO: Document everything (100go.co #15)
+// TODO: Check hub error comparisons
 //? https://github.com/uber-go/automaxprocs
 
 // Identifies a running socket
@@ -245,7 +246,7 @@ func main() {
 
 	// Setup hub and wait until a shutdown signal is sent
 	ctx, cancel := context.WithCancel(context.Background())
-	hub := hubs.Create(database, ctx, cancel)
+	hub := hubs.NewHub(database, ctx, cancel, spec.MaxClients)
 	go hub.Wait(sock, tlssock)
 
 	// Just in case a CTRL-C signal happens
