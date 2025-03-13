@@ -10,7 +10,6 @@ import (
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
-	"github.com/Sprinter05/gochat/server/model"
 
 	"gorm.io/gorm"
 )
@@ -26,7 +25,7 @@ func QueryUser(db *gorm.DB, uname string) (*User, error) {
 		log.DBError(res.Error)
 		// No user with that username exists
 		if res.Error == gorm.ErrRecordNotFound {
-			return nil, model.ErrorDoesNotExist
+			return nil, ErrorNotFound
 		}
 
 		return nil, res.Error
@@ -36,7 +35,7 @@ func QueryUser(db *gorm.DB, uname string) (*User, error) {
 }
 
 // Gets all messages from the user
-func QueryMessages(db *gorm.DB, uname string) ([]*model.Message, error) {
+func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return nil, err
@@ -52,7 +51,11 @@ func QueryMessages(db *gorm.DB, uname string) ([]*model.Message, error) {
 	).WithContext(context.Background())
 
 	var size int64
-	res.Count(&size)
+	pre := res.Count(&size)
+	if pre.Error != nil {
+		log.DBError(pre.Error)
+		return nil, pre.Error
+	}
 
 	// No results
 	if size == 0 {
@@ -67,11 +70,11 @@ func QueryMessages(db *gorm.DB, uname string) ([]*model.Message, error) {
 	defer rows.Close()
 
 	// We create a preallocated array
-	message := make([]*model.Message, 0, size)
+	messages := make([]*spec.Message, 0, size)
 
 	for i := 0; rows.Next(); i++ {
 		var undec string
-		var temp model.Message
+		var temp spec.Message
 
 		err := rows.Scan(
 			&temp.Sender,
@@ -86,14 +89,14 @@ func QueryMessages(db *gorm.DB, uname string) ([]*model.Message, error) {
 		// Conversion from hex string
 		dec, e := hex.DecodeString(undec)
 		if e != nil {
-			log.DBFatal("encripted hex message", string(uname), e)
+			log.DBFatal("encripted hex message", uname, e)
 		}
 		temp.Content = dec
 
-		message = append(message, &temp)
+		messages = append(messages, &temp)
 	}
 
-	return message, nil
+	return messages, nil
 }
 
 // Lists all usernames in the database
@@ -144,7 +147,7 @@ func InsertUser(db *gorm.DB, uname string, pubkey []byte) error {
 		log.DBError(res.Error)
 		// Content already exists
 		if res.Error == gorm.ErrDuplicatedKey {
-			return model.ErrorDuplicatedKey
+			return ErrorDuplicatedKey
 		}
 		return res.Error
 	}
@@ -153,7 +156,7 @@ func InsertUser(db *gorm.DB, uname string, pubkey []byte) error {
 }
 
 // Adds a message to the users message cache
-func CacheMessage(db *gorm.DB, dst string, msg model.Message) error {
+func CacheMessage(db *gorm.DB, dst string, msg spec.Message) error {
 	srcuser, srcerr := QueryUser(db, msg.Sender)
 	if srcerr != nil {
 		return srcerr
@@ -205,7 +208,7 @@ func RemoveKey(db *gorm.DB, uname string) error {
 }
 
 // Changes the permissions of a user
-func ChangePermission(db *gorm.DB, uname string, perm model.Permission) error {
+func ChangePermission(db *gorm.DB, uname string, perm Permission) error {
 	user, err := QueryUser(db, uname)
 	if err != nil {
 		return err
@@ -237,7 +240,7 @@ func RemoveUser(db *gorm.DB, uname string) error {
 		log.DBError(res.Error)
 		// Check if the error is the foreign key constraint
 		if errors.Is(res.Error, gorm.ErrForeignKeyViolated) {
-			return model.ErrorDBConstraint
+			return ErrorForeignKey
 		}
 		return res.Error
 	}

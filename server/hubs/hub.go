@@ -3,16 +3,50 @@ package hubs
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/db"
-	"github.com/Sprinter05/gochat/server/model"
 	"gorm.io/gorm"
 )
+
+/* TYPES */
+
+// Specifies a logged in user
+type User struct {
+	conn   net.Conn
+	secure bool
+	name   string
+	perms  db.Permission
+	pubkey *rsa.PublicKey
+}
+
+// Specifies a verification in process
+// Can also be used for reusable tokens
+type Verif struct {
+	conn    net.Conn
+	name    string
+	text    []byte
+	pending bool
+	cancel  context.CancelFunc
+	expiry  time.Time
+}
+
+// Tables store pointers for modification
+// But functions should not use the pointer
+type Hub struct {
+	db     *gorm.DB
+	clean  chan net.Conn
+	shtdwn context.Context
+	close  context.CancelFunc
+	users  models.Table[net.Conn, *User]
+	verifs models.Table[string, *Verif]
+}
 
 /* HUB WRAPPER FUNCTIONS */
 
@@ -24,13 +58,13 @@ func (hub *Hub) userFromDB(uname string) (*User, error) {
 	}
 
 	// Check that the permissions int is not out of bounds
-	if dbuser.Permission > model.OWNER {
-		return nil, model.ErrorInvalidValue
+	if dbuser.Permission > db.OWNER {
+		return nil, ErrorInvalidValue
 	}
 
 	// Check that the public key is not null
 	if !dbuser.Pubkey.Valid {
-		return nil, model.ErrorDeregistered
+		return nil, ErrorDeregistered
 	}
 
 	// Turn it into a public key from PEM certificate
@@ -116,7 +150,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 		if err == nil {
 			// Valid user found in cache, serve request
 			return cached, nil
-		} else if err != model.ErrorDoesNotExist {
+		} else if err != ErrorDoesNotExist {
 			// We do not search in the DB if its a different error
 			return nil, err
 		}
@@ -128,7 +162,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 		if e == nil {
 			// User found in database so we serve request
 			return user, nil
-		} else if e != model.ErrorDoesNotExist {
+		} else if e != ErrorDoesNotExist {
 			// We do not create a new user if its a different error
 			return nil, e
 		}
@@ -144,7 +178,7 @@ func (hub *Hub) Session(r Request) (*User, error) {
 			// Cannot do anything without an account
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
 		}
-		return nil, model.ErrorNoAccount
+		return nil, ErrorNoAccount
 	}
 
 	// Newly created user
@@ -164,7 +198,7 @@ func (hub *Hub) dbLogin(r Request) (*User, error) {
 	user, e := hub.userFromDB(u)
 	if e != nil {
 		// Error is handled in the calling function
-		if e != model.ErrorDoesNotExist {
+		if e != ErrorDoesNotExist {
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
 		}
 		return nil, e
@@ -192,13 +226,13 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 		if ipok {
 			// Cannot have two sessions of the same user
 			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
-			return nil, model.ErrorDuplicatedSession
+			return nil, ErrorDuplicatedSession
 
 		}
 	}
 
 	// Otherwise the user is not found
-	return nil, model.ErrorDoesNotExist
+	return nil, ErrorDoesNotExist
 }
 
 /* HUB QUERY FUNCTIONS */
@@ -255,8 +289,8 @@ func Create(database *gorm.DB, ctx context.Context, cancel context.CancelFunc) *
 		clean:  make(chan net.Conn, spec.MaxClients/2),
 		shtdwn: ctx,
 		close:  cancel,
-		users:  model.NewTable[net.Conn, *User](spec.MaxClients),
-		verifs: model.NewTable[string, *Verif](spec.MaxClients),
+		users:  models.NewTable[net.Conn, *User](spec.MaxClients),
+		verifs: models.NewTable[string, *Verif](spec.MaxClients),
 		db:     database,
 	}
 

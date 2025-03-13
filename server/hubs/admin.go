@@ -6,7 +6,6 @@ import (
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/db"
-	"github.com/Sprinter05/gochat/server/model"
 )
 
 /* LOOKUP */
@@ -19,12 +18,12 @@ var adminArgs map[uint8]uint8 = map[uint8]uint8{
 	spec.AdminDisconnect: 1,
 }
 
-var adminPerms map[uint8]model.Permission = map[uint8]model.Permission{
-	spec.AdminShutdown:   model.ADMIN,
-	spec.AdminBroadcast:  model.ADMIN,
-	spec.AdminDeregister: model.ADMIN,
-	spec.AdminPromote:    model.OWNER,
-	spec.AdminDisconnect: model.ADMIN,
+var adminPerms map[uint8]db.Permission = map[uint8]db.Permission{
+	spec.AdminShutdown:   db.ADMIN,
+	spec.AdminBroadcast:  db.ADMIN,
+	spec.AdminDeregister: db.ADMIN,
+	spec.AdminPromote:    db.OWNER,
+	spec.AdminDisconnect: db.ADMIN,
 }
 
 var adminLookup map[uint8]action = map[uint8]action{
@@ -39,7 +38,7 @@ var adminLookup map[uint8]action = map[uint8]action{
 
 // Every admin operation replies with either ERR or OK
 func adminOperation(h *Hub, u User, cmd spec.Command) {
-	if u.perms == model.USER {
+	if u.perms == db.USER {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return
 	}
@@ -158,13 +157,13 @@ func adminPromote(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	if target.Permission >= model.ADMIN {
+	if target.Permission >= db.ADMIN {
 		// Cannot promote more
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
-	e := db.ChangePermission(h.db, u.name, model.ADMIN)
+	e := db.ChangePermission(h.db, u.name, db.ADMIN)
 	if e != nil {
 		//! This shouldnt happen as the user was already queried before
 		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)

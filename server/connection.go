@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/hubs"
-	"github.com/Sprinter05/gochat/server/model"
 )
 
 /* COMMAND FUNCTIONS */
@@ -78,7 +78,7 @@ func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
 /* THREADED FUNCTIONS */
 
 // Listens for packets from a client connection
-func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
+func ListenConnection(cl spec.Connection, c *models.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
 	// Cleanup connection on exit
 	defer func() {
 		hub.Cleanup(cl.Conn)

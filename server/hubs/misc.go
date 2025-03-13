@@ -1,16 +1,13 @@
 package hubs
 
 import (
-	"context"
-	"crypto/rsa"
+	"errors"
 	"math/rand"
 	"net"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
-	"github.com/Sprinter05/gochat/server/model"
-	"gorm.io/gorm"
 )
 
 /* CONSTANTS */
@@ -22,53 +19,23 @@ const CypherLength int = 128
 // Used for the size of the queue of requests
 const MaxUserRequests int = 5
 
-/* TYPE DEFINITIONS */
+/* INTERNAL ERRORS */
 
-// Specifies the functions to run depending on the ID
-type action func(*Hub, User, spec.Command)
-
-// Determines a request to be processed by a thread
-type Request struct {
-	Conn    net.Conn
-	Command spec.Command
-	TLS     bool
-}
-
-// Specifies a logged in user
-type User struct {
-	conn   net.Conn
-	secure bool
-	name   string
-	perms  model.Permission
-	pubkey *rsa.PublicKey
-}
-
-// Specifies a verification in process
-// Can also be used for reusable tokens
-type Verif struct {
-	conn    net.Conn
-	name    string
-	text    []byte
-	pending bool
-	cancel  context.CancelFunc
-	expiry  time.Time
-}
-
-// Tables store pointers for modification
-// But functions should not use the pointer
-type Hub struct {
-	db     *gorm.DB
-	clean  chan net.Conn
-	shtdwn context.Context
-	close  context.CancelFunc
-	users  model.Table[net.Conn, *User]
-	verifs model.Table[string, *Verif]
-}
+var (
+	ErrorDeregistered        error = errors.New("user has been deregistered")
+	ErrorDoesNotExist        error = errors.New("data does not exist")
+	ErrorSessionExists       error = errors.New("user is already logged in")
+	ErrorDuplicatedSession   error = errors.New("user is logged in from another endpoint")
+	ErrorProhibitedOperation error = errors.New("operation trying to be performed is invalid")
+	ErrorNoAccount           error = errors.New("user tried performing an operation with no account")
+	ErrorNoMessages          error = errors.New("user has no messages to receive")
+	ErrorInvalidValue        error = errors.New("data provided is invalid")
+)
 
 /* AUXILIARY FUNCTIONS */
 
 // Catches up messages for the logged connection
-func catchUp(cl net.Conn, id spec.ID, msgs ...*model.Message) error {
+func catchUp(cl net.Conn, id spec.ID, msgs ...*spec.Message) error {
 	for _, v := range msgs {
 		// Turn timestamp to byte array and create packet
 		stp := spec.UnixStampToBytes(v.Stamp)

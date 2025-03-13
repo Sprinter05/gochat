@@ -3,13 +3,25 @@ package hubs
 import (
 	"bytes"
 	"context"
+	"net"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/db"
-	"github.com/Sprinter05/gochat/server/model"
 )
+
+/* TYPES */
+
+// Specifies the functions to run depending on the ID
+type action func(*Hub, User, spec.Command)
+
+// Determines a request to be processed by a thread
+type Request struct {
+	Conn    net.Conn
+	Command spec.Command
+	TLS     bool
+}
 
 /* LOOKUP */
 
@@ -61,7 +73,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	// Check if public key is usable
 	_, err := spec.PEMToPubkey(cmd.Args[1])
 	if err != nil {
-		log.User(string(uname), "pubkey registration", model.ErrorInvalidValue)
+		log.User(string(uname), "pubkey registration", ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
@@ -70,7 +82,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	e := db.InsertUser(h.db, uname, cmd.Args[1])
 	if e != nil {
 		log.User(string(uname), "registration", e)
-		if e == model.ErrorDuplicatedKey {
+		if e == db.ErrorDuplicatedKey {
 			sendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
 			return
 		}
@@ -149,7 +161,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	verif, ok := h.verifs.Get(u.name)
 
 	if !ok {
-		log.User(string(u.name), "verification", model.ErrorDoesNotExist)
+		log.User(string(u.name), "verification", ErrorDoesNotExist)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
@@ -158,7 +170,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 		// Incorrect verification so we cancel the handshake process
 		verif.cancel()
 		h.Cleanup(u.conn)
-		log.User(string(u.name), "verification", model.ErrorInvalidValue)
+		log.User(string(u.name), "verification", ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorHandshake, u.conn)
 		return
 	}
@@ -207,7 +219,7 @@ func deregisterUser(h *Hub, u User, cmd spec.Command) {
 	}
 
 	// Database error different than foreign key violation
-	if e != model.ErrorDBConstraint {
+	if e != db.ErrorForeignKey {
 		log.DB(string(u.name)+"'s deletion", e)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
@@ -269,7 +281,7 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 		usrs = h.Userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		log.User(string(u.name), "list argument", model.ErrorInvalidValue)
+		log.User(string(u.name), "list argument", ErrorInvalidValue)
 		sendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
@@ -326,13 +338,13 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 		sendErrorPacket(cmd.HD.ID, e, u.conn)
 		return
 	}
-	err := db.CacheMessage(h.db, uname, model.Message{
+	err := db.CacheMessage(h.db, uname, spec.Message{
 		Sender:  u.name,
 		Content: cmd.Args[2],
 		Stamp:   stamp,
 	})
 	if err != nil {
-		if err == model.ErrorDoesNotExist {
+		if err == ErrorDoesNotExist {
 			sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 			return
 		}

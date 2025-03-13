@@ -2,13 +2,13 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	stdlog "log"
 	"os"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
-	"github.com/Sprinter05/gochat/server/model"
 
 	driver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -94,14 +94,25 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 	return db
 }
 
+/* TYPES */
+
+// Specifies a permission
+type Permission int8
+
+const (
+	USER Permission = iota
+	ADMIN
+	OWNER
+)
+
 /* MODELS */
 
 // Identifies the model of a user in the database
 type User struct {
-	UserID     uint             `gorm:"primaryKey;autoIncrement;not null"`
-	Username   string           `gorm:"unique;not null;size:32"`
-	Pubkey     sql.NullString   `gorm:"unique;size:2047"`
-	Permission model.Permission `gorm:"not null;default:0"`
+	UserID     uint           `gorm:"primaryKey;autoIncrement;not null"`
+	Username   string         `gorm:"unique;not null;size:32"`
+	Pubkey     sql.NullString `gorm:"unique;size:2047"`
+	Permission Permission     `gorm:"not null;default:0"`
 }
 
 // Identifies the model of a message in the database
@@ -113,6 +124,13 @@ type Message struct {
 	Source      User      `gorm:"foreignKey:src_user;OnDelete:RESTRICT"`
 	Destination User      `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
 }
+
+/* ERRORS */
+var (
+	ErrorNotFound      = errors.New("record not found in the database")
+	ErrorDuplicatedKey = errors.New("unique key constraint violated due to duplicate")
+	ErrorForeignKey    = errors.New("foreign key restrict violation")
+)
 
 /* FUNCTIONS */
 

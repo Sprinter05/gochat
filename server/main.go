@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/db"
 	"github.com/Sprinter05/gochat/server/hubs"
-	"github.com/Sprinter05/gochat/server/model"
 
 	"github.com/joho/godotenv"
 )
@@ -155,14 +155,12 @@ func setupTLSConn() net.Listener {
 /* MAIN FUNCTIONS */
 
 // TODO: Document everything (100go.co #15)
-// TODO: Pass linter and formatter
-//? TODO: Accept UTF-8 encoding
 //? https://github.com/uber-go/automaxprocs
 
 // Identifies a running socket
 type Server struct {
 	wg    sync.WaitGroup
-	count model.Counter
+	count models.Counter
 	ctx   context.Context
 }
 
@@ -261,7 +259,7 @@ func main() {
 	// Used for managing all possible sockets
 	server := Server{
 		ctx:   ctx,
-		count: model.NewCounter(spec.MaxClients),
+		count: models.NewCounter(spec.MaxClients),
 	}
 
 	// Endless loop to listen for connections

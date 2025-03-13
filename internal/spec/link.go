@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"net"
 	"os"
+	"time"
 )
 
 /* TYPES */
@@ -14,6 +15,13 @@ type Connection struct {
 	Conn net.Conn
 	RD   *bufio.Reader
 	TLS  bool
+}
+
+// Specifies a message to be received
+type Message struct {
+	Sender  string
+	Content []byte
+	Stamp   time.Time
 }
 
 /* CONNECTION FUNCTIONS */
