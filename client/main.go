@@ -17,7 +17,7 @@ func main() {
 	defer con.Close()
 
 	// Starts listening for server packets
-	go Listen(con)
+	go Listen(con, ctx, pctReceived)
 	// Opens a shell
-	NewShell(con)
+	NewShell(con, ctx, pctReceived)
 }

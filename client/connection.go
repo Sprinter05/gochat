@@ -4,24 +4,23 @@ package main
 
 import (
 	"bufio"
-	"io"
-	"log"
+	"context"
+	"fmt"
 	"net"
 
-	"github.com/Sprinter05/gochat/gcspec"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 // Buffer where the pending packet's ID is allocated as a key with the operation code as its value
 var PendingBuffer map[uint16]uint8 = make(map[uint16]uint8)
 
 // Starts listening for packets
-func Listen(con net.Conn) {
+func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 
-	cl := &gcspec.Connection{
+	cl := spec.Connection{
 		Conn: con,
 		RD:   bufio.NewReader(con),
 	}
-
 	defer cl.Conn.Close()
 
 	for {
@@ -52,5 +51,6 @@ func Listen(con net.Conn) {
 		}
 		if processErr != nil {
 			fmt.Println(processErr)
+		}
 	}
 }

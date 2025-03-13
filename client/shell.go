@@ -58,11 +58,13 @@ var gCon net.Conn
 // Initializes a client shell
 func NewShell(con net.Conn) {
 
+func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 	gCon = con
 	rd := bufio.NewReader(os.Stdin)
 
 	// Runs inconditionally until EXIT is executed
 	for {
+		ClearPrompt()
 		PrintPrompt()
 		// Starts reading input
 		input, err := rd.ReadBytes('\n')
@@ -95,6 +97,15 @@ func NewShell(con net.Conn) {
 			if err != nil {
 				fmt.Println(err)
 			}
+
+			if requiresSync(instruction) && err == nil {
+				select {
+				case <-pctReceived:
+					fmt.Println("Packet received")
+				case <-ctx.Done():
+					fmt.Println("Timeout")
+				}
+			}
 		}
 	}
 }
@@ -109,7 +120,7 @@ func PrintPrompt() {
 	fmt.Print("gochat > ")
 }
 
-// COMMANDS
-
-// Execution code of the VER command
+func requiresSync(instruction string) bool {
+	syncCommands := []string{"REGUSER", "REG", "LOGIN", "VERIF", "REQ", "USRS", "MSG", "RECIV", "DISCN", "DEREG"}
+	return slices.Contains(syncCommands, instruction)
 }
