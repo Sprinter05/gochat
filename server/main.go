@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -195,17 +194,16 @@ func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 		// Check if its tls
 		_, ok := c.(*tls.Conn)
 
-		cl := spec.Connection{
-			Conn: c,
-			RD:   bufio.NewReader(c),
-			TLS:  ok,
-		}
-
 		// Buffered channel for intercommunication
 		req := make(chan hubs.Request, hubs.MaxUserRequests)
 
 		// Listens to the client's packets
-		go ListenConnection(cl, &sock.count, req, hub)
+		go ListenConnection(
+			spec.NewConnection(c, ok),
+			&sock.count,
+			req,
+			hub,
+		)
 
 		// Runs the client's commands
 		go RunTask(hub, req)

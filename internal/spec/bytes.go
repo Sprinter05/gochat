@@ -1,3 +1,11 @@
+// This package implements several different functions and types
+// that are common to both the client and the server, and
+// strictly follows the protocol specification.
+//
+// Please refer to the [Implementation] and the [Specification] for more information:
+//
+// [Implementation]: https://github.com/Sprinter05/gochat/tree/main/doc/IMPLEMENTATION.md
+// [Specification]: https://github.com/Sprinter05/gochat/tree/main/doc/SPECIFICATION.md
 package spec
 
 import (
@@ -15,66 +23,69 @@ import (
 
 /* TYPES */
 
-// Identifies a header split into its fields as single bytes
+// Identifies the header of a packet
+// split into its fields depending on the
+// bit size of each field.
 type Header struct {
-	Ver  uint8
-	Op   Action
-	Info uint8
-	Args uint8
-	Len  uint16
-	ID   ID
+	Ver  uint8  // Protocol version
+	Op   Action // Operation to be performed
+	Info uint8  // Additional pacjet information
+	Args uint8  // Amount of arguments
+	Len  uint16 // Total length of all arguments
+	ID   ID     // Packet identifier
 }
 
-// Specifies the ID of the packet that has been sent
+// Specifies the identifier of the packet that has been sent.
 type ID uint16
 
-// Specifies a command
+// Specifies a command together with header and arguments.
 type Command struct {
-	HD   Header
-	Args [][]byte
+	HD   Header   // Packet header
+	Args [][]byte // Packet arguments
 }
 
 /* COMMAND FUNCTIONS */
 
-// Prints all information about a packet
-func (c Command) Print() {
+// Prints to standard output all information about a packet.
+func (cmd *Command) Print() {
 	fmt.Println("-------- HEADER --------")
-	fmt.Printf("* Version: %d\n", c.HD.Ver)
-	fmt.Printf("* Action: %d (%s)\n", c.HD.Op, CodeToString(c.HD.Op))
-	fmt.Printf("* Info: %d\n", c.HD.Info)
-	if c.HD.Op == ERR {
-		fmt.Printf("* Error: %s\n", ErrorCodeToError(c.HD.Info))
+	fmt.Printf("* Version: %d\n", cmd.HD.Ver)
+	fmt.Printf("* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
+	fmt.Printf("* Info: %d\n", cmd.HD.Info)
+	if cmd.HD.Op == ERR {
+		fmt.Printf("* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
 	}
-	if c.HD.Op == ADMIN {
-		fmt.Printf("* Admin: %s\n", AdminString(c.HD.Info))
+	if cmd.HD.Op == ADMIN {
+		fmt.Printf("* Admin: %s\n", AdminString(cmd.HD.Info))
 	}
-	fmt.Printf("* Args: %d\n", c.HD.Args)
-	fmt.Printf("* Length: %d\n", c.HD.Len)
-	fmt.Printf("* ID: %d\n", c.HD.ID)
+	fmt.Printf("* Args: %d\n", cmd.HD.Args)
+	fmt.Printf("* Length: %d\n", cmd.HD.Len)
+	fmt.Printf("* ID: %d\n", cmd.HD.ID)
 	fmt.Println("-------- PAYLOAD --------")
-	for i, v := range c.Args {
+	for i, v := range cmd.Args {
 		fmt.Printf("[%d] %s\n", i, v)
 	}
 	fmt.Println()
 }
 
-// Prints summarized information about a packet for the client shell
-func (c Command) ShellPrint() {
+// TODO: Unnecessary?
+// Prints summarized information about a packet for the client shell.
+func (cmd *Command) ShellPrint() {
 	// Initializes information message to EmptyInfo message
 	inf := "No information"
 	// If the information is an error, sets the information message to the error's
-	if c.HD.Info != 0xFF {
-		inf = ErrorCodeToError(c.HD.Info).Error()
+	if cmd.HD.Info != 0xFF {
+		inf = ErrorCodeToError(cmd.HD.Info).Error()
 	}
 	// Prints header information
-	fmt.Printf("Packet with ID %x (%s) received with information code %x (%s)", IDToCode(c.HD.Op), CodeToString(c.HD.Op), c.HD.Info, inf)
+	fmt.Printf("Packet with ID %x (%s) received with information code %x (%s)", IDToCode(cmd.HD.Op), CodeToString(cmd.HD.Op), cmd.HD.Info, inf)
 	// Checks argument count
-	if len(c.Args) == 0 {
+	if len(cmd.Args) == 0 {
 		fmt.Printf(". No arguments.\n")
 	} else {
 		// Prints arguments
 		fmt.Printf("\nArguments: ")
-		for i, v := range c.Args {
+		for i, v := range cmd.Args {
 			fmt.Printf("Arg %d: %s ", i, v)
 		}
 		fmt.Print(".\n")
@@ -84,7 +95,7 @@ func (c Command) ShellPrint() {
 /* HEADER FUNCTIONS */
 
 // Checks the validity of the header fields
-// Only works for commands sent to the server
+// Follows the specification of commands sent to the server.
 func (hd Header) ServerCheck() error {
 	if hd.Ver != ProtocolVersion {
 		return ErrorVersion
@@ -113,7 +124,7 @@ func (hd Header) ServerCheck() error {
 }
 
 // Checks the validity of the header fields
-// Only works for commands sent to the client
+// Follows the specification of commands sent to the client.
 func (hd Header) ClientCheck() error {
 	if hd.Ver != ProtocolVersion {
 		return ErrorVersion
@@ -123,7 +134,7 @@ func (hd Header) ClientCheck() error {
 		return ErrorHeader
 	}
 
-	// Only RECIV, ERR and SHTDWN can have a null ID
+	// Only these operations can have a null ID
 	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK
 	if !check && hd.ID == NullID {
 		return ErrorHeader
@@ -136,7 +147,7 @@ func (hd Header) ClientCheck() error {
 	return nil
 }
 
-// Splits a the byte header into its fields
+// Splits a byte slice into the fields of a header.
 func NewHeader(hdr []byte) Header {
 	h := binary.BigEndian.Uint64(hdr[:HeaderSize])
 	return Header{
@@ -151,7 +162,9 @@ func NewHeader(hdr []byte) Header {
 
 /* UNIX STAMP FUNCTIONS */
 
-// Uses int64 format for conversion
+// Turns a time type into its unix timestamp
+// as a byte slice, following the size specified
+// by the Unix() function of the [time] package.
 func UnixStampToBytes(s time.Time) []byte {
 	unix := s.Unix()
 	p := make([]byte, 0, binary.Size(unix))
@@ -159,7 +172,9 @@ func UnixStampToBytes(s time.Time) []byte {
 	return p
 }
 
-// Uses 4 bytes that it will turn to a unix timestamp
+// Turns a byte slice into a time type by reading it as
+// a unix timestamp, according to the size specified by
+// the [time] package.
 func BytesToUnixStamp(b []byte) (t time.Time, e error) {
 	min := binary.Size(t.Unix())
 	if len(b) < min {
@@ -177,16 +192,16 @@ func BytesToUnixStamp(b []byte) (t time.Time, e error) {
 
 /* PACKET FUNCTIONS */
 
-// Creates a byte slice corresponding to the header fields
-// Also appends arguments with CRLF
+// Creates a packet ready to be sent through a TCP connection with all header fields,
+// arguments, and delimiters. Arguments are optional and an error will be returned if
+// any of the function parameters are malformed.
 func NewPacket(op Action, id ID, inf byte, arg ...[]byte) ([]byte, error) {
-	// Verify number of arguments
 	l := len(arg)
 	if l > MaxArgs {
 		return nil, ErrorArguments
 	}
 
-	// Check that the ID is not over the bit size
+	// Check that the ID is not over the bit field size
 	if id > MaxID {
 		return nil, ErrorArguments
 	}
@@ -196,7 +211,7 @@ func NewPacket(op Action, id ID, inf byte, arg ...[]byte) ([]byte, error) {
 	if l != 0 {
 		for _, v := range arg {
 			le := len(v) + 2 // CRLF is 2 bytes
-			// Over the single argument size
+			// Overflows single argument size
 			if le > MaxArgSize {
 				return nil, ErrorMaxSize
 			}
@@ -237,8 +252,8 @@ func NewPacket(op Action, id ID, inf byte, arg ...[]byte) ([]byte, error) {
 
 /* CRYPTO FUNCTIONS */
 
-// Turns an RSA private key to a PEM byte array
-// Uses the PKCS1 format
+// Turns an RSA private key into a PEM byte array
+// using the PKCS1 format.
 func PrivkeytoPEM(privkey *rsa.PrivateKey) []byte {
 	b := x509.MarshalPKCS1PrivateKey(privkey)
 
@@ -252,8 +267,8 @@ func PrivkeytoPEM(privkey *rsa.PrivateKey) []byte {
 	return p
 }
 
-// Turn an RSA public key to a PEM byte array
-// Uses the PKIX format
+// Turn an RSA public key into a PEM byte array
+// using the PKIX format.
 func PubkeytoPEM(pubkey *rsa.PublicKey) ([]byte, error) {
 	b, err := x509.MarshalPKIXPublicKey(pubkey)
 	if err != nil {
@@ -271,7 +286,7 @@ func PubkeytoPEM(pubkey *rsa.PublicKey) ([]byte, error) {
 }
 
 // Gets the private RSA key from a PEM byte array
-// Uses the PKCS1 format
+// using the PKCS1 format.
 func PEMToPrivkey(privPEM []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(privPEM))
 	if block == nil {
@@ -287,7 +302,7 @@ func PEMToPrivkey(privPEM []byte) (*rsa.PrivateKey, error) {
 }
 
 // Gets the public RSA key from a PEM byte array
-// Uses the PKIX format
+// using the PKIX format.
 func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode(pubPEM)
 	if block == nil {
@@ -310,7 +325,7 @@ func PEMToPubkey(pubPEM []byte) (*rsa.PublicKey, error) {
 	return nil, errors.New("key type is not RSA")
 }
 
-// Encrypts a text using OAEP with SHA256
+// Encrypts a text using a public key and the OAEP method with SHA256.
 func EncryptText(t []byte, pub *rsa.PublicKey) ([]byte, error) {
 	// Cypher the payload
 	hash := sha256.New()
@@ -321,7 +336,7 @@ func EncryptText(t []byte, pub *rsa.PublicKey) ([]byte, error) {
 	return enc, nil
 }
 
-// Decrypts a cyphertext using OAEP with SHA256
+// Decrypts a cyphertext using a private key and the OAEP method with SHA256.
 func DecryptText(e []byte, priv *rsa.PrivateKey) ([]byte, error) {
 	hash := sha256.New()
 	dec, err := rsa.DecryptOAEP(hash, rand.Reader, priv, e, nil)
