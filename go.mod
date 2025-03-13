@@ -6,6 +6,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.12
+	github.com/mattn/go-sqlite3 v1.14.24
 )
 
 require (
