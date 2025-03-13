@@ -9,7 +9,13 @@ import (
 
 /* TYPES */
 
-// Identifies a client in the server
+// Identifies a TCP established connection
+// that can be communicated with using a buffered reader
+// that is assigned to the connection when using
+// the NewConnection() method.
+//
+// Note that a established connection does not imply a
+// logged in user.
 type Connection struct {
 	Conn net.Conn
 	RD   *bufio.Reader
@@ -18,7 +24,19 @@ type Connection struct {
 
 /* CONNECTION FUNCTIONS */
 
-// Reads the header of a connection and verifies it is correct
+// Returns a new TCP connection with a buffered reader and
+// TLS information using the connection from the [net]
+// package as a base.
+func NewConnection(cl net.Conn, tls bool) Connection {
+	return Connection{
+		Conn: cl,
+		RD:   bufio.NewReader(cl),
+		TLS:  tls,
+	}
+}
+
+// Factory method that reads from a connection and modifies
+// the header values of the command accordingly.
 func (cmd *Command) ListenHeader(cl Connection) error {
 	// Read from the wire
 	b, err := cl.RD.ReadBytes('\n')
@@ -41,13 +59,13 @@ func (cmd *Command) ListenHeader(cl Connection) error {
 	return nil
 }
 
-// Reads a payload to put it into a command
+// Factory method that reads from a connection and modifies
+// the arguments of the command accordingly.
 func (cmd *Command) ListenPayload(cl Connection) error {
-	// Buffer and total length
 	var buf bytes.Buffer
 	var tot int
 
-	// Allocate the arguments
+	// Preallocate the arguments matrix
 	cmd.Args = make([][]byte, cmd.HD.Args)
 
 	// Read until all arguments have been processed
@@ -60,10 +78,11 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 
 		// Write into the buffer and get length
 		grow := len(b)
-		buf.Grow(grow)
+		buf.Grow(grow) // preallocation
 		l, err := buf.Write(b)
 		if err != nil || grow != l {
 			// This implies the payload is too big
+			// Or that the size does not match
 			return err
 		}
 
@@ -72,7 +91,7 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 			return ErrorMaxSize
 		}
 
-		// Check if the payload is too big
+		// Check if the total payload size is too big
 		tot += l
 		if tot > MaxPayload {
 			return ErrorMaxSize
@@ -84,7 +103,7 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 			total := buf.Bytes()
 			size := buf.Len()
 
-			// Allocate new array
+			// Preallocate new array
 			// Do not append CRLF
 			cmd.Args[i] = make([]byte, size-2)
 			copy(cmd.Args[i], total[:size-2])

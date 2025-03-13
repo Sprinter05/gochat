@@ -2,30 +2,30 @@ package spec
 
 /* PREDEFINED VALUES */
 
-const NullOp Action = 0
-const NullID ID = 0
-const MaxID ID = 1<<10 - 1
-const EmptyInfo byte = 0xFF
-
-const HeaderSize int = 8
-const MaxArgs int = 1<<4 - 1
-const MaxPayload int = 1<<14 - 1
-const MaxArgSize int = 1<<11 - 1
-
-const ProtocolVersion uint8 = 1
-const RSABitSize int = 4096
-const UsernameSize int = 32
-
-const LoginTimeout int = 2     // Minutes
-const ReadTimeout int = 10     // Minutes
-const TokenExpiration int = 30 // Minutes
-const MaxClients int = 20
+const (
+	ProtocolVersion uint8  = 1         // Current version of the protocol
+	MaxClients      int    = 20        // Max amount of clients the server allows at the same time
+	NullOp          Action = 0         // Invalid operation code
+	NullID          ID     = 0         // Only valid for specific documented cases
+	MaxID           ID     = 1<<10 - 1 // Maximum value according to the bit field
+	EmptyInfo       byte   = 0xFF      // No information provided
+	HeaderSize      int    = 8         // Max size of the header in bytes
+	MaxArgs         int    = 1<<4 - 1  // Max amount of arguments
+	MaxPayload      int    = 1<<14 - 1 // Max amount of total arguments size
+	MaxArgSize      int    = 1<<11 - 1 // Max amount of single argument size
+	RSABitSize      int    = 4096      // Size of the RSA keypair used by the spec crypto functions
+	UsernameSize    int    = 32        // Max size of a username in bytes
+	LoginTimeout    int    = 2         // Timeout for a handshake process in minutes
+	ReadTimeout     int    = 10        // Timeout for a TCP read block in minutes
+	TokenExpiration int    = 30        // Deadline for a reusable token expiration in minutes
+)
 
 /* ACTION CODES */
 
-// Specifies an action code
+// Specifies an operation to be performed.
 type Action uint8
 
+// The integer follows the actual binary value of the operation.
 const (
 	OK Action = iota + 1
 	ERR
@@ -44,17 +44,18 @@ const (
 )
 
 // Identifies an operation to be performed
-// sargs indicates the arguments to send to server
-// cargs indicates the arguments to send to client
+// with detailed information.
+//
+// -1 as minimum amount of argument indicates
+// that the command cannot be used in that direction.
 type lookup struct {
-	op    Action
-	hex   uint8
-	str   string
-	sargs int8
-	cargs int8
+	op    Action // Operation code
+	hex   uint8  // Operation code as binary hex
+	str   string // Operation code as string
+	sargs int8   // Minimum arguments to send to server
+	cargs int8   // Minimum arguments to send to client
 }
 
-// -1 indicates the command cannot be used for client and/or server
 var (
 	okLookup     = lookup{OK, 0x01, "OK", -1, 0}
 	errLookup    = lookup{ERR, 0x02, "ERR", -1, 0}
@@ -72,7 +73,6 @@ var (
 	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0, -1}
 )
 
-// Args represents the amount of arguments the server needs
 var lookupByOperation map[Action]lookup = map[Action]lookup{
 	OK:     okLookup,
 	ERR:    errLookup,
@@ -107,7 +107,8 @@ var lookupByString map[string]lookup = map[string]lookup{
 	"KEEP":   keepLookup,
 }
 
-// Returns the ID associated to a byte code
+// Returns the operation code associated to a hex byte.
+// Result is NullOp if not found.
 func CodeToID(b byte) Action {
 	v, ok := lookupByOperation[Action(b)]
 	if !ok {
@@ -116,7 +117,8 @@ func CodeToID(b byte) Action {
 	return v.op
 }
 
-// Returns the byte code asocciated to an ID
+// Returns the hex byte asocciated to an operation code.
+// Result is 0x0 if not found.
 func IDToCode(a Action) byte {
 	v, ok := lookupByOperation[a]
 	if !ok {
@@ -125,16 +127,18 @@ func IDToCode(a Action) byte {
 	return v.hex
 }
 
-// Returns the ID associated to a string
+// Returns the action code associated to a string.
+// Result is NullOp if not found.
 func StringToCode(s string) Action {
 	v, ok := lookupByString[s]
 	if !ok {
-		return 0x0
+		return NullOp
 	}
 	return v.op
 }
 
-// Returns the ID associated to a string
+// Returns the string associated to an operation code.
+// Result is an empty string if not found.
 func CodeToString(a Action) string {
 	v, ok := lookupByOperation[a]
 	if !ok {
@@ -143,7 +147,9 @@ func CodeToString(a Action) string {
 	return v.str
 }
 
-// Minimum amount of arguments to send to server
+// Returns the minimum amount of arguments needed
+// to send to the server.
+// Result is -1 if it cannot be sent to the server.
 func ServerArgs(a Action) int {
 	v, ok := lookupByOperation[a]
 	if !ok {
@@ -152,7 +158,9 @@ func ServerArgs(a Action) int {
 	return int(v.sargs)
 }
 
-// Minimum amount of arguments to send to client
+// Returns the minimum amount of arguments needed
+// to send to the client.
+// Result is -1 if it cannot be sent to the client.
 func ClientArgs(a Action) int {
 	v, ok := lookupByOperation[a]
 	if !ok {
@@ -163,35 +171,38 @@ func ClientArgs(a Action) int {
 
 /* ERROR CODES */
 
-// Specific GCError struct that implements the error interface
-type GCError struct {
+// Error that implements the error interface from
+// the [errors] package with specific information
+// that follows the protocol specification.
+type SpecError struct {
 	Code uint8
 	Text string
 }
 
-func (err GCError) Error() string {
+// Returns the text asocciated to the error.
+func (err SpecError) Error() string {
 	return err.Text
 }
 
 var (
-	ErrorUndefined  error = GCError{0x00, "undefined problem occured"}
-	ErrorInvalid    error = GCError{0x01, "invalid operation performed"}
-	ErrorNotFound   error = GCError{0x02, "content can not be found"}
-	ErrorVersion    error = GCError{0x03, "server and client versions do not match"}
-	ErrorHandshake  error = GCError{0x04, "handshake process failed"}
-	ErrorArguments  error = GCError{0x05, "invalid arguments given"}
-	ErrorMaxSize    error = GCError{0x06, "data size is too big"}
-	ErrorHeader     error = GCError{0x07, "invalid header provided"}
-	ErrorNoSession  error = GCError{0x08, "user is not connected"}
-	ErrorLogin      error = GCError{0x09, "user can not be logged in"}
-	ErrorConnection error = GCError{0x0A, "connection problem occured"}
-	ErrorEmpty      error = GCError{0x0B, "queried data is empty"}
-	ErrorPacket     error = GCError{0x0C, "packet could not be delivered"}
-	ErrorPrivileges error = GCError{0x0D, "missing privileges to run"}
-	ErrorServer     error = GCError{0x0E, "server operation failed"}
-	ErrorIdle       error = GCError{0x0F, "user has been idle for too long"}
-	ErrorExists     error = GCError{0x10, "content already exists"}
-	ErrorUnescure   error = GCError{0x10, "connection is not secure"}
+	ErrorUndefined  error = SpecError{0x00, "undefined problem occured"}               // undefined problem occured
+	ErrorInvalid    error = SpecError{0x01, "invalid operation performed"}             // invalid operation performed
+	ErrorNotFound   error = SpecError{0x02, "content can not be found"}                // content can not be found
+	ErrorVersion    error = SpecError{0x03, "server and client versions do not match"} // server and client versions do not match
+	ErrorHandshake  error = SpecError{0x04, "handshake process failed"}                // handshake process failed
+	ErrorArguments  error = SpecError{0x05, "invalid arguments given"}                 // invalid arguments given
+	ErrorMaxSize    error = SpecError{0x06, "data size is too big"}                    // data size is too big
+	ErrorHeader     error = SpecError{0x07, "invalid header provided"}                 // invalid header provided
+	ErrorNoSession  error = SpecError{0x08, "user is not connected"}                   // user is not connected
+	ErrorLogin      error = SpecError{0x09, "user can not be logged in"}               // user can not be logged in
+	ErrorConnection error = SpecError{0x0A, "connection problem occured"}              // connection problem occured
+	ErrorEmpty      error = SpecError{0x0B, "queried data is empty"}                   // queried data is empty
+	ErrorPacket     error = SpecError{0x0C, "packet could not be delivered"}           // packet could not be delivered
+	ErrorPrivileges error = SpecError{0x0D, "missing privileges to run"}               // missing privileges to run
+	ErrorServer     error = SpecError{0x0E, "server operation failed"}                 // server operation failed
+	ErrorIdle       error = SpecError{0x0F, "user has been idle for too long"}         // user has been idle for too long
+	ErrorExists     error = SpecError{0x10, "content already exists"}                  // content already exists
+	ErrorUnescure   error = SpecError{0x10, "connection is not secure"}                // connection is not secure
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -214,17 +225,19 @@ var codeToError map[byte]error = map[byte]error{
 	0x10: ErrorExists,
 }
 
-// Returns the error code or the empty information field if not found
+// Returns the error asocciated to a hex byte.
+// Result is EmptyInfo if not found.
 func ErrorCode(err error) byte {
 	switch v := err.(type) {
-	case GCError:
+	case SpecError:
 		return v.Code
 	default:
 		return EmptyInfo
 	}
 }
 
-// Returns the error or the nil if not found
+// Returns the hex byte asocciated to an error.
+// Result is nil if not found.
 func ErrorCodeToError(b byte) error {
 	v, ok := codeToError[b]
 	if !ok {
@@ -236,11 +249,11 @@ func ErrorCodeToError(b byte) error {
 /* ADMIN OPERATIONS */
 
 const (
-	AdminShutdown   = 0x00
-	AdminDeregister = 0x01
-	AdminBroadcast  = 0x02
-	AdminPromote    = 0x03
-	AdminDisconnect = 0x04
+	AdminShutdown   = 0x00 // Send a shutdown signal to the server
+	AdminDeregister = 0x01 // Force the deregistration of a user
+	AdminBroadcast  = 0x02 // Broadcast a message to all online users
+	AdminPromote    = 0x03 // Increase the permission level of a user
+	AdminDisconnect = 0x04 // Disconnect an online user
 )
 
 var codeToAdmin map[byte]string = map[byte]string{
@@ -251,7 +264,8 @@ var codeToAdmin map[byte]string = map[byte]string{
 	0x04: "ADMIN_KICK",
 }
 
-// Returns the error code or the empty information field if not found
+// Returns the admin string asocciated to a hex byte.
+// Result is an empty string if not found.
 func AdminString(a uint8) string {
 	v, ok := codeToAdmin[a]
 	if !ok {

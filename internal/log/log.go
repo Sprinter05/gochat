@@ -1,3 +1,6 @@
+// Implements a global log to be used by either a client or a server process.
+// Includes several log levels and functions that handle from
+// database problems to internal errors, including any relevant information.
 package log
 
 import (
@@ -7,27 +10,27 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-/*
-[-] ALL   -> Logs every single packet
-[I] INFO  -> Logs information about the connection
-[E] ERROR -> Log server related errors
-[X] FATAL -> Logs when it crashes the program
-*/
+// Indicates a log level, only the provided global
+// variable can be used, as it does not
+// support changing the output to something
+// that is not standard output or using another variable.
 type Logging uint
 
-// Global variable
+// Global variable that represents the level.
+// This allows use between packages.
+// Default level is FATAL.
 var Level Logging = FATAL
 
-// FATAL is the lowest, ALL is the highest
 const (
-	FATAL Logging = iota
-	ERROR
-	INFO
-	ALL
+	FATAL Logging = iota // [X] Logs only when it crashes the program
+	ERROR                // [E] Logs relevant server and database errors
+	INFO                 // [I] Logs information about the connection and user operations
+	ALL                  // [-] Logs every single packet
 )
 
-// Logs in any case
-// Notifies any generic server message
+// Logs in any level [*]
+//
+// Notifies any generic server message.
 func Notice(msg string) {
 	log.Printf(
 		"[*] Notifying %s...\n",
@@ -36,7 +39,8 @@ func Notice(msg string) {
 }
 
 // Requires FATAL
-// Informs of a missing environment variable
+//
+// Informs of a missing environment variable.
 func Environ(envvar string) {
 	if Level < FATAL {
 		return
@@ -48,7 +52,8 @@ func Environ(envvar string) {
 }
 
 // Requires FATAL
-// Generic fatal error
+//
+// Generic fatal error.
 func Fatal(msg string, err error) {
 	if Level < FATAL {
 		return
@@ -61,7 +66,8 @@ func Fatal(msg string, err error) {
 }
 
 // Requires FATAL
-// Consistency error on the database
+//
+// Consistency error on the database.
 func DBFatal(data string, user string, err error) {
 	if Level < FATAL {
 		return
@@ -75,7 +81,8 @@ func DBFatal(data string, user string, err error) {
 }
 
 // Requires ERROR or higher
-// Generic error
+//
+// Generic error.
 func Error(msg string, err error) {
 	if Level < ERROR {
 		return
@@ -88,7 +95,8 @@ func Error(msg string, err error) {
 }
 
 // Requires ERROR or higher
-// Notifies an error on an IP
+//
+// Notifies an error on a connection from an IP.
 func IP(msg string, ip net.Addr) {
 	if Level < ERROR {
 		return
@@ -101,7 +109,8 @@ func IP(msg string, ip net.Addr) {
 }
 
 // Requires ERROR or higher
-// Internal database problem
+//
+// Internal database problem.
 func DBError(err error) {
 	if Level < ERROR {
 		return
@@ -113,7 +122,8 @@ func DBError(err error) {
 }
 
 // Requires ERROR or higher
-// Problem running a SQL statement
+//
+// Problem running a SQL statement.
 func DB(data string, err error) {
 	if Level < ERROR {
 		return
@@ -126,7 +136,8 @@ func DB(data string, err error) {
 }
 
 // Requires ERROR or higher
-// Problem when creating packet
+//
+// Problem when creating packet.
 func Packet(op spec.Action, err error) {
 	if Level < ERROR {
 		return
@@ -139,7 +150,8 @@ func Packet(op spec.Action, err error) {
 }
 
 // Requires INFO or higher
-// Timeout due to timer finishing
+//
+// Timeout of an operation.
 func Timeout(user string, msg string) {
 	if Level < INFO {
 		return
@@ -152,7 +164,8 @@ func Timeout(user string, msg string) {
 }
 
 // Requires INFO or higher
-// Error with data
+//
+// Error with data related to a user.
 func User(user string, data string, err error) {
 	if Level < INFO {
 		return
@@ -166,7 +179,8 @@ func User(user string, data string, err error) {
 }
 
 // Requires INFO or higher
-// Problem when reading from a socket
+//
+// Problem when reading from a socket.
 func Read(subj string, ip string, err error) {
 	if Level < INFO {
 		return
@@ -180,7 +194,8 @@ func Read(subj string, ip string, err error) {
 }
 
 // Requires INFO or higher
-// Invalid operation
+//
+// Invalid operation trying to be performed.
 func Invalid(op string, user string) {
 	if Level < INFO {
 		return
@@ -193,7 +208,8 @@ func Invalid(op string, user string) {
 }
 
 // Requires ALL
-// Prints a new connection
+//
+// Prints a new connection.
 func Connection(ip string, closed bool) {
 	if Level < ALL {
 		return
@@ -212,7 +228,8 @@ func Connection(ip string, closed bool) {
 }
 
 // Requires ALL
-// Prints packet information
+//
+// Prints packet information.
 func Request(ip string, cmd spec.Command) {
 	if Level < ALL {
 		return
