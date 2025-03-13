@@ -104,11 +104,9 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 	return nil
 }
 
-/* BUFFER FUNCTIONS */
-
 // Returns the next avaliable ID that has not yet been added to the buffer
-func GeneratePacketID(buf map[uint16]*[]byte) uint16 {
-	id := uint16(0)
+func GeneratePacketID(buf map[uint16]uint8) uint16 {
+	id := uint16(1)
 	_, ok := buf[id]
 	for ok {
 		id++
