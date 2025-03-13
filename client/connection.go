@@ -49,10 +49,10 @@ func Listen(con net.Conn) {
 		}
 		// If the server packet was correct, by this point in the code, it has been completely received
 
-		_, ok := PacketBuffer[uint16(pct.HD.ID)]
-		if ok {
-			// Deletes the ID of the packet that was waiting for the now received reply
-			delete(PacketBuffer, uint16(pct.HD.ID))
+		if IsVerbose {
+			ClearPrompt()
+			pct.ShellPrint()
+			pct.Print()
 		}
 
 		// Clears shell prompt to print the packet

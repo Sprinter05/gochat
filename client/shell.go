@@ -46,10 +46,10 @@ const helpText = "EXIT: Closes the shell.\n\n" +
 
 	"DEREG: Deregisters the user from the server."
 
-// Interface for all commands
-type Command interface {
-	Run(id gcspec.Action, act gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error
-}
+// Variable that defines whether the shell should be verbose or not
+// If the shell is verbose, it will print each packet that is received
+// whether it should be printed or not.
+var IsVerbose bool = false
 
 // Type for commands with arguments
 // Globalizes the connection variable obtained by the NewShell argument
