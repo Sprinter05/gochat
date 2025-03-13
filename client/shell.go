@@ -52,47 +52,6 @@ type Command interface {
 }
 
 // Type for commands with arguments
-type CmdArgs func(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error
-
-func (cmd CmdArgs) Run(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error {
-	return cmd(act, id, inf, args, nArg)
-}
-
-// Type for commands with no arguments
-type CmdNoArgs func() error
-
-func (cmd CmdNoArgs) Run(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error {
-	return cmd()
-}
-
-// Map with all comands except EXIT
-var cmds = map[string]Command{
-	"VER":   CmdNoArgs(ver),
-	"HELP":  CmdNoArgs(help),
-	"REG":   CmdArgs(sendPacket),
-	"CONN":  CmdArgs(sendPacket),
-	"VERIF": CmdArgs(sendPacket),
-	"REQ":   CmdArgs(sendPacket),
-	"USRS":  CmdArgs(sendPacket),
-	"MSG":   CmdArgs(sendPacket),
-	"DISCN": CmdArgs(sendPacket),
-	"DEREG": CmdArgs(sendPacket),
-}
-
-// Map that associates the number of arguments required for each command
-var nArgs = map[string]int{
-	"VER":   0,
-	"HELP":  0,
-	"REG":   2,
-	"CONN":  1,
-	"VERIF": 1,
-	"REQ":   1,
-	"USRS":  0,
-	"MSG":   3,
-	"DISCN": 0,
-	"DEREG": 0,
-}
-
 // Globalizes the connection variable obtained by the NewShell argument
 var gCon net.Conn
 
@@ -153,36 +112,4 @@ func PrintPrompt() {
 // COMMANDS
 
 // Execution code of the VER command
-func ver() error {
-	fmt.Printf("gochat version %d\n", gcspec.ProtocolVersion)
-	return nil
-}
-
-// Execution code of the HELP command
-func help() error {
-	fmt.Println(helpText)
-	return nil
-}
-
-// Generic function able to execute every packet-sending command
-func sendPacket(act gcspec.Action, id gcspec.ID, inf byte, args []gcspec.Arg, nArg int) error {
-	// Checks argument count
-	if len(args) != nArg {
-		return fmt.Errorf("%s: Incorrect number of arguments", gcspec.CodeToString(act))
-	}
-	// Creates packet with the proper headers
-	pct, err := gcspec.NewPacket(act, id, gcspec.EmptyInfo, args)
-	if err != nil {
-		return fmt.Errorf("%s: %s", gcspec.CodeToString(act), err)
-	}
-	// Sends packet to server
-	_, errW := gCon.Write(pct)
-	if errW != nil {
-		return fmt.Errorf("%s: Unable to write packet to connection", gcspec.CodeToString(act))
-	} else {
-		// If the packet is sent correctly, it is added to PacketBuffer
-		PacketBuffer[uint16(id)] = &pct
-	}
-
-	return nil
 }
