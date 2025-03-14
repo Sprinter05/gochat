@@ -143,6 +143,7 @@ func NewHeader(hdr []byte) Header {
 // by the Unix() function of the [time] package.
 func UnixStampToBytes(s time.Time) []byte {
 	unix := s.Unix()
+	// Preallocation
 	p := make([]byte, 0, binary.Size(unix))
 	p = binary.AppendVarint(p, unix)
 	return p
@@ -152,12 +153,7 @@ func UnixStampToBytes(s time.Time) []byte {
 // a unix timestamp, according to the size specified by
 // the [time] package.
 func BytesToUnixStamp(b []byte) (t time.Time, e error) {
-	min := binary.Size(t.Unix())
-	if len(b) < min {
-		return t, ErrorArguments
-	}
-
-	buf := bytes.NewBuffer(b[:min])
+	buf := bytes.NewBuffer(b)
 	stamp, err := binary.ReadVarint(buf)
 	if err != nil {
 		return t, ErrorArguments
