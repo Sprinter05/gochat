@@ -12,6 +12,9 @@ import (
 )
 
 // Buffer where the pending packet's ID is allocated as a key with the operation code as its value
+// ! No deberia ser global
+// ! Deberia estar protegido con un mutex
+// ! En make() dale un segundo argumento con el tamaño para prealocarlo, si no cada vez q añadas un paquete añades delay al realocarlo
 var PendingBuffer map[uint16]uint8 = make(map[uint16]uint8)
 
 // Starts listening for packets

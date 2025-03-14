@@ -5,6 +5,8 @@ import (
 )
 
 // Global client database variable.
+// ! Variable global mal
+// ! La parte de la base de datos la podrias meter en un subpaquete que es mejor
 var DB *sql.DB
 
 // Adds a user to the database.

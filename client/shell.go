@@ -2,6 +2,7 @@ package main
 
 // Contains the core functions of the client shell.
 // The shell allows the client to send packets to the server.
+// ! Mete la shell en un subpaquete para abstraerlo del resto de la logica
 
 import (
 	"bufio"
@@ -17,6 +18,12 @@ import (
 )
 
 // Text to be printed by the HELP command
+// ! No uses concatenacion de strings
+// ! Si haces:
+// ! `
+// ! Puedes escribir en medio de estos apostrofes
+// ! Y ya te añade las lineas nuevas automaticemente
+// ! `
 const helpText = "EXIT: Closes the shell.\n\n" +
 
 	"VER: Prints out the gochat version the client has installed.\n\n" +
@@ -52,15 +59,20 @@ const helpText = "EXIT: Closes the shell.\n\n" +
 // Variable that defines whether the shell should be verbose or not
 // If the shell is verbose, it will print each packet that is received
 // whether it should be printed or not.
+// ! Variable global mal
 var IsVerbose bool = false
 
 // Globalizes the connection variable obtained by the NewShell argument.
+// ! Variable global mal
 var gCon net.Conn
 
 // Stores the current user using the shell
+// ! Variable global mal
 var CurUser Client
 
 // Initializes a client shell.
+// ! pctReceived deberia ser <- (read only), asi evitas accidentalmente mandar en ese canal
+// ! Al pasar canales entre functiones nunca deberia ser bidireccional, si lo es, estas planteando algo mal
 func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 	gCon = con
 	rd := bufio.NewReader(os.Stdin)
@@ -100,6 +112,7 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 			for _, arg := range args {
 				payloadLen += len(arg) + 2 // + 2 to include the CRLF in each argument
 			}
+			// ! Usa NewPacket()
 			// Creates header
 			header := spec.Header{
 				Ver:  spec.ProtocolVersion,
@@ -140,6 +153,7 @@ func PrintPrompt() {
 }
 
 func requiresSync(instruction string) bool {
+	// ! Este slice se esta redeclarando cada vez que llamas a la funcion, considera hacerlo de otra forma
 	syncCommands := []string{"REGUSER", "REG", "LOGIN", "VERIF", "REQ", "USRS", "MSG", "RECIV", "DISCN", "DEREG"}
 	return slices.Contains(syncCommands, instruction)
 }
