@@ -12,9 +12,10 @@ import (
 /* COMMAND FUNCTIONS */
 
 // Reads a header of a comamnd from the TCP connection
-func withHeader(cl spec.Connection, cmd *spec.Command) error {
+func getHeader(cl spec.Connection) (h spec.Header, err error) {
 	// Reads using the reader assigned to the connection
-	if err := cmd.ListenHeader(cl); err != nil {
+	cmd := spec.Command{}
+	if err = cmd.ListenHeader(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Read("header", ip, err)
 
@@ -26,14 +27,15 @@ func withHeader(cl spec.Connection, cmd *spec.Command) error {
 			cl.Conn.Write(pak)
 		}
 
-		return err
+		return h, err
 	}
-	return nil
+	return cmd.HD, nil
 }
 
 // Reads the arguments of a command from the TCP connection
-func withPayload(cl spec.Connection, cmd *spec.Command) error {
+func getPayload(cl spec.Connection, hd spec.Header) ([][]byte, error) {
 	// Reads using the reader assigned to the connection
+	cmd := spec.Command{HD: hd}
 	if err := cmd.ListenPayload(cl); err != nil {
 		ip := cl.Conn.RemoteAddr().String()
 		log.Read("payload", ip, err)
@@ -46,9 +48,9 @@ func withPayload(cl spec.Connection, cmd *spec.Command) error {
 			cl.Conn.Write(pak)
 		}
 
-		return err
+		return nil, err
 	}
-	return nil
+	return cmd.Args, nil
 }
 
 // Reads from a connection and returns a command according to the specification,
@@ -57,26 +59,30 @@ func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	ip := cl.Conn.RemoteAddr().String()
 
 	// Error logged by the function
-	read := new(spec.Command)
-	if err = withHeader(cl, read); err != nil {
+	hd, err := getHeader(cl)
+	if err != nil {
 		return cmd, err
 	}
 
 	// Check that all header fields are correct
-	if err := cmd.HD.ServerCheck(); err != nil {
+	if err := hd.ServerCheck(); err != nil {
 		log.Read("header checking", ip, err)
 		return cmd, err
 	}
 
 	// If there are no arguments we do not process the payload
-	if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
+	var payload [][]byte
+	if hd.Args != 0 && hd.Len != 0 {
 		// Error logged by the function
-		if err = withPayload(cl, read); err != nil {
+		if payload, err = getPayload(cl, hd); err != nil {
 			return cmd, err
 		}
 	}
 
-	return *read, nil
+	return spec.Command{
+		HD:   hd,
+		Args: payload,
+	}, nil
 }
 
 /* CONNECTION FUNCTIONS */
