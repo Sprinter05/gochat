@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/tls"
 	"net"
 	"testing"
 	"time"
@@ -21,6 +20,7 @@ func setup(t *testing.T) net.Conn {
 	return l
 }
 
+/*
 func setupTLS(t *testing.T) *tls.Conn {
 	config := &tls.Config{
 		InsecureSkipVerify: true,
@@ -31,7 +31,7 @@ func setupTLS(t *testing.T) *tls.Conn {
 	}
 
 	return l
-}
+}*/
 
 func readFromConn(c spec.Connection) spec.Command {
 	cmd := new(spec.Command)
@@ -56,7 +56,7 @@ func readFromConn(c spec.Connection) spec.Command {
 
 func TestREG(t *testing.T) {
 	l := setup(t)
-	_ = setupTLS(t)
+	//_ = setupTLS(t)
 	defer l.Close()
 
 	//pub := readKeyFile("public.pem")
@@ -111,7 +111,8 @@ func TestREG(t *testing.T) {
 	r2.Print()
 
 	// Msg
-	test4, err := spec.NewPacket(spec.MSG, spec.ID(69), 0x01, []byte("Sprinter05"), spec.UnixStampToBytes(time.Now()), []byte("hola q tal"))
+	stamp := spec.UnixStampToBytes(time.Now())
+	test4, err := spec.NewPacket(spec.MSG, spec.ID(69), 0x01, []byte("Sprinter05"), stamp, []byte("hola q tal"))
 	if err != nil {
 		t.Fatal(err)
 	}

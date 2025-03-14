@@ -1,14 +1,19 @@
+// This package is used to allow the server to abstract
+// the communication between itself and the database.
+//
+// It is important to know that it is only designed to work
+// with a MariaDB database.
 package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	stdlog "log"
 	"os"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
-	"github.com/Sprinter05/gochat/server/model"
 
 	driver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -18,6 +23,7 @@ import (
 /* UTILITIES */
 
 // Gets the necessary environment variables
+// to connect to the database.
 func getDBEnv() string {
 	user, ok := os.LookupEnv("DB_USER")
 	if !ok {
@@ -55,7 +61,8 @@ func getDBEnv() string {
 	)
 }
 
-// Connects to the database using the environment file
+// Connects to the database using an optional logger
+// that can be passed as a parameter
 func Connect(logfile *stdlog.Logger) *gorm.DB {
 	access := getDBEnv()
 
@@ -70,6 +77,7 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 		)
 	}
 
+	// Open the connection
 	db, err := gorm.Open(
 		driver.Open(access),
 		&gorm.Config{
@@ -94,17 +102,35 @@ func Connect(logfile *stdlog.Logger) *gorm.DB {
 	return db
 }
 
-/* MODELS */
+/* TYPES */
 
-// Identifies the model of a user in the database
-type User struct {
-	UserID     uint             `gorm:"primaryKey;autoIncrement;not null"`
-	Username   string           `gorm:"unique;not null;size:32"`
-	Pubkey     sql.NullString   `gorm:"unique;size:2047"`
-	Permission model.Permission `gorm:"not null;default:0"`
+// Specifies the permissions this database
+// implementation stores.
+type Permission int8
+
+const (
+	USER  Permission = iota // Lowest level
+	ADMIN                   // Can perform admin operations
+	OWNER                   // Can designate new administrators
+)
+
+var permsToString map[Permission]string = map[Permission]string{
+	USER:  "USER",
+	ADMIN: "ADMIN",
+	OWNER: "OWNER",
 }
 
-// Identifies the model of a message in the database
+/* MODELS */
+
+// Identifies users stored in the database
+type User struct {
+	UserID     uint           `gorm:"primaryKey;autoIncrement;not null"`
+	Username   string         `gorm:"unique;not null;size:32"`
+	Pubkey     sql.NullString `gorm:"unique;size:2047"`
+	Permission Permission     `gorm:"not null;default:0"`
+}
+
+// Identifies messages stored in the database
 type Message struct {
 	SrcUser     uint      `gorm:"not null;check:src_user <> dst_user"`
 	DstUser     uint      `gorm:"not null"`
@@ -114,9 +140,31 @@ type Message struct {
 	Destination User      `gorm:"foreignKey:dst_user;OnDelete:RESTRICT"`
 }
 
+/* ERRORS */
+
+var (
+	ErrorNotFound      = errors.New("record not found in the database")                // record not found in the database
+	ErrorDuplicatedKey = errors.New("unique key constraint violated due to duplicate") // unique key constraint violated due to duplicate
+	ErrorForeignKey    = errors.New("foreign key restrict violation")                  // foreign key restrict violation
+	ErrorConsistency   = errors.New("invalid data found in the database")              // invalid data found in the database
+	ErrorEmpty         = errors.New("empty result found")                              // empty result found
+)
+
 /* FUNCTIONS */
 
-// Runs migrations for the database
+// Returns the name string asocciated to a
+// permission level or an empty string if the
+// permission level was not found.
+func PermissionString(p Permission) string {
+	v, ok := permsToString[p]
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+// Runs database migrations, ensuring all tables
+// are up to date.
 func Migrate(db *gorm.DB) {
 	err := db.Set(
 		"gorm:table_options",

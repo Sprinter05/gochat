@@ -41,7 +41,6 @@ func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 
 		if IsVerbose {
 			ClearPrompt()
-			pct.ShellPrint()
 			pct.Print()
 		}
 		// The packet is processed and the proper action is performed

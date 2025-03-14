@@ -68,7 +68,7 @@ The Server will reply with an error if the user is not found.
 > **NOTE**: The operation correct reply does not imply that the other user has received the message, only that it has been sent.
 
 ### Receiving messages
-If the user was offline and got new messages while offline, it can request a "**catch up**" after a succesful verification. In a "**catch up**" all messages are transferred to the client from the server. From that point onwards, the server is **no longer responsible of saving old messages** once they have been transferred. The client application can implement any method they want for storing messages locally.
+If the user was offline and got new messages while offline, it can request a "**catch up**" after a succesful verification. In a "**catch up**" all messages are transferred to the client from the server. From that point onwards, the server is **no longer responsible of saving old messages** once they have been transferred. The client application can implement any method they want for storing messages locally. It is advised that the client application performs this operation right after a successful login.
 
 `RECIV` _Client_
 

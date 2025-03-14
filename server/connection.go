@@ -4,57 +4,22 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/hubs"
-	"github.com/Sprinter05/gochat/server/model"
 )
 
 /* COMMAND FUNCTIONS */
 
-func withHeader(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
-	// Reads using the reader assigned to the connection
-	if err := cmd.ListenHeader(cl); err != nil {
-		ip := cl.Conn.RemoteAddr().String()
-		log.Read("header", ip, err)
-
-		// Send error packet
-		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
-		if e != nil {
-			log.Packet(spec.ERR, e)
-		} else {
-			cl.Conn.Write(pak)
-		}
-
-		return cmd, err
-	}
-	return cmd, nil
-}
-
-func withPayload(cl spec.Connection, cmd spec.Command) (spec.Command, error) {
-	// Reads using the reader assigned to the connection
-	if err := cmd.ListenPayload(cl); err != nil {
-		ip := cl.Conn.RemoteAddr().String()
-		log.Read("payload", ip, err)
-
-		// Send error packet
-		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
-		if e != nil {
-			log.Packet(spec.ERR, e)
-		} else {
-			cl.Conn.Write(pak)
-		}
-
-		return cmd, err
-	}
-	return cmd, nil
-}
-
-// Returns a newly created command
-func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
+// Reads from a connection and returns a command according to the
+// specification, with all fields, or an error.
+func readCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	ip := cl.Conn.RemoteAddr().String()
 
 	// Error logged by the function
-	if cmd, err = withHeader(cl, cmd); err != nil {
+	if err := cmd.ListenHeader(cl); err != nil {
+		log.Read("header", ip, err)
+		hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return cmd, err
 	}
 
@@ -67,7 +32,9 @@ func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	// If there are no arguments we do not process the payload
 	if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
 		// Error logged by the function
-		if cmd, err = withPayload(cl, cmd); err != nil {
+		if err := cmd.ListenPayload(cl); err != nil {
+			log.Read("payload", ip, err)
+			hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
 			return cmd, err
 		}
 	}
@@ -75,10 +42,10 @@ func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	return cmd, nil
 }
 
-/* THREADED FUNCTIONS */
+/* CONNECTION FUNCTIONS */
 
-// Listens for packets from a client connection
-func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
+// Listens for packets from a client connection until the connection is shut down
+func ListenConnection(cl spec.Connection, c *models.Counter, req chan<- hubs.Request, hub *hubs.Hub) {
 	// Cleanup connection on exit
 	defer func() {
 		hub.Cleanup(cl.Conn)
@@ -106,7 +73,7 @@ func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Requ
 			log.Read("deadline setup", ip, err)
 		}
 
-		cmd, err := wrapCommand(cl)
+		cmd, err := readCommand(cl)
 		if err != nil {
 			// Malformed, cleanup connection
 			return
@@ -126,7 +93,7 @@ func ListenConnection(cl spec.Connection, c *model.Counter, req chan<- hubs.Requ
 
 }
 
-// Wraps concurrency with each client's command
+// Runs all commands for a single client
 func RunTask(hub *hubs.Hub, req <-chan hubs.Request) {
 	for r := range req {
 		// Show request
@@ -140,6 +107,6 @@ func RunTask(hub *hubs.Hub, req <-chan hubs.Request) {
 			continue // Next request
 		}
 
-		hubs.Process(hub, r, u)
+		hubs.Process(hub, r, *u)
 	}
 }
