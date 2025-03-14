@@ -55,7 +55,7 @@ func Process(h *Hub, r Request, u User) {
 	if !ok {
 		// Invalid action is trying to be ran
 		log.Invalid(spec.CodeToString(id), string(u.name))
-		sendErrorPacket(r.Command.HD.ID, spec.ErrorInvalid, r.Conn)
+		SendErrorPacket(r.Command.HD.ID, spec.ErrorInvalid, r.Conn)
 		return
 	}
 
@@ -74,7 +74,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 
 	if len(uname) > spec.UsernameSize {
 		log.User(string(uname), "username registration", spec.ErrorMaxSize)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
@@ -82,7 +82,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	_, err := spec.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		log.User(string(uname), "pubkey registration", spec.ErrorArguments)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
@@ -91,15 +91,15 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	if e != nil {
 		log.User(string(uname), "registration", e)
 		if e == db.ErrorDuplicatedKey {
-			sendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
+			SendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
 			return
 		}
 		// Something went wrong
-		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
-	sendOKPacket(cmd.HD.ID, u.conn)
+	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Checks if a user exists in the database and sends a
@@ -111,13 +111,13 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 	if int(cmd.HD.Args) > spec.ServerArgs(cmd.HD.Op) {
 		err := h.checkToken(u, cmd.Args[1])
 		if err != nil {
-			sendErrorPacket(cmd.HD.ID, err, u.conn)
+			SendErrorPacket(cmd.HD.ID, err, u.conn)
 			return
 		}
 
 		// Cache the user
 		h.users.Add(u.conn, &u)
-		sendOKPacket(cmd.HD.ID, u.conn)
+		SendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
 
@@ -125,7 +125,7 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 	enc, err := spec.EncryptText(ran, u.pubkey)
 	if err != nil {
 		//! This shouldnt happen, it means the database for the user is corrupted
-		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
 		log.DBFatal("pubkey", string(u.name), err)
 		return
 	}
@@ -134,7 +134,7 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 	vpak, e := spec.NewPacket(spec.VERIF, cmd.HD.ID, spec.EmptyInfo, enc)
 	if e != nil {
 		log.Packet(spec.VERIF, e)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 	u.conn.Write(vpak) // send VERIF
@@ -175,7 +175,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 
 	if !ok {
 		log.User(string(u.name), "verification existance", spec.ErrorNotFound)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
@@ -184,7 +184,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 		verif.cancel()
 		h.Cleanup(u.conn)
 		log.User(string(u.name), "verification validation", spec.ErrorHandshake)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorHandshake, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorHandshake, u.conn)
 		return
 	}
 
@@ -202,7 +202,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 		h.verifs.Remove(u.name)
 	}
 
-	sendOKPacket(cmd.HD.ID, u.conn)
+	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Marks an online user as offline.
@@ -215,14 +215,14 @@ func logoutUser(h *Hub, u User, cmd spec.Command) {
 	if !uok && !vok {
 		// If user is in none of the caches we error
 		log.User(string(u.name), "logout", spec.ErrorNoSession)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorNoSession, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorNoSession, u.conn)
 		return
 	}
 
 	// Otherwise we cleanup
 	h.Cleanup(u.conn)
 
-	sendOKPacket(cmd.HD.ID, u.conn)
+	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Removes a user from the database and also logs it out.
@@ -233,14 +233,14 @@ func deregisterUser(h *Hub, u User, cmd spec.Command) {
 	e := db.RemoveUser(h.db, u.name)
 	if e == nil {
 		h.Cleanup(u.conn)
-		sendOKPacket(cmd.HD.ID, u.conn)
+		SendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
 
 	// Database error different than foreign key violation
 	if e != db.ErrorForeignKey {
 		log.DB(string(u.name)+"'s deletion", e)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
@@ -248,13 +248,13 @@ func deregisterUser(h *Hub, u User, cmd spec.Command) {
 	err := db.RemoveKey(h.db, u.name)
 	if err != nil {
 		log.DB(string(u.name)+"'s pubkey to null", e)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
 	// Log the user out
 	h.Cleanup(u.conn)
-	sendOKPacket(cmd.HD.ID, u.conn)
+	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Requests the public key of another user.
@@ -264,14 +264,14 @@ func requestUser(h *Hub, u User, cmd spec.Command) {
 	req, err := h.userFromDB(string(cmd.Args[0]))
 	if err != nil {
 		log.DB(string(u.name)+"'s pubkey", err)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 		return
 	}
 
 	p, e := spec.PubkeytoPEM(req.pubkey)
 	if e != nil {
 		//! This means the user's database is corrupted info
-		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
 		log.DBFatal("pubkey", string(u.name), err)
 		return
 	}
@@ -283,7 +283,7 @@ func requestUser(h *Hub, u User, cmd spec.Command) {
 	)
 	if e != nil {
 		log.Packet(spec.REQ, e)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 	u.conn.Write(pak) // send REQ
@@ -307,20 +307,20 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 	} else {
 		// Error due to invalid argument in header info
 		log.User(string(u.name), "list argument", spec.ErrorHeader)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
 
 	if usrs == "" {
 		// Could not find any users matching
-		sendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
 		return
 	}
 
 	pak, e := spec.NewPacket(spec.USRS, cmd.HD.ID, spec.EmptyInfo, []byte(usrs))
 	if e != nil {
 		log.Packet(spec.USRS, e)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 	u.conn.Write(pak) // send USRS
@@ -334,7 +334,7 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 func messageUser(h *Hub, u User, cmd spec.Command) {
 	// Cannot send to self
 	if string(cmd.Args[0]) == u.name {
-		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
@@ -349,12 +349,12 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 		)
 		if e != nil {
 			log.Packet(spec.RECIV, e)
-			sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
+			SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 			return
 		}
 		send.conn.Write(pak) // send RECIV (to destination)
 
-		sendOKPacket(cmd.HD.ID, u.conn)
+		SendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
 
@@ -362,7 +362,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 	uname := string(cmd.Args[0])
 	stamp, e := spec.BytesToUnixStamp(cmd.Args[1])
 	if e != nil {
-		sendErrorPacket(cmd.HD.ID, e, u.conn)
+		SendErrorPacket(cmd.HD.ID, e, u.conn)
 		return
 	}
 	err := db.CacheMessage(h.db, uname, spec.Message{
@@ -372,16 +372,16 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 	})
 	if err != nil {
 		if err == db.ErrorNotFound {
-			sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+			SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 			return
 		}
 		// Error when inserting the message into the cache
 		log.DB("message caching from "+string(u.name), err)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
-	sendOKPacket(cmd.HD.ID, u.conn)
+	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
 // Retrieves all pending messages directed to the user from
@@ -393,20 +393,20 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 	if err != nil {
 		// No messages to query
 		if err == db.ErrorEmpty {
-			sendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
+			SendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
 			return
 		}
 
 		// Internal database error
 		log.DB("messages for "+string(u.name), err)
-		sendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 
 	chk := catchUp(u.conn, cmd.HD.ID, msgs...) // send RECIV(s)
 	if chk != nil {
 		// We do not delete messages in this case
-		sendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
 

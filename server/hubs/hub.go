@@ -89,10 +89,10 @@ func (hub *Hub) Session(r Request) (*User, error) {
 	if op != spec.REG {
 		if op == spec.LOGIN {
 			// User did not exist when trying to search previously
-			sendErrorPacket(r.Command.HD.ID, spec.ErrorNotFound, r.Conn)
+			SendErrorPacket(r.Command.HD.ID, spec.ErrorNotFound, r.Conn)
 		} else {
 			// Cannot do anything without an account
-			sendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
+			SendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
 		}
 		return nil, spec.ErrorNoSession
 	}
@@ -113,7 +113,7 @@ func (hub *Hub) dbLogin(r Request) (*User, error) {
 	user, e := hub.userFromDB(u)
 	if e != nil {
 		if e != spec.ErrorNotFound {
-			sendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
+			SendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
 		}
 		return nil, e
 	}
@@ -140,7 +140,7 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 		_, ipok := hub.FindUser(string(r.Command.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
-			sendErrorPacket(r.Command.HD.ID, spec.ErrorDupSession, r.Conn)
+			SendErrorPacket(r.Command.HD.ID, spec.ErrorDupSession, r.Conn)
 			return nil, spec.ErrorDupSession
 
 		}

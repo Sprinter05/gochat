@@ -11,78 +11,35 @@ import (
 
 /* COMMAND FUNCTIONS */
 
-// Reads a header of a comamnd from the TCP connection
-func getHeader(cl spec.Connection) (h spec.Header, err error) {
-	// Reads using the reader assigned to the connection
-	cmd := spec.Command{}
-	if err = cmd.ListenHeader(cl); err != nil {
-		ip := cl.Conn.RemoteAddr().String()
-		log.Read("header", ip, err)
-
-		// Send error packet
-		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
-		if e != nil {
-			log.Packet(spec.ERR, e)
-		} else {
-			cl.Conn.Write(pak)
-		}
-
-		return h, err
-	}
-	return cmd.HD, nil
-}
-
-// Reads the arguments of a command from the TCP connection
-func getPayload(cl spec.Connection, hd spec.Header) ([][]byte, error) {
-	// Reads using the reader assigned to the connection
-	cmd := spec.Command{HD: hd}
-	if err := cmd.ListenPayload(cl); err != nil {
-		ip := cl.Conn.RemoteAddr().String()
-		log.Read("payload", ip, err)
-
-		// Send error packet
-		pak, e := spec.NewPacket(spec.ERR, cmd.HD.ID, spec.ErrorCode(err))
-		if e != nil {
-			log.Packet(spec.ERR, e)
-		} else {
-			cl.Conn.Write(pak)
-		}
-
-		return nil, err
-	}
-	return cmd.Args, nil
-}
-
-// Reads from a connection and returns a command according to the specification,
-// with all fields, or an error.
-func wrapCommand(cl spec.Connection) (cmd spec.Command, err error) {
+// Reads from a connection and returns a command according to the
+// specification, with all fields, or an error.
+func readCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	ip := cl.Conn.RemoteAddr().String()
 
 	// Error logged by the function
-	hd, err := getHeader(cl)
-	if err != nil {
+	if err := cmd.ListenHeader(cl); err != nil {
+		log.Read("header", ip, err)
+		hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return cmd, err
 	}
 
 	// Check that all header fields are correct
-	if err := hd.ServerCheck(); err != nil {
+	if err := cmd.HD.ServerCheck(); err != nil {
 		log.Read("header checking", ip, err)
 		return cmd, err
 	}
 
 	// If there are no arguments we do not process the payload
-	var payload [][]byte
-	if hd.Args != 0 && hd.Len != 0 {
+	if cmd.HD.Args != 0 && cmd.HD.Len != 0 {
 		// Error logged by the function
-		if payload, err = getPayload(cl, hd); err != nil {
+		if err := cmd.ListenPayload(cl); err != nil {
+			log.Read("payload", ip, err)
+			hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
 			return cmd, err
 		}
 	}
 
-	return spec.Command{
-		HD:   hd,
-		Args: payload,
-	}, nil
+	return cmd, nil
 }
 
 /* CONNECTION FUNCTIONS */
@@ -116,7 +73,7 @@ func ListenConnection(cl spec.Connection, c *models.Counter, req chan<- hubs.Req
 			log.Read("deadline setup", ip, err)
 		}
 
-		cmd, err := wrapCommand(cl)
+		cmd, err := readCommand(cl)
 		if err != nil {
 			// Malformed, cleanup connection
 			return

@@ -111,7 +111,8 @@ func TestREG(t *testing.T) {
 	r2.Print()
 
 	// Msg
-	test4, err := spec.NewPacket(spec.MSG, spec.ID(69), 0x01, []byte("Sprinter05"), spec.UnixStampToBytes(time.Now()), []byte("hola q tal"))
+	stamp := spec.UnixStampToBytes(time.Now())
+	test4, err := spec.NewPacket(spec.MSG, spec.ID(69), 0x01, []byte("Sprinter05"), stamp, []byte("hola q tal"))
 	if err != nil {
 		t.Fatal(err)
 	}
