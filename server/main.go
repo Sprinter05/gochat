@@ -154,9 +154,6 @@ func setupTLSConn() net.Listener {
 
 /* MAIN FUNCTIONS */
 
-// TODO: Check hub error comparisons
-//? https://github.com/uber-go/automaxprocs
-
 // Specifies a behaviour that is common to all
 // listening sockets, so that they can process
 // events all at the same time.
