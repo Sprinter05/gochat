@@ -371,7 +371,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 		Stamp:   stamp,
 	})
 	if err != nil {
-		if err == spec.ErrorNotFound {
+		if err == db.ErrorNotFound {
 			sendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 			return
 		}
