@@ -68,30 +68,6 @@ func (cmd *Command) Print() {
 	fmt.Println()
 }
 
-// TODO: Unnecessary?
-// Prints summarized information about a packet for the client shell.
-func (cmd *Command) ShellPrint() {
-	// Initializes information message to EmptyInfo message
-	inf := "No information"
-	// If the information is an error, sets the information message to the error's
-	if cmd.HD.Info != 0xFF {
-		inf = ErrorCodeToError(cmd.HD.Info).Error()
-	}
-	// Prints header information
-	fmt.Printf("Packet with ID %x (%s) received with information code %x (%s)", IDToCode(cmd.HD.Op), CodeToString(cmd.HD.Op), cmd.HD.Info, inf)
-	// Checks argument count
-	if len(cmd.Args) == 0 {
-		fmt.Printf(". No arguments.\n")
-	} else {
-		// Prints arguments
-		fmt.Printf("\nArguments: ")
-		for i, v := range cmd.Args {
-			fmt.Printf("Arg %d: %s ", i, v)
-		}
-		fmt.Print(".\n")
-	}
-}
-
 /* HEADER FUNCTIONS */
 
 // Checks the validity of the header fields

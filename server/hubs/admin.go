@@ -6,7 +6,6 @@ import (
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/db"
-	"github.com/Sprinter05/gochat/server/model"
 )
 
 /* LOOKUP */
@@ -19,12 +18,12 @@ var adminArgs map[uint8]uint8 = map[uint8]uint8{
 	spec.AdminDisconnect: 1,
 }
 
-var adminPerms map[uint8]model.Permission = map[uint8]model.Permission{
-	spec.AdminShutdown:   model.ADMIN,
-	spec.AdminBroadcast:  model.ADMIN,
-	spec.AdminDeregister: model.ADMIN,
-	spec.AdminPromote:    model.OWNER,
-	spec.AdminDisconnect: model.ADMIN,
+var adminPerms map[uint8]db.Permission = map[uint8]db.Permission{
+	spec.AdminShutdown:   db.ADMIN,
+	spec.AdminBroadcast:  db.ADMIN,
+	spec.AdminDeregister: db.ADMIN,
+	spec.AdminPromote:    db.OWNER,
+	spec.AdminDisconnect: db.ADMIN,
 }
 
 var adminLookup map[uint8]action = map[uint8]action{
@@ -37,9 +36,11 @@ var adminLookup map[uint8]action = map[uint8]action{
 
 /* WRAPPER FUNCTIONS */
 
-// Every admin operation replies with either ERR or OK
+// Runs an admin operation according to the information
+// header field and the arguments provided. All
+// admin commands will return either ERR or OK.
 func adminOperation(h *Hub, u User, cmd spec.Command) {
-	if u.perms == model.USER {
+	if u.perms == db.USER {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return
 	}
@@ -53,7 +54,7 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 	}
 
 	args := adminArgs[cmd.HD.Info]
-	if cmd.HD.Args != args {
+	if cmd.HD.Args < args {
 		sendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
@@ -69,7 +70,9 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 
 /* COMMANDS */
 
-// Requires ADMIN or more
+// Shuts down the server at a certain time.
+//
+// Requires ADMIN or more.
 // Uses 1 argument for the unix stamp
 func adminShutdown(h *Hub, u User, cmd spec.Command) {
 	stamp, err := spec.BytesToUnixStamp(cmd.Args[0])
@@ -86,6 +89,7 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
+	// Block until the specified time
 	go func() {
 		wait := time.Duration(duration) * time.Second
 		time.Sleep(wait)
@@ -111,12 +115,14 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Broadcasts a message to all online users.
+//
 // Requires ADMIN or more
 // Requires 1 argument for the message
 func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	// Create packet with the message
 	pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
-		[]byte(u.name+" [ADMIN]"),
+		[]byte(u.name+" ["+db.PermissionString(u.perms)+"]"),
 		spec.UnixStampToBytes(time.Now()),
 		cmd.Args[0],
 	)
@@ -135,6 +141,8 @@ func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Deregisters a user from the database.
+//
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDeregister(h *Hub, u User, cmd spec.Command) {
@@ -148,6 +156,8 @@ func adminDeregister(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Increases the permission level of a user
+//
 // Requires OWNER or more
 // Requires 1 argument for the user
 func adminPromote(h *Hub, u User, cmd spec.Command) {
@@ -158,13 +168,13 @@ func adminPromote(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	if target.Permission >= model.ADMIN {
+	if target.Permission >= db.ADMIN {
 		// Cannot promote more
 		sendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
-	e := db.ChangePermission(h.db, u.name, model.ADMIN)
+	e := db.ChangePermission(h.db, u.name, db.ADMIN)
 	if e != nil {
 		//! This shouldnt happen as the user was already queried before
 		sendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
@@ -175,6 +185,8 @@ func adminPromote(h *Hub, u User, cmd spec.Command) {
 	sendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// Disconnects an online user if it's connected.
+//
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDisconnect(h *Hub, u User, cmd spec.Command) {
@@ -184,7 +196,7 @@ func adminDisconnect(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	// This should stop the client thread
-	// And also cleanup caches
+	// This should trigger the cleanup on
+	// the goroutine listening to the client
 	dc.conn.Close()
 }

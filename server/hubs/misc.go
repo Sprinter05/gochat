@@ -1,74 +1,28 @@
 package hubs
 
 import (
-	"context"
-	"crypto/rsa"
 	"math/rand"
 	"net"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
 	"github.com/Sprinter05/gochat/internal/spec"
-	"github.com/Sprinter05/gochat/server/model"
-	"gorm.io/gorm"
 )
 
 /* CONSTANTS */
 
-// Cypher values
-const CypherCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
-const CypherLength int = 128
+// Charset to be used by the random text generator
+const randTextCharset string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%&*+-?!"
 
-// Used for the size of the queue of requests
-const MaxUserRequests int = 5
-
-/* TYPE DEFINITIONS */
-
-// Specifies the functions to run depending on the ID
-type action func(*Hub, User, spec.Command)
-
-// Determines a request to be processed by a thread
-type Request struct {
-	Conn    net.Conn
-	Command spec.Command
-	TLS     bool
-}
-
-// Specifies a logged in user
-type User struct {
-	conn   net.Conn
-	secure bool
-	name   string
-	perms  model.Permission
-	pubkey *rsa.PublicKey
-}
-
-// Specifies a verification in process
-// Can also be used for reusable tokens
-type Verif struct {
-	conn    net.Conn
-	name    string
-	text    []byte
-	pending bool
-	cancel  context.CancelFunc
-	expiry  time.Time
-}
-
-// Tables store pointers for modification
-// But functions should not use the pointer
-type Hub struct {
-	db     *gorm.DB
-	clean  chan net.Conn
-	shtdwn context.Context
-	close  context.CancelFunc
-	users  model.Table[net.Conn, *User]
-	verifs model.Table[string, *Verif]
-}
+// Amount of characters the random text should have
+const randTextLength int = 128
 
 /* AUXILIARY FUNCTIONS */
 
-// Catches up messages for the logged connection
-func catchUp(cl net.Conn, id spec.ID, msgs ...*model.Message) error {
+// Auxiliary function that sends all messages that were retrieved from
+// the database to the recently connected user. This function does not
+// touch the database, it just sends the messages.
+func catchUp(cl net.Conn, id spec.ID, msgs ...*spec.Message) error {
 	for _, v := range msgs {
 		// Turn timestamp to byte array and create packet
 		stp := spec.UnixStampToBytes(v.Stamp)
@@ -88,7 +42,7 @@ func catchUp(cl net.Conn, id spec.ID, msgs ...*model.Message) error {
 	return nil
 }
 
-// Wrap the error sending function
+// Auxiliary function to reduce code when sending errors.
 func sendErrorPacket(id spec.ID, err error, cl net.Conn) {
 	pak, e := spec.NewPacket(spec.ERR, id, spec.ErrorCode(err))
 	if e != nil {
@@ -98,7 +52,7 @@ func sendErrorPacket(id spec.ID, err error, cl net.Conn) {
 	}
 }
 
-// Wrap the acknowledgement sending function
+// Auxiliary function to reduce code when sending ok packets.
 func sendOKPacket(id spec.ID, cl net.Conn) {
 	pak, e := spec.NewPacket(spec.OK, id, spec.EmptyInfo)
 	if e != nil {
@@ -108,15 +62,16 @@ func sendOKPacket(id spec.ID, cl net.Conn) {
 	}
 }
 
-// Generate a random text using the specification charset
+// Generate a random text using a fixed charset and size
+// This can be used for verification tokens.
 func randText() []byte {
 	// Set seed in nanoseconds for better randomness
 	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
-	set := []byte(CypherCharset)
+	set := []byte(randTextCharset)
 
-	r := make([]byte, CypherLength)
+	r := make([]byte, randTextLength)
 	for i := range r {
-		r[i] = set[seed.Intn(len(CypherCharset))]
+		r[i] = set[seed.Intn(len(randTextCharset))]
 	}
 
 	return r
