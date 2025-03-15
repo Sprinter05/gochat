@@ -13,23 +13,23 @@ import (
 // ! Solo usa interfaces si es necesario, no lo fuerces
 // ! A mi esto me parece forzar el que use una interfaz cuando no hace falta
 type CommandFunc interface {
-	Run(cmd *spec.Command, nArg uint8, db *sql.DB) error
+	Run(cmd *spec.Command, db *sql.DB) error
 }
 
 // Type for commands with arguments
 // ! Las funciones de comandos deberian recibir copias no punteros
 // ! Siempre elige copia a pointer como argumento salvo que lo vayas a modificar para uso de otra función
-type CmdArgs func(cmd *spec.Command, nArg uint8) error
+type CmdArgs func(cmd *spec.Command) error
 
-func (command CmdArgs) Run(cmd *spec.Command, nArg uint8, db *sql.DB) error {
-	return command(cmd, nArg)
+func (command CmdArgs) Run(cmd *spec.Command, db *sql.DB) error {
+	return command(cmd)
 }
 
 // Type for commands with arguments and database interaction
-type CmdArgsDB func(cmd *spec.Command, nArg uint8, db *sql.DB) error
+type CmdArgsDB func(cmd *spec.Command, db *sql.DB) error
 
-func (command CmdArgsDB) Run(cmd *spec.Command, nArg uint8, db *sql.DB) error {
-	return command(cmd, nArg, db)
+func (command CmdArgsDB) Run(cmd *spec.Command, db *sql.DB) error {
+	return command(cmd, db)
 }
 
 // Type for commands with no arguments
@@ -37,7 +37,7 @@ func (command CmdArgsDB) Run(cmd *spec.Command, nArg uint8, db *sql.DB) error {
 // ! Recomendaria usar simplemente una variable que comprueba los args y pista
 type CmdNoArgs func() error
 
-func (command CmdNoArgs) Run(cmd *spec.Command, nArg uint8, db *sql.DB) error {
+func (command CmdNoArgs) Run(cmd *spec.Command, db *sql.DB) error {
 	return command()
 }
 
@@ -63,23 +63,16 @@ var clientCmds = map[string]CommandFunc{
 }
 
 // Map that associates the number of arguments required for each command.
-var NumArgs = map[string]uint8{
-	"VER":        0,
-	"HELP":       0,
-	"VERBOSE":    0,
-	"PENDING":    0,
-	"LOADUSER":   1,
-	"CREATEUSER": 1,
-	"REGUSER":    2,
-	"REG":        2,
-	"LOGIN":      1,
-	"VERIF":      1,
-	"REQ":        1,
-	"USRS":       1,
-	"MSG":        3,
-	"RECIV":      0,
-	"LOGOUT":     0,
-	"DEREG":      0,
+var NumArgs = map[spec.Action]uint8{
+	spec.REG:    2,
+	spec.LOGIN:  1,
+	spec.VERIF:  1,
+	spec.REQ:    1,
+	spec.USRS:   1,
+	spec.MSG:    3,
+	spec.RECIV:  0,
+	spec.LOGOUT: 0,
+	spec.DEREG:  0,
 }
 
 // Map with all server commands
@@ -144,9 +137,9 @@ func printPending() error {
 }
 
 // Creates a user with a username received as input
-func createUser(cmd *spec.Command, nArg uint8, db *sql.DB) error {
+func createUser(cmd *spec.Command, db *sql.DB) error {
 	// Checks argument count
-	if cmd.HD.Args != nArg {
+	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	user, createErr := NewUser(string(cmd.Args[0]), db)
@@ -190,20 +183,20 @@ func regUser() error {
 		Ver:  spec.ProtocolVersion,
 		Op:   spec.REG,
 		Info: spec.EmptyInfo,
-		Args: NumArgs["REGUSER"], // ! Usa una funcion que compruebe el valor no acceder directamente a la tabla
+		Args: NumArgs[spec.REG], // ! Usa una funcion que compruebe el valor no acceder directamente a la tabla
 		Len:  uint16(payloadLen),
 		ID:   spec.ID(spec.GeneratePacketID(PendingBuffer)),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
-	sendErr := sendPacket(&cmd, NumArgs["REGUSER"])
+	sendErr := sendPacket(&cmd)
 	return sendErr
 }
 
 // Execution code of the MSG command (requires database insert and message encryption)
-func sendMSG(cmd *spec.Command, nArg uint8, db *sql.DB) error {
+func sendMSG(cmd *spec.Command, db *sql.DB) error {
 	// Checks argument count
-	if cmd.HD.Args != nArg {
+	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	// Stores the message in plain text to be stored in the database later
@@ -223,7 +216,7 @@ func sendMSG(cmd *spec.Command, nArg uint8, db *sql.DB) error {
 	}
 
 	// Packet is sent
-	sendErr := sendPacket(cmd, nArg)
+	sendErr := sendPacket(cmd)
 	if sendErr != nil {
 		return sendErr
 	}
@@ -238,9 +231,9 @@ func sendMSG(cmd *spec.Command, nArg uint8, db *sql.DB) error {
 }
 
 // Rearranges a packet to send a USRS packet
-func usrs(cmd *spec.Command, nArg uint8) error {
+func usrs(cmd *spec.Command) error {
 	// Checks argument count
-	if cmd.HD.Args != nArg {
+	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	var convErr error
@@ -258,7 +251,7 @@ func usrs(cmd *spec.Command, nArg uint8) error {
 	// Initializes the argument slice to remove arguments
 	cmd.Args = make([][]byte, 0) //! Si le das capacidad 0 no estas prealocando nada y vas a ver 0 beneficio
 	// Sends the rearranged packet
-	sendErr := sendPacket(cmd, nArg)
+	sendErr := sendPacket(cmd)
 	if sendErr != nil {
 		return sendErr
 	}
@@ -267,10 +260,9 @@ func usrs(cmd *spec.Command, nArg uint8) error {
 }
 
 // Generic function able to execute packet-sending commands.
-func sendPacket(cmd *spec.Command, nArg uint8) error {
+func sendPacket(cmd *spec.Command) error {
 	// Checks argument count
-	// ! Comprueba aqui usando el mapa con los argumentos en vez de ir pasando nArg por todos lados
-	if cmd.HD.Args != nArg {
+	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	// Creates packet with the proper headers
@@ -350,13 +342,13 @@ func DecryptVERIF(pct *spec.Command) error {
 		Ver:  spec.ProtocolVersion,
 		Op:   spec.VERIF,
 		Info: spec.EmptyInfo,
-		Args: NumArgs["VERIF"],
+		Args: NumArgs[spec.VERIF],
 		Len:  uint16(payloadLen),
 		ID:   spec.ID(spec.GeneratePacketID(PendingBuffer)),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
-	sendPacket(&cmd, NumArgs["VERIF"])
+	sendPacket(&cmd)
 	return err
 }
 

@@ -129,7 +129,7 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}, db *
 			cmd := spec.Command{HD: header, Args: args}
 
 			// Runs command
-			err := v.Run(&cmd, NumArgs[instruction], db)
+			err := v.Run(&cmd, db)
 			if err != nil {
 				fmt.Println(err)
 			}
