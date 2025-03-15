@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -12,7 +13,7 @@ import (
 // ! Solo usa interfaces si es necesario, no lo fuerces
 // ! A mi esto me parece forzar el que use una interfaz cuando no hace falta
 type CommandFunc interface {
-	Run(cmd *spec.Command, nArg uint8) error
+	Run(cmd *spec.Command, nArg uint8, db *sql.DB) error
 }
 
 // Type for commands with arguments
@@ -20,8 +21,15 @@ type CommandFunc interface {
 // ! Siempre elige copia a pointer como argumento salvo que lo vayas a modificar para uso de otra función
 type CmdArgs func(cmd *spec.Command, nArg uint8) error
 
-func (command CmdArgs) Run(cmd *spec.Command, nArg uint8) error {
+func (command CmdArgs) Run(cmd *spec.Command, nArg uint8, db *sql.DB) error {
 	return command(cmd, nArg)
+}
+
+// Type for commands with arguments and database interaction
+type CmdArgsDB func(cmd *spec.Command, nArg uint8, db *sql.DB) error
+
+func (command CmdArgsDB) Run(cmd *spec.Command, nArg uint8, db *sql.DB) error {
+	return command(cmd, nArg, db)
 }
 
 // Type for commands with no arguments
@@ -29,7 +37,7 @@ func (command CmdArgs) Run(cmd *spec.Command, nArg uint8) error {
 // ! Recomendaria usar simplemente una variable que comprueba los args y pista
 type CmdNoArgs func() error
 
-func (command CmdNoArgs) Run(cmd *spec.Command, nArg uint8) error {
+func (command CmdNoArgs) Run(cmd *spec.Command, nArg uint8, db *sql.DB) error {
 	return command()
 }
 
@@ -41,14 +49,14 @@ var clientCmds = map[string]CommandFunc{
 	"HELP":       CmdNoArgs(help),
 	"VERBOSE":    CmdNoArgs(verbose),
 	"PENDING":    CmdNoArgs(printPending),
-	"CREATEUSER": CmdArgs(createUser),
+	"CREATEUSER": CmdArgsDB(createUser),
 	"REGUSER":    CmdNoArgs(regUser),
 	"REG":        CmdArgs(sendPacket),
 	"LOGIN":      CmdArgs(sendPacket),
 	"VERIF":      CmdArgs(sendPacket),
 	"REQ":        CmdArgs(sendPacket),
 	"USRS":       CmdArgs(usrs),
-	"MSG":        CmdArgs(sendMSG),
+	"MSG":        CmdArgsDB(sendMSG),
 	"RECIV":      CmdArgs(sendPacket),
 	"LOGOUT":     CmdArgs(sendPacket),
 	"DEREG":      CmdArgs(sendPacket),
@@ -136,12 +144,12 @@ func printPending() error {
 }
 
 // Creates a user with a username received as input
-func createUser(cmd *spec.Command, nArg uint8) error {
+func createUser(cmd *spec.Command, nArg uint8, db *sql.DB) error {
 	// Checks argument count
 	if cmd.HD.Args != nArg {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
-	user, createErr := NewUser(string(cmd.Args[0]))
+	user, createErr := NewUser(string(cmd.Args[0]), db)
 	if createErr != nil {
 
 		return createErr
@@ -193,7 +201,7 @@ func regUser() error {
 }
 
 // Execution code of the MSG command (requires database insert and message encryption)
-func sendMSG(cmd *spec.Command, nArg uint8) error {
+func sendMSG(cmd *spec.Command, nArg uint8, db *sql.DB) error {
 	// Checks argument count
 	if cmd.HD.Args != nArg {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -207,7 +215,7 @@ func sendMSG(cmd *spec.Command, nArg uint8) error {
 	// The packet message is taken and is encrypted
 	var encryptErr error
 
-	pem, _ := GetUserPubkey(string(cmd.Args[0]))
+	pem, _ := GetUserPubkey(string(cmd.Args[0]), db)
 	destPubKey, _ := spec.PEMToPubkey(pem)
 	cmd.Args[2], encryptErr = spec.EncryptText(cmd.Args[2], destPubKey)
 	if encryptErr != nil {
@@ -224,7 +232,7 @@ func sendMSG(cmd *spec.Command, nArg uint8) error {
 	// ! Usa las funciones del paquete time no parseInt
 	stamp, _ := strconv.ParseInt(string(cmd.Args[1]), 10, 64)
 	destination_username := cmd.Args[0]
-	dbErr := AddMessage(CurUser.username, string(destination_username), stamp, string(plainMessage))
+	dbErr := AddMessage(CurUser.username, string(destination_username), stamp, string(plainMessage), db)
 
 	return dbErr
 }
@@ -354,11 +362,11 @@ func DecryptVERIF(pct *spec.Command) error {
 
 // Stores in the client database the received public key along with the username it belongs to
 // ! No uses pointer receiver, usa una copia
-func StoreRequestedUser(pct *spec.Command) error {
+func StoreRequestedUser(pct *spec.Command, db *sql.DB) error {
 	AcknowledgeReply(pct)
 	username := string(pct.Args[0])
 	pkey := pct.Args[1]
-	dbErr := AddUser(username, string(pkey))
+	dbErr := AddUser(username, string(pkey), db)
 	return dbErr
 }
 
@@ -372,7 +380,7 @@ func PrintUSRS(pct *spec.Command) error {
 }
 
 // Decyphers the received message in the packet and stores it in the client database
-func StoreDecypheredMessage(pct *spec.Command) error {
+func StoreDecypheredMessage(pct *spec.Command, db *sql.DB) error {
 	source_username := string(pct.Args[0])
 	// ! Porque ignoras el error?
 	stamp, _ := spec.BytesToUnixStamp(pct.Args[1])
@@ -383,7 +391,7 @@ func StoreDecypheredMessage(pct *spec.Command) error {
 	if decryptErr != nil {
 		return decryptErr
 	}
-	dbErr := AddMessage(source_username, CurUser.username, stamp.Unix(), string(decrypted))
+	dbErr := AddMessage(source_username, CurUser.username, stamp.Unix(), string(decrypted), db)
 	return dbErr
 }
 

@@ -43,8 +43,8 @@ func main() {
 		fmt.Print("error: variable CLT_DB_PATH not found\n")
 		return
 	}
-	DB, _ = sql.Open("sqlite3", dbpath)
-	DeleteEntries() // TODO: remove this
+	db, _ := sql.Open("sqlite3", dbpath)
+	DeleteEntries(db) // TODO: remove this, for testing purposes only
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -54,7 +54,7 @@ func main() {
 	// Starts listening for server packets
 	go Listen(con, ctx, pctReceived)
 	// Opens a shell
-	NewShell(con, ctx, pctReceived)
+	NewShell(con, ctx, pctReceived, db)
 }
 
 func getSocket() string {

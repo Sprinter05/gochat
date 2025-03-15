@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"os"
@@ -75,7 +76,7 @@ var CurUser Client
 // Initializes a client shell.
 // ! pctReceived deberia ser <- (read only), asi evitas accidentalmente mandar en ese canal
 // ! Al pasar canales entre functiones nunca deberia ser bidireccional, si lo es, estas planteando algo mal
-func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
+func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}, db *sql.DB) {
 	gCon = con
 	rd := bufio.NewReader(os.Stdin)
 	// Runs inconditionally until EXIT is executed
@@ -128,7 +129,7 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 			cmd := spec.Command{HD: header, Args: args}
 
 			// Runs command
-			err := v.Run(&cmd, NumArgs[instruction])
+			err := v.Run(&cmd, NumArgs[instruction], db)
 			if err != nil {
 				fmt.Println(err)
 			}
