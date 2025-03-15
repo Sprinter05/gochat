@@ -32,13 +32,15 @@ const helpText = "EXIT: Closes the shell.\n\n" +
 
 	"HELP: Prints out a manual for the use of this shell.\n\n" +
 
-	"VERBOSE: Toggles on/off the verbose mode\n\n" +
+	"VERBOSE: Toggles on/off the verbose mode.\n\n" +
 
-	"CREATEUSER <username>: Creates a user and adds it to the client database\n\n" +
+	"PENDING: Prints the commands that are still waiting for a server response.\n\n" +
+
+	"CREATEUSER <username>: Creates a user and adds it to the client database.\n\n" +
 
 	"REG <rsa_pub> <username>: Provides the generated RSA public key and username to register to the server.\n\n" +
 
-	"REGUSER: Sends a REG packet to the server to register the current shell user\n\n" +
+	"REGUSER: Sends a REG packet to the server to register the current shell user.\n\n" +
 
 	"LOGIN <username>: Connects to the server by providing the already generated RSA public key.\n\n" +
 
@@ -50,7 +52,7 @@ const helpText = "EXIT: Closes the shell.\n\n" +
 
 	"MSG <username> <unix_stamp> <cypher_payload>: Sends a message to the specified user, providing the specified UNIX timestamp and the payload, which is the chyphered text message.\n\n" +
 
-	"RECIV: Sends a catch-up request to the server\n\n" +
+	"RECIV: Sends a catch-up request to the server.\n\n" +
 
 	"LOGOUT: Disconnects the client from the server.\n\n" +
 
