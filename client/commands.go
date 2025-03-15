@@ -76,7 +76,6 @@ var NumArgs = map[spec.Action]uint8{
 }
 
 // Map with all server commands
-// ! Usa una funcion que devuelva los valores del mapa en vez de usar un mapa a pelo
 var serverCmds = map[spec.Action]func(*spec.Command) error{
 	spec.OK:    AcknowledgeReply,
 	spec.ERR:   PrintError,
@@ -84,6 +83,10 @@ var serverCmds = map[spec.Action]func(*spec.Command) error{
 	spec.REQ:   StoreRequestedUser,
 	spec.USRS:  PrintUSRS,
 	spec.RECIV: StoreDecypheredMessage,
+}
+
+func GetServerCommand(op spec.Action) func(*spec.Command) error {
+	return serverCmds[op]
 }
 
 // CLIENT COMMANDS

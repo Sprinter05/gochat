@@ -47,7 +47,7 @@ func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 			pct.Print()
 		}
 		// The packet is processed and the proper action is performed
-		processErr := ServerCmds[pct.HD.Op](&pct)
+		processErr := GetServerCommand(pct.HD.Op)(&pct)
 		if !(pct.HD.Op == spec.VERIF || pct.HD.Op == spec.RECIV) {
 			pctReceived <- struct{}{}
 		}
