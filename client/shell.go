@@ -104,7 +104,7 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 			return
 		}
 
-		v, ok := ClientCmds[instruction]
+		v, ok := clientCmds[instruction]
 		if !ok {
 			fmt.Printf("%s: No such command\n", instruction)
 		} else {

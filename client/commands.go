@@ -36,22 +36,22 @@ func (command CmdNoArgs) Run(cmd *spec.Command, nArg uint8) error {
 // Map with all client commands except EXIT.
 // TODO: Some functions shall be moved to the higher-level shell
 // ! No pongas mapas globales en mayuscula pq asi lo exportas y no deberias exportar un mapa ya que no es inmutable
-var ClientCmds = map[string]CommandFunc{
-	"VER":        CmdNoArgs(Ver),
-	"HELP":       CmdNoArgs(Help),
-	"VERBOSE":    CmdNoArgs(Verbose),
-	"PENDING":    CmdNoArgs(PrintPending),
-	"CREATEUSER": CmdArgs(CreateUser),
-	"REGUSER":    CmdNoArgs(RegUser),
-	"REG":        CmdArgs(SendPacket),
-	"LOGIN":      CmdArgs(SendPacket),
-	"VERIF":      CmdArgs(SendPacket),
-	"REQ":        CmdArgs(SendPacket),
-	"USRS":       CmdArgs(Usrs),
-	"MSG":        CmdArgs(SendMSG),
-	"RECIV":      CmdArgs(SendPacket),
-	"LOGOUT":     CmdArgs(SendPacket),
-	"DEREG":      CmdArgs(SendPacket),
+var clientCmds = map[string]CommandFunc{
+	"VER":        CmdNoArgs(ver),
+	"HELP":       CmdNoArgs(help),
+	"VERBOSE":    CmdNoArgs(verbose),
+	"PENDING":    CmdNoArgs(printPending),
+	"CREATEUSER": CmdArgs(createUser),
+	"REGUSER":    CmdNoArgs(regUser),
+	"REG":        CmdArgs(sendPacket),
+	"LOGIN":      CmdArgs(sendPacket),
+	"VERIF":      CmdArgs(sendPacket),
+	"REQ":        CmdArgs(sendPacket),
+	"USRS":       CmdArgs(usrs),
+	"MSG":        CmdArgs(sendMSG),
+	"RECIV":      CmdArgs(sendPacket),
+	"LOGOUT":     CmdArgs(sendPacket),
+	"DEREG":      CmdArgs(sendPacket),
 }
 
 // Map that associates the number of arguments required for each command.
@@ -76,7 +76,7 @@ var NumArgs = map[string]uint8{
 
 // Map with all server commands
 // ! Usa una funcion que devuelva los valores del mapa en vez de usar un mapa a pelo
-var ServerCmds = map[spec.Action]func(*spec.Command) error{
+var serverCmds = map[spec.Action]func(*spec.Command) error{
 	spec.OK:    AcknowledgeReply,
 	spec.ERR:   PrintError,
 	spec.VERIF: DecryptVERIF,
@@ -92,7 +92,7 @@ var ServerCmds = map[spec.Action]func(*spec.Command) error{
 
 // Execution code of the VER command
 // ! Sobretodo en este caso que ni siquiera devuelve nunca un error
-func Ver() error {
+func ver() error {
 	fmt.Printf("gochat version %d\n", spec.ProtocolVersion)
 
 	return nil
@@ -100,7 +100,7 @@ func Ver() error {
 
 // Execution code of the HELP command
 // ! Sobretodo en este caso que ni siquiera devuelve nunca un error
-func Help() error {
+func help() error {
 	fmt.Println(helpText)
 
 	return nil
@@ -108,7 +108,7 @@ func Help() error {
 
 // Execution code of the VERBOSE command
 // ! Sobretodo en este caso que ni siquiera devuelve nunca un error
-func Verbose() error {
+func verbose() error {
 	IsVerbose = !IsVerbose
 	if IsVerbose {
 		fmt.Println("Verbose mode turned on")
@@ -121,7 +121,7 @@ func Verbose() error {
 
 // Prints the commands that are yet to receive a response
 // ! Sobretodo en este caso que ni siquiera devuelve nunca un error
-func PrintPending() error {
+func printPending() error {
 	// Checks the number of pending packets
 	if len(PendingBuffer) == 0 {
 		fmt.Printf("There are no pending packets\n")
@@ -136,7 +136,7 @@ func PrintPending() error {
 }
 
 // Creates a user with a username received as input
-func CreateUser(cmd *spec.Command, nArg uint8) error {
+func createUser(cmd *spec.Command, nArg uint8) error {
 	// Checks argument count
 	if cmd.HD.Args != nArg {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -154,7 +154,7 @@ func CreateUser(cmd *spec.Command, nArg uint8) error {
 
 // Sends a REG package for the current user to the server automatically
 // TODO: Improve this
-func RegUser() error {
+func regUser() error {
 	// ! Usa un booleano que simplemente compruebe la validez del usuario
 	// ! Comparar structs enteros a si a pelo no es recomendable.
 	if (Client{}) == CurUser {
@@ -188,12 +188,12 @@ func RegUser() error {
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
-	sendErr := SendPacket(&cmd, NumArgs["REGUSER"])
+	sendErr := sendPacket(&cmd, NumArgs["REGUSER"])
 	return sendErr
 }
 
 // Execution code of the MSG command (requires database insert and message encryption)
-func SendMSG(cmd *spec.Command, nArg uint8) error {
+func sendMSG(cmd *spec.Command, nArg uint8) error {
 	// Checks argument count
 	if cmd.HD.Args != nArg {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -215,7 +215,7 @@ func SendMSG(cmd *spec.Command, nArg uint8) error {
 	}
 
 	// Packet is sent
-	sendErr := SendPacket(cmd, nArg)
+	sendErr := sendPacket(cmd, nArg)
 	if sendErr != nil {
 		return sendErr
 	}
@@ -230,7 +230,7 @@ func SendMSG(cmd *spec.Command, nArg uint8) error {
 }
 
 // Rearranges a packet to send a USRS packet
-func Usrs(cmd *spec.Command, nArg uint8) error {
+func usrs(cmd *spec.Command, nArg uint8) error {
 	// Checks argument count
 	if cmd.HD.Args != nArg {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -250,7 +250,7 @@ func Usrs(cmd *spec.Command, nArg uint8) error {
 	// Initializes the argument slice to remove arguments
 	cmd.Args = make([][]byte, 0) //! Si le das capacidad 0 no estas prealocando nada y vas a ver 0 beneficio
 	// Sends the rearranged packet
-	sendErr := SendPacket(cmd, nArg)
+	sendErr := sendPacket(cmd, nArg)
 	if sendErr != nil {
 		return sendErr
 	}
@@ -259,7 +259,7 @@ func Usrs(cmd *spec.Command, nArg uint8) error {
 }
 
 // Generic function able to execute packet-sending commands.
-func SendPacket(cmd *spec.Command, nArg uint8) error {
+func sendPacket(cmd *spec.Command, nArg uint8) error {
 	// Checks argument count
 	// ! Comprueba aqui usando el mapa con los argumentos en vez de ir pasando nArg por todos lados
 	if cmd.HD.Args != nArg {
@@ -348,7 +348,7 @@ func DecryptVERIF(pct *spec.Command) error {
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
-	SendPacket(&cmd, NumArgs["VERIF"])
+	sendPacket(&cmd, NumArgs["VERIF"])
 	return err
 }
 
