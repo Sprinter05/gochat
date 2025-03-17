@@ -256,7 +256,10 @@ func usrs(cmd *spec.Command) error {
 	if sendErr != nil {
 		return sendErr
 	}
-	printCmdIfVerbose(*cmd)
+	if IsVerbose {
+		fmt.Println("The following command has been sent:")
+		cmd.Print()
+	}
 	return nil
 }
 
@@ -277,7 +280,10 @@ func sendPacket(cmd *spec.Command) error {
 	if errW != nil {
 		return fmt.Errorf("%s: Unable to write packet to connection", spec.CodeToString(cmd.HD.Op))
 	}
-	printCmdIfVerbose(*cmd)
+	if IsVerbose {
+		fmt.Println("The following command has been sent:")
+		cmd.Print()
+	}
 	// If the packet is sent correctly, it is added to PendingBuffer
 	// ! No uses el mapa directamente a pelo, usa funciones que accedan al mapa exclusivamente
 	// ! Y que pending buffer use un mutex para ser seguro concurrentemente
@@ -388,12 +394,4 @@ func StoreDecypheredMessage(pct *spec.Command, db *sql.DB) error {
 	}
 	dbErr := AddMessage(source_username, CurUser.username, stamp.Unix(), string(decrypted), db)
 	return dbErr
-}
-
-// ! Esta funcion sobra son 3 lineas
-func printCmdIfVerbose(cmd spec.Command) {
-	if IsVerbose {
-		fmt.Println("The following command has been sent:")
-		cmd.Print()
-	}
 }
