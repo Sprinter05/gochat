@@ -377,8 +377,11 @@ func PrintUSRS(pct *spec.Command) error {
 // Decyphers the received message in the packet and stores it in the client database
 func StoreDecypheredMessage(pct *spec.Command, db *sql.DB) error {
 	source_username := string(pct.Args[0])
-	// ! Porque ignoras el error?
 	stamp, _ := spec.BytesToUnixStamp(pct.Args[1])
+	stamp, parseErr := spec.BytesToUnixStamp(pct.Args[1])
+	if parseErr != nil {
+		return parseErr
+	}
 	// Decrypts the message
 	encrypted := pct.Args[2]
 	fmt.Println(encrypted)
