@@ -31,6 +31,14 @@ func acknoledgePending(id uint16) {
 	delete(pendingBuffer, id)
 }
 
+func GetAllPending() map[uint16]uint8 {
+	return pendingBuffer
+}
+
+func IsPendingEmpty() bool {
+	return len(pendingBuffer) == 0
+}
+
 // Starts listening for packets
 func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 

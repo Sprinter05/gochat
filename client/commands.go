@@ -127,11 +127,11 @@ func verbose() error {
 // ! Sobretodo en este caso que ni siquiera devuelve nunca un error
 func printPending() error {
 	// Checks the number of pending packets
-	if len(PendingBuffer) == 0 {
+	if IsPendingEmpty() {
 		fmt.Printf("There are no pending packets\n")
 	} else {
 		fmt.Printf("Pending packets:\n----------------\n")
-		for v, i := range PendingBuffer {
+		for v, i := range GetAllPending() {
 			fmt.Printf("ID %d: Action code: %d (%s)\n", v, i, spec.CodeToString(spec.Action(uint8(i))))
 		}
 	}
@@ -188,7 +188,7 @@ func regUser() error {
 		Info: spec.EmptyInfo,
 		Args: NumArgs[spec.REG], // ! Usa una funcion que compruebe el valor no acceder directamente a la tabla
 		Len:  uint16(payloadLen),
-		ID:   spec.ID(spec.GeneratePacketID(PendingBuffer)),
+		ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
@@ -243,7 +243,6 @@ func usrs(cmd *spec.Command) error {
 	// Moves the argument (which contains the USRS option) to the Info field of the header
 	infoVal, convErr := strconv.Atoi(string(cmd.Args[0]))
 	if convErr != nil {
-
 		return convErr
 	}
 	if !(infoVal == 0 || infoVal == 1) {
@@ -282,7 +281,7 @@ func sendPacket(cmd *spec.Command) error {
 	// If the packet is sent correctly, it is added to PendingBuffer
 	// ! No uses el mapa directamente a pelo, usa funciones que accedan al mapa exclusivamente
 	// ! Y que pending buffer use un mutex para ser seguro concurrentemente
-	PendingBuffer[uint16(cmd.HD.ID)] = uint8(cmd.HD.Op)
+	AddPending(uint16(cmd.HD.ID), uint8(cmd.HD.Op))
 	return nil
 }
 
@@ -345,7 +344,7 @@ func DecryptVERIF(pct *spec.Command) error {
 		Info: spec.EmptyInfo,
 		Args: NumArgs[spec.VERIF],
 		Len:  uint16(payloadLen),
-		ID:   spec.ID(spec.GeneratePacketID(PendingBuffer)),
+		ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}

@@ -123,7 +123,7 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}, db *
 				Info: spec.EmptyInfo,
 				Args: uint8(len(args)),
 				Len:  uint16(payloadLen),
-				ID:   spec.ID(spec.GeneratePacketID(PendingBuffer)),
+				ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
 			}
 			// Creates command
 			cmd := spec.Command{HD: header, Args: args}
