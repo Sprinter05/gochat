@@ -12,10 +12,24 @@ import (
 )
 
 // Buffer where the pending packet's ID is allocated as a key with the operation code as its value
-// ! No deberia ser global
 // ! Deberia estar protegido con un mutex
-// ! En make() dale un segundo argumento con el tamaño para prealocarlo, si no cada vez q añadas un paquete añades delay al realocarlo
-var PendingBuffer map[uint16]uint8 = make(map[uint16]uint8)
+var pendingBuffer map[uint16]uint8 = make(map[uint16]uint8, 4)
+
+// Adds an id to the pending buffer
+func AddPending(id uint16, op uint8) {
+	pendingBuffer[id] = op
+}
+
+// Returns true if the packet is pending
+func IsPending(id uint16) bool {
+	_, ok := pendingBuffer[id]
+	return ok
+}
+
+// Deletes an ID from the pending buffer
+func acknoledgePending(id uint16) {
+	delete(pendingBuffer, id)
+}
 
 // Starts listening for packets
 func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {

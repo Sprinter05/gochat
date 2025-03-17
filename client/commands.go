@@ -293,10 +293,9 @@ func sendPacket(cmd *spec.Command) error {
 // NOTE: Some server command functions contain AcknowledgeReply because some server commands do not
 // send an OK packet
 func AcknowledgeReply(pct *spec.Command) error {
-	_, ok := PendingBuffer[uint16(pct.HD.ID)]
-	if ok {
+	if IsPending(uint16(pct.HD.ID)) {
 		// Deletes the ID of the packet that was waiting for the now received reply
-		delete(PendingBuffer, uint16(pct.HD.ID))
+		acknoledgePending(uint16(pct.HD.ID))
 		if IsVerbose {
 			ClearPrompt()
 			fmt.Printf("Packet with ID %d has been acknowledged and removed from the buffer\n", pct.HD.ID)
