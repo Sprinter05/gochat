@@ -247,12 +247,11 @@ func usrs(cmd *spec.Command) error {
 		return convErr
 	}
 	if !(infoVal == 0 || infoVal == 1) {
-
 		return fmt.Errorf("error: USRS argument should be 0 (all users) or 1 (online users)")
 	}
 	cmd.HD.Info = uint8(infoVal)
 	// Initializes the argument slice to remove arguments
-	cmd.Args = make([][]byte, 0) //! Si le das capacidad 0 no estas prealocando nada y vas a ver 0 beneficio
+	cmd.Args = make([][]byte, 0, 0)
 	// Sends the rearranged packet
 	sendErr := sendPacket(cmd)
 	if sendErr != nil {
