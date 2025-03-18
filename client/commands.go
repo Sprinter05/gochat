@@ -283,8 +283,6 @@ func sendPacket(cmd *spec.Command) error {
 		cmd.Print()
 	}
 	// If the packet is sent correctly, it is added to PendingBuffer
-	// ! No uses el mapa directamente a pelo, usa funciones que accedan al mapa exclusivamente
-	// ! Y que pending buffer use un mutex para ser seguro concurrentemente
 	AddPending(uint16(cmd.HD.ID), uint8(cmd.HD.Op))
 	return nil
 }

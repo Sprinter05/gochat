@@ -31,10 +31,12 @@ func acknoledgePending(id uint16) {
 	delete(pendingBuffer, id)
 }
 
+// Returns the pending buffer map
 func GetAllPending() map[uint16]uint8 {
 	return pendingBuffer
 }
 
+// Returns true if there are no pending packets
 func IsPendingEmpty() bool {
 	return len(pendingBuffer) == 0
 }
