@@ -63,7 +63,7 @@ var clientCmds = map[string]CommandFunc{
 }
 
 // Map that associates the number of arguments required for each command.
-var NumArgs = map[spec.Action]uint8{
+var numArgs = map[spec.Action]uint8{
 	spec.REG:    2,
 	spec.LOGIN:  1,
 	spec.VERIF:  1,
@@ -73,6 +73,10 @@ var NumArgs = map[spec.Action]uint8{
 	spec.RECIV:  0,
 	spec.LOGOUT: 0,
 	spec.DEREG:  0,
+}
+
+func getNumArgs(op spec.Action) uint8 {
+	return numArgs[op]
 }
 
 // Map with all server commands
@@ -142,7 +146,7 @@ func printPending() error {
 // Creates a user with a username received as input
 func createUser(cmd *spec.Command, db *sql.DB) error {
 	// Checks argument count
-	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
+	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	user, createErr := NewUser(string(cmd.Args[0]), db)
@@ -186,7 +190,7 @@ func regUser() error {
 		Ver:  spec.ProtocolVersion,
 		Op:   spec.REG,
 		Info: spec.EmptyInfo,
-		Args: NumArgs[spec.REG], // ! Usa una funcion que compruebe el valor no acceder directamente a la tabla
+		Args: getNumArgs(spec.REG), // ! Usa una funcion que compruebe el valor no acceder directamente a la tabla
 		Len:  uint16(payloadLen),
 		ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
 	}
@@ -199,7 +203,7 @@ func regUser() error {
 // Execution code of the MSG command (requires database insert and message encryption)
 func sendMSG(cmd *spec.Command, db *sql.DB) error {
 	// Checks argument count
-	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
+	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	// Stores the message in plain text to be stored in the database later
@@ -234,7 +238,7 @@ func sendMSG(cmd *spec.Command, db *sql.DB) error {
 // Rearranges a packet to send a USRS packet
 func usrs(cmd *spec.Command) error {
 	// Checks argument count
-	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
+	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	var convErr error
@@ -264,7 +268,7 @@ func usrs(cmd *spec.Command) error {
 // Generic function able to execute packet-sending commands.
 func sendPacket(cmd *spec.Command) error {
 	// Checks argument count
-	if cmd.HD.Args != NumArgs[cmd.HD.Op] {
+	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	// Creates packet with the proper headers
@@ -344,7 +348,7 @@ func DecryptVERIF(pct *spec.Command) error {
 		Ver:  spec.ProtocolVersion,
 		Op:   spec.VERIF,
 		Info: spec.EmptyInfo,
-		Args: NumArgs[spec.VERIF],
+		Args: getNumArgs(spec.VERIF),
 		Len:  uint16(payloadLen),
 		ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
 	}
