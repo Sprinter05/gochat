@@ -151,7 +151,7 @@ func createUser(cmd *spec.Command, db *sql.DB) error {
 		return createErr
 	}
 	fmt.Print("User " + user.username + " created successfully\n")
-	CurUser = *user
+	CurUser = user
 
 	return nil
 }
