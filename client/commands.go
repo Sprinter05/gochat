@@ -332,8 +332,8 @@ func DecryptVERIF(pct *spec.Command) error {
 	pct.Args[0], err = spec.DecryptText(encrypted, CurUser.keyPair)
 
 	// TODO: TEMPORARY
-	// ! Usa make y append/copy
-	args := [][]byte{[]byte(CurUser.username), pct.Args[0]}
+	args := make([][]byte, 2)
+	args = append(args, []byte(CurUser.username), pct.Args[0])
 	payloadLen := 0
 	for _, arg := range args {
 		payloadLen += len(arg) + 2 // + 2 to include the CRLF in each argument
