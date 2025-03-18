@@ -203,10 +203,8 @@ func sendMSG(cmd *spec.Command, db *sql.DB) error {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	// Stores the message in plain text to be stored in the database later
-	// ! Esto es raro que funcione pq abajo estas sobreescribiendo cmd.Args[2]
-	// ! plainMessage es un slice aka pointer por tanto es posible que se sobreescriba abajo
-	// ! Usa make y copy preferiblemente
-	plainMessage := cmd.Args[2]
+	plainMessage := make([]byte, spec.MaxArgSize)
+	copy(plainMessage, cmd.Args[2])
 
 	// The packet message is taken and is encrypted
 	var encryptErr error
