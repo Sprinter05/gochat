@@ -163,9 +163,7 @@ func createUser(cmd *spec.Command, db *sql.DB) error {
 // Sends a REG package for the current user to the server automatically
 // TODO: Improve this
 func regUser() error {
-	// ! Usa un booleano que simplemente compruebe la validez del usuario
-	// ! Comparar structs enteros a si a pelo no es recomendable.
-	if (Client{}) == CurUser {
+	if IsUserEmpty(CurUser) {
 		return fmt.Errorf("error: there is no current user logged in")
 	}
 

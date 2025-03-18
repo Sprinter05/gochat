@@ -71,7 +71,7 @@ var gCon net.Conn
 
 // Stores the current user using the shell
 // ! Variable global mal
-var CurUser Client
+var CurUser Client = Client{username: "", keyPair: nil}
 
 // Initializes a client shell.
 // ! pctReceived deberia ser <- (read only), asi evitas accidentalmente mandar en ese canal

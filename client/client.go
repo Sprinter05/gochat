@@ -32,3 +32,7 @@ func NewUser(username string, db *sql.DB) (Client, error) {
 
 	return client, nil
 }
+
+func IsUserEmpty(client Client) bool {
+	return client.username == "" && client.keyPair == nil
+}
