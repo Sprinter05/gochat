@@ -425,68 +425,98 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 	}
 }
 
-// TODO: subscribe all
 // Subscribes a user to an event to get notified
 // whenever said event is triggered.
 //
 // Replies with OK or ERR
 func subscribeHook(h *Hub, u User, cmd spec.Command) {
 	hook := spec.Hook(cmd.HD.Info)
-	if !slices.Contains(spec.Hooks, hook) {
+	if !slices.Contains(spec.Hooks, hook) && hook != spec.HookAllHooks {
 		// Provided hook does not exist
 		log.User(string(u.name), "invalid hook", spec.ErrorHeader)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
 
-	sl, ok := h.subs.Get(hook)
-	if !ok {
-		//! This means the hook slice no longer exists even though it should
-		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
-		log.Fatal("hub hook slices", spec.ErrorNotFound)
-		return
+	// Hooks to be subscribed to
+	list := make([]spec.Hook, 0)
+	if hook == spec.HookAllHooks {
+		list = spec.Hooks
+	} else {
+		list = append(list, hook)
 	}
 
-	if sl.Has(u.conn) {
-		// User is already subscribed
-		SendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
-		return
+	for _, v := range list {
+		sl, ok := h.subs.Get(v)
+		if !ok {
+			//! This means the hook slice no longer exists even though it should
+			SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+			log.Fatal("hub hook slices", spec.ErrorNotFound)
+			return
+		}
+
+		if sl.Has(u.conn) {
+			if hook == spec.HookAllHooks {
+				// If subscribing to everything we just skip
+				continue
+			}
+
+			// User is already subscribed
+			SendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
+			return
+		}
+
+		// Otherwise we subscribe the user
+		sl.Add(u.conn)
 	}
 
-	// Otherwise we subscribe the user
-	sl.Add(u.conn)
 	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
-// TODO: unsubscribe all
 // Unubscribes a user from a hook that they are
 // subscribed for.
 //
 // Replies with OK or ERR
 func unsubscribeHook(h *Hub, u User, cmd spec.Command) {
 	hook := spec.Hook(cmd.HD.Info)
-	if !slices.Contains(spec.Hooks, hook) {
+	if !slices.Contains(spec.Hooks, hook) && hook != spec.HookAllHooks {
 		// Provided hook does not exist
 		log.User(string(u.name), "invalid hook", spec.ErrorHeader)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
 
-	sl, ok := h.subs.Get(hook)
-	if !ok {
-		//! This means the hook slice no longer exists even though it should
-		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
-		log.Fatal("hub hook slices", spec.ErrorNotFound)
-		return
+	// Hooks to be unsubscribed from
+	list := make([]spec.Hook, 0)
+	if hook == spec.HookAllHooks {
+		list = spec.Hooks
+	} else {
+		list = append(list, hook)
 	}
 
-	if !sl.Has(u.conn) {
-		// User cannot be unsubscribed if not subscribed
-		SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
-		return
+	for _, v := range list {
+		sl, ok := h.subs.Get(v)
+		if !ok {
+			//! This means the hook slice no longer exists even though it should
+			SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+			log.Fatal("hub hook slices", spec.ErrorNotFound)
+			return
+		}
+
+		if !sl.Has(u.conn) {
+			if hook == spec.HookAllHooks {
+				// If unsubscribing to everything we just skip
+				continue
+			}
+
+			// User cannot be unsubscribed if not subscribed
+			SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+			return
+		}
+
+		// Otherwise we unsubscribe the user
+		sl.Remove(u.conn)
 	}
 
-	// Otherwise we unsubscribe the user
-	sl.Remove(u.conn)
 	SendOKPacket(cmd.HD.ID, u.conn)
 }
