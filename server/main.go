@@ -154,7 +154,6 @@ func setupTLSConn() net.Listener {
 
 /* MAIN FUNCTIONS */
 
-// TODO: Hooks writeup
 // TODO: Server intranet writeup
 
 // Specifies a behaviour that is common to all
