@@ -253,19 +253,19 @@ func ErrorCodeToError(b byte) error {
 /* ADMIN OPERATIONS */
 
 const (
-	AdminShutdown   uint8 = 0x00 // Send a shutdown signal to the server
-	AdminDeregister uint8 = 0x01 // Force the deregistration of a user
-	AdminBroadcast  uint8 = 0x02 // Broadcast a message to all online users
-	AdminPromote    uint8 = 0x03 // Increase the permission level of a user
-	AdminDisconnect uint8 = 0x04 // Disconnect an online user
+	AdminShutdown    uint8 = 0x00 // Send a shutdown signal to the server
+	AdminDeregister  uint8 = 0x01 // Force the deregistration of a user
+	AdminBroadcast   uint8 = 0x02 // Broadcast a message to all online users
+	AdminChangePerms uint8 = 0x03 // Increase the permission level of a user
+	AdminDisconnect  uint8 = 0x04 // Disconnect an online user
 )
 
-var codeToAdmin map[byte]string = map[byte]string{
-	AdminShutdown:   "ADMIN_SHTDWN",
-	AdminDeregister: "ADMIN_DEREG",
-	AdminBroadcast:  "ADMIN_BRDCAST",
-	AdminPromote:    "ADMIN_PROMOTE",
-	AdminDisconnect: "ADMIN_KICK",
+var codeToAdmin map[uint8]string = map[uint8]string{
+	AdminShutdown:    "ADMIN_SHTDWN",
+	AdminDeregister:  "ADMIN_DEREG",
+	AdminBroadcast:   "ADMIN_BRDCAST",
+	AdminChangePerms: "ADMIN_PROMOTE",
+	AdminDisconnect:  "ADMIN_KICK",
 }
 
 // Returns the admin string asocciated to a hex byte.

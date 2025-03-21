@@ -11,27 +11,27 @@ import (
 /* LOOKUP */
 
 var adminArgs map[uint8]uint8 = map[uint8]uint8{
-	spec.AdminShutdown:   1,
-	spec.AdminBroadcast:  1,
-	spec.AdminDeregister: 1,
-	spec.AdminPromote:    1,
-	spec.AdminDisconnect: 1,
+	spec.AdminShutdown:    1,
+	spec.AdminBroadcast:   1,
+	spec.AdminDeregister:  1,
+	spec.AdminChangePerms: 2,
+	spec.AdminDisconnect:  1,
 }
 
 var adminPerms map[uint8]db.Permission = map[uint8]db.Permission{
-	spec.AdminShutdown:   db.ADMIN,
-	spec.AdminBroadcast:  db.ADMIN,
-	spec.AdminDeregister: db.ADMIN,
-	spec.AdminPromote:    db.OWNER,
-	spec.AdminDisconnect: db.ADMIN,
+	spec.AdminShutdown:    db.ADMIN,
+	spec.AdminBroadcast:   db.ADMIN,
+	spec.AdminDeregister:  db.ADMIN,
+	spec.AdminChangePerms: db.OWNER,
+	spec.AdminDisconnect:  db.ADMIN,
 }
 
 var adminLookup map[uint8]action = map[uint8]action{
-	spec.AdminShutdown:   adminShutdown,
-	spec.AdminBroadcast:  adminBroadcast,
-	spec.AdminDeregister: adminDeregister,
-	spec.AdminPromote:    adminPromote,
-	spec.AdminDisconnect: adminDisconnect,
+	spec.AdminShutdown:    adminShutdown,
+	spec.AdminBroadcast:   adminBroadcast,
+	spec.AdminDeregister:  adminDeregister,
+	spec.AdminChangePerms: adminChangePerms,
+	spec.AdminDisconnect:  adminDisconnect,
 }
 
 /* WRAPPER FUNCTIONS */
@@ -156,11 +156,11 @@ func adminDeregister(h *Hub, u User, cmd spec.Command) {
 	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
-// Increases the permission level of a user
+// Changes the permission level of a user
 //
 // Requires OWNER or more
-// Requires 1 argument for the user
-func adminPromote(h *Hub, u User, cmd spec.Command) {
+// Requires 1 argument for the user and 1 for the level of permissions
+func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 	target, err := db.QueryUser(h.db, string(cmd.Args[0]))
 	if err != nil {
 		// Invalid user provided
@@ -168,18 +168,32 @@ func adminPromote(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	if target.Permission >= db.ADMIN {
-		// Cannot promote more
+	level := db.StringPermission(string(cmd.Args[1]))
+	if level == -1 {
+		// Invalid permission provided
+		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		return
+	}
+
+	if target.Permission == level {
+		// Cannot change permissions if they are the same
 		SendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
-	e := db.ChangePermission(h.db, u.name, db.ADMIN)
+	// Update in database
+	e := db.ChangePermission(h.db, u.name, level)
 	if e != nil {
 		//! This shouldnt happen as the user was already queried before
 		SendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
 		log.Fatal("promotion for "+string(u.name), e)
 		return
+	}
+
+	// Update if online
+	v, ok := h.FindUser(string(cmd.Args[0]))
+	if ok {
+		v.perms = level
 	}
 
 	SendOKPacket(cmd.HD.ID, u.conn)

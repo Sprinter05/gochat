@@ -71,7 +71,7 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ADMIN_SHTDWN <stamp>` (0x00): Schedules a shutdown for the server.
 - `ADMIN_DEREG <username>` (0x01): Deregistrates a specified user.
 - `ADMIN_BRDCAST <msg>` (0x02): Broadcasts a message to all online users.
-- `ADMIN_PROMOTE <username>` (0x03): Increases the permission level of a user.
+- `ADMIN_CHGPERMS <username> <level>` (0x03): Changes the permission level of a user.
 - `ADMIN_KICK <username>` (0x04): Kicks a user, also disconnecting it.
 
 ## Body
