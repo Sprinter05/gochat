@@ -252,26 +252,62 @@ func ErrorCodeToError(b byte) error {
 
 /* ADMIN OPERATIONS */
 
+// Specifies an admin operation to be performed
+type Admin uint8
+
 const (
-	AdminShutdown    uint8 = 0x00 // Send a shutdown signal to the server
-	AdminDeregister  uint8 = 0x01 // Force the deregistration of a user
-	AdminBroadcast   uint8 = 0x02 // Broadcast a message to all online users
-	AdminChangePerms uint8 = 0x03 // Increase the permission level of a user
-	AdminDisconnect  uint8 = 0x04 // Disconnect an online user
+	AdminShutdown    Admin = 0x00 // Send a shutdown signal to the server
+	AdminDeregister  Admin = 0x01 // Force the deregistration of a user
+	AdminBroadcast   Admin = 0x02 // Broadcast a message to all online users
+	AdminChangePerms Admin = 0x03 // Increase the permission level of a user
+	AdminDisconnect  Admin = 0x04 // Disconnect an online user
 )
 
-var codeToAdmin map[uint8]string = map[uint8]string{
+var codeToAdmin map[Admin]string = map[Admin]string{
 	AdminShutdown:    "ADMIN_SHTDWN",
 	AdminDeregister:  "ADMIN_DEREG",
 	AdminBroadcast:   "ADMIN_BRDCAST",
-	AdminChangePerms: "ADMIN_PROMOTE",
+	AdminChangePerms: "ADMIN_CHGPERMS",
 	AdminDisconnect:  "ADMIN_KICK",
 }
 
 // Returns the admin string asocciated to a hex byte.
 // Result is an empty string if not found.
-func AdminString(a uint8) string {
+func AdminString(a Admin) string {
 	v, ok := codeToAdmin[a]
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+/* HOOKS */
+
+// Specifies a hook that triggers on a specific event
+type Hook uint8
+
+const (
+	HookSubscribeAll     Hook = 0x00 // Subscribe to all existing hooks
+	HookNewLogin         Hook = 0x01 // Triggers when a user comes online
+	HookNewLogout        Hook = 0x02 // Triggers when a user goes offline
+	HookDuplicateSession Hook = 0x03 // Triggers when a session for the user is opened from another endpoint
+	HookPermsChange      Hook = 0x04 // Triggers when a user's permission level changes
+	HookCachedMessage    Hook = 0x05 // Triggers when a message to an online user is cached
+)
+
+var codeToHook map[Hook]string = map[Hook]string{
+	HookSubscribeAll:     "HOOK_SUBALL",
+	HookNewLogin:         "HOOK_NEWLOGIN",
+	HookNewLogout:        "HOOK_NEWLOGOUT",
+	HookDuplicateSession: "HOOK_DUPSESS",
+	HookPermsChange:      "HOOK_PERMSCHG",
+	HookCachedMessage:    "HOOK_DBMSG",
+}
+
+// Returns the hook string asocciated to a hex byte.
+// Result is an empty string if not found.
+func HookString(h Hook) string {
+	v, ok := codeToHook[h]
 	if !ok {
 		return ""
 	}

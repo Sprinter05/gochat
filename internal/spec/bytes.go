@@ -56,7 +56,7 @@ func (cmd *Command) Print() {
 		fmt.Printf("* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
 	}
 	if cmd.HD.Op == ADMIN {
-		fmt.Printf("* Admin: %s\n", AdminString(cmd.HD.Info))
+		fmt.Printf("* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
 	}
 	fmt.Printf("* Args: %d\n", cmd.HD.Args)
 	fmt.Printf("* Length: %d\n", cmd.HD.Len)

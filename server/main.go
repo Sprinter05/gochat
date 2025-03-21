@@ -154,6 +154,9 @@ func setupTLSConn() net.Listener {
 
 /* MAIN FUNCTIONS */
 
+// TODO: Hooks writeup
+// TODO: Server intranet writeup
+
 // Specifies a behaviour that is common to all
 // listening sockets, so that they can process
 // events all at the same time.

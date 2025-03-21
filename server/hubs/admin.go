@@ -10,7 +10,7 @@ import (
 
 /* LOOKUP */
 
-var adminArgs map[uint8]uint8 = map[uint8]uint8{
+var adminArgs map[spec.Admin]uint8 = map[spec.Admin]uint8{
 	spec.AdminShutdown:    1,
 	spec.AdminBroadcast:   1,
 	spec.AdminDeregister:  1,
@@ -18,7 +18,7 @@ var adminArgs map[uint8]uint8 = map[uint8]uint8{
 	spec.AdminDisconnect:  1,
 }
 
-var adminPerms map[uint8]db.Permission = map[uint8]db.Permission{
+var adminPerms map[spec.Admin]db.Permission = map[spec.Admin]db.Permission{
 	spec.AdminShutdown:    db.ADMIN,
 	spec.AdminBroadcast:   db.ADMIN,
 	spec.AdminDeregister:  db.ADMIN,
@@ -26,7 +26,7 @@ var adminPerms map[uint8]db.Permission = map[uint8]db.Permission{
 	spec.AdminDisconnect:  db.ADMIN,
 }
 
-var adminLookup map[uint8]action = map[uint8]action{
+var adminLookup map[spec.Admin]action = map[spec.Admin]action{
 	spec.AdminShutdown:    adminShutdown,
 	spec.AdminBroadcast:   adminBroadcast,
 	spec.AdminDeregister:  adminDeregister,
@@ -45,21 +45,22 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	fun, ok := adminLookup[cmd.HD.Info]
+	op := spec.Admin(cmd.HD.Info)
+	fun, ok := adminLookup[op]
 	if !ok {
 		// Invalid action is trying to be ran
-		log.Invalid(spec.AdminString(cmd.HD.Info), string(u.name))
+		log.Invalid(spec.AdminString(op), string(u.name))
 		SendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
 	}
 
-	args := adminArgs[cmd.HD.Info]
+	args := adminArgs[op]
 	if cmd.HD.Args < args {
 		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
-	perms := adminPerms[cmd.HD.Info]
+	perms := adminPerms[op]
 	if u.perms < perms {
 		SendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return

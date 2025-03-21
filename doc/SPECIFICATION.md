@@ -89,6 +89,26 @@ Once the deregistration has happened the server must then **release the IP tied 
 ### Permission levels
 By default, the protocol implements **2 levels** of permissions that start from `0`, which indicates the **lowest level** of permissions. The server can decide what actions can be or not performed with a certain level of permissions and can add **more permission levels**. They can be performed using the following command, indicating in the header information the action to be performed. The user must be logged in to perform administrative actions, assuming they have enough permissions.
 
-`ADMIN <arg_1> <arg_2> ... <arg_n>`
+`ADMIN <arg_1> <arg_2> ... <arg_n>` _Client_
 
 The argument amount is not fixed and will depend on the action. The server may reply with an error.
+
+## Hooks
+
+Clients can request a **subscription** to an *event*, also called a **hook**. This means that whenever the event is triggered, a notification will be sent to the client application.
+
+### Subscriptions
+Any client can request a subscription to a hook by indicating the *hook number* in the header's information field. An error will be thrown if no such hook exists.
+
+`SUB` _Client_
+
+In the same way, the client application can unsubscribe from any event for which they are subscribed. An error will be thrown if the user is not subscribed to that event.
+
+`UNSUB` _Client_
+
+> **NOTE**: After a logout or a disconnection, all subscriptions of the client application will be automatically terminated.
+
+### Events
+Whenever an event is triggered, the server will send a packet using the _Null ID_ with the corresponding *hook number* in the header's information field.
+
+`HOOK` _Server_
