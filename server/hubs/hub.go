@@ -75,17 +75,21 @@ func (hub *Hub) Cleanup(cl net.Conn) {
 	// Cleanup on the verification table
 	list := hub.verifs.GetAll()
 	for _, v := range list {
-		if v.conn == cl {
-			hub.verifs.Remove(v.name)
-			// If not pending we assume the connection was secure
-			if !v.pending {
-				// We assign a nil connection to prevent any possible problems
-				v.conn = nil
-				v.expiry = time.Now().Add(
-					time.Duration(spec.TokenExpiration) * time.Minute,
-				)
-				hub.verifs.Add(v.name, v)
-			}
+		if v.conn != cl {
+			// Not the one we are looking for
+			continue
+		}
+
+		hub.verifs.Remove(v.name)
+
+		// If not pending we assume the connection was secure
+		if !v.pending {
+			// We assign a nil connection to prevent any possible problems
+			v.conn = nil
+			v.expiry = time.Now().Add(
+				time.Duration(spec.TokenExpiration) * time.Minute,
+			)
+			hub.verifs.Add(v.name, v)
 		}
 	}
 }
