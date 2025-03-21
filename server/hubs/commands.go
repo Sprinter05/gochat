@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -40,6 +41,8 @@ var cmdLookup map[spec.Action]action = map[spec.Action]action{
 	spec.MSG:    messageUser,
 	spec.RECIV:  recivMessages,
 	spec.ADMIN:  adminOperation,
+	spec.SUB:    subscribeHook,
+	spec.UNSUB:  unsubscribeHook,
 }
 
 /* WRAPPER FUNCTIONS */
@@ -306,7 +309,7 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 		usrs = h.Userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		log.User(string(u.name), "list argument", spec.ErrorHeader)
+		log.User(string(u.name), "userlist argument", spec.ErrorHeader)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
@@ -418,4 +421,68 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 		// We dont send an ERR here or we would be sending 2 packets
 		log.DB("deleting cached messages for "+string(u.name), e)
 	}
+}
+
+// Subscribes a user to an event to get notified
+// whenever said event is triggered.
+//
+// Replies with OK or ERR
+func subscribeHook(h *Hub, u User, cmd spec.Command) {
+	hook := spec.Hook(cmd.HD.Info)
+	if !slices.Contains(spec.Hooks, hook) {
+		// Provided hook does not exist
+		log.User(string(u.name), "invalid hook", spec.ErrorHeader)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
+		return
+	}
+
+	sl, ok := h.subs.Get(hook)
+	if !ok {
+		//! This means the hook slices no longer exist even though they should
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		log.Fatal("hub hook slices", spec.ErrorNotFound)
+		return
+	}
+
+	if sl.Has(u.conn) {
+		// User is already subscribed
+		SendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
+		return
+	}
+
+	// Otherwise we subscribe the user
+	sl.Add(u.conn)
+	SendOKPacket(cmd.HD.ID, u.conn)
+}
+
+// Unubscribes a user from a hook that they are
+// subscribed for.
+//
+// Replies with OK or ERR
+func unsubscribeHook(h *Hub, u User, cmd spec.Command) {
+	hook := spec.Hook(cmd.HD.Info)
+	if !slices.Contains(spec.Hooks, hook) {
+		// Provided hook does not exist
+		log.User(string(u.name), "invalid hook", spec.ErrorHeader)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
+		return
+	}
+
+	sl, ok := h.subs.Get(hook)
+	if !ok {
+		//! This means the hook slices no longer exist even though they should
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		log.Fatal("hub hook slices", spec.ErrorNotFound)
+		return
+	}
+
+	if !sl.Has(u.conn) {
+		// User cannot be unsubscribed if not subscribed
+		SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+		return
+	}
+
+	// Otherwise we unsubscribe the user
+	sl.Remove(u.conn)
+	SendOKPacket(cmd.HD.ID, u.conn)
 }

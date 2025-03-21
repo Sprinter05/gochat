@@ -66,6 +66,14 @@ func (s *Slice[T]) Clear() {
 	clear(s.data)
 }
 
+// Returns true if the given element exists
+// in the slice, returns false otherwise.
+func (s *Slice[T]) Has(v T) bool {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	return slices.Contains(s.data, v)
+}
+
 // Returns a copy of the actual slice data so that it
 // can be safely traversed by a single goroutine. An
 // optional argument of how many elements to retrieve

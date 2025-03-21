@@ -41,6 +41,9 @@ const (
 	SHTDWN
 	ADMIN
 	KEEP
+	SUB
+	UNSUB
+	HOOK
 )
 
 // Identifies an operation to be performed
@@ -71,6 +74,9 @@ var (
 	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", 0, -1}
 	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0, -1}
 	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0, -1}
+	subLookup    = lookup{SUB, 0x0F, "SUB", 0, -1}
+	unsubLookup  = lookup{UNSUB, 0x10, "UNSUB", 0, -1}
+	hookLookup   = lookup{HOOK, 0x11, "HOOK", -1, 0}
 )
 
 var lookupByOperation map[Action]lookup = map[Action]lookup{
@@ -88,6 +94,9 @@ var lookupByOperation map[Action]lookup = map[Action]lookup{
 	SHTDWN: shtdwnLookup,
 	ADMIN:  adminLookup,
 	KEEP:   keepLookup,
+	SUB:    subLookup,
+	UNSUB:  unsubLookup,
+	HOOK:   hookLookup,
 }
 
 var lookupByString map[string]lookup = map[string]lookup{
@@ -105,6 +114,9 @@ var lookupByString map[string]lookup = map[string]lookup{
 	"SHTDWN": shtdwnLookup,
 	"ADMIN":  adminLookup,
 	"KEEP":   keepLookup,
+	"SUB":    subLookup,
+	"UNSUB":  unsubLookup,
+	"HOOK":   hookLookup,
 }
 
 // Returns the operation code associated to a hex byte.
