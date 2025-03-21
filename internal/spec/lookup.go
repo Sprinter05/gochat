@@ -4,7 +4,7 @@ package spec
 
 const (
 	ProtocolVersion uint8  = 1         // Current version of the protocol
-	MaxClients      int    = 20        // Max amount of clients the server allows at the same time
+	MaxClients      uint   = 20        // Max amount of clients the server allows at the same time
 	NullOp          Action = 0         // Invalid operation code
 	NullID          ID     = 0         // Only valid for specific documented cases
 	MaxID           ID     = 1<<10 - 1 // Maximum value according to the bit field
@@ -294,6 +294,9 @@ const (
 	HookPermsChange      Hook = 0x04 // Triggers when a user's permission level changes
 	HookCachedMessage    Hook = 0x05 // Triggers when a message to an online user is cached
 )
+
+// Array with all possible existing hooks for easier traversal
+var Hooks []Hook = []Hook{HookNewLogin, HookNewLogout, HookDuplicateSession, HookPermsChange, HookCachedMessage}
 
 var codeToHook map[Hook]string = map[Hook]string{
 	HookSubscribeAll:     "HOOK_SUBALL",

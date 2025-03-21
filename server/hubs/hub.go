@@ -19,11 +19,12 @@ import (
 // Main data structure that stores all information shared
 // by all client connections. It is safe to use concurrently.
 type Hub struct {
-	db     *gorm.DB                      // Database with all relevant information
-	shtdwn context.Context               // Used to wait for a shutdown
-	close  context.CancelFunc            // Used to trigger a shutdown
-	users  models.Table[net.Conn, *User] // Stores all online users
-	verifs models.Table[string, *Verif]  // Stores all verifications and/or reusable tokens
+	db     *gorm.DB                                         // Database with all relevant information
+	shtdwn context.Context                                  // Used to wait for a shutdown
+	close  context.CancelFunc                               // Used to trigger a shutdown
+	users  models.Table[net.Conn, *User]                    // Stores all online users
+	verifs models.Table[string, *Verif]                     // Stores all verifications and/or reusable tokens
+	subs   models.Table[spec.Hook, *models.Slice[net.Conn]] // Stores all users subscribed to an event
 }
 
 /* HUB FUNCTIONS */
@@ -154,13 +155,21 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 // Initialises all data structures the hub needs to function:
 // database, shutdown context and table sizes.
-func NewHub(database *gorm.DB, ctx context.Context, cancel context.CancelFunc, size int) *Hub {
+func NewHub(database *gorm.DB, ctx context.Context, cancel context.CancelFunc, size uint) *Hub {
+	// Allocate fields
 	hub := &Hub{
 		shtdwn: ctx,
 		close:  cancel,
 		users:  models.NewTable[net.Conn, *User](size),
 		verifs: models.NewTable[string, *Verif](size),
+		subs:   models.NewTable[spec.Hook, *models.Slice[net.Conn]](uint(len(spec.Hooks))),
 		db:     database,
+	}
+
+	// Allocate subscription lists
+	for _, h := range spec.Hooks {
+		list := models.NewSlice[net.Conn](size)
+		hub.subs.Add(h, &list)
 	}
 
 	return hub

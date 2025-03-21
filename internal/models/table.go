@@ -19,7 +19,7 @@ type Table[I comparable, T any] struct {
 /* FUNCTIONS */
 
 // Returns an allocated data table according to provided size.
-func NewTable[I comparable, T any](size int) Table[I, T] {
+func NewTable[I comparable, T any](size uint) Table[I, T] {
 	return Table[I, T]{
 		data: make(map[I]T, size),
 	}

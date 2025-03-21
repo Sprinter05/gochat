@@ -262,7 +262,7 @@ func main() {
 	// Used for managing all possible sockets
 	server := Server{
 		ctx:   ctx,
-		count: models.NewCounter(spec.MaxClients),
+		count: models.NewCounter(int(spec.MaxClients)),
 	}
 
 	// Endless loop to listen for connections
