@@ -40,6 +40,13 @@ func (t *Table[I, T]) Remove(i I) {
 	delete(t.data, i)
 }
 
+// Clears all elements from the table.
+func (t *Table[I, T]) Clear() {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+	clear(t.data)
+}
+
 // Returns an element from the table
 // and a boolean specifying if it exists.
 func (t *Table[I, T]) Get(i I) (T, bool) {

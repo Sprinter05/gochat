@@ -133,11 +133,14 @@ func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	list := h.users.GetAll()
-	for _, v := range list {
-		// Send to each user
-		v.conn.Write(pak)
-	}
+	// Goroutine to optimise sending everywhere
+	go func() {
+		list := h.users.GetAll()
+		for _, v := range list {
+			// Send to each user
+			v.conn.Write(pak)
+		}
+	}()
 
 	SendOKPacket(cmd.HD.ID, u.conn)
 }
