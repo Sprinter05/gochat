@@ -78,9 +78,9 @@ func (s *Slice[T]) Has(v T) bool {
 // can be safely traversed by a single goroutine. An
 // optional argument of how many elements to retrieve
 // can be provided. To return all elements, "n" must
-// be <= 0. If the slice is empty or "n" goes out of
+// be 0. If the slice is empty or "n" goes out of
 // bounds, nil will be returned.
-func (s *Slice[T]) Copy(n int) []T {
+func (s *Slice[T]) Copy(n uint) []T {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	len := len(s.data)
@@ -89,14 +89,14 @@ func (s *Slice[T]) Copy(n int) []T {
 	}
 
 	// Return all elements
-	if n <= 0 {
+	if n == 0 {
 		dest := make([]T, 0, len)
 		dest = append(dest, s.data...)
 		return dest
 	}
 
 	// Out of bounds
-	if n > len {
+	if int(n) > len {
 		return nil
 	}
 

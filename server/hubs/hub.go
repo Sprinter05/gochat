@@ -6,6 +6,7 @@ package hubs
 import (
 	"context"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -28,6 +29,41 @@ type Hub struct {
 }
 
 /* HUB FUNCTIONS */
+
+// Notifies of a hook to all relevant connections. An
+// optional "only" list of connections can be provided
+// to only notify those specified in said list. It is
+// safe to run this function concurrently.
+func (hub *Hub) Notify(h spec.Hook, only ...net.Conn) {
+	sl, ok := hub.subs.Get(h)
+	if !ok {
+		//! This means the hook slice no longer exists even though it should
+		log.Fatal("hub hook slices", spec.ErrorNotFound)
+		return
+	}
+
+	pak, err := spec.NewPacket(spec.HOOK, spec.NullID, byte(h))
+	if err != nil {
+		log.Packet(spec.HOOK, err)
+		return
+	}
+
+	list := sl.Copy(0)
+	if list == nil {
+		// No connection to notify
+		return
+	}
+
+	for _, v := range list {
+		if only != nil && !slices.Contains(only, v) {
+			// The connection is not of the only ones to notify
+			continue
+		}
+		// Otherwise we notify
+		v.Write(pak)
+	}
+
+}
 
 // Removes all mentions of a user that just disconnected
 // from the hub, except the reusable token if the connection

@@ -438,7 +438,7 @@ func subscribeHook(h *Hub, u User, cmd spec.Command) {
 
 	sl, ok := h.subs.Get(hook)
 	if !ok {
-		//! This means the hook slices no longer exist even though they should
+		//! This means the hook slice no longer exists even though it should
 		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		log.Fatal("hub hook slices", spec.ErrorNotFound)
 		return
@@ -470,7 +470,7 @@ func unsubscribeHook(h *Hub, u User, cmd spec.Command) {
 
 	sl, ok := h.subs.Get(hook)
 	if !ok {
-		//! This means the hook slices no longer exist even though they should
+		//! This means the hook slice no longer exists even though it should
 		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		log.Fatal("hub hook slices", spec.ErrorNotFound)
 		return
