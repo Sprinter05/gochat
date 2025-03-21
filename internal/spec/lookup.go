@@ -299,24 +299,22 @@ func AdminString(a Admin) string {
 type Hook uint8
 
 const (
-	HookSubscribeAll     Hook = 0x00 // Subscribe to all existing hooks
+	HookAllHooks         Hook = 0x00 // Subscribe or unsubscribe to all existing hooks
 	HookNewLogin         Hook = 0x01 // Triggers when a user comes online
 	HookNewLogout        Hook = 0x02 // Triggers when a user goes offline
 	HookDuplicateSession Hook = 0x03 // Triggers when a session for the user is opened from another endpoint
 	HookPermsChange      Hook = 0x04 // Triggers when a user's permission level changes
-	HookCachedMessage    Hook = 0x05 // Triggers when a message to an online user is cached
 )
 
 // Array with all possible existing hooks for easier traversal
-var Hooks []Hook = []Hook{HookNewLogin, HookNewLogout, HookDuplicateSession, HookPermsChange, HookCachedMessage}
+var Hooks []Hook = []Hook{HookNewLogin, HookNewLogout, HookDuplicateSession, HookPermsChange}
 
 var codeToHook map[Hook]string = map[Hook]string{
-	HookSubscribeAll:     "HOOK_SUBALL",
+	HookAllHooks:         "HOOK_ALL",
 	HookNewLogin:         "HOOK_NEWLOGIN",
 	HookNewLogout:        "HOOK_NEWLOGOUT",
 	HookDuplicateSession: "HOOK_DUPSESS",
 	HookPermsChange:      "HOOK_PERMSCHG",
-	HookCachedMessage:    "HOOK_DBMSG",
 }
 
 // Returns the hook string asocciated to a hex byte.

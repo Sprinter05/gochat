@@ -78,12 +78,11 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ADMIN_KICK <username>` (0x04): Kicks a user, also disconnecting it.
 
 ### Hooks for SUB, UNSUB and HOOK
-- `HOOK_SUBALL` (0x00): Subscribes too all existing hooks.
+- `HOOK_ALL` (0x00): Subscribes/unsubscribes too all existing hooks.
 - `HOOK_NEWLOGIN` (0x01): Triggers whenever a new user succesfully logs into the server. 
 - `HOOK_NEWLOGOUT` (0x02): Triggers whenever a user either disconnects or logs out.
 - `HOOK_DUPSESS` (0x03): Triggers whenever an attempt to log into your account from another endpoint happens.
 - `HOOK_PERMSCHG` (0x04): Triggers whenever your account's permissions have changed
-- `HOOK_DBMSG` (0x05): Triggers if due to synchronization issues, a message directed to you is cached even when online.
 
 ## Body
 

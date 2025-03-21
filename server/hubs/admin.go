@@ -195,9 +195,10 @@ func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 	}
 
 	// Update if online
-	v, ok := h.FindUser(string(cmd.Args[0]))
+	chg, ok := h.FindUser(string(cmd.Args[0]))
 	if ok {
-		v.perms = level
+		chg.perms = level
+		go h.Notify(spec.HookPermsChange, chg.conn)
 	}
 
 	SendOKPacket(cmd.HD.ID, u.conn)

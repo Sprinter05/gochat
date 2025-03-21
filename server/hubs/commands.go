@@ -120,6 +120,7 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 
 		// Cache the user
 		h.users.Add(u.conn, &u)
+		go h.Notify(spec.HookNewLogin)
 		SendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
@@ -194,6 +195,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	// If we get here, it means it was correctly verified
 	// We modify the tables and cancel the goroutine
 	verif.cancel()
+	go h.Notify(spec.HookNewLogin)
 	h.users.Add(u.conn, &u)
 
 	if u.secure {
@@ -423,6 +425,7 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 	}
 }
 
+// TODO: subscribe all
 // Subscribes a user to an event to get notified
 // whenever said event is triggered.
 //
@@ -455,6 +458,7 @@ func subscribeHook(h *Hub, u User, cmd spec.Command) {
 	SendOKPacket(cmd.HD.ID, u.conn)
 }
 
+// TODO: unsubscribe all
 // Unubscribes a user from a hook that they are
 // subscribed for.
 //

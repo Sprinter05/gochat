@@ -71,6 +71,7 @@ func (hub *Hub) Notify(h spec.Hook, only ...net.Conn) {
 func (hub *Hub) Cleanup(cl net.Conn) {
 	// Cleanup on the users table
 	hub.users.Remove(cl)
+	go hub.Notify(spec.HookNewLogout)
 
 	// Cleanup on the verification table
 	list := hub.verifs.GetAll()
@@ -178,12 +179,12 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 	if id == spec.LOGIN {
 		// We check if the user is logged in from another IP
-		_, ipok := hub.FindUser(string(r.Command.Args[0]))
+		dup, ipok := hub.FindUser(string(r.Command.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
+			go hub.Notify(spec.HookDuplicateSession, dup.conn)
 			SendErrorPacket(r.Command.HD.ID, spec.ErrorDupSession, r.Conn)
 			return nil, spec.ErrorDupSession
-
 		}
 	}
 
