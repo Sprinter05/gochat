@@ -11,36 +11,6 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-// Buffer where the pending packet's ID is allocated as a key with the operation code as its value
-// ! Deberia estar protegido con un mutex
-var pendingBuffer map[uint16]uint8 = make(map[uint16]uint8, 4)
-
-// Adds an id to the pending buffer
-func AddPending(id uint16, op uint8) {
-	pendingBuffer[id] = op
-}
-
-// Returns true if the packet is pending
-func IsPending(id uint16) bool {
-	_, ok := pendingBuffer[id]
-	return ok
-}
-
-// Deletes an ID from the pending buffer
-func acknoledgePending(id uint16) {
-	delete(pendingBuffer, id)
-}
-
-// Returns the pending buffer map
-func GetAllPending() map[uint16]uint8 {
-	return pendingBuffer
-}
-
-// Returns true if there are no pending packets
-func IsPendingEmpty() bool {
-	return len(pendingBuffer) == 0
-}
-
 // Starts listening for packets
 func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 
@@ -71,7 +41,7 @@ func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 			pct.Print()
 		}
 		// The packet is processed and the proper action is performed
-		processErr := GetServerCommand(pct.HD.Op)(&pct)
+		processErr := GetServerCommand(pct.HD.Op)(pct)
 		if !(pct.HD.Op == spec.VERIF || pct.HD.Op == spec.RECIV) {
 			pctReceived <- struct{}{}
 		}

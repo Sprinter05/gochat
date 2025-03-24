@@ -13,22 +13,22 @@ import (
 // ! Solo usa interfaces si es necesario, no lo fuerces
 // ! A mi esto me parece forzar el que use una interfaz cuando no hace falta
 type CommandFunc interface {
-	Run(cmd *spec.Command, db *sql.DB) error
+	Run(cmd spec.Command, db *sql.DB) error
 }
 
 // Type for commands with arguments
 // ! Las funciones de comandos deberian recibir copias no punteros
 // ! Siempre elige copia a pointer como argumento salvo que lo vayas a modificar para uso de otra función
-type CmdArgs func(cmd *spec.Command) error
+type CmdArgs func(cmd spec.Command) error
 
-func (command CmdArgs) Run(cmd *spec.Command, db *sql.DB) error {
+func (command CmdArgs) Run(cmd spec.Command, db *sql.DB) error {
 	return command(cmd)
 }
 
 // Type for commands with arguments and database interaction
-type CmdArgsDB func(cmd *spec.Command, db *sql.DB) error
+type CmdArgsDB func(cmd spec.Command, db *sql.DB) error
 
-func (command CmdArgsDB) Run(cmd *spec.Command, db *sql.DB) error {
+func (command CmdArgsDB) Run(cmd spec.Command, db *sql.DB) error {
 	return command(cmd, db)
 }
 
@@ -37,7 +37,7 @@ func (command CmdArgsDB) Run(cmd *spec.Command, db *sql.DB) error {
 // ! Recomendaria usar simplemente una variable que comprueba los args y pista
 type CmdNoArgs func() error
 
-func (command CmdNoArgs) Run(cmd *spec.Command, db *sql.DB) error {
+func (command CmdNoArgs) Run(cmd spec.Command, db *sql.DB) error {
 	return command()
 }
 
@@ -80,7 +80,7 @@ func getNumArgs(op spec.Action) uint8 {
 }
 
 // Map with all server commands
-var serverCmds = map[spec.Action]func(*spec.Command) error{
+var serverCmds = map[spec.Action]func(spec.Command) error{
 	spec.OK:    AcknowledgeReply,
 	spec.ERR:   PrintError,
 	spec.VERIF: DecryptVERIF,
@@ -89,7 +89,7 @@ var serverCmds = map[spec.Action]func(*spec.Command) error{
 	spec.RECIV: StoreDecypheredMessage,
 }
 
-func GetServerCommand(op spec.Action) func(*spec.Command) error {
+func GetServerCommand(op spec.Action) func(spec.Command) error {
 	return serverCmds[op]
 }
 
@@ -144,7 +144,7 @@ func printPending() error {
 }
 
 // Creates a user with a username received as input
-func createUser(cmd *spec.Command, db *sql.DB) error {
+func createUser(cmd spec.Command, db *sql.DB) error {
 	// Checks argument count
 	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -161,7 +161,6 @@ func createUser(cmd *spec.Command, db *sql.DB) error {
 }
 
 // Sends a REG package for the current user to the server automatically
-// TODO: Improve this
 func regUser() error {
 	if IsUserEmpty(CurUser) {
 		return fmt.Errorf("error: there is no current user logged in")
@@ -188,18 +187,18 @@ func regUser() error {
 		Ver:  spec.ProtocolVersion,
 		Op:   spec.REG,
 		Info: spec.EmptyInfo,
-		Args: getNumArgs(spec.REG), // ! Usa una funcion que compruebe el valor no acceder directamente a la tabla
+		Args: getNumArgs(spec.REG),
 		Len:  uint16(payloadLen),
 		ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
-	sendErr := sendPacket(&cmd)
+	sendErr := sendPacket(cmd)
 	return sendErr
 }
 
 // Execution code of the MSG command (requires database insert and message encryption)
-func sendMSG(cmd *spec.Command, db *sql.DB) error {
+func sendMSG(cmd spec.Command, db *sql.DB) error {
 	// Checks argument count
 	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -234,7 +233,7 @@ func sendMSG(cmd *spec.Command, db *sql.DB) error {
 }
 
 // Rearranges a packet to send a USRS packet
-func usrs(cmd *spec.Command) error {
+func usrs(cmd spec.Command) error {
 	// Checks argument count
 	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -264,7 +263,7 @@ func usrs(cmd *spec.Command) error {
 }
 
 // Generic function able to execute packet-sending commands.
-func sendPacket(cmd *spec.Command) error {
+func sendPacket(cmd spec.Command) error {
 	// Checks argument count
 	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
@@ -294,7 +293,7 @@ func sendPacket(cmd *spec.Command) error {
 // Acknowledges a reply, removing the packet with the reply's ID from the pending packet buffer.
 // NOTE: Some server command functions contain AcknowledgeReply because some server commands do not
 // send an OK packet
-func AcknowledgeReply(pct *spec.Command) error {
+func AcknowledgeReply(pct spec.Command) error {
 	if IsPending(uint16(pct.HD.ID)) {
 		// Deletes the ID of the packet that was waiting for the now received reply
 		acknoledgePending(uint16(pct.HD.ID))
@@ -312,7 +311,7 @@ func AcknowledgeReply(pct *spec.Command) error {
 
 // Prints the received error in the shell
 // ! Esta funcion sobra, son 2 lineas
-func PrintError(pct *spec.Command) error {
+func PrintError(pct spec.Command) error {
 	// Prints error package information
 	fmt.Printf("An error packet has been received with ID %d and information code %d (%s)\n", pct.HD.ID, pct.HD.Info, spec.ErrorCodeToError(pct.HD.Info).Error())
 	// Removes ID from buffer
@@ -322,9 +321,9 @@ func PrintError(pct *spec.Command) error {
 }
 
 // Replaces the encrypted argument with its decrypted version
-func DecryptVERIF(pct *spec.Command) error {
+func DecryptVERIF(pct spec.Command) error {
 	AcknowledgeReply(pct)
-	if (Client{}) == CurUser {
+	if IsUserEmpty(CurUser) {
 		return fmt.Errorf("error: cannot decrypt message as there is no logged in user in the shell")
 	}
 	encrypted := []byte(pct.Args[0])
@@ -333,7 +332,6 @@ func DecryptVERIF(pct *spec.Command) error {
 	// Decrypts the received argument
 	pct.Args[0], err = spec.DecryptText(encrypted, CurUser.keyPair)
 
-	// TODO: TEMPORARY
 	args := make([][]byte, 2)
 	args = append(args, []byte(CurUser.username), pct.Args[0])
 	payloadLen := 0
@@ -352,13 +350,13 @@ func DecryptVERIF(pct *spec.Command) error {
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
-	sendPacket(&cmd)
+	sendPacket(cmd)
 	return err
 }
 
 // Stores in the client database the received public key along with the username it belongs to
 // ! No uses pointer receiver, usa una copia
-func StoreRequestedUser(pct *spec.Command, db *sql.DB) error {
+func StoreRequestedUser(pct spec.Command, db *sql.DB) error {
 	AcknowledgeReply(pct)
 	username := string(pct.Args[0])
 	pkey := pct.Args[1]
@@ -369,14 +367,14 @@ func StoreRequestedUser(pct *spec.Command, db *sql.DB) error {
 // Prints the users provided by the received USRS response
 // ! No uses pointer receiver, usa una copia
 // ! Esta funcion sobra son 2 lineas
-func PrintUSRS(pct *spec.Command) error {
+func PrintUSRS(pct spec.Command) error {
 	AcknowledgeReply(pct)
 	fmt.Println(string(pct.Args[0]))
 	return nil
 }
 
 // Decyphers the received message in the packet and stores it in the client database
-func StoreDecypheredMessage(pct *spec.Command, db *sql.DB) error {
+func StoreDecypheredMessage(pct spec.Command, db *sql.DB) error {
 	source_username := string(pct.Args[0])
 	stamp, _ := spec.BytesToUnixStamp(pct.Args[1])
 	stamp, parseErr := spec.BytesToUnixStamp(pct.Args[1])

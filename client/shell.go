@@ -123,13 +123,13 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}, db *
 				Info: spec.EmptyInfo,
 				Args: uint8(len(args)),
 				Len:  uint16(payloadLen),
-				ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
+				ID:   spec.ID(spec.GeneratePacketID(models.GetData())),
 			}
 			// Creates command
 			cmd := spec.Command{HD: header, Args: args}
 
 			// Runs command
-			err := v.Run(&cmd, db)
+			err := v.Run(cmd, db)
 			if err != nil {
 				fmt.Println(err)
 			}
