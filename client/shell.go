@@ -25,39 +25,39 @@ import (
 // ! Puedes escribir en medio de estos apostrofes
 // ! Y ya te añade las lineas nuevas automaticemente
 // ! `
-const helpText = "EXIT: Closes the shell.\n\n" +
+const helpText = `EXIT: Closes the shell.
 
-	"VER: Prints out the gochat version the client has installed.\n\n" +
+	"VER: Prints out the gochat version the client has installed.
 
-	"VERBOSE: Enables/disables verbose mode.\n\n" +
+	"VERBOSE: Enables/disables verbose mode.
 
-	"HELP: Prints out a manual for the use of this shell.\n\n" +
+	"HELP: Prints out a manual for the use of this shell.
 
-	"VERBOSE: Toggles on/off the verbose mode.\n\n" +
+	"VERBOSE: Toggles on/off the verbose mode.
 
-	"PENDING: Prints the commands that are still waiting for a server response.\n\n" +
+	"PENDING: Prints the commands that are still waiting for a server response.
 
-	"CREATEUSER <username>: Creates a user and adds it to the client database.\n\n" +
+	"CREATEUSER <username>: Creates a user and adds it to the client database.
 
-	"REG <rsa_pub> <username>: Provides the generated RSA public key and username to register to the server.\n\n" +
+	"REG <rsa_pub> <username>: Provides the generated RSA public key and username to register to the server.
 
-	"REGUSER: Sends a REG packet to the server to register the current shell user.\n\n" +
+	"REGUSER: Sends a REG packet to the server to register the current shell user.
 
-	"LOGIN <username>: Connects to the server by providing the already generated RSA public key.\n\n" +
+	"LOGIN <username>: Connects to the server by providing the already generated RSA public key.
 
-	"VERIF <decyphered_text>: Replies to the server's verification request, providing the decyphered_text.\n\n" +
+	"VERIF <decyphered_text>: Replies to the server's verification request, providing the decyphered_text.
 
-	"REQ <username>: Used to request a connection with another client in order to begin messaging.\n\n" +
+	"REQ <username>: Used to request a connection with another client in order to begin messaging.
 
-	"USRS <online/all>: Requests the server a list of either the users online or all of them, depending on the token specified on the argument.\n\n" +
+	"USRS <online/all>: Requests the server a list of either the users online or all of them, depending on the token specified on the argument.
 
-	"MSG <username> <unix_stamp> <cypher_payload>: Sends a message to the specified user, providing the specified UNIX timestamp and the payload, which is the chyphered text message.\n\n" +
+	"MSG <username> <unix_stamp> <cypher_payload>: Sends a message to the specified user, providing the specified UNIX timestamp and the payload, which is the chyphered text message.
 
-	"RECIV: Sends a catch-up request to the server.\n\n" +
+	"RECIV: Sends a catch-up request to the server.
 
-	"LOGOUT: Disconnects the client from the server.\n\n" +
+	"LOGOUT: Disconnects the client from the server.
 
-	"DEREG: Deregisters the user from the server."
+	"DEREG: Deregisters the user from the server.`
 
 // Variable that defines whether the shell should be verbose or not
 // If the shell is verbose, it will print each packet that is received
