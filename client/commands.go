@@ -41,7 +41,7 @@ func (command CmdNoArgs) Run(cmd spec.Command, db *sql.DB) error {
 	return command()
 }
 
-// Map with all client commands except EXIT.
+// Map with all client commands except EXIT
 var clientCmds = map[string]CommandFunc{
 	"VER":        CmdNoArgs(ver),
 	"HELP":       CmdNoArgs(help),
@@ -144,7 +144,7 @@ func printPending() error {
 // Creates a user with a username received as input
 func createUser(cmd spec.Command, db *sql.DB) error {
 	// Checks argument count
-	if cmd.HD.Args != getNumArgs(cmd.HD.Op) {
+	if cmd.HD.Args != 1 {
 		return fmt.Errorf("%s: Incorrect number of arguments", spec.CodeToString(cmd.HD.Op))
 	}
 	user, createErr := NewUser(string(cmd.Args[0]), db)
