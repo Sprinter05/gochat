@@ -18,13 +18,6 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-// Text to be printed by the HELP command
-// ! No uses concatenacion de strings
-// ! Si haces:
-// ! `
-// ! Puedes escribir en medio de estos apostrofes
-// ! Y ya te añade las lineas nuevas automaticemente
-// ! `
 const helpText = `EXIT: Closes the shell.
 
 	"VER: Prints out the gochat version the client has installed.
@@ -123,7 +116,7 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}, db *
 				Info: spec.EmptyInfo,
 				Args: uint8(len(args)),
 				Len:  uint16(payloadLen),
-				ID:   spec.ID(spec.GeneratePacketID(models.GetData())),
+				ID:   spec.ID(GetMaxID(0)),
 			}
 			// Creates command
 			cmd := spec.Command{HD: header, Args: args}

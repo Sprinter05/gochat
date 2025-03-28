@@ -4,6 +4,7 @@
 package models
 
 import (
+	"maps"
 	"sync"
 )
 
@@ -74,4 +75,27 @@ func (t *Table[I, T]) GetAll() []T {
 	}
 
 	return array
+}
+
+// Executes a function "fun" in the table map, given an initial value to the function
+func (t *Table[I, T]) Apply(fun func(I, I) I, init I) I {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+
+	ret := init
+	for i := range t.data {
+		ret = fun(ret, i)
+	}
+
+	return ret
+}
+
+// Returns the map associated to the table
+func (t *Table[I, T]) GetData() map[I]T {
+	t.mut.Lock()
+	defer t.mut.RUnlock()
+
+	data := make(map[I]T)
+	maps.Copy(data, t.data)
+	return data
 }

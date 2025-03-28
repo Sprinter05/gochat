@@ -42,8 +42,6 @@ func (command CmdNoArgs) Run(cmd spec.Command, db *sql.DB) error {
 }
 
 // Map with all client commands except EXIT.
-// TODO: Some functions shall be moved to the higher-level shell
-// ! No pongas mapas globales en mayuscula pq asi lo exportas y no deberias exportar un mapa ya que no es inmutable
 var clientCmds = map[string]CommandFunc{
 	"VER":        CmdNoArgs(ver),
 	"HELP":       CmdNoArgs(help),
@@ -189,7 +187,7 @@ func regUser() error {
 		Info: spec.EmptyInfo,
 		Args: getNumArgs(spec.REG),
 		Len:  uint16(payloadLen),
-		ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
+		ID:   spec.ID(GetMaxID(0)),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
@@ -296,7 +294,7 @@ func sendPacket(cmd spec.Command) error {
 func AcknowledgeReply(pct spec.Command) error {
 	if IsPending(uint16(pct.HD.ID)) {
 		// Deletes the ID of the packet that was waiting for the now received reply
-		acknoledgePending(uint16(pct.HD.ID))
+		AcknoledgePending(uint16(pct.HD.ID))
 		if IsVerbose {
 			ClearPrompt()
 			fmt.Printf("Packet with ID %d has been acknowledged and removed from the buffer\n", pct.HD.ID)
@@ -346,7 +344,7 @@ func DecryptVERIF(pct spec.Command) error {
 		Info: spec.EmptyInfo,
 		Args: getNumArgs(spec.VERIF),
 		Len:  uint16(payloadLen),
-		ID:   spec.ID(spec.GeneratePacketID(GetAllPending())),
+		ID:   spec.ID(GetMaxID(0)),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
@@ -355,7 +353,6 @@ func DecryptVERIF(pct spec.Command) error {
 }
 
 // Stores in the client database the received public key along with the username it belongs to
-// ! No uses pointer receiver, usa una copia
 func StoreRequestedUser(pct spec.Command, db *sql.DB) error {
 	AcknowledgeReply(pct)
 	username := string(pct.Args[0])
@@ -365,7 +362,6 @@ func StoreRequestedUser(pct spec.Command, db *sql.DB) error {
 }
 
 // Prints the users provided by the received USRS response
-// ! No uses pointer receiver, usa una copia
 // ! Esta funcion sobra son 2 lineas
 func PrintUSRS(pct spec.Command) error {
 	AcknowledgeReply(pct)
