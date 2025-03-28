@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 
@@ -52,7 +53,7 @@ func IsPending(id uint16) bool {
 }
 
 // Starts listening for packets
-func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
+func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}, db *sql.DB) {
 
 	cl := spec.Connection{
 		Conn: con,
@@ -81,7 +82,7 @@ func Listen(con net.Conn, ctx context.Context, pctReceived chan struct{}) {
 			pct.Print()
 		}
 		// The packet is processed and the proper action is performed
-		processErr := GetServerCommand(pct.HD.Op)(pct)
+		processErr := GetServerCommand(pct.HD.Op).Run(pct, db)
 		if !(pct.HD.Op == spec.VERIF || pct.HD.Op == spec.RECIV) {
 			pctReceived <- struct{}{}
 		}

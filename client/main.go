@@ -52,7 +52,7 @@ func main() {
 	pctReceived := make(chan struct{})
 
 	// Starts listening for server packets
-	go Listen(con, ctx, pctReceived)
+	go Listen(con, ctx, pctReceived, db)
 	// Opens a shell
 	NewShell(con, ctx, pctReceived, db)
 }

@@ -78,16 +78,16 @@ func getNumArgs(op spec.Action) uint8 {
 }
 
 // Map with all server commands
-var serverCmds = map[spec.Action]func(spec.Command) error{
-	spec.OK:    AcknowledgeReply,
-	spec.ERR:   PrintError,
-	spec.VERIF: DecryptVERIF,
-	spec.REQ:   StoreRequestedUser,
-	spec.USRS:  PrintUSRS,
-	spec.RECIV: StoreDecypheredMessage,
+var serverCmds = map[spec.Action]CommandFunc{
+	spec.OK:    CmdArgs(AcknowledgeReply),
+	spec.ERR:   CmdArgs(PrintError),
+	spec.VERIF: CmdArgs(DecryptVERIF),
+	spec.REQ:   CmdArgsDB(StoreRequestedUser),
+	spec.USRS:  CmdArgs(PrintUSRS),
+	spec.RECIV: CmdArgsDB(StoreDecypheredMessage),
 }
 
-func GetServerCommand(op spec.Action) func(spec.Command) error {
+func GetServerCommand(op spec.Action) CommandFunc {
 	return serverCmds[op]
 }
 
@@ -99,7 +99,7 @@ func GetServerCommand(op spec.Action) func(spec.Command) error {
 // Execution code of the VER command
 // ! Sobretodo en este caso que ni siquiera devuelve nunca un error
 func ver() error {
-	fmt.Printf("gochat version %d\n", spec.ProtocolVersion)
+	fmt.Printf("ochat version %d\n", spec.ProtocolVersion)
 
 	return nil
 }
@@ -247,7 +247,7 @@ func usrs(cmd spec.Command) error {
 	}
 	cmd.HD.Info = uint8(infoVal)
 	// Initializes the argument slice to remove arguments
-	cmd.Args = make([][]byte, 0, 0)
+	cmd.Args = make([][]byte, 0)
 	// Sends the rearranged packet
 	sendErr := sendPacket(cmd)
 	if sendErr != nil {
@@ -372,7 +372,6 @@ func PrintUSRS(pct spec.Command) error {
 // Decyphers the received message in the packet and stores it in the client database
 func StoreDecypheredMessage(pct spec.Command, db *sql.DB) error {
 	source_username := string(pct.Args[0])
-	stamp, _ := spec.BytesToUnixStamp(pct.Args[1])
 	stamp, parseErr := spec.BytesToUnixStamp(pct.Args[1])
 	if parseErr != nil {
 		return parseErr
