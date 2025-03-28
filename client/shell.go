@@ -116,11 +116,10 @@ func NewShell(con net.Conn, ctx context.Context, pctReceived chan struct{}, db *
 				Info: spec.EmptyInfo,
 				Args: uint8(len(args)),
 				Len:  uint16(payloadLen),
-				ID:   spec.ID(GetMaxID(0)),
+				ID:   spec.ID(GetMaxID(1)),
 			}
 			// Creates command
 			cmd := spec.Command{HD: header, Args: args}
-
 			// Runs command
 			err := v.Run(cmd, db)
 			if err != nil {

@@ -187,7 +187,7 @@ func regUser() error {
 		Info: spec.EmptyInfo,
 		Args: getNumArgs(spec.REG),
 		Len:  uint16(payloadLen),
-		ID:   spec.ID(GetMaxID(0)),
+		ID:   spec.ID(GetMaxID(1)),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
@@ -344,7 +344,7 @@ func DecryptVERIF(pct spec.Command) error {
 		Info: spec.EmptyInfo,
 		Args: getNumArgs(spec.VERIF),
 		Len:  uint16(payloadLen),
-		ID:   spec.ID(GetMaxID(0)),
+		ID:   spec.ID(GetMaxID(1)),
 	}
 	// Creates command
 	cmd := spec.Command{HD: header, Args: args}
