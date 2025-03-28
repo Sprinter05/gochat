@@ -99,7 +99,7 @@ func GetServerCommand(op spec.Action) CommandFunc {
 // Execution code of the VER command
 // ! Sobretodo en este caso que ni siquiera devuelve nunca un error
 func ver() error {
-	fmt.Printf("ochat version %d\n", spec.ProtocolVersion)
+	fmt.Printf("gochat version %d\n", spec.ProtocolVersion)
 
 	return nil
 }
