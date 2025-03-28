@@ -330,7 +330,7 @@ func DecryptVERIF(pct spec.Command) error {
 	// Decrypts the received argument
 	pct.Args[0], err = spec.DecryptText(encrypted, CurUser.keyPair)
 
-	args := make([][]byte, 2)
+	args := make([][]byte, 0, 2)
 	args = append(args, []byte(CurUser.username), pct.Args[0])
 	payloadLen := 0
 	for _, arg := range args {
