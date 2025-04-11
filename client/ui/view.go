@@ -14,17 +14,24 @@ var (
 )
 
 func init() {
-	chat.SetDynamicColors(true).
+	chat.
+		SetDynamicColors(true).
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
 		SetTitle("Messages")
-	buffers.SetBorder(true).
+	buffers.
+		SetSelectedStyle(tcell.StyleDefault.Underline(true)).
+		SetSelectedTextColor(tcell.ColorPurple).
+		ShowSecondaryText(false).
+		SetBorder(true).
 		SetTitle("Buffers").
 		SetBackgroundColor(tcell.ColorDefault)
-	users.SetBorder(true).
+	users.
+		SetBorder(true).
 		SetTitle("Users").
 		SetBackgroundColor(tcell.ColorDefault)
-	input.SetLabelColor(tcell.ColorDefault).
+	input.
+		SetLabelColor(tcell.ColorDefault).
 		SetLabel("").
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetBackgroundColor(tcell.ColorDefault)

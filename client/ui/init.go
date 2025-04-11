@@ -27,7 +27,7 @@ func (t *TUI) systemTab() {
 	})
 }
 
-func (t *TUI) newApp() *tview.Application {
+func (t *TUI) appConfig() *tview.Application {
 	app := tview.NewApplication().SetRoot(t.area, true).SetFocus(t.area)
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -53,7 +53,7 @@ func (t *TUI) newApp() *tview.Application {
 	return app
 }
 
-func NewTUI() (*TUI, *tview.Application) {
+func New() (*TUI, *tview.Application) {
 	t := TUI{
 		tabs: models.NewTable[string, *tab](0),
 		area: tview.NewFlex().
@@ -71,7 +71,7 @@ func NewTUI() (*TUI, *tview.Application) {
 	}
 
 	t.systemTab()
-	app := t.newApp()
+	app := t.appConfig()
 
 	return &t, app
 }
