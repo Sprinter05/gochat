@@ -10,6 +10,7 @@ import (
 func main() {
 	app := tview.NewApplication()
 	tui := ui.NewTUI()
+	tui.Init()
 	init := app.SetRoot(tui.Area, true).SetFocus(tui.Area)
 
 	if err := init.Run(); err != nil {
