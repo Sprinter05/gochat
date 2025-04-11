@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/Sprinter05/gochat/internal/spec"
 )
@@ -67,7 +68,7 @@ var numArgs = map[spec.Action]uint8{
 	spec.VERIF:  1,
 	spec.REQ:    1,
 	spec.USRS:   1,
-	spec.MSG:    3,
+	spec.MSG:    2,
 	spec.RECIV:  0,
 	spec.LOGOUT: 0,
 	spec.DEREG:  0,
@@ -203,11 +204,11 @@ func sendMSG(cmd spec.Command, db *sql.DB) error {
 	}
 	// Stores the message in plain text to be stored in the database later
 	plainMessage := make([]byte, spec.MaxArgSize)
-	copy(plainMessage, cmd.Args[2])
+	copy(plainMessage, cmd.Args[1])
+
+	cmd.Args[1] = spec.UnixStampToBytes(time.Now())
 
 	// The packet message is taken and is encrypted
-	var encryptErr error
-
 	pem, dbGetErr := GetUserPubkey(string(cmd.Args[0]), db)
 	fmt.Println(string(cmd.Args[0]))
 	if dbGetErr != nil {
@@ -217,10 +218,11 @@ func sendMSG(cmd spec.Command, db *sql.DB) error {
 	if rsaErr != nil {
 		return rsaErr
 	}
-	cmd.Args[2], encryptErr = spec.EncryptText(cmd.Args[2], destPubKey)
+	encrypted, encryptErr := spec.EncryptText(cmd.Args[1], destPubKey)
 	if encryptErr != nil {
 		return encryptErr
 	}
+	cmd.Args = append(cmd.Args, encrypted)
 
 	// Packet is sent
 	sendErr := sendPacket(cmd)
@@ -230,9 +232,8 @@ func sendMSG(cmd spec.Command, db *sql.DB) error {
 	// If the message is sent correctly, then it is also stored in the database
 	// Casts the received timestamp
 	// ! Usa las funciones del paquete time no parseInt
-	stamp, _ := strconv.ParseInt(string(cmd.Args[1]), 10, 64)
 	destination_username := cmd.Args[0]
-	dbAddErr := AddMessage(CurUser.username, string(destination_username), stamp, string(plainMessage), db)
+	dbAddErr := AddMessage(CurUser.username, string(destination_username), time.Now().Unix(), string(plainMessage), db)
 
 	return dbAddErr
 }
