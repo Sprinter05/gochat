@@ -24,7 +24,7 @@ func (m Message) Render() string {
 func (t *TUI) SendMessage(buf string, msg Message) {
 	b, ok := t.tabs.Get(buf)
 	if !ok {
-		t.tabs.Add(buf, NewTab(buf))
+		t.tabs.Add(buf, newTab(buf))
 		b, _ = t.tabs.Get(buf)
 	}
 

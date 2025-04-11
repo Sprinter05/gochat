@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"time"
-
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -38,51 +36,24 @@ type tab struct {
 	system   bool
 }
 
+type opts struct {
+	showUsers bool
+	showBufs  bool
+}
+
 type TUI struct {
-	Area   *tview.Flex
+	area   *tview.Flex
 	tabs   models.Table[string, *tab]
+	config opts
 	active string
 }
 
-func (t *TUI) Init() {
-	t.Area.SetBackgroundColor(tcell.ColorDefault)
-	system := &tab{
-		messages: models.NewSlice[Message](0),
-		name:     "System",
-		system:   true,
-	}
+func newTab(name string) *tab {
+	buffers.AddItem(name, "", 0, nil)
 
-	t.tabs.Add(system.name, system)
-	t.active = system.name
-
-	buffers.AddItem(system.name, "", 0, nil)
-	t.SendMessage("System", Message{
-		Sender:    "System",
-		Content:   "Welcome to gochat!",
-		Timestamp: time.Now(),
-	})
-
-	t.Area.ResizeItem(users, 0, 0)
-}
-
-func NewTab(name string) *tab {
 	return &tab{
 		messages: models.NewSlice[Message](0),
 		name:     name,
 		system:   false,
-	}
-}
-
-func NewTUI() *TUI {
-	return &TUI{
-		tabs: models.NewTable[string, *tab](0),
-		Area: tview.NewFlex().
-			AddItem(buffers, 0, 1, false).
-			AddItem(
-				tview.NewFlex().SetDirection(tview.FlexRow).
-					AddItem(chat, 0, 1, false).
-					AddItem(input, 2, 0, true),
-				0, 5, true,
-			).AddItem(users, 0, 1, false),
 	}
 }

@@ -4,16 +4,12 @@ import (
 	"log"
 
 	"github.com/Sprinter05/gochat/client/ui"
-	"github.com/rivo/tview"
 )
 
 func main() {
-	app := tview.NewApplication()
-	tui := ui.NewTUI()
-	tui.Init()
-	init := app.SetRoot(tui.Area, true).SetFocus(tui.Area)
+	_, app := ui.NewTUI()
 
-	if err := init.Run(); err != nil {
+	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
