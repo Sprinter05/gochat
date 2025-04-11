@@ -33,6 +33,9 @@ Both server and client headers share the following header format, which occupies
 - `SHTDWN` = 0x0C
 - `ADMIN` = 0x0D
 - `KEEP` = 0x0E
+- `SUB` = 0x0F
+- `UNSUB` = 0x10
+- `HOOK` = 0x11
 
 > **NOTE**: Not all actions can be used by both client and server, check the specification for details.
 
@@ -61,7 +64,7 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_IDLE` (0x0F): User has been idle for too long.
 - `ERR_EXISTS` (0x10): Content already exists.
 - `ERR_DEREG` (0x11): User is no longer registered.
-- `ERR_DUPSESS` (0x10): Session already exists in another endpoint.
+- `ERR_DUPSESS` (0x12): Session already exists in another endpoint.
 
 ### Argument for USRS
 - `OFFLINE` (0x0): Show all users.
@@ -71,8 +74,15 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ADMIN_SHTDWN <stamp>` (0x00): Schedules a shutdown for the server.
 - `ADMIN_DEREG <username>` (0x01): Deregistrates a specified user.
 - `ADMIN_BRDCAST <msg>` (0x02): Broadcasts a message to all online users.
-- `ADMIN_PROMOTE <username>` (0x03): Increases the permission level of a user.
+- `ADMIN_CHGPERMS <username> <level>` (0x03): Changes the permission level of a user.
 - `ADMIN_KICK <username>` (0x04): Kicks a user, also disconnecting it.
+
+### Hooks for SUB, UNSUB and HOOK
+- `HOOK_ALL` (0x00): Subscribes/unsubscribes too all existing hooks.
+- `HOOK_NEWLOGIN` (0x01): Triggers whenever a new user succesfully logs into the server. 
+- `HOOK_NEWLOGOUT` (0x02): Triggers whenever a user either disconnects or logs out.
+- `HOOK_DUPSESS` (0x03): Triggers whenever an attempt to log into your account from another endpoint happens.
+- `HOOK_PERMSCHG` (0x04): Triggers whenever your account's permissions have changed
 
 ## Body
 

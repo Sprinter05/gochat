@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -40,6 +41,8 @@ var cmdLookup map[spec.Action]action = map[spec.Action]action{
 	spec.MSG:    messageUser,
 	spec.RECIV:  recivMessages,
 	spec.ADMIN:  adminOperation,
+	spec.SUB:    subscribeHook,
+	spec.UNSUB:  unsubscribeHook,
 }
 
 /* WRAPPER FUNCTIONS */
@@ -117,6 +120,7 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 
 		// Cache the user
 		h.users.Add(u.conn, &u)
+		go h.Notify(spec.HookNewLogin)
 		SendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
@@ -191,6 +195,7 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	// If we get here, it means it was correctly verified
 	// We modify the tables and cancel the goroutine
 	verif.cancel()
+	go h.Notify(spec.HookNewLogin)
 	h.users.Add(u.conn, &u)
 
 	if u.secure {
@@ -306,7 +311,7 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 		usrs = h.Userlist(false)
 	} else {
 		// Error due to invalid argument in header info
-		log.User(string(u.name), "list argument", spec.ErrorHeader)
+		log.User(string(u.name), "userlist argument", spec.ErrorHeader)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
 		return
 	}
@@ -418,4 +423,100 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 		// We dont send an ERR here or we would be sending 2 packets
 		log.DB("deleting cached messages for "+string(u.name), e)
 	}
+}
+
+// Subscribes a user to an event to get notified
+// whenever said event is triggered.
+//
+// Replies with OK or ERR
+func subscribeHook(h *Hub, u User, cmd spec.Command) {
+	hook := spec.Hook(cmd.HD.Info)
+	if !slices.Contains(spec.Hooks, hook) && hook != spec.HookAllHooks {
+		// Provided hook does not exist
+		log.User(string(u.name), "invalid hook", spec.ErrorHeader)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
+		return
+	}
+
+	// Hooks to be subscribed to
+	list := make([]spec.Hook, 0)
+	if hook == spec.HookAllHooks {
+		list = spec.Hooks
+	} else {
+		list = append(list, hook)
+	}
+
+	for _, v := range list {
+		sl, ok := h.subs.Get(v)
+		if !ok {
+			//! This means the hook slice no longer exists even though it should
+			SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+			log.Fatal("hub hook slices", spec.ErrorNotFound)
+			return
+		}
+
+		if sl.Has(u.conn) {
+			if hook == spec.HookAllHooks {
+				// If subscribing to everything we just skip
+				continue
+			}
+
+			// User is already subscribed
+			SendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
+			return
+		}
+
+		// Otherwise we subscribe the user
+		sl.Add(u.conn)
+	}
+
+	SendOKPacket(cmd.HD.ID, u.conn)
+}
+
+// Unubscribes a user from a hook that they are
+// subscribed for.
+//
+// Replies with OK or ERR
+func unsubscribeHook(h *Hub, u User, cmd spec.Command) {
+	hook := spec.Hook(cmd.HD.Info)
+	if !slices.Contains(spec.Hooks, hook) && hook != spec.HookAllHooks {
+		// Provided hook does not exist
+		log.User(string(u.name), "invalid hook", spec.ErrorHeader)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
+		return
+	}
+
+	// Hooks to be unsubscribed from
+	list := make([]spec.Hook, 0)
+	if hook == spec.HookAllHooks {
+		list = spec.Hooks
+	} else {
+		list = append(list, hook)
+	}
+
+	for _, v := range list {
+		sl, ok := h.subs.Get(v)
+		if !ok {
+			//! This means the hook slice no longer exists even though it should
+			SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+			log.Fatal("hub hook slices", spec.ErrorNotFound)
+			return
+		}
+
+		if !sl.Has(u.conn) {
+			if hook == spec.HookAllHooks {
+				// If unsubscribing to everything we just skip
+				continue
+			}
+
+			// User cannot be unsubscribed if not subscribed
+			SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+			return
+		}
+
+		// Otherwise we unsubscribe the user
+		sl.Remove(u.conn)
+	}
+
+	SendOKPacket(cmd.HD.ID, u.conn)
 }

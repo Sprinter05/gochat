@@ -26,6 +26,7 @@ func readCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	// Check that all header fields are correct
 	if err := cmd.HD.ServerCheck(); err != nil {
 		log.Read("header checking", ip, err)
+		hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
 		return cmd, err
 	}
 

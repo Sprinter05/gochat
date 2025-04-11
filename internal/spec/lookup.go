@@ -4,7 +4,7 @@ package spec
 
 const (
 	ProtocolVersion uint8  = 1         // Current version of the protocol
-	MaxClients      int    = 20        // Max amount of clients the server allows at the same time
+	MaxClients      uint   = 20        // Max amount of clients the server allows at the same time
 	NullOp          Action = 0         // Invalid operation code
 	NullID          ID     = 0         // Only valid for specific documented cases
 	MaxID           ID     = 1<<10 - 1 // Maximum value according to the bit field
@@ -41,6 +41,9 @@ const (
 	SHTDWN
 	ADMIN
 	KEEP
+	SUB
+	UNSUB
+	HOOK
 )
 
 // Identifies an operation to be performed
@@ -71,6 +74,9 @@ var (
 	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", 0, -1}
 	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0, -1}
 	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0, -1}
+	subLookup    = lookup{SUB, 0x0F, "SUB", 0, -1}
+	unsubLookup  = lookup{UNSUB, 0x10, "UNSUB", 0, -1}
+	hookLookup   = lookup{HOOK, 0x11, "HOOK", -1, 0}
 )
 
 var lookupByOperation map[Action]lookup = map[Action]lookup{
@@ -88,6 +94,9 @@ var lookupByOperation map[Action]lookup = map[Action]lookup{
 	SHTDWN: shtdwnLookup,
 	ADMIN:  adminLookup,
 	KEEP:   keepLookup,
+	SUB:    subLookup,
+	UNSUB:  unsubLookup,
+	HOOK:   hookLookup,
 }
 
 var lookupByString map[string]lookup = map[string]lookup{
@@ -105,6 +114,9 @@ var lookupByString map[string]lookup = map[string]lookup{
 	"SHTDWN": shtdwnLookup,
 	"ADMIN":  adminLookup,
 	"KEEP":   keepLookup,
+	"SUB":    subLookup,
+	"UNSUB":  unsubLookup,
+	"HOOK":   hookLookup,
 }
 
 // Returns the operation code associated to a hex byte.
@@ -252,26 +264,63 @@ func ErrorCodeToError(b byte) error {
 
 /* ADMIN OPERATIONS */
 
+// Specifies an admin operation to be performed
+type Admin uint8
+
 const (
-	AdminShutdown   uint8 = 0x00 // Send a shutdown signal to the server
-	AdminDeregister uint8 = 0x01 // Force the deregistration of a user
-	AdminBroadcast  uint8 = 0x02 // Broadcast a message to all online users
-	AdminPromote    uint8 = 0x03 // Increase the permission level of a user
-	AdminDisconnect uint8 = 0x04 // Disconnect an online user
+	AdminShutdown    Admin = 0x00 // Send a shutdown signal to the server
+	AdminDeregister  Admin = 0x01 // Force the deregistration of a user
+	AdminBroadcast   Admin = 0x02 // Broadcast a message to all online users
+	AdminChangePerms Admin = 0x03 // Increase the permission level of a user
+	AdminDisconnect  Admin = 0x04 // Disconnect an online user
 )
 
-var codeToAdmin map[byte]string = map[byte]string{
-	AdminShutdown:   "ADMIN_SHTDWN",
-	AdminDeregister: "ADMIN_DEREG",
-	AdminBroadcast:  "ADMIN_BRDCAST",
-	AdminPromote:    "ADMIN_PROMOTE",
-	AdminDisconnect: "ADMIN_KICK",
+var codeToAdmin map[Admin]string = map[Admin]string{
+	AdminShutdown:    "ADMIN_SHTDWN",
+	AdminDeregister:  "ADMIN_DEREG",
+	AdminBroadcast:   "ADMIN_BRDCAST",
+	AdminChangePerms: "ADMIN_CHGPERMS",
+	AdminDisconnect:  "ADMIN_KICK",
 }
 
 // Returns the admin string asocciated to a hex byte.
 // Result is an empty string if not found.
-func AdminString(a uint8) string {
+func AdminString(a Admin) string {
 	v, ok := codeToAdmin[a]
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+/* HOOKS */
+
+// Specifies a hook that triggers on a specific event
+type Hook uint8
+
+const (
+	HookAllHooks         Hook = 0x00 // Subscribe or unsubscribe to all existing hooks
+	HookNewLogin         Hook = 0x01 // Triggers when a user comes online
+	HookNewLogout        Hook = 0x02 // Triggers when a user goes offline
+	HookDuplicateSession Hook = 0x03 // Triggers when a session for the user is opened from another endpoint
+	HookPermsChange      Hook = 0x04 // Triggers when a user's permission level changes
+)
+
+// Array with all possible existing hooks for easier traversal
+var Hooks []Hook = []Hook{HookNewLogin, HookNewLogout, HookDuplicateSession, HookPermsChange}
+
+var codeToHook map[Hook]string = map[Hook]string{
+	HookAllHooks:         "HOOK_ALL",
+	HookNewLogin:         "HOOK_NEWLOGIN",
+	HookNewLogout:        "HOOK_NEWLOGOUT",
+	HookDuplicateSession: "HOOK_DUPSESS",
+	HookPermsChange:      "HOOK_PERMSCHG",
+}
+
+// Returns the hook string asocciated to a hex byte.
+// Result is an empty string if not found.
+func HookString(h Hook) string {
+	v, ok := codeToHook[h]
 	if !ok {
 		return ""
 	}

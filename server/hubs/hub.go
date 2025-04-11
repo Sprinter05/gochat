@@ -6,6 +6,7 @@ package hubs
 import (
 	"context"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -19,14 +20,50 @@ import (
 // Main data structure that stores all information shared
 // by all client connections. It is safe to use concurrently.
 type Hub struct {
-	db     *gorm.DB                      // Database with all relevant information
-	shtdwn context.Context               // Used to wait for a shutdown
-	close  context.CancelFunc            // Used to trigger a shutdown
-	users  models.Table[net.Conn, *User] // Stores all online users
-	verifs models.Table[string, *Verif]  // Stores all verifications and/or reusable tokens
+	db     *gorm.DB                                         // Database with all relevant information
+	shtdwn context.Context                                  // Used to wait for a shutdown
+	close  context.CancelFunc                               // Used to trigger a shutdown
+	users  models.Table[net.Conn, *User]                    // Stores all online users
+	verifs models.Table[string, *Verif]                     // Stores all verifications and/or reusable tokens
+	subs   models.Table[spec.Hook, *models.Slice[net.Conn]] // Stores all users subscribed to an event
 }
 
 /* HUB FUNCTIONS */
+
+// Notifies of a hook to all relevant connections. An
+// optional "only" list of connections can be provided
+// to only notify those specified in said list. It is
+// safe to run this function concurrently.
+func (hub *Hub) Notify(h spec.Hook, only ...net.Conn) {
+	sl, ok := hub.subs.Get(h)
+	if !ok {
+		//! This means the hook slice no longer exists even though it should
+		log.Fatal("hub hook slices", spec.ErrorNotFound)
+		return
+	}
+
+	pak, err := spec.NewPacket(spec.HOOK, spec.NullID, byte(h))
+	if err != nil {
+		log.Packet(spec.HOOK, err)
+		return
+	}
+
+	list := sl.Copy(0)
+	if list == nil {
+		// No connection to notify
+		return
+	}
+
+	for _, v := range list {
+		if only != nil && !slices.Contains(only, v) {
+			// The connection is not of the only ones to notify
+			continue
+		}
+		// Otherwise we notify
+		v.Write(pak)
+	}
+
+}
 
 // Removes all mentions of a user that just disconnected
 // from the hub, except the reusable token if the connection
@@ -34,21 +71,26 @@ type Hub struct {
 func (hub *Hub) Cleanup(cl net.Conn) {
 	// Cleanup on the users table
 	hub.users.Remove(cl)
+	go hub.Notify(spec.HookNewLogout)
 
 	// Cleanup on the verification table
 	list := hub.verifs.GetAll()
 	for _, v := range list {
-		if v.conn == cl {
-			hub.verifs.Remove(v.name)
-			// If not pending we assume the connection was secure
-			if !v.pending {
-				// We assign a nil connection to prevent any possible problems
-				v.conn = nil
-				v.expiry = time.Now().Add(
-					time.Duration(spec.TokenExpiration) * time.Minute,
-				)
-				hub.verifs.Add(v.name, v)
-			}
+		if v.conn != cl {
+			// Not the one we are looking for
+			continue
+		}
+
+		hub.verifs.Remove(v.name)
+
+		// If not pending we assume the connection was secure
+		if !v.pending {
+			// We assign a nil connection to prevent any possible problems
+			v.conn = nil
+			v.expiry = time.Now().Add(
+				time.Duration(spec.TokenExpiration) * time.Minute,
+			)
+			hub.verifs.Add(v.name, v)
 		}
 	}
 }
@@ -137,12 +179,12 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 	if id == spec.LOGIN {
 		// We check if the user is logged in from another IP
-		_, ipok := hub.FindUser(string(r.Command.Args[0]))
+		dup, ipok := hub.FindUser(string(r.Command.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
+			go hub.Notify(spec.HookDuplicateSession, dup.conn)
 			SendErrorPacket(r.Command.HD.ID, spec.ErrorDupSession, r.Conn)
 			return nil, spec.ErrorDupSession
-
 		}
 	}
 
@@ -154,13 +196,21 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 // Initialises all data structures the hub needs to function:
 // database, shutdown context and table sizes.
-func NewHub(database *gorm.DB, ctx context.Context, cancel context.CancelFunc, size int) *Hub {
+func NewHub(database *gorm.DB, ctx context.Context, cancel context.CancelFunc, size uint) *Hub {
+	// Allocate fields
 	hub := &Hub{
 		shtdwn: ctx,
 		close:  cancel,
 		users:  models.NewTable[net.Conn, *User](size),
 		verifs: models.NewTable[string, *Verif](size),
+		subs:   models.NewTable[spec.Hook, *models.Slice[net.Conn]](uint(len(spec.Hooks))),
 		db:     database,
+	}
+
+	// Allocate subscription lists
+	for _, h := range spec.Hooks {
+		list := models.NewSlice[net.Conn](size)
+		hub.subs.Add(h, &list)
 	}
 
 	return hub

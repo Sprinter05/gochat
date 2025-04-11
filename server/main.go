@@ -154,6 +154,8 @@ func setupTLSConn() net.Listener {
 
 /* MAIN FUNCTIONS */
 
+// TODO: Server intranet writeup
+
 // Specifies a behaviour that is common to all
 // listening sockets, so that they can process
 // events all at the same time.
@@ -259,7 +261,7 @@ func main() {
 	// Used for managing all possible sockets
 	server := Server{
 		ctx:   ctx,
-		count: models.NewCounter(spec.MaxClients),
+		count: models.NewCounter(int(spec.MaxClients)),
 	}
 
 	// Endless loop to listen for connections

@@ -20,7 +20,7 @@ type Table[I comparable, T any] struct {
 /* FUNCTIONS */
 
 // Returns an allocated data table according to provided size.
-func NewTable[I comparable, T any](size int) Table[I, T] {
+func NewTable[I comparable, T any](size uint) Table[I, T] {
 	return Table[I, T]{
 		data: make(map[I]T, size),
 	}
@@ -39,6 +39,13 @@ func (t *Table[I, T]) Remove(i I) {
 	t.mut.Lock()
 	defer t.mut.Unlock()
 	delete(t.data, i)
+}
+
+// Clears all elements from the table.
+func (t *Table[I, T]) Clear() {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+	clear(t.data)
 }
 
 // Returns an element from the table

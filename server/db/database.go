@@ -120,6 +120,12 @@ var permsToString map[Permission]string = map[Permission]string{
 	OWNER: "OWNER",
 }
 
+var stringToPerms map[string]Permission = map[string]Permission{
+	"USER":  USER,
+	"ADMIN": ADMIN,
+	"OWNER": OWNER,
+}
+
 /* MODELS */
 
 // Identifies users stored in the database
@@ -159,6 +165,17 @@ func PermissionString(p Permission) string {
 	v, ok := permsToString[p]
 	if !ok {
 		return ""
+	}
+	return v
+}
+
+// Returns the permission level asocciated to
+// a string or -1 if the permission level
+// was not found.
+func StringPermission(s string) Permission {
+	v, ok := stringToPerms[s]
+	if !ok {
+		return -1
 	}
 	return v
 }
