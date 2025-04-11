@@ -48,9 +48,9 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	res := db.Model(&Message{}).Select(
 		"username", "message", "stamp",
 	).Joins(
-		"JOIN gc_users u ON gc_messages.src_user = u.user_id",
+		"JOIN users u ON messages.src_user = u.user_id",
 	).Where(
-		"gc_messages.dest_user = ?", user.UserID,
+		"messages.dest_user = ?", user.UserID,
 	).WithContext(context.Background())
 
 	var size int64
