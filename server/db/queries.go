@@ -50,7 +50,7 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	).Joins(
 		"JOIN users u ON messages.src_user = u.user_id",
 	).Where(
-		"messages.dest_user = ?", user.UserID,
+		"messages.dst_user = ?", user.UserID,
 	).WithContext(context.Background())
 
 	var size int64
