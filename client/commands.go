@@ -208,8 +208,15 @@ func sendMSG(cmd spec.Command, db *sql.DB) error {
 	// The packet message is taken and is encrypted
 	var encryptErr error
 
-	pem, _ := GetUserPubkey(string(cmd.Args[0]), db)
-	destPubKey, _ := spec.PEMToPubkey(pem)
+	pem, dbGetErr := GetUserPubkey(string(cmd.Args[0]), db)
+	fmt.Println(string(cmd.Args[0]))
+	if dbGetErr != nil {
+		return dbGetErr
+	}
+	destPubKey, rsaErr := spec.PEMToPubkey(pem)
+	if rsaErr != nil {
+		return rsaErr
+	}
 	cmd.Args[2], encryptErr = spec.EncryptText(cmd.Args[2], destPubKey)
 	if encryptErr != nil {
 		return encryptErr
@@ -225,9 +232,9 @@ func sendMSG(cmd spec.Command, db *sql.DB) error {
 	// ! Usa las funciones del paquete time no parseInt
 	stamp, _ := strconv.ParseInt(string(cmd.Args[1]), 10, 64)
 	destination_username := cmd.Args[0]
-	dbErr := AddMessage(CurUser.username, string(destination_username), stamp, string(plainMessage), db)
+	dbAddErr := AddMessage(CurUser.username, string(destination_username), stamp, string(plainMessage), db)
 
-	return dbErr
+	return dbAddErr
 }
 
 // Rearranges a packet to send a USRS packet
