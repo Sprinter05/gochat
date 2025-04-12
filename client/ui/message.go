@@ -15,7 +15,7 @@ func (m Message) Render() string {
 	t := m.Timestamp.Format(time.Kitchen)
 	return fmt.Sprintf(
 		"[%s] at %s: %s\n",
-		"[cyan::b]"+m.Sender+"[-:-:-:-]",
+		"[blue::b]"+m.Sender+"[-:-:-:-]",
 		"[gray::u]"+t+"[-:-:-:-]",
 		m.Content,
 	)
@@ -24,7 +24,7 @@ func (m Message) Render() string {
 func (t *TUI) SendMessage(buf string, msg Message) {
 	b, ok := t.tabs.Get(buf)
 	if !ok {
-		t.tabs.Add(buf, newTab(buf))
+		t.newTab(buf, false)
 		b, _ = t.tabs.Get(buf)
 	}
 

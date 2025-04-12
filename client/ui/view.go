@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strconv"
+
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -32,8 +34,7 @@ func init() {
 		SetBackgroundColor(tcell.ColorDefault)
 	input.
 		SetLabelColor(tcell.ColorDefault).
-		SetLabel("").
-		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetFieldBackgroundColor(tcell.ColorLightYellow).
 		SetBackgroundColor(tcell.ColorDefault)
 }
 
@@ -55,12 +56,17 @@ type TUI struct {
 	active string
 }
 
-func newTab(name string) *tab {
-	buffers.AddItem(name, "", 0, nil)
-
-	return &tab{
+func (t *TUI) newTab(name string, system bool) *tab {
+	tab := &tab{
 		messages: models.NewSlice[Message](0),
 		name:     name,
-		system:   false,
+		system:   system,
 	}
+
+	s := strconv.Itoa(t.tabs.Len() + 1)
+	r := []rune(s)
+
+	buffers.AddItem(name, "", r[0], nil)
+	t.tabs.Add(name, tab)
+	return tab
 }
