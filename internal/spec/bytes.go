@@ -176,7 +176,7 @@ func ParsePacket(p []byte) Command {
 
 // Checks the arguments of a command to validate their sizes.
 // This function is mostly meant for debugging purposes.
-func (cmd Command) CheckArgs() error {
+func (cmd *Command) CheckArgs() error {
 	// Incorrect amount of arguments according to header
 	if len(cmd.Args) != int(cmd.HD.Args) {
 		return ErrorArguments
