@@ -33,7 +33,7 @@ const (
 // Notifies any generic server message.
 func Notice(msg string) {
 	log.Printf(
-		"[*] Notifying %s...\n",
+		"[*] Notification: %s...\n",
 		msg,
 	)
 }

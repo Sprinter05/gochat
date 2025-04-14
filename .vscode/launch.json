@@ -14,7 +14,6 @@
             ],
             "program": "${workspaceFolder}/server",
             "cwd": "${workspaceFolder}",
-            "console": "externalTerminal"
         },
         {
             "name": "Injection Test (Server)",

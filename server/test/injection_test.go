@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
 	"net"
@@ -65,7 +64,6 @@ func TestREG(t *testing.T) {
 
 	conn := spec.Connection{
 		Conn: l,
-		RD:   bufio.NewReader(l),
 	}
 
 	// Initial handshake
