@@ -164,6 +164,45 @@ func BytesToUnixStamp(b []byte) (t time.Time, e error) {
 
 /* PACKET FUNCTIONS */
 
+// Returns the command asocciated to a byte slice without
+// doing any additional checks. This is mostly meant for
+// debugging purposes and not actual packet reading.
+func ParsePacket(p []byte) Command {
+	return Command{
+		HD:   NewHeader(p[:HeaderSize]),
+		Args: bytes.Split(p[HeaderSize:], []byte("\r\n")),
+	}
+}
+
+// Checks the arguments of a command to validate their sizes.
+// This function is mostly meant for debugging purposes.
+func (cmd Command) CheckArgs() error {
+	// Incorrect amount of arguments according to header
+	if len(cmd.Args) != int(cmd.HD.Args) {
+		return ErrorArguments
+	}
+
+	var total int
+	for i, v := range cmd.Args {
+		l := len(v)
+		// Single argument too big
+		if l > MaxArgSize {
+			return ErrorMaxSize
+		}
+		total += l
+
+		cmd.Args[i] = make([]byte, len(v))
+		copy(cmd.Args[i], v)
+	}
+
+	// Incorrect length of payload according to header
+	if total != int(cmd.HD.Len) {
+		return ErrorMaxSize
+	}
+
+	return nil
+}
+
 // Creates a packet ready to be sent through a TCP connection with all header fields,
 // arguments, and delimiters. Arguments are optional and an error will be returned if
 // any of the function parameters are malformed.
