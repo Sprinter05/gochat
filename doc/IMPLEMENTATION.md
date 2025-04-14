@@ -11,7 +11,7 @@ Both server and client headers share the following header format, which occupies
 - **Action Code** | `8 bits`: Instruction code that determines the action code that must be performed. Both client and server have their own, independent codes.
 - **Reply Information** | `8 bits`: Additional information provided by specific instructions such as `ERR` and `ADMIN` codes or `USRS` arguments.
 - **Arguments** | `4 bits` : Amount of arguments to be read.
-- **Length** | `14 bits`: Indicates the size of the payload in bytes.
+- **Length** | `14 bits`: Indicates the size of the payload in bytes including delimiters.
 - **Identificator** | `10 bits`: Indicates the packet identification the client has provided.
 - **Reserved** | `16 bits`: For future extension that might be needed. (`0xFFFF` by default)
 
@@ -87,4 +87,4 @@ If the action to perform requires no additional information the "**Reply Info**"
 ## Body
 
 ### Payload
-The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A single argument may not be bigger than `2047` bytes.
+The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A single argument may not be bigger than `2047` bytes. The server is free to implement any method to read from the connection.
