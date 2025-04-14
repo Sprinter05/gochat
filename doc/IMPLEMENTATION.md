@@ -87,4 +87,4 @@ If the action to perform requires no additional information the "**Reply Info**"
 ## Body
 
 ### Payload
-The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A total of *n* reads will be performed, corresponding to the amount of arguments specified by the header. Each read will stop when **CRLF** is found. If at any point the payload goes over the maximum allowed size, an error will be produced. A single argument may not be bigger than `2048` bytes.
+The payload will start being read after processing the header, both should be separated with **CRLF** (`\r\n`). A single argument may not be bigger than `2047` bytes.

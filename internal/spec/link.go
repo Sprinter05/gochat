@@ -1,8 +1,8 @@
 package spec
 
 import (
-	"bufio"
 	"bytes"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -18,9 +18,8 @@ import (
 // Note that a established connection does not imply a
 // logged in user.
 type Connection struct {
-	Conn net.Conn      // TCP connection
-	RD   *bufio.Reader // Buffered reader of the connection
-	TLS  bool          // Whether it is connected through TLS
+	Conn net.Conn // TCP connection
+	TLS  bool     // Whether it is connected through TLS
 }
 
 // Specifies a message that can be sent between clients
@@ -40,7 +39,6 @@ type Message struct {
 func NewConnection(cl net.Conn, tls bool) Connection {
 	return Connection{
 		Conn: cl,
-		RD:   bufio.NewReader(cl),
 		TLS:  tls,
 	}
 }
@@ -48,8 +46,9 @@ func NewConnection(cl net.Conn, tls bool) Connection {
 // Factory method that reads from a connection and modifies
 // the header values of the command accordingly.
 func (cmd *Command) ListenHeader(cl Connection) error {
-	// Read from the wire
-	b, err := cl.RD.ReadBytes('\n')
+	// Read from the wire accounting for CRLF
+	b := make([]byte, HeaderSize+2)
+	_, err := io.ReadAtLeast(cl.Conn, b, HeaderSize+2)
 	if err != nil {
 		if err == os.ErrDeadlineExceeded {
 			return ErrorIdle
@@ -58,7 +57,7 @@ func (cmd *Command) ListenHeader(cl Connection) error {
 	}
 
 	// Make sure the size is appropiate
-	// We add 2 due to the delimiter
+	// We add 2 due to CRLF
 	if len(b) < HeaderSize+2 {
 		return ErrorHeader
 	}
@@ -72,61 +71,20 @@ func (cmd *Command) ListenHeader(cl Connection) error {
 // Factory method that reads from a connection and modifies
 // the arguments of the command accordingly.
 func (cmd *Command) ListenPayload(cl Connection) error {
-	var buf bytes.Buffer
-	var tot int
-
-	// Preallocate the arguments matrix
-	cmd.Args = make([][]byte, cmd.HD.Args)
-
-	// Read until all arguments have been processed
-	for i := 0; i < int(cmd.HD.Args); {
-		// Read from the wire
-		b, err := cl.RD.ReadBytes('\n')
-		if err != nil {
-			return ErrorConnection
+	// Read from the wire "Len" bytes
+	b := make([]byte, cmd.HD.Len)
+	_, err := io.ReadAtLeast(cl.Conn, b, int(cmd.HD.Len))
+	if err != nil {
+		if err == os.ErrDeadlineExceeded {
+			return ErrorIdle
 		}
-
-		// Write into the buffer and get length
-		grow := len(b)
-		buf.Grow(grow) // preallocation
-		l, err := buf.Write(b)
-		if err != nil || grow != l {
-			// This implies the payload is too big
-			// Or that the size does not match
-			return err
-		}
-
-		// Single argument over limit
-		if l > MaxArgSize {
-			return ErrorMaxSize
-		}
-
-		// Check if the total payload size is too big
-		tot += l
-		if tot > MaxPayload {
-			return ErrorMaxSize
-		}
-
-		// Check if it ends in CRLF
-		// Also checks if it has at least 2 bytes
-		if l >= 2 && b[l-2] == '\r' {
-			total := buf.Bytes()
-			size := buf.Len()
-
-			// Preallocate new array
-			// Do not append CRLF
-			cmd.Args[i] = make([]byte, size-2)
-			copy(cmd.Args[i], total[:size-2])
-
-			// Empty buffer and go to next argument
-			buf.Reset()
-			i++
-		}
+		return ErrorConnection
 	}
 
-	// Payload length incorrect
-	if tot != int(cmd.HD.Len) {
-		return ErrorArguments
+	// Split generates an extra empty argument so we get rid of it
+	cmd.Args = (bytes.Split(b, []byte("\r\n")))[:cmd.HD.Args]
+	if err := cmd.CheckArgs(); err != nil {
+		return err
 	}
 
 	// Payload processed

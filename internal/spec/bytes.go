@@ -166,7 +166,9 @@ func BytesToUnixStamp(b []byte) (t time.Time, e error) {
 
 // Returns the command asocciated to a byte slice without
 // doing any additional checks. This is mostly meant for
-// debugging purposes and not actual packet reading.
+// debugging purposes and not actual packet reading. The
+// returned command may include an extra empty argument which
+// is not an error and should not be treated as such.
 func ParsePacket(p []byte) Command {
 	return Command{
 		HD:   NewHeader(p[:HeaderSize]),
@@ -174,8 +176,7 @@ func ParsePacket(p []byte) Command {
 	}
 }
 
-// Checks the arguments of a command to validate their sizes.
-// This function is mostly meant for debugging purposes.
+// Checks the arguments of a command to validate sizes.
 func (cmd *Command) CheckArgs() error {
 	// Incorrect amount of arguments according to header
 	if len(cmd.Args) != int(cmd.HD.Args) {
@@ -183,16 +184,13 @@ func (cmd *Command) CheckArgs() error {
 	}
 
 	var total int
-	for i, v := range cmd.Args {
-		l := len(v)
+	for _, v := range cmd.Args {
+		l := len(v) + 2 // CRLF
 		// Single argument too big
 		if l > MaxArgSize {
 			return ErrorMaxSize
 		}
 		total += l
-
-		cmd.Args[i] = make([]byte, len(v))
-		copy(cmd.Args[i], v)
 	}
 
 	// Incorrect length of payload according to header
