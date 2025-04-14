@@ -166,13 +166,12 @@ func BytesToUnixStamp(b []byte) (t time.Time, e error) {
 
 // Returns the command asocciated to a byte slice without
 // doing any additional checks. This is mostly meant for
-// debugging purposes and not actual packet reading. The
-// returned command may include an extra empty argument which
-// is not an error and should not be treated as such.
+// debugging purposes and not actual packet reading..
 func ParsePacket(p []byte) Command {
+	args := bytes.Split(p[HeaderSize+2:], []byte("\r\n"))
 	return Command{
 		HD:   NewHeader(p[:HeaderSize]),
-		Args: bytes.Split(p[HeaderSize:], []byte("\r\n")),
+		Args: args[:len(args)-1],
 	}
 }
 
