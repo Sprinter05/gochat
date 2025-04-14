@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	chat    *tview.TextView   = tview.NewTextView()
-	buffers *tview.List       = tview.NewList()
-	users   *tview.List       = tview.NewList()
-	input   *tview.InputField = tview.NewInputField()
+	chat    *tview.TextView = tview.NewTextView()
+	buffers *tview.List     = tview.NewList()
+	users   *tview.List     = tview.NewList()
+	input   *tview.TextArea = tview.NewTextArea()
 )
 
 func init() {
@@ -33,8 +33,9 @@ func init() {
 		SetTitle("Users").
 		SetBackgroundColor(tcell.ColorDefault)
 	input.
-		SetLabelColor(tcell.ColorDefault).
-		SetFieldBackgroundColor(tcell.ColorLightYellow).
+		SetLabel(" > ").
+		SetPlaceholder("Write here...").
+		SetBorder(true).
 		SetBackgroundColor(tcell.ColorDefault)
 }
 

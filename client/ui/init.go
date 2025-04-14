@@ -70,7 +70,7 @@ func New() (*TUI, *tview.Application) {
 			AddItem(
 				tview.NewFlex().SetDirection(tview.FlexRow).
 					AddItem(chat, 0, 1, false).
-					AddItem(input, 2, 0, true),
+					AddItem(input, 3, 0, true),
 				0, 6, true,
 			).AddItem(users, 0, 0, false),
 		config: opts{
