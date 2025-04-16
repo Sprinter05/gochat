@@ -49,6 +49,12 @@ func req(data CommandData, verbose *bool) error {
 		return pctErr
 	}
 
+	if *verbose {
+		fmt.Println("The following packet is about to be sent:")
+		cmd := spec.ParsePacket(pct)
+		cmd.Print()
+	}
+
 	_, wErr := data.Con.Write(pct)
 	return wErr
 }
