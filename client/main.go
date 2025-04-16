@@ -31,8 +31,8 @@ func main() {
 	// Closes conection once execution is over
 	defer con.Close()
 
-	verbose := true
-	NewShell(con, &verbose)
+	data := ShellData{Con: con, Verbose: true}
+	NewShell(&data)
 }
 
 func getSocket() string {

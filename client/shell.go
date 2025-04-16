@@ -10,9 +10,16 @@ import (
 	"os"
 )
 
+type ShellData struct {
+	Con     net.Conn
+	Verbose bool
+	// TODO: Logged in user
+	// TODO: DB
+}
+
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
-func NewShell(con net.Conn, verbose *bool) {
+func NewShell(data *ShellData) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("gochat() > ")
@@ -37,7 +44,6 @@ func NewShell(con net.Conn, verbose *bool) {
 		// Sets up command data
 		var args [][]byte
 		args = append(args, bytes.Fields(input)[1:]...)
-		data := CommandData{Args: args, Con: con}
 
 		// Gets the appropiate command and executes it
 		f := FetchClientCmd(op)
@@ -45,7 +51,7 @@ func NewShell(con net.Conn, verbose *bool) {
 			continue
 		}
 
-		err := f(data, verbose)
+		err := f(data, args)
 		if err != nil {
 			fmt.Printf("%s: %s\n", op, err)
 		}
