@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/Sprinter05/gochat/internal/spec"
@@ -13,7 +14,7 @@ import (
 
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
-func NewShell(verbose bool) {
+func NewShell(con net.Conn, verbose *bool) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("gochat() > ")
@@ -35,17 +36,30 @@ func NewShell(verbose bool) {
 			return
 		}
 
+		// Sets up command data
 		var args [][]byte
 		args = append(args, bytes.Fields(input)[1:]...)
+		data := CommandData{Args: args, Con: con}
 
-		// TODO: NewPacket will be moved to each command function to fit the needs for each operation once they are ready
+		// Gets the appropiate command and executes it
+		f := FetchClientCmd(op)
+		if f == nil {
+			continue
+		}
+
+		err := f(data, verbose)
+		if err != nil {
+			fmt.Printf("%s: %s\n", op, err)
+		}
+
+		// TODO: NewPacket will be moved to each command function to fit the needs of each operation once they are ready
 		pct, pctErr := spec.NewPacket(spec.Action(spec.StringToCode(op)), 1, spec.EmptyInfo, args...) // TODO: ID assignation
 		if pctErr != nil {
 			fmt.Printf("packet creation error: %s\n", pctErr)
 			continue
 		}
 
-		if verbose {
+		if *verbose {
 			cmd := spec.ParsePacket(pct)
 			if cmd.HD.Op != 0 {
 				cmd.Print()

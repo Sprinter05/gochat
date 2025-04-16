@@ -13,10 +13,19 @@ type CommandData struct {
 	// TODO: DB...
 }
 
-var ClientCmds = map[string]func(data CommandData, verbose *bool) error{
+var clientCmds = map[string]func(data CommandData, verbose *bool) error{
 	"VER":     ver,
 	"VERBOSE": verbose,
 	"REQ":     req,
+}
+
+func FetchClientCmd(op string) func(data CommandData, verbose *bool) error {
+	v, ok := clientCmds[op]
+	if !ok {
+		fmt.Printf("command %s not found\n", op)
+		return nil
+	}
+	return v
 }
 
 func ver(data CommandData, verbose *bool) error {
