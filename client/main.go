@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/joho/godotenv"
 )
 
@@ -28,10 +29,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cl := spec.Connection{Conn: con}
 	// Closes conection once execution is over
 	defer con.Close()
 
-	data := ShellData{Con: con, Verbose: true}
+	data := ShellData{ClientCon: cl, Verbose: true}
+	ConnectionStart(&data)
 	NewShell(&data)
 }
 

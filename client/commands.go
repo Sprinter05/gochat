@@ -48,6 +48,6 @@ func req(data *ShellData, args [][]byte) error {
 		cmd.Print()
 	}
 
-	_, wErr := data.Con.Write(pct)
+	_, wErr := data.ClientCon.Conn.Write(pct)
 	return wErr
 }

@@ -6,13 +6,14 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"net"
 	"os"
+
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 type ShellData struct {
-	Con     net.Conn
-	Verbose bool
+	ClientCon spec.Connection
+	Verbose   bool
 	// TODO: Logged in user
 	// TODO: DB
 }

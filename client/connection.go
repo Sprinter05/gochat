@@ -2,43 +2,70 @@ package main
 
 import (
 	"fmt"
-	"net"
+	"log"
 
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-func Listen(con net.Conn, verbose *bool) {
-	cl := spec.Connection{
-		Conn: con,
-	}
-	defer cl.Conn.Close()
+func Listen(data *ShellData) {
+	defer data.ClientCon.Conn.Close()
 
 	for {
 		cmd := spec.Command{}
 
 		// Header listen
-		hdErr := cmd.ListenHeader(cl)
+		hdErr := cmd.ListenHeader(data.ClientCon)
 		if hdErr != nil {
-			fmt.Printf("error in header listen: %s\n", hdErr)
 			continue
 		}
 
+		// Header check
 		chErr := cmd.HD.ClientCheck()
 		if chErr != nil {
-			fmt.Printf("malformed header received: %s\n", chErr)
+			fmt.Print("\r\033[K")
+			fmt.Println("invalid header received from server:")
+			if data.Verbose {
+				cmd.Print()
+			}
+			fmt.Print("gochat() > ")
 			continue
 		}
 
 		// Payload listen
-		pldErr := cmd.ListenPayload(cl)
+		pldErr := cmd.ListenPayload(data.ClientCon)
 		if pldErr != nil {
-			fmt.Printf("error in payload listen: %s\n", pldErr)
 			continue
 		}
 
-		fmt.Println("Packet received from server")
-		if *verbose {
+		fmt.Print("\r\033[K")
+		fmt.Println("Packet received from server:")
+		if data.Verbose {
 			cmd.Print()
 		}
+		fmt.Print("gochat() > ")
+	}
+}
+
+func ConnectionStart(data *ShellData) {
+
+	cmd := spec.Command{}
+
+	// Header listen
+	hdErr := cmd.ListenHeader(data.ClientCon)
+	if hdErr != nil {
+		log.Fatal("could not connect to server: invalid header received")
+	}
+
+	// Header check
+	chErr := cmd.HD.ClientCheck()
+	if chErr != nil {
+		if data.Verbose {
+			cmd.Print()
+		}
+		log.Fatal("could not connect to server: malformed header received")
+	}
+
+	if cmd.HD.Op == 1 {
+		fmt.Println("successfully connected to the server")
 	}
 }
