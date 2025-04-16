@@ -35,6 +35,7 @@ func main() {
 
 	data := ShellData{ClientCon: cl, Verbose: true}
 	ConnectionStart(&data)
+	go Listen(&data)
 	NewShell(&data)
 }
 
