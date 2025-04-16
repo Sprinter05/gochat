@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -20,4 +22,27 @@ func main() {
 		return
 	}
 
+	// Connects to the server
+	socket := getSocket()
+	con, err := net.Dial("tcp4", socket)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Closes conection once execution is over
+	defer con.Close()
+
+	verbose := true
+	NewShell(con, &verbose)
+}
+
+func getSocket() string {
+	addr, ok := os.LookupEnv("SRV_ADDR")
+	if !ok {
+		log.Fatal("error: variable SRV_ADDR not found\n")
+	}
+	port, ok := os.LookupEnv("SRV_PORT")
+	if !ok {
+		log.Fatal("error: variable SRV_PORT not found\n")
+	}
+	return fmt.Sprintf("%s:%s", addr, port)
 }
