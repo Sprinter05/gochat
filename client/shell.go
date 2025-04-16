@@ -11,6 +11,8 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
+// Struct that contains all the data required for the shell to function.
+// Commands may alter the data if necessary
 type ShellData struct {
 	ClientCon spec.Connection
 	Verbose   bool

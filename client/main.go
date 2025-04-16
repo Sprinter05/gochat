@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Main client function
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("error: not enough arguments")
@@ -30,15 +31,16 @@ func main() {
 		log.Fatal(err)
 	}
 	cl := spec.Connection{Conn: con}
-	// Closes conection once execution is over
-	defer con.Close()
+	defer con.Close() // Closes conection once execution is over
 
 	data := ShellData{ClientCon: cl, Verbose: true}
 	ConnectionStart(&data)
+
 	go Listen(&data)
 	NewShell(&data)
 }
 
+// Returns a string with the appropiate format to define a socket
 func getSocket() string {
 	addr, ok := os.LookupEnv("SRV_ADDR")
 	if !ok {

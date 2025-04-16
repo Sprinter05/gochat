@@ -7,6 +7,8 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
+// Listens for incoming server packets. It also executes
+// the appropiate client actions depending on the packet received
 func Listen(data *ShellData) {
 	defer data.ClientCon.Conn.Close()
 
@@ -46,6 +48,8 @@ func Listen(data *ShellData) {
 	}
 }
 
+// Listens for an OK packet from the server when starting the connection,
+// which determines that the client/server was started successfully
 func ConnectionStart(data *ShellData) {
 
 	cmd := spec.Command{}
@@ -67,5 +71,7 @@ func ConnectionStart(data *ShellData) {
 
 	if cmd.HD.Op == 1 {
 		fmt.Println("successfully connected to the server")
+	} else {
+		log.Fatal("could not connect to server: unexpected action code received")
 	}
 }
