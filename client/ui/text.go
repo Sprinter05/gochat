@@ -47,6 +47,7 @@ func (t *TUI) showError(err error) {
 	}()
 }
 
+// Assumes buffer list is already changed
 func (t *TUI) ChangeBuffer(buf string) {
 	t.active = buf
 	b, ok := t.tabs.Get(buf)

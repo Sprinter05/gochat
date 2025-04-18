@@ -61,11 +61,13 @@ func (t *TUI) newbufPopup(app *tview.Application) {
 		}
 
 		if _, ok := t.tabs.Get(text); ok {
-			t.showError(ErrorExisting)
+			t.showError(ErrorExists)
 			return
 		}
 
 		t.newTab(text, false)
+		t.comp.buffers.SetCurrentItem(t.tabs.Len() - 1)
+		t.ChangeBuffer(text)
 		exit()
 	})
 }
@@ -82,4 +84,29 @@ func (t *TUI) newTab(name string, system bool) {
 
 	t.comp.buffers.AddItem(name, "", r[0], nil)
 	t.tabs.Add(name, tab)
+}
+
+func (t *TUI) removeTab(name string) {
+	b, ok := t.tabs.Get(name)
+	if !ok {
+		t.showError(ErrorNotFound)
+		return
+	}
+
+	if b.system {
+		t.showError(ErrorSystemBuf)
+		return
+	}
+
+	if t.active == name {
+		// First item (System) will always exist
+		t.comp.buffers.SetCurrentItem(0)
+		t.ChangeBuffer("System")
+	}
+
+	l := t.comp.buffers.FindItems(name, "", true, false)
+	for _, v := range l {
+		t.comp.buffers.RemoveItem(v)
+	}
+	t.tabs.Remove(name)
 }

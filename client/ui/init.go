@@ -22,7 +22,7 @@ const Logo string = `
 
 `
 
-// TODO: mouse
+// TODO: delete buffer
 
 const (
 	selfSender   string = "You"
@@ -31,9 +31,10 @@ const (
 )
 
 var (
-	ErrorSystemBuf = errors.New("cannot send to a system buffer")
+	ErrorSystemBuf = errors.New("performing action on system buffer")
 	ErrorNoText    = errors.New("no text has been given")
-	ErrorExisting  = errors.New("item already exists")
+	ErrorExists    = errors.New("item already exists")
+	ErrorNotFound  = errors.New("item does not exist")
 )
 
 type areas struct {
@@ -199,6 +200,8 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			if !t.config.creatingBuf {
 				t.newbufPopup(app)
 			}
+		case tcell.KeyCtrlX:
+			t.removeTab(t.active)
 		case tcell.KeyCtrlR:
 			app.Sync()
 		}
@@ -218,7 +221,10 @@ func New() (*TUI, *tview.Application) {
 			creatingBuf: false,
 		},
 	}
-	app := tview.NewApplication().SetRoot(t.area.main, true).SetFocus(t.area.main)
+	app := tview.NewApplication().
+		EnableMouse(true).
+		SetRoot(t.area.main, true).
+		SetFocus(t.area.main)
 
 	setupKeybinds(t, app)
 	setupHandlers(t, app)
