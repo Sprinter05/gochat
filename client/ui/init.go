@@ -21,6 +21,10 @@ const Logo string = `
 
 `
 
+const (
+	self = "You"
+)
+
 func (t *TUI) systemTab() {
 	t.area.SetBackgroundColor(tcell.ColorDefault)
 
@@ -56,9 +60,31 @@ func (t *TUI) appConfig() *tview.Application {
 				t.area.ResizeItem(buffers, 0, 2)
 				t.config.showBufs = true
 			}
+		case tcell.KeyCtrlR:
+			app.Sync()
 		}
 		return event
 	})
+
+	input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyLF:
+			return tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+		case tcell.KeyEnter:
+			if input.GetText() == "" {
+				return nil
+			}
+			t.SendMessage(t.active, Message{
+				Sender:    self,
+				Content:   input.GetText(),
+				Timestamp: time.Now(),
+			})
+			input.SetText("", false)
+			return nil
+		}
+		return event
+	})
+
 	return app
 }
 
@@ -70,7 +96,7 @@ func New() (*TUI, *tview.Application) {
 			AddItem(
 				tview.NewFlex().SetDirection(tview.FlexRow).
 					AddItem(chat, 0, 1, false).
-					AddItem(input, 3, 0, true),
+					AddItem(input, 4, 0, true),
 				0, 6, true,
 			).AddItem(users, 0, 0, false),
 		config: opts{

@@ -13,9 +13,14 @@ type Message struct {
 
 func (m Message) Render() string {
 	t := m.Timestamp.Format(time.Kitchen)
+	color := "[blue::b]"
+	if m.Sender == self {
+		color = "[yellow::b]"
+	}
+
 	return fmt.Sprintf(
 		"[%s] at %s: %s\n",
-		"[blue::b]"+m.Sender+"[-:-:-:-]",
+		color+m.Sender+"[-:-:-:-]",
 		"[gray::u]"+t+"[-:-:-:-]",
 		m.Content,
 	)

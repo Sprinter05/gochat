@@ -35,6 +35,8 @@ func init() {
 	input.
 		SetLabel(" > ").
 		SetPlaceholder("Write here...").
+		SetWrap(true).
+		SetWordWrap(true).
 		SetBorder(true).
 		SetBackgroundColor(tcell.ColorDefault)
 }
