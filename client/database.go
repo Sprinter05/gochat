@@ -43,7 +43,7 @@ type Message struct {
 
 // Server indentifier that allows a multi-server platform
 type Server struct {
-	ID      uint `gorm:"primaryKey;autoIncrement;not null"`
-	Port    uint `gorm:"primaryKey;not null"`
+	ID      uint   `gorm:"primaryKey;autoIncrement;not null"`
+	Port    uint16 `gorm:"primaryKey;not null"`
 	Address string
 }
