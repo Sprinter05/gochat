@@ -81,16 +81,17 @@ func (t *TUI) newTab(name string, system bool) {
 		system:   system,
 	}
 
+	// Check for available index
 	l := len(t.status.freeIndex)
 	if l > 0 {
-		num = t.status.freeIndex[0]
-		tab.index = num
-		t.status.freeIndex = t.status.freeIndex[1:]
+		num = t.status.freeIndex[0]                 // FIFO
+		t.status.freeIndex = t.status.freeIndex[1:] // Remove
+		tab.index = num                             // Prevents duplication on the slice
 	}
 
-	offset := asciiNumbers + num // ASCII for numbers
+	offset := asciiNumbers + num
 	if num >= 10 {
-		offset = asciiLowercase + (num - 10) // ASCII for lowercase letters
+		offset = asciiLowercase + (num - 10)
 	}
 
 	t.comp.buffers.AddItem(name, "", int32(offset), nil)
@@ -118,7 +119,7 @@ func (t *TUI) removeTab(name string) {
 	l := t.comp.buffers.FindItems(name, "", true, false)
 	for _, v := range l {
 		t.comp.buffers.RemoveItem(v)
-		t.status.freeIndex = append(t.status.freeIndex, b.index)
+		t.status.freeIndex = append(t.status.freeIndex, b.index) // Available index
 	}
 	t.tabs.Remove(name)
 }

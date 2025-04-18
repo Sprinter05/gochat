@@ -27,9 +27,9 @@ const Logo string = `
 const (
 	selfSender     string = "You"
 	inputSize      int    = 4
-	errorMessage   uint   = 3 // seconds
-	asciiNumbers   int    = 0x30
-	asciiLowercase int    = 0x61
+	errorMessage   uint   = 3    // seconds
+	asciiNumbers   int    = 0x30 // Start of ASCII for number 1
+	asciiLowercase int    = 0x61 // Start of ASCII for lowercase a
 )
 
 var (
