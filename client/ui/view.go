@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 )
 
 type tab struct {
@@ -21,15 +19,8 @@ type opts struct {
 	showBufs  bool
 }
 
-type components struct {
-	chat    *tview.TextView
-	buffers *tview.List
-	users   *tview.List
-	input   *tview.TextArea
-}
-
 type TUI struct {
-	area   *tview.Flex
+	area   areas
 	comp   components
 	tabs   models.Table[string, *tab]
 	config opts
@@ -37,12 +28,10 @@ type TUI struct {
 }
 
 func (t *TUI) systemTab() {
-	t.area.SetBackgroundColor(tcell.ColorDefault)
-
 	t.newTab("System", true)
 	t.active = "System"
 
-	fmt.Fprint(t.comp.chat, Logo)
+	fmt.Fprint(t.comp.text, Logo)
 
 	t.SendMessage("System", Message{
 		Sender:    "System",

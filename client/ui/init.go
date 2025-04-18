@@ -24,8 +24,20 @@ const (
 	self = "You"
 )
 
+type areas struct {
+	main *tview.Flex
+	chat *tview.Flex
+}
+
+type components struct {
+	text    *tview.TextView
+	buffers *tview.List
+	users   *tview.List
+	input   *tview.TextArea
+}
+
 func (t *TUI) setupLayout() {
-	t.comp.chat.
+	t.comp.text.
 		SetDynamicColors(true).
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
@@ -55,18 +67,18 @@ func (t *TUI) setupKeybinds(app *tview.Application) {
 		switch event.Key() {
 		case tcell.KeyCtrlU:
 			if t.config.showUsers {
-				t.area.ResizeItem(t.comp.users, 0, 0)
+				t.area.main.ResizeItem(t.comp.users, 0, 0)
 				t.config.showUsers = false
 			} else {
-				t.area.ResizeItem(t.comp.users, 0, 1)
+				t.area.main.ResizeItem(t.comp.users, 0, 1)
 				t.config.showUsers = true
 			}
 		case tcell.KeyCtrlB:
 			if t.config.showBufs {
-				t.area.ResizeItem(t.comp.buffers, 0, 0)
+				t.area.main.ResizeItem(t.comp.buffers, 0, 0)
 				t.config.showBufs = false
 			} else {
-				t.area.ResizeItem(t.comp.buffers, 0, 2)
+				t.area.main.ResizeItem(t.comp.buffers, 0, 2)
 				t.config.showBufs = true
 			}
 		case tcell.KeyCtrlR:
@@ -97,30 +109,38 @@ func (t *TUI) setupKeybinds(app *tview.Application) {
 
 func New() (*TUI, *tview.Application) {
 	comps := components{
-		chat:    tview.NewTextView(),
+		text:    tview.NewTextView(),
 		buffers: tview.NewList(),
 		users:   tview.NewList(),
 		input:   tview.NewTextArea(),
 	}
 
+	chat := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(comps.text, 0, 1, false).
+		AddItem(comps.input, 4, 0, true)
+	chat.SetBackgroundColor(tcell.ColorDefault)
+
+	main := tview.NewFlex().
+		AddItem(comps.buffers, 0, 2, false).
+		AddItem(chat, 0, 6, true).
+		AddItem(comps.users, 0, 0, false)
+	main.SetBackgroundColor(tcell.ColorDefault)
+
 	t := TUI{
 		tabs: models.NewTable[string, *tab](0),
 		comp: comps,
-		area: tview.NewFlex().
-			AddItem(comps.buffers, 0, 2, false).
-			AddItem(
-				tview.NewFlex().SetDirection(tview.FlexRow).
-					AddItem(comps.chat, 0, 1, false).
-					AddItem(comps.input, 4, 0, true),
-				0, 6, true,
-			).AddItem(comps.users, 0, 0, false),
+		area: areas{
+			main: main,
+			chat: chat,
+		},
 		config: opts{
 			showUsers: false,
 			showBufs:  true,
 		},
 	}
 
-	app := tview.NewApplication().SetRoot(t.area, true).SetFocus(t.area)
+	app := tview.NewApplication().SetRoot(t.area.main, true).SetFocus(t.area.main)
 	t.setupLayout()
 	t.setupKeybinds(app)
 	t.systemTab()

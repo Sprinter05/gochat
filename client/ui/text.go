@@ -44,6 +44,6 @@ func (t *TUI) SendMessage(buf string, msg Message) {
 	b.messages.Add(msg)
 
 	if buf == t.active {
-		fmt.Fprint(t.comp.chat, msg.Render())
+		fmt.Fprint(t.comp.text, msg.Render())
 	}
 }
