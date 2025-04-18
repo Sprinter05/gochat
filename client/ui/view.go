@@ -41,17 +41,29 @@ func (t *TUI) tabPopup(app *tview.Application) {
 	t.area.chat.AddItem(input, 1, 0, true)
 	app.SetFocus(input)
 
-	input.SetDoneFunc(func(key tcell.Key) {
-		text := input.GetText()
-		if text == "" {
-			return
-		}
-
-		t.newTab(text, false)
+	exit := func() {
 		t.area.chat.RemoveItem(input)
 		t.area.chat.ResizeItem(t.comp.input, inputSize, 0)
 		app.SetFocus(t.comp.input)
 		t.config.creatingBuf = false
+	}
+
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			exit()
+			return
+		}
+		text := input.GetText()
+		if text == "" {
+			t.ShowError(ErrorNoText)
+			return
+		}
+		if _, ok := t.tabs.Get(text); ok {
+			t.ShowError(ErrorExisting)
+			return
+		}
+		t.newTab(text, false)
+		exit()
 	})
 }
 

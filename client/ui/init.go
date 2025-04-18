@@ -31,6 +31,8 @@ const (
 
 var (
 	ErrorSystemBuf = errors.New("cannot send to a system buffer")
+	ErrorNoText    = errors.New("no text has been given")
+	ErrorExisting  = errors.New("item already exists")
 )
 
 type areas struct {
@@ -170,12 +172,7 @@ func (t *TUI) setupKeybinds(app *tview.Application) {
 			if !t.comp.text.HasFocus() {
 				app.SetFocus(t.comp.text)
 				return nil
-			}
-		case tcell.KeyCtrlI:
-			if t.config.creatingBuf {
-				break
-			}
-			if !t.comp.input.HasFocus() {
+			} else {
 				app.SetFocus(t.comp.input)
 				return nil
 			}
