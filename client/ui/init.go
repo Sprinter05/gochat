@@ -21,9 +21,12 @@ const Logo string = `
 
 `
 
+// TODO: mouse
+
 const (
 	selfSender   string = "You"
-	errorMessage uint   = 3
+	inputSize    int    = 4
+	errorMessage uint   = 3 // seconds
 )
 
 var (
@@ -56,7 +59,7 @@ func setupLayout() (areas, components) {
 		SetDirection(tview.FlexRow).
 		AddItem(comps.text, 0, 30, false).
 		AddItem(comps.errors, 0, 0, false).
-		AddItem(comps.input, 4, 0, true)
+		AddItem(comps.input, inputSize, 0, true)
 	chat.SetBackgroundColor(tcell.ColorDefault)
 
 	main := tview.NewFlex().
@@ -78,6 +81,8 @@ func (t *TUI) setupStyle() {
 		SetDynamicColors(true).
 		SetWrap(true).
 		SetWordWrap(true).
+		SetScrollable(true).
+		ScrollToEnd().
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
 		SetTitle("Messages")
@@ -107,31 +112,14 @@ func (t *TUI) setupStyle() {
 		SetBorder(false)
 }
 
-func (t *TUI) setupKeybinds(app *tview.Application) {
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlU:
-			if t.config.showUsers {
-				t.area.main.ResizeItem(t.comp.users, 0, 0)
-				t.config.showUsers = false
-			} else {
-				t.area.main.ResizeItem(t.comp.users, 0, 1)
-				t.config.showUsers = true
-			}
-		case tcell.KeyCtrlB:
-			if t.config.showBufs {
-				t.area.main.ResizeItem(t.comp.buffers, 0, 0)
-				t.config.showBufs = false
-			} else {
-				t.area.main.ResizeItem(t.comp.buffers, 0, 2)
-				t.config.showBufs = true
-			}
-		case tcell.KeyCtrlR:
-			app.Sync()
-		}
-		return event
+func (t *TUI) setupList(app *tview.Application) {
+	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
+		t.ChangeBuf(s1)
+		app.SetFocus(t.comp.input)
 	})
+}
 
+func (t *TUI) setupInput() {
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyLF:
@@ -152,6 +140,64 @@ func (t *TUI) setupKeybinds(app *tview.Application) {
 	})
 }
 
+func (t *TUI) setupKeybinds(app *tview.Application) {
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlQ:
+			app.Stop()
+		case tcell.KeyCtrlC:
+			return nil
+		case tcell.KeyCtrlU:
+			if t.config.showUsers {
+				t.area.main.ResizeItem(t.comp.users, 0, 0)
+				t.config.showUsers = false
+			} else {
+				t.area.main.ResizeItem(t.comp.users, 0, 1)
+				t.config.showUsers = true
+			}
+		case tcell.KeyCtrlB:
+			if t.config.showBufs {
+				t.area.main.ResizeItem(t.comp.buffers, 0, 0)
+				t.config.showBufs = false
+			} else {
+				t.area.main.ResizeItem(t.comp.buffers, 0, 2)
+				t.config.showBufs = true
+			}
+		case tcell.KeyCtrlT:
+			if t.config.creatingBuf {
+				break
+			}
+			if !t.comp.text.HasFocus() {
+				app.SetFocus(t.comp.text)
+				return nil
+			}
+		case tcell.KeyCtrlI:
+			if t.config.creatingBuf {
+				break
+			}
+			if !t.comp.input.HasFocus() {
+				app.SetFocus(t.comp.input)
+				return nil
+			}
+		case tcell.KeyCtrlK:
+			if t.config.creatingBuf {
+				break
+			}
+			if !t.comp.buffers.HasFocus() {
+				app.SetFocus(t.comp.buffers)
+				return nil
+			}
+		case tcell.KeyCtrlN:
+			if !t.config.creatingBuf {
+				t.tabPopup(app)
+			}
+		case tcell.KeyCtrlR:
+			app.Sync()
+		}
+		return event
+	})
+}
+
 func New() (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 
@@ -160,16 +206,18 @@ func New() (*TUI, *tview.Application) {
 		comp: comps,
 		area: areas,
 		config: opts{
-			showUsers: false,
-			showBufs:  true,
+			showUsers:   false,
+			showBufs:    true,
+			creatingBuf: false,
 		},
 	}
 
 	app := tview.NewApplication().SetRoot(t.area.main, true).SetFocus(t.area.main)
-	t.app = app
 
-	t.setupStyle()
 	t.setupKeybinds(app)
+	t.setupList(app)
+	t.setupStyle()
+	t.setupInput()
 	t.systemTab()
 
 	return &t, app

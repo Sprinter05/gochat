@@ -11,30 +11,47 @@ type Message struct {
 	Timestamp time.Time
 }
 
-func (m Message) Render() string {
+func (t *TUI) Render(msg Message) {
 	now := time.Now()
 	format := time.Kitchen
-	if now.Sub(m.Timestamp) > (time.Hour * 24 * 365) {
+	if now.Sub(msg.Timestamp) > (time.Hour * 24 * 365) {
 		format = time.DateTime
-	} else if now.Sub(m.Timestamp) > (time.Hour * 24) {
+	} else if now.Sub(msg.Timestamp) > (time.Hour * 24) {
 		format = time.Stamp
 	}
 
-	t := m.Timestamp.Format(format)
+	f := msg.Timestamp.Format(format)
 	color := "[blue::b]"
-	if m.Sender == selfSender {
+	if msg.Sender == selfSender {
 		color = "[yellow::b]"
 	}
 
-	return fmt.Sprintf(
+	s := fmt.Sprintf(
 		"[%s] at %s: %s\n",
-		color+m.Sender+"[-:-:-:-]",
-		"[gray::u]"+t+"[-:-:-:-]",
-		m.Content,
+		color+msg.Sender+"[-:-:-:-]",
+		"[gray::u]"+f+"[-:-:-:-]",
+		msg.Content,
 	)
+
+	fmt.Fprint(t.comp.text, s)
+}
+
+func (t *TUI) ChangeBuf(buf string) {
+	t.active = buf
+	b, ok := t.tabs.Get(buf)
+	if !ok {
+		panic("non created tab when selecting buffer")
+	}
+
+	t.comp.text.Clear()
+	msgs := b.messages.Copy(0)
+	for _, v := range msgs {
+		t.Render(v)
+	}
 }
 
 // might not disappear after 3 seconds if no input is received
+// force redraw??
 func (t *TUI) ShowError(err error) {
 	t.comp.errors.Clear()
 	t.area.chat.ResizeItem(t.comp.errors, 0, 1)
@@ -60,6 +77,6 @@ func (t *TUI) SendMessage(buf string, msg Message) {
 	b.messages.Add(msg)
 
 	if buf == t.active {
-		fmt.Fprint(t.comp.text, msg.Render())
+		t.Render(msg)
 	}
 }

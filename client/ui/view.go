@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -16,17 +17,42 @@ type tab struct {
 }
 
 type opts struct {
-	showUsers bool
-	showBufs  bool
+	showUsers   bool
+	showBufs    bool
+	creatingBuf bool
 }
 
 type TUI struct {
-	app    *tview.Application
 	area   areas
 	comp   components
 	tabs   models.Table[string, *tab]
 	config opts
 	active string
+}
+
+func (t *TUI) tabPopup(app *tview.Application) {
+	t.config.creatingBuf = true
+	input := tview.NewInputField().
+		SetLabel("Enter buffer name: ").
+		SetFieldBackgroundColor(tcell.ColorDefault)
+	input.SetBorder(false).
+		SetBackgroundColor(tcell.ColorDefault)
+	t.area.chat.ResizeItem(t.comp.input, 0, 0)
+	t.area.chat.AddItem(input, 1, 0, true)
+	app.SetFocus(input)
+
+	input.SetDoneFunc(func(key tcell.Key) {
+		text := input.GetText()
+		if text == "" {
+			return
+		}
+
+		t.newTab(text, false)
+		t.area.chat.RemoveItem(input)
+		t.area.chat.ResizeItem(t.comp.input, inputSize, 0)
+		app.SetFocus(t.comp.input)
+		t.config.creatingBuf = false
+	})
 }
 
 func (t *TUI) systemTab() {
@@ -42,7 +68,7 @@ func (t *TUI) systemTab() {
 	})
 }
 
-func (t *TUI) newTab(name string, system bool) *tab {
+func (t *TUI) newTab(name string, system bool) {
 	tab := &tab{
 		messages: models.NewSlice[Message](0),
 		name:     name,
@@ -54,5 +80,4 @@ func (t *TUI) newTab(name string, system bool) *tab {
 
 	t.comp.buffers.AddItem(name, "", r[0], nil)
 	t.tabs.Add(name, tab)
-	return tab
 }
