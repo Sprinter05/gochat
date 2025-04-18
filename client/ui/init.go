@@ -25,9 +25,11 @@ const Logo string = `
 // TODO: delete buffer
 
 const (
-	selfSender   string = "You"
-	inputSize    int    = 4
-	errorMessage uint   = 3 // seconds
+	selfSender     string = "You"
+	inputSize      int    = 4
+	errorMessage   uint   = 3 // seconds
+	asciiNumbers   int    = 0x30
+	asciiLowercase int    = 0x61
 )
 
 var (
@@ -35,6 +37,7 @@ var (
 	ErrorNoText    = errors.New("no text has been given")
 	ErrorExists    = errors.New("item already exists")
 	ErrorNotFound  = errors.New("item does not exist")
+	ErrorMaxBufs   = errors.New("maximum amount of buffers reached")
 )
 
 type areas struct {
@@ -162,23 +165,23 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 		case tcell.KeyCtrlC:
 			return nil
 		case tcell.KeyCtrlU:
-			if t.config.showUsers {
+			if t.status.showUsers {
 				t.area.main.ResizeItem(t.comp.users, 0, 0)
-				t.config.showUsers = false
+				t.status.showUsers = false
 			} else {
 				t.area.main.ResizeItem(t.comp.users, 0, 1)
-				t.config.showUsers = true
+				t.status.showUsers = true
 			}
 		case tcell.KeyCtrlB:
-			if t.config.showBufs {
+			if t.status.showBufs {
 				t.area.main.ResizeItem(t.comp.buffers, 0, 0)
-				t.config.showBufs = false
+				t.status.showBufs = false
 			} else {
 				t.area.main.ResizeItem(t.comp.buffers, 0, 2)
-				t.config.showBufs = true
+				t.status.showBufs = true
 			}
 		case tcell.KeyCtrlT:
-			if t.config.creatingBuf {
+			if t.status.creatingBuf {
 				break
 			}
 			if !t.comp.text.HasFocus() {
@@ -189,7 +192,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyCtrlK:
-			if t.config.creatingBuf {
+			if t.status.creatingBuf {
 				break
 			}
 			if !t.comp.buffers.HasFocus() {
@@ -197,7 +200,11 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyCtrlN:
-			if !t.config.creatingBuf {
+			if !t.status.creatingBuf {
+				if t.tabs.Len() >= 35 {
+					t.showError(ErrorMaxBufs)
+					break
+				}
 				t.newbufPopup(app)
 			}
 		case tcell.KeyCtrlX:
@@ -215,7 +222,7 @@ func New() (*TUI, *tview.Application) {
 		tabs: models.NewTable[string, *tab](0),
 		comp: comps,
 		area: areas,
-		config: opts{
+		status: opts{
 			showUsers:   false,
 			showBufs:    true,
 			creatingBuf: false,

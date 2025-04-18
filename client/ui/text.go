@@ -56,6 +56,10 @@ func (t *TUI) ChangeBuffer(buf string) {
 	}
 
 	t.comp.text.Clear()
+	if b.system {
+		fmt.Fprint(t.comp.text, Logo)
+	}
+
 	msgs := b.messages.Copy(0)
 	for _, v := range msgs {
 		t.renderMsg(v)
