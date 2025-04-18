@@ -11,6 +11,7 @@ var clientCmds = map[string]func(data *ShellData, args [][]byte) error{
 	"VER":     ver,
 	"VERBOSE": verbose,
 	"REQ":     req,
+	"REG":     reg,
 }
 
 // Given a string containing a command name, returns its execution function
@@ -22,6 +23,8 @@ func FetchClientCmd(op string) func(data *ShellData, args [][]byte) error {
 	}
 	return v
 }
+
+// CLIENT COMMANDS
 
 // Prints the gochat version used by the client
 func ver(data *ShellData, args [][]byte) error {
@@ -42,6 +45,9 @@ func verbose(data *ShellData, args [][]byte) error {
 
 // Sends a REQ packet to the server
 func req(data *ShellData, args [][]byte) error {
+	if len(args) < 1 {
+		return fmt.Errorf("not enough arguments")
+	}
 	pct, pctErr := spec.NewPacket(spec.REQ, 1, spec.EmptyInfo, args...)
 	if pctErr != nil {
 		return pctErr
