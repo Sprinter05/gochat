@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
+	"github.com/rivo/tview"
 )
 
 type tab struct {
@@ -20,6 +21,7 @@ type opts struct {
 }
 
 type TUI struct {
+	app    *tview.Application
 	area   areas
 	comp   components
 	tabs   models.Table[string, *tab]
