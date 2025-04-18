@@ -12,7 +12,15 @@ type Message struct {
 }
 
 func (m Message) Render() string {
-	t := m.Timestamp.Format(time.Kitchen)
+	now := time.Now()
+	format := time.Kitchen
+	if now.Sub(m.Timestamp) > (time.Hour * 24 * 365) {
+		format = time.DateTime
+	} else if now.Sub(m.Timestamp) > (time.Hour * 24) {
+		format = time.Stamp
+	}
+
+	t := m.Timestamp.Format(format)
 	color := "[blue::b]"
 	if m.Sender == self {
 		color = "[yellow::b]"
@@ -36,6 +44,6 @@ func (t *TUI) SendMessage(buf string, msg Message) {
 	b.messages.Add(msg)
 
 	if buf == t.active {
-		fmt.Fprint(chat, msg.Render())
+		fmt.Fprint(t.comp.chat, msg.Render())
 	}
 }
