@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
@@ -78,7 +79,7 @@ func setupLayout() (areas, components) {
 	return areas, comps
 }
 
-func (t *TUI) setupStyle() {
+func setupStyle(t *TUI) {
 	t.comp.text.
 		SetDynamicColors(true).
 		SetWrap(true).
@@ -88,6 +89,7 @@ func (t *TUI) setupStyle() {
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
 		SetTitle("Messages")
+
 	t.comp.buffers.
 		SetSelectedStyle(tcell.StyleDefault.Underline(true)).
 		SetSelectedTextColor(tcell.ColorPurple).
@@ -95,10 +97,12 @@ func (t *TUI) setupStyle() {
 		SetBorder(true).
 		SetTitle("Buffers").
 		SetBackgroundColor(tcell.ColorDefault)
+
 	t.comp.users.
 		SetBorder(true).
 		SetTitle("Users").
 		SetBackgroundColor(tcell.ColorDefault)
+
 	t.comp.input.
 		SetLabel(" > ").
 		SetPlaceholder("Write here...").
@@ -106,6 +110,7 @@ func (t *TUI) setupStyle() {
 		SetWordWrap(true).
 		SetBorder(true).
 		SetBackgroundColor(tcell.ColorDefault)
+
 	t.comp.errors.
 		SetDynamicColors(true).
 		SetWrap(true).
@@ -114,14 +119,18 @@ func (t *TUI) setupStyle() {
 		SetBorder(false)
 }
 
-func (t *TUI) setupList(app *tview.Application) {
+func setupHandlers(t *TUI, app *tview.Application) {
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
-		t.ChangeBuf(s1)
+		t.ChangeBuffer(s1)
 		app.SetFocus(t.comp.input)
+	})
+
+	t.comp.errors.SetChangedFunc(func() {
+		app.Draw()
 	})
 }
 
-func (t *TUI) setupInput() {
+func setupInput(t *TUI) {
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyLF:
@@ -130,11 +139,13 @@ func (t *TUI) setupInput() {
 			if t.comp.input.GetText() == "" {
 				return nil
 			}
+
 			t.SendMessage(t.active, Message{
 				Sender:    selfSender,
 				Content:   t.comp.input.GetText(),
 				Timestamp: time.Now(),
 			})
+
 			t.comp.input.SetText("", false)
 			return nil
 		}
@@ -142,7 +153,7 @@ func (t *TUI) setupInput() {
 	})
 }
 
-func (t *TUI) setupKeybinds(app *tview.Application) {
+func setupKeybinds(t *TUI, app *tview.Application) {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ:
@@ -186,7 +197,7 @@ func (t *TUI) setupKeybinds(app *tview.Application) {
 			}
 		case tcell.KeyCtrlN:
 			if !t.config.creatingBuf {
-				t.tabPopup(app)
+				t.newbufPopup(app)
 			}
 		case tcell.KeyCtrlR:
 			app.Sync()
@@ -197,8 +208,7 @@ func (t *TUI) setupKeybinds(app *tview.Application) {
 
 func New() (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
-
-	t := TUI{
+	t := &TUI{
 		tabs: models.NewTable[string, *tab](0),
 		comp: comps,
 		area: areas,
@@ -208,14 +218,21 @@ func New() (*TUI, *tview.Application) {
 			creatingBuf: false,
 		},
 	}
-
 	app := tview.NewApplication().SetRoot(t.area.main, true).SetFocus(t.area.main)
 
-	t.setupKeybinds(app)
-	t.setupList(app)
-	t.setupStyle()
-	t.setupInput()
-	t.systemTab()
+	setupKeybinds(t, app)
+	setupHandlers(t, app)
+	setupStyle(t)
+	setupInput(t)
 
-	return &t, app
+	t.newTab("System", true)
+	t.active = "System"
+	fmt.Fprint(t.comp.text, Logo)
+	t.SendMessage("System", Message{
+		Sender:    "System",
+		Content:   "Welcome to gochat!",
+		Timestamp: time.Now(),
+	})
+
+	return t, app
 }

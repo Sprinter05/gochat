@@ -1,9 +1,7 @@
 package ui
 
 import (
-	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
@@ -30,13 +28,15 @@ type TUI struct {
 	active string
 }
 
-func (t *TUI) tabPopup(app *tview.Application) {
+func (t *TUI) newbufPopup(app *tview.Application) {
 	t.config.creatingBuf = true
+
 	input := tview.NewInputField().
 		SetLabel("Enter buffer name: ").
 		SetFieldBackgroundColor(tcell.ColorDefault)
 	input.SetBorder(false).
 		SetBackgroundColor(tcell.ColorDefault)
+
 	t.area.chat.ResizeItem(t.comp.input, 0, 0)
 	t.area.chat.AddItem(input, 1, 0, true)
 	app.SetFocus(input)
@@ -53,30 +53,20 @@ func (t *TUI) tabPopup(app *tview.Application) {
 			exit()
 			return
 		}
+
 		text := input.GetText()
 		if text == "" {
-			t.ShowError(ErrorNoText)
+			t.showError(ErrorNoText)
 			return
 		}
+
 		if _, ok := t.tabs.Get(text); ok {
-			t.ShowError(ErrorExisting)
+			t.showError(ErrorExisting)
 			return
 		}
+
 		t.newTab(text, false)
 		exit()
-	})
-}
-
-func (t *TUI) systemTab() {
-	t.newTab("System", true)
-	t.active = "System"
-
-	fmt.Fprint(t.comp.text, Logo)
-
-	t.SendMessage("System", Message{
-		Sender:    "System",
-		Content:   "Welcome to gochat!",
-		Timestamp: time.Now(),
 	})
 }
 
