@@ -155,7 +155,11 @@ func setupStyle(t *TUI) {
 func setupHandlers(t *TUI, app *tview.Application) {
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.ChangeBuffer(s1)
-		app.SetFocus(t.comp.input)
+		if t.status.showingHelp {
+			app.SetFocus(t.comp.text)
+		} else {
+			app.SetFocus(t.comp.input)
+		}
 	})
 
 	t.comp.errors.SetChangedFunc(func() {
@@ -230,7 +234,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				}
 			}
 		case tcell.KeyCtrlK:
-			if t.status.creatingBuf || t.status.showingHelp {
+			if t.status.creatingBuf {
 				break
 			}
 
@@ -239,7 +243,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyDown:
-			if t.status.creatingBuf || t.status.showingHelp {
+			if t.status.creatingBuf {
 				break
 			}
 
@@ -248,7 +252,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.changeTab(curr + 1)
 			}
 		case tcell.KeyUp:
-			if t.status.creatingBuf || t.status.showingHelp {
+			if t.status.creatingBuf {
 				break
 			}
 
