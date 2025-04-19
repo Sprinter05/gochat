@@ -14,10 +14,11 @@ type tab struct {
 }
 
 type opts struct {
-	showUsers   bool
-	showBufs    bool
-	creatingBuf bool
-	freeIndex   []int
+	showingUsers bool
+	showingBufs  bool
+	creatingBuf  bool
+	showingHelp  bool
+	freeIndexes  []int
 }
 
 type TUI struct {
@@ -82,11 +83,11 @@ func (t *TUI) newTab(name string, system bool) {
 	}
 
 	// Check for available index
-	l := len(t.status.freeIndex)
+	l := len(t.status.freeIndexes)
 	if l > 0 {
-		num = t.status.freeIndex[0]                 // FIFO
-		t.status.freeIndex = t.status.freeIndex[1:] // Remove
-		tab.index = num                             // Prevents duplication on the slice
+		num = t.status.freeIndexes[0]                   // FIFO
+		t.status.freeIndexes = t.status.freeIndexes[1:] // Remove
+		tab.index = num                                 // Prevents duplication on the slice
 	}
 
 	offset := asciiNumbers + num
@@ -129,7 +130,7 @@ func (t *TUI) removeTab(name string) {
 	l := t.comp.buffers.FindItems(name, "", true, false)
 	for _, v := range l {
 		t.comp.buffers.RemoveItem(v)
-		t.status.freeIndex = append(t.status.freeIndex, b.index) // Available index
+		t.status.freeIndexes = append(t.status.freeIndexes, b.index) // Available index
 	}
 	t.tabs.Remove(name)
 }

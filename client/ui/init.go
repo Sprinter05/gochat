@@ -10,6 +10,8 @@ import (
 	"github.com/rivo/tview"
 )
 
+// TODO: selecting non existing buffer
+
 const Logo string = `
                    _           _   
                   | |         | |  
@@ -22,7 +24,35 @@ const Logo string = `
 
 `
 
-// TODO: deleting sometimes deletes 2 buffers
+const Help string = `
+[-::u]The gochat Instructions Manual:[-::-]
+
+[yellow::b]Ctrl-Shift-H[-::-]: Show/Hide help window
+
+[yellow::b]Ctrl-Q[-::-]: Exit program
+
+[yellow::b]Ctrl-T[-::-]: Focus chat/input window
+	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
+	- In the [-::b]input window[-::-] use [green]Ctrl-Enter[-::-] to add a newline
+
+[yellow::b]Ctrl-N[-::-]: Create a new buffer
+	- [green]Esc[-::-] to cancel
+	- [green]Enter[-::-] to confirm
+
+[yellow::b]Ctrl-X[-::-]: Remove currenly focused buffer
+
+[yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
+
+[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
+
+[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
+
+[yellow::b]Ctrl-B[-::-]: Show/Hide buffer list
+
+[yellow::b]Ctrl-U[-::-]: Show/Hide user list
+
+[yellow::b]Ctrl-R[-::-]: Redraw screen
+`
 
 const (
 	selfSender     string = "You"
@@ -164,20 +194,20 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 		case tcell.KeyCtrlC:
 			return nil
 		case tcell.KeyCtrlU:
-			if t.status.showUsers {
+			if t.status.showingUsers {
 				t.area.main.ResizeItem(t.comp.users, 0, 0)
-				t.status.showUsers = false
+				t.status.showingUsers = false
 			} else {
 				t.area.main.ResizeItem(t.comp.users, 0, 1)
-				t.status.showUsers = true
+				t.status.showingUsers = true
 			}
 		case tcell.KeyCtrlB:
-			if t.status.showBufs {
+			if t.status.showingBufs {
 				t.area.main.ResizeItem(t.comp.buffers, 0, 0)
-				t.status.showBufs = false
+				t.status.showingBufs = false
 			} else {
 				t.area.main.ResizeItem(t.comp.buffers, 0, 2)
-				t.status.showBufs = true
+				t.status.showingBufs = true
 			}
 		case tcell.KeyCtrlT:
 			if t.status.creatingBuf {
@@ -191,8 +221,12 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				app.SetFocus(t.comp.input)
 				return nil
 			}
+		case tcell.KeyCtrlH:
+			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				t.toggleHelp()
+			}
 		case tcell.KeyCtrlK:
-			if t.status.creatingBuf {
+			if t.status.creatingBuf || t.status.showingHelp {
 				break
 			}
 
@@ -201,7 +235,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyDown:
-			if t.status.creatingBuf {
+			if t.status.creatingBuf || t.status.showingHelp {
 				break
 			}
 
@@ -210,7 +244,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.changeTab(curr + 1)
 			}
 		case tcell.KeyUp:
-			if t.status.creatingBuf {
+			if t.status.creatingBuf || t.status.showingHelp {
 				break
 			}
 
@@ -219,7 +253,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.changeTab(curr - 1)
 			}
 		case tcell.KeyCtrlN:
-			if !t.status.creatingBuf {
+			if !t.status.creatingBuf && !t.status.showingHelp {
 				if t.tabs.Len() >= 35 {
 					t.showError(ErrorMaxBufs)
 					break
@@ -227,7 +261,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.newbufPopup(app)
 			}
 		case tcell.KeyCtrlX:
-			if t.status.creatingBuf {
+			if t.status.creatingBuf || t.status.showingHelp {
 				break
 			}
 
@@ -246,9 +280,10 @@ func New() (*TUI, *tview.Application) {
 		comp: comps,
 		area: areas,
 		status: opts{
-			showUsers:   false,
-			showBufs:    true,
-			creatingBuf: false,
+			showingUsers: false,
+			showingBufs:  true,
+			showingHelp:  false,
+			creatingBuf:  false,
 		},
 	}
 	app := tview.NewApplication().
@@ -263,7 +298,7 @@ func New() (*TUI, *tview.Application) {
 
 	t.newTab("System", true)
 	t.active = "System"
-	fmt.Fprint(t.comp.text, Logo)
+	fmt.Fprint(t.comp.text, Logo[1:])
 	t.SendMessage("System", Message{
 		Sender:    "System",
 		Content:   "Welcome to gochat!",

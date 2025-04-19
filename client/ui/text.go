@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 type Message struct {
@@ -27,13 +29,29 @@ func (t *TUI) renderMsg(msg Message) {
 
 	s := fmt.Sprintf(
 		"[%s] at %s: %s\n",
-		color+msg.Sender+"[-:-:-:-]",
-		"[gray::u]"+f+"[-:-:-:-]",
+		color+msg.Sender+"[-::-]",
+		"[gray::u]"+f+"[-::-]",
 		msg.Content,
 	)
 
 	fmt.Fprint(t.comp.text, s)
 	t.comp.text.ScrollToEnd()
+}
+
+func (t *TUI) toggleHelp() {
+	if !t.status.showingHelp {
+		t.comp.text.Clear()
+		fmt.Fprint(t.comp.text, Help[1:])
+		t.comp.text.ScrollToBeginning()
+		t.comp.buffers.SetSelectedTextColor(tcell.ColorGrey)
+		t.comp.text.SetTitle("Help")
+		t.status.showingHelp = true
+	} else {
+		t.ChangeBuffer(t.active)
+		t.comp.buffers.SetSelectedTextColor(tcell.ColorPurple)
+		t.comp.text.SetTitle("Messages")
+		t.status.showingHelp = false
+	}
 }
 
 func (t *TUI) showError(err error) {
@@ -58,7 +76,7 @@ func (t *TUI) ChangeBuffer(buf string) {
 
 	t.comp.text.Clear()
 	if b.system {
-		fmt.Fprint(t.comp.text, Logo)
+		fmt.Fprint(t.comp.text, Logo[1:])
 	}
 
 	msgs := b.messages.Copy(0)
@@ -81,7 +99,7 @@ func (t *TUI) SendMessage(buf string, msg Message) {
 
 	b.messages.Add(msg)
 
-	if buf == t.active {
+	if buf == t.active && !t.status.showingHelp {
 		t.renderMsg(msg)
 	}
 }
