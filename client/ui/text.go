@@ -41,16 +41,18 @@ func (t *TUI) renderMsg(msg Message) {
 func (t *TUI) toggleHelp() {
 	if !t.status.showingHelp {
 		t.comp.text.Clear()
+		t.area.chat.ResizeItem(t.comp.input, 0, 0)
 		fmt.Fprint(t.comp.text, Help[1:])
 		t.comp.text.ScrollToBeginning()
 		t.comp.buffers.SetSelectedTextColor(tcell.ColorGrey)
 		t.comp.text.SetTitle("Help")
 		t.status.showingHelp = true
 	} else {
-		t.ChangeBuffer(t.active)
+		t.area.chat.ResizeItem(t.comp.input, inputSize, 0)
 		t.comp.buffers.SetSelectedTextColor(tcell.ColorPurple)
 		t.comp.text.SetTitle("Messages")
 		t.status.showingHelp = false
+		t.ChangeBuffer(t.active)
 	}
 }
 
@@ -69,6 +71,11 @@ func (t *TUI) showError(err error) {
 // Assumes buffer list is already changed
 func (t *TUI) ChangeBuffer(buf string) {
 	t.active = buf
+
+	if t.status.showingHelp {
+		return
+	}
+
 	b, ok := t.tabs.Get(buf)
 	if !ok {
 		panic("non created tab when selecting buffer")

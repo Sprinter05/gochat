@@ -210,7 +210,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.status.showingBufs = true
 			}
 		case tcell.KeyCtrlT:
-			if t.status.creatingBuf {
+			if t.status.creatingBuf || t.status.showingHelp {
 				break
 			}
 
@@ -223,7 +223,11 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			}
 		case tcell.KeyCtrlH:
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				app.SetFocus(t.comp.text)
 				t.toggleHelp()
+				if !t.status.showingHelp {
+					app.SetFocus(t.comp.input)
+				}
 			}
 		case tcell.KeyCtrlK:
 			if t.status.creatingBuf || t.status.showingHelp {
