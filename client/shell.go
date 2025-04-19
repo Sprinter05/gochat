@@ -26,7 +26,7 @@ type ShellData struct {
 func NewShell(data *ShellData) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("gochat() > ")
+		fmt.Print("\033[36mgochat() > \033[0m")
 		// Reads user input
 		input, readErr := rd.ReadBytes('\n')
 		if readErr != nil {
