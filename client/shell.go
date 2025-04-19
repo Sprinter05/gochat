@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/Sprinter05/gochat/internal/spec"
+	"gorm.io/gorm"
 )
 
 // Struct that contains all the data required for the shell to function.
@@ -16,8 +17,8 @@ import (
 type ShellData struct {
 	ClientCon spec.Connection
 	Verbose   bool
+	DB        *gorm.DB
 	// TODO: Logged in user
-	// TODO: DB
 }
 
 // Starts a shell that allows the client to send packets
