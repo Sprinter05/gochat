@@ -32,13 +32,13 @@ func (t *TUI) newbufPopup(app *tview.Application) {
 	t.status.creatingBuf = true
 
 	input := tview.NewInputField().
-		SetLabel("Enter buffer name: ").
+		SetLabel(" Enter buffer name: ").
 		SetFieldBackgroundColor(tcell.ColorDefault)
 	input.SetBorder(false).
 		SetBackgroundColor(tcell.ColorDefault)
 
 	t.area.chat.ResizeItem(t.comp.input, 0, 0)
-	t.area.chat.AddItem(input, 1, 0, true)
+	t.area.chat.AddItem(input, 2, 0, true)
 	app.SetFocus(input)
 
 	exit := func() {
@@ -66,8 +66,8 @@ func (t *TUI) newbufPopup(app *tview.Application) {
 		}
 
 		t.newTab(text, false)
-		t.comp.buffers.SetCurrentItem(t.tabs.Len() - 1)
-		t.ChangeBuffer(text)
+		i := t.tabs.Len() - 1
+		t.changeTab(i)
 		exit()
 	})
 }
@@ -96,6 +96,16 @@ func (t *TUI) newTab(name string, system bool) {
 
 	t.comp.buffers.AddItem(name, "", int32(offset), nil)
 	t.tabs.Add(name, tab)
+}
+
+func (t *TUI) changeTab(i int) {
+	if i < 0 || i >= t.comp.buffers.GetItemCount() {
+		return
+	}
+
+	t.comp.buffers.SetCurrentItem(i)
+	text, _ := t.comp.buffers.GetItemText(i)
+	t.ChangeBuffer(text)
 }
 
 func (t *TUI) removeTab(name string) {

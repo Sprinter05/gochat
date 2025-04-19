@@ -33,6 +33,7 @@ func (t *TUI) renderMsg(msg Message) {
 	)
 
 	fmt.Fprint(t.comp.text, s)
+	t.comp.text.ScrollToEnd()
 }
 
 func (t *TUI) showError(err error) {

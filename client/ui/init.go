@@ -22,7 +22,7 @@ const Logo string = `
 
 `
 
-// TODO: delete buffer
+// TODO: deleting sometimes deletes 2 buffers
 
 const (
 	selfSender     string = "You"
@@ -89,7 +89,6 @@ func setupStyle(t *TUI) {
 		SetWrap(true).
 		SetWordWrap(true).
 		SetScrollable(true).
-		ScrollToEnd().
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
 		SetTitle("Messages")
@@ -184,6 +183,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			if t.status.creatingBuf {
 				break
 			}
+
 			if !t.comp.text.HasFocus() {
 				app.SetFocus(t.comp.text)
 				return nil
@@ -195,9 +195,28 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			if t.status.creatingBuf {
 				break
 			}
+
 			if !t.comp.buffers.HasFocus() {
 				app.SetFocus(t.comp.buffers)
 				return nil
+			}
+		case tcell.KeyDown:
+			if t.status.creatingBuf {
+				break
+			}
+
+			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
+				curr := t.comp.buffers.GetCurrentItem()
+				t.changeTab(curr + 1)
+			}
+		case tcell.KeyUp:
+			if t.status.creatingBuf {
+				break
+			}
+
+			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
+				curr := t.comp.buffers.GetCurrentItem()
+				t.changeTab(curr - 1)
 			}
 		case tcell.KeyCtrlN:
 			if !t.status.creatingBuf {
@@ -208,6 +227,10 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.newbufPopup(app)
 			}
 		case tcell.KeyCtrlX:
+			if t.status.creatingBuf {
+				break
+			}
+
 			t.removeTab(t.active)
 		case tcell.KeyCtrlR:
 			app.Sync()
