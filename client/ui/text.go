@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -89,6 +90,11 @@ func (t *TUI) ChangeBuffer(buf string) {
 }
 
 func (t *TUI) SendMessage(buf string, msg Message) {
+	check := strings.Replace(msg.Content, "\n", "", -1)
+	if check == "" {
+		return
+	}
+
 	b, ok := t.tabs.Get(buf)
 	if !ok {
 		t.newTab(buf, false)
