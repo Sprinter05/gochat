@@ -33,10 +33,14 @@ func (t *TUI) newbufPopup(app *tview.Application) {
 	t.status.creatingBuf = true
 
 	input := tview.NewInputField().
-		SetLabel(" Enter buffer name: ").
-		SetFieldBackgroundColor(tcell.ColorDefault)
+		SetPlaceholder("Enter buffer name...").
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetPlaceholderStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault).
+			Foreground(tcell.ColorYellow))
 	input.SetBorder(false).
-		SetBackgroundColor(tcell.ColorDefault)
+		SetBackgroundColor(tcell.ColorDefault).
+		SetBorderPadding(0, 0, 1, 0)
 
 	t.area.chat.ResizeItem(t.comp.input, 0, 0)
 	t.area.chat.AddItem(input, 2, 0, true)

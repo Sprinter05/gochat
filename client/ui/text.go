@@ -28,7 +28,7 @@ func (t *TUI) renderMsg(msg Message) {
 	s := fmt.Sprintf(
 		"[%s] at %s: %s\n",
 		color+msg.Sender+"[-::-]",
-		"[gray::u]"+f+"[-::-]",
+		"[darkgray::u]"+f+"[-::-]",
 		msg.Content,
 	)
 

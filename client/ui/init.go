@@ -27,7 +27,7 @@ const Logo string = `
 const Help string = `
 [-::u]The gochat Instructions Manual:[-::-]
 
-[yellow::b]Ctrl-Shift-H[-::-]: Show/Hide help window
+[yellow::b]Ctrl-Alt-H[-::-]: Show/Hide help window
 
 [yellow::b]Ctrl-Q[-::-]: Exit program
 
@@ -124,6 +124,11 @@ func setupStyle(t *TUI) {
 		SetTitle("Messages")
 
 	t.comp.buffers.
+		SetMainTextStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault)).
+		SetShortcutStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault).
+			Foreground(tcell.ColorYellow)).
 		SetSelectedStyle(tcell.StyleDefault.Underline(true)).
 		SetSelectedTextColor(tcell.ColorPurple).
 		ShowSecondaryText(false).
@@ -138,11 +143,16 @@ func setupStyle(t *TUI) {
 
 	t.comp.input.
 		SetLabel(" > ").
+		SetTextStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault)).
+		SetPlaceholderStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault).
+			Foreground(tcell.ColorGreen)).
 		SetPlaceholder("Write here...").
 		SetWrap(true).
 		SetWordWrap(true).
-		SetBorder(true).
-		SetBackgroundColor(tcell.ColorDefault)
+		SetBackgroundColor(tcell.ColorDefault).
+		SetBorder(true)
 
 	t.comp.errors.
 		SetDynamicColors(true).
@@ -226,7 +236,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyCtrlH:
-			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
+			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				app.SetFocus(t.comp.text)
 				t.toggleHelp()
 				if !t.status.showingHelp {
