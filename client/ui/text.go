@@ -20,7 +20,8 @@ func (t *TUI) renderMsg(msg Message) {
 		format = time.Stamp
 	}
 
-	content := strings.Replace(msg.Content, "\n", "\n\t\t\t\t  ", -1)
+	pad := strings.Repeat(" ", len(msg.Sender))
+	content := strings.Replace(msg.Content, "\n", "\n\t\t\t   "+pad, -1)
 
 	f := msg.Timestamp.Format(format)
 	color := "[blue::b]"
@@ -30,10 +31,10 @@ func (t *TUI) renderMsg(msg Message) {
 
 	_, err := fmt.Fprintf(
 		t.comp.text,
-		"[%s%s%s] at %s%07s%s: %s\n",
+		"[%s%s%s] at %s%07s%s: %*s\n",
 		color, msg.Sender, "[-::-]",
 		"[darkgray::u]", f, "[-::-]",
-		content,
+		len(msg.Sender), content,
 	)
 
 	if err != nil {
