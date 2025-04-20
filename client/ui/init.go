@@ -33,7 +33,7 @@ const Help string = `
 
 [yellow::b]Ctrl-T[-::-]: Focus chat/input window
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
-	- In the [-::b]input window[-::-] use [green]Alt-Enter[-::-] to add a newline
+	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
 
 [yellow::b]Ctrl-N[-::-]: Create a new buffer
 	- [green]Esc[-::-] to cancel
@@ -181,7 +181,8 @@ func setupInput(t *TUI) {
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
-			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
+			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
+				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				return event
 			}
 

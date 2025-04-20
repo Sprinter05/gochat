@@ -33,7 +33,7 @@ func (t *TUI) renderMsg(msg Message) {
 		t.comp.text,
 		"[%s%s%s] at %s%07s%s: %*s\n",
 		color, msg.Sender, "[-::-]",
-		"[darkgray::u]", f, "[-::-]",
+		"[gray::u]", f, "[-::-]",
 		len(msg.Sender), content,
 	)
 
