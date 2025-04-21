@@ -78,13 +78,12 @@ func main() {
 
 	// Makes migrations
 	db.AutoMigrate(&Server{}, &User{}, &LocalUserData{}, &ExternalUserData{}, &Message{})
-	SaveServer(db, address, port)
+	server := SaveServer(db, address, port)
 
 	data := ShellData{ClientCon: cl, Verbose: true, DB: db}
 
 	// Fills the Server related data in the ShellData struct
-	data.Server.Address = address
-	data.Server.Port = port
+	data.Server = server
 
 	ConnectionStart(&data)
 
