@@ -2,7 +2,15 @@ package main
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
+
+// Map that contains the ID column of each non-autoincremental table
+var tableToID = map[string]string{
+	"servers": "server_id",
+	"users":   "user_id",
+}
 
 // Generic user table that defines the columns every user shares
 type User struct {
@@ -47,4 +55,12 @@ type Server struct {
 	Address  string `gorm:"primaryKey;autoIncrement:false;not null"`
 	Port     uint16 `gorm:"primaryKey;autoIncrement:false;not null"`
 	ServerID uint   `gorm:"autoIncrement:false;not null"`
+}
+
+func getMaxID(db *gorm.DB, table string) uint {
+	var maxID uint
+	// If the result of the query is null (the table has no rows) a 0 is returned
+	row := db.Raw("SELECT IFNULL(MAX(" + tableToID[table] + "), 0) FROM " + table)
+	row.Scan(&maxID)
+	return maxID
 }
