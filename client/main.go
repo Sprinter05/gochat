@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/spec"
@@ -24,7 +25,7 @@ var intToLogLevel = map[uint8]logger.LogLevel{
 type Config struct {
 	Server struct {
 		Address string `json:"address"`
-		Port    string `json:"port"`
+		Port    uint16 `json:"port"`
 	} `json:"server"`
 	Database struct {
 		Path     string `json:"path"`
@@ -38,7 +39,7 @@ func main() {
 	// Reads configuration file
 	config := getConfig()
 	// Connects to the server
-	socket := net.JoinHostPort(config.Server.Address, config.Server.Port)
+	socket := net.JoinHostPort(config.Server.Address, strconv.FormatUint(uint64(config.Server.Port), 10))
 	con, conErr := net.Dial("tcp4", socket)
 	if conErr != nil {
 		log.Fatalf("could not establish a TCP connection with server: %s", conErr)
