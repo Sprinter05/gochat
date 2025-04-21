@@ -64,3 +64,18 @@ func getMaxID(db *gorm.DB, table string) uint {
 	row.Scan(&maxID)
 	return maxID
 }
+
+// Adds a socket pair to the database if the socket is not on it already
+func SaveServer(db *gorm.DB, address string, port uint16) {
+	// Adds the server to the database only if it is not in it already
+	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port}
+	if !serverExists(db, address, port) {
+		db.Create(&server)
+	}
+}
+
+func serverExists(db *gorm.DB, address string, port uint16) bool {
+	var found bool = false
+	db.Raw("SELECT EXISTS(SELECT * FROM servers WHERE address = ? AND port = ?) AS found", address, port).Scan(&found)
+	return found
+}
