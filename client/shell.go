@@ -18,6 +18,10 @@ type ShellData struct {
 	ClientCon spec.Connection
 	Verbose   bool
 	DB        *gorm.DB
+	Server    struct {
+		Address string
+		Port    uint16
+	}
 	// TODO: Logged in user
 }
 
