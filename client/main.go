@@ -39,7 +39,10 @@ func main() {
 	// Reads configuration file
 	config := getConfig()
 	// Connects to the server
-	socket := net.JoinHostPort(config.Server.Address, strconv.FormatUint(uint64(config.Server.Port), 10))
+	address := config.Server.Address
+	port := config.Server.Port
+
+	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
 	con, conErr := net.Dial("tcp4", socket)
 	if conErr != nil {
 		log.Fatalf("could not establish a TCP connection with server: %s", conErr)
@@ -73,7 +76,16 @@ func main() {
 		log.Fatalf("database could not not be opened: %s", dbErr)
 	}
 
+	// Makes migrations
+	db.AutoMigrate(&Server{}, &User{}, &LocalUserData{}, &ExternalUserData{}, &Message{})
+	SaveServer(db, address, port)
+
 	data := ShellData{ClientCon: cl, Verbose: true, DB: db}
+
+	// Fills the Server related data in the ShellData struct
+	data.Server.Address = address
+	data.Server.Port = port
+
 	ConnectionStart(&data)
 
 	go Listen(&data)
