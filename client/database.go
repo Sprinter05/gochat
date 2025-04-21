@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -72,7 +73,15 @@ func SaveServer(db *gorm.DB, address string, port uint16) Server {
 	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port}
 	if !serverExists(db, address, port) {
 		db.Create(&server)
+	} else {
+		server.ServerID = getServer(db, address, port).ServerID
 	}
+	return server
+}
+
+func getServer(db *gorm.DB, address string, port uint16) Server {
+	var server Server
+	db.Where("address = ? AND port = ?", address, port).First(&server)
 	return server
 }
 
@@ -80,4 +89,15 @@ func serverExists(db *gorm.DB, address string, port uint16) bool {
 	var found bool = false
 	db.Raw("SELECT EXISTS(SELECT * FROM servers WHERE address = ? AND port = ?) AS found", address, port).Scan(&found)
 	return found
+}
+
+func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, data ShellData) error {
+	user := User{UserID: getMaxID(db, "users"), Username: username, ServerID: data.Server.ServerID}
+	localUser := LocalUserData{User: user, Password: hashPass, PrvKey: prvKeyPEM}
+
+	result := db.Create(&localUser)
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("unexpected number of rows affected")
+	}
+	return nil
 }
