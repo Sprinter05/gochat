@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -52,7 +51,6 @@ func main() {
 	if !ok {
 		log.Fatal("config: unknown log level specified in configuration file")
 	}
-	fmt.Println(dbLogLevel)
 	// Creates the custom logger
 	dbLogFile, ioErr := os.OpenFile(config.Database.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	dbLog := logger.New(
