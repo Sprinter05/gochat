@@ -33,9 +33,10 @@ type ExternalUserData struct {
 
 // Holds message data
 type Message struct {
-	SourceID        uint `gorm:"primaryKey;not null"`
+	MessageID       uint `gorm:"primaryKey;autoincrement;not null"`
+	SourceID        uint
 	DestinationID   uint
-	Stamp           time.Time `gorm:"primaryKey;not null"`
+	Stamp           time.Time
 	Text            string
 	SourceUser      User `gorm:"foreignKey:SourceID;references:UserID;OnDelete:RESTRICT"`
 	DestinationUser User `gorm:"foreignKey:DestinationID;references:UserID;OnDelete:RESTRICT"`
