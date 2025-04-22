@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -19,6 +21,7 @@ type opts struct {
 	creatingBuf  bool
 	showingHelp  bool
 	freeIndexes  []int
+	lastDate     time.Time
 }
 
 type TUI struct {

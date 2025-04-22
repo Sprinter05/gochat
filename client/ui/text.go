@@ -12,13 +12,22 @@ type Message struct {
 	Timestamp time.Time
 }
 
-func (t *TUI) renderMsg(msg Message) {
-	format := time.Kitchen
-	if time.Since(msg.Timestamp) > (time.Hour * 24 * 365) {
-		format = time.DateTime
-	} else if time.Since(msg.Timestamp) > (time.Hour * 24) {
-		format = time.Stamp
+func (t *TUI) renderDate(date time.Time) {
+	if time.Since(t.status.lastDate) > (time.Hour * 24) {
+		formatted := date.Format(time.DateOnly)
+		fmt.Fprintf(
+			t.comp.text,
+			"--- %s%s%s ---\n",
+			"[green::i]", formatted, "[-::-]",
+		)
 	}
+
+	t.status.lastDate = date
+}
+
+func (t *TUI) renderMsg(msg Message) {
+	t.renderDate(msg.Timestamp)
+	format := time.Kitchen
 
 	pad := strings.Repeat(" ", len(msg.Sender))
 	content := strings.Replace(msg.Content, "\n", "\n\t\t\t   "+pad, -1)

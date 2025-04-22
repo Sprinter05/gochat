@@ -305,6 +305,7 @@ func New() (*TUI, *tview.Application) {
 			showingBufs:  true,
 			showingHelp:  false,
 			creatingBuf:  false,
+			lastDate:     time.Now(),
 		},
 	}
 	app := tview.NewApplication().
