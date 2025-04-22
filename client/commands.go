@@ -21,6 +21,7 @@ var clientCmds = map[string]func(data *ShellData, args [][]byte) error{
 	"VERBOSE": verbose,
 	"REQ":     req,
 	"REG":     reg,
+	"LOGIN":   login,
 }
 
 // Given a string containing a command name, returns its execution function
@@ -73,6 +74,8 @@ func req(data *ShellData, args [][]byte) error {
 }
 
 func reg(data *ShellData, args [][]byte) error {
+
+	// TODO: Errors might happen if the user registers a user already registered in the database
 	rd := bufio.NewReader(os.Stdin)
 
 	// Gets the username
@@ -151,4 +154,53 @@ func reg(data *ShellData, args [][]byte) error {
 	// Sends the packet
 	_, wErr := data.ClientCon.Conn.Write(pct)
 	return wErr
+}
+
+func login(data *ShellData, args [][]byte) error {
+	if len(args) < 1 {
+		return fmt.Errorf("not enough arguments")
+	}
+
+	username := string(args[0])
+	found := LocalUserExists(data.DB, username)
+	if !found {
+		return fmt.Errorf("username not found")
+	}
+
+	// Gets the password
+	fmt.Printf("%s's password: ", username)
+	pass, passErr := term.ReadPassword(0)
+	if passErr != nil {
+		fmt.Print("\n")
+		return passErr
+	}
+	fmt.Print("\n")
+
+	localUser := GetLocalUser(data.DB, username)
+	hash := []byte(localUser.Password)
+	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
+	if cmpErr != nil {
+		return fmt.Errorf("wrong credentials")
+	}
+
+	fmt.Printf("login successful. Welcome, %s\n", username)
+	data.User = localUser
+
+	// TODO: token
+	pct, pctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
+	if pctErr != nil {
+		return pctErr
+	}
+
+	if data.Verbose {
+		fmt.Println("The following packet is about to be sent:")
+		cmd := spec.ParsePacket(pct)
+		cmd.Print()
+	}
+
+	// Sends the packet
+	_, wErr := data.ClientCon.Conn.Write(pct)
+	return wErr
+
+	// TODO: RECIV handling
 }
