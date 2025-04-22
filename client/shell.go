@@ -19,7 +19,7 @@ type ShellData struct {
 	Verbose   bool
 	DB        *gorm.DB
 	Server    Server
-	// TODO: Logged in user
+	User      LocalUserData
 }
 
 // Starts a shell that allows the client to send packets
@@ -27,7 +27,11 @@ type ShellData struct {
 func NewShell(data *ShellData) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("\033[36mgochat() > \033[0m")
+		username := ""
+		if !(data.User.User.Username == "") {
+			username = data.User.User.Username
+		}
+		fmt.Printf("\033[36mgochat(%s) > \033[0m", username)
 		// Reads user input
 		input, readErr := rd.ReadBytes('\n')
 		if readErr != nil {
