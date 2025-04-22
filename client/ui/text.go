@@ -13,15 +13,20 @@ type Message struct {
 }
 
 func (t *TUI) renderDate(date time.Time) {
-	if time.Since(t.status.lastDate) > (time.Hour * 24) {
-		formatted := date.Format(time.DateOnly)
-		fmt.Fprintf(
-			t.comp.text,
-			"--- %s%s%s ---\n",
-			"[green::i]", formatted, "[-::-]",
-		)
+	ly, lm, ld := t.status.lastDate.Date()
+	ry, rm, rd := date.Date()
+	equal := ly == ry && lm == rm && ld == rd
+
+	if equal {
+		return
 	}
 
+	formatted := date.Format(time.DateOnly)
+	fmt.Fprintf(
+		t.comp.text,
+		"--- %s%s%s ---\n",
+		"[green::i]", formatted, "[-::-]",
+	)
 	t.status.lastDate = date
 }
 
