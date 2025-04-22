@@ -10,8 +10,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// TODO: selecting non existing buffer
-
 const Logo string = `
                    _           _   
                   | |         | |  
@@ -42,6 +40,7 @@ const Help string = `
 [yellow::b]Ctrl-X[-::-]: Remove currenly focused buffer
 
 [yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
+	- Press [green]Esc[-::-] to cancel the jump
 
 [yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
 
@@ -163,6 +162,10 @@ func setupStyle(t *TUI) {
 }
 
 func setupHandlers(t *TUI, app *tview.Application) {
+	t.comp.buffers.SetDoneFunc(func() {
+		app.SetFocus(t.comp.input)
+	})
+
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.ChangeBuffer(s1)
 		if t.status.showingHelp {
