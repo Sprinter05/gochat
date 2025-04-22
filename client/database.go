@@ -91,6 +91,18 @@ func serverExists(db *gorm.DB, address string, port uint16) bool {
 	return found
 }
 
+func LocalUserExists(db *gorm.DB, username string) bool {
+	var found bool = false
+	db.Raw("SELECT EXISTS(SELECT * FROM users, local_user_data WHERE users.user_id = local_user_data.user_id AND username = ?) AS found", username).Scan(&found)
+	return found
+}
+
+func GetLocalUser(db *gorm.DB, username string) LocalUserData {
+	localUser := LocalUserData{User: User{Username: username}}
+	db.First(&localUser)
+	return localUser
+}
+
 func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, data ShellData) error {
 	user := User{UserID: getMaxID(db, "users"), Username: username, ServerID: data.Server.ServerID}
 	localUser := LocalUserData{User: user, Password: hashPass, PrvKey: prvKeyPEM}
