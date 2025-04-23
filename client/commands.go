@@ -85,6 +85,17 @@ func reg(data *ShellData, args [][]byte) error {
 		return readErr
 	}
 
+	// Removes unecessary spaces and the line jump in the username
+	username = bytes.TrimSpace(username)
+	if len(username) == 0 {
+		return fmt.Errorf("username cannot be empty")
+	}
+
+	exists := LocalUserExists(data.DB, string(username))
+	if exists {
+		return fmt.Errorf("user already exists")
+	}
+
 	// Gets the password
 	fmt.Print("password: ")
 	pass1, pass1Err := term.ReadPassword(0)
@@ -106,13 +117,10 @@ func reg(data *ShellData, args [][]byte) error {
 		return fmt.Errorf("passwords do not match")
 	}
 
-	// Removes unecessary spaces and the line jump in the username
-	username = bytes.TrimSpace(username)
-	if len(username) == 0 {
-		return fmt.Errorf("username cannot be empty")
-	}
-
 	// Generates the PEM arrays of both the private and public key of the pair
+	if data.Verbose {
+		fmt.Println("generating RSA key pair...")
+	}
 	pair, rsaErr := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	if rsaErr != nil {
 		return rsaErr
@@ -123,21 +131,18 @@ func reg(data *ShellData, args [][]byte) error {
 		return pubKeyPEMErr
 	}
 
+	if data.Verbose {
+		fmt.Println("hashing password...")
+	}
 	// Hashes the provided password
 	hashPass, hashErr := bcrypt.GenerateFromPassword(pass1, 12)
 	if hashErr != nil {
 		return hashErr
 	}
 
-	// Creates the user
-	insertErr := AddLocalUser(data.DB, string(username), string(hashPass), string(prvKeyPEM), *data)
-	if insertErr != nil {
-		return insertErr
+	if data.Verbose {
+		fmt.Println("sending REG packet...")
 	}
-
-	fmt.Printf("user %s successfully added to the database\n", username)
-	fmt.Println("sending REG packet...")
-
 	// Assembles the REG packet
 	pctArgs := [][]byte{[]byte(username), pubKeyPEM}
 	pct, pctErr := spec.NewPacket(spec.REG, 1, spec.EmptyInfo, pctArgs...)
@@ -153,7 +158,27 @@ func reg(data *ShellData, args [][]byte) error {
 
 	// Sends the packet
 	_, wErr := data.ClientCon.Conn.Write(pct)
-	return wErr
+	if wErr != nil {
+		return wErr
+	}
+
+	// Awaits a response
+	if data.Verbose {
+		fmt.Println("awaiting response...")
+	}
+	REGErr := ListenREGResponse(1, *data)
+	if REGErr != nil {
+		return REGErr
+	}
+
+	// Creates the user
+	insertErr := AddLocalUser(data.DB, string(username), string(hashPass), string(prvKeyPEM), *data)
+	if insertErr != nil {
+		return insertErr
+	}
+
+	fmt.Printf("user %s successfully added to the database\n", username)
+	return nil
 }
 
 func login(data *ShellData, args [][]byte) error {
