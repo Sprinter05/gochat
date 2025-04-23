@@ -27,11 +27,7 @@ type ShellData struct {
 func NewShell(data *ShellData) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
-		username := ""
-		if !(data.User.User.Username == "") {
-			username = data.User.User.Username
-		}
-		fmt.Printf("\033[36mgochat(%s) > \033[0m", username)
+		PrintPrompt(*data)
 		// Reads user input
 		input, readErr := rd.ReadBytes('\n')
 		if readErr != nil {
@@ -65,4 +61,12 @@ func NewShell(data *ShellData) {
 			fmt.Printf("%s: %s\n", op, err)
 		}
 	}
+}
+
+func PrintPrompt(data ShellData) {
+	username := ""
+	if !(data.User.User.Username == "") {
+		username = data.User.User.Username
+	}
+	fmt.Printf("\033[36mgochat(%s) > \033[0m", username)
 }
