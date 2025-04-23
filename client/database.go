@@ -97,6 +97,12 @@ func LocalUserExists(db *gorm.DB, username string) bool {
 	return found
 }
 
+func UserExists(db *gorm.DB, username string) bool {
+	var found bool = false
+	db.Raw("SELECT EXISTS(SELECT * FROM users WHERE username = ?) AS found", username).Scan(&found)
+	return found
+}
+
 func GetLocalUser(db *gorm.DB, username string) LocalUserData {
 	localUser := LocalUserData{User: User{Username: username}}
 	db.First(&localUser)
