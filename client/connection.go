@@ -50,7 +50,7 @@ func Listen(data *ShellData) {
 
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
-func ConnectionStart(data *ShellData) {
+func ConnectionStart(data ShellData) {
 
 	cmd := spec.Command{}
 

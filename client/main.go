@@ -85,7 +85,7 @@ func main() {
 	// Fills the Server related data in the ShellData struct
 	data.Server = server
 
-	ConnectionStart(&data)
+	ConnectionStart(data)
 
 	go Listen(&data)
 	NewShell(&data)
