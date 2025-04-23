@@ -75,3 +75,39 @@ func ConnectionStart(data ShellData) {
 		log.Fatal("could not connect to server: unexpected action code received")
 	}
 }
+
+func ListenREGResponse(id spec.ID, data ShellData) error {
+	var cmd spec.Command
+
+	for !(cmd.HD.Op == spec.OK || cmd.HD.Op == spec.ERR) {
+		cmd = spec.Command{}
+		// Header listen
+		hdErr := cmd.ListenHeader(data.ClientCon)
+		if hdErr != nil {
+			return hdErr
+		}
+
+		// Header check
+		chErr := cmd.HD.ClientCheck()
+		if chErr != nil {
+			if data.Verbose {
+				cmd.Print()
+			}
+			return chErr
+		}
+
+		if cmd.HD.Op == spec.ERR {
+			return fmt.Errorf("error packet received (ID %d): %s", cmd.HD.Info, spec.ErrorCodeToError(cmd.HD.Info))
+		}
+	}
+
+	if data.Verbose {
+		fmt.Println("Packet received from server:")
+		cmd.Print()
+	}
+
+	if cmd.HD.ID != id {
+		return fmt.Errorf("unexpected ID received")
+	}
+	return nil
+}
