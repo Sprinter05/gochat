@@ -38,53 +38,20 @@ type Config struct {
 func main() {
 	// Reads configuration file
 	config := getConfig()
-	// Connects to the server
+
 	address := config.Server.Address
 	port := config.Server.Port
-
-	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
-	con, conErr := net.Dial("tcp4", socket)
-	if conErr != nil {
-		log.Fatalf("could not establish a TCP connection with server: %s", conErr)
-	}
+	con := Connect(address, port)
 	cl := spec.Connection{Conn: con}
 	defer con.Close() // Closes conection right before execution ends
 
-	// Gets the specified log level
-	dbLogLevel, ok := intToLogLevel[config.Database.LogLevel]
-	if !ok {
-		log.Fatal("config: unknown log level specified in configuration file")
-	}
-	// Creates the custom logger
-	dbLogFile, ioErr := os.OpenFile(config.Database.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	dbLog := logger.New(
-		log.New(dbLogFile, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  dbLogLevel,
-			IgnoreRecordNotFoundError: true,
-			ParameterizedQueries:      true,
-			Colorful:                  false,
-		},
-	)
-	if ioErr != nil {
-		log.Fatalf("log file could not be opened: %s", ioErr)
-	}
-	// Opens the client database
-	db, dbErr := gorm.Open(sqlite.Open("client/db/client.db"), &gorm.Config{Logger: dbLog})
-	if dbErr != nil {
-		log.Fatalf("database could not not be opened: %s", dbErr)
-	}
+	dbLog := GetDBLogger(config)
+	db := OpenClientDatabase(config.Database.Path, dbLog)
 
-	// Makes migrations
-	db.AutoMigrate(&Server{}, &User{}, &LocalUserData{}, &ExternalUserData{}, &Message{})
 	server := SaveServer(db, address, port)
-
-	data := ShellData{ClientCon: cl, Verbose: true, DB: db}
+	data := ShellData{ClientCon: cl, Verbose: true, DB: db, Server: server}
 
 	// Fills the Server related data in the ShellData struct
-	data.Server = server
-
 	ConnectionStart(data)
 
 	go Listen(&data)
@@ -105,4 +72,50 @@ func getConfig() Config {
 	jsonParser := json.NewDecoder(f)
 	jsonParser.Decode(&config)
 	return config
+}
+
+// Connects to the gochat server given its address and port
+func Connect(address string, port uint16) net.Conn {
+	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
+	con, conErr := net.Dial("tcp4", socket)
+	if conErr != nil {
+		log.Fatalf("could not establish a TCP connection with server: %s", conErr)
+	}
+	return con
+}
+
+// Gets the specified log level in the client configuration file
+func GetDBLogger(config Config) logger.Interface {
+	dbLogLevel, ok := intToLogLevel[config.Database.LogLevel]
+	if !ok {
+		log.Fatal("config: unknown log level specified in configuration file")
+	}
+	// Creates the custom logger
+	dbLogFile, ioErr := os.OpenFile(config.Database.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	dbLog := logger.New(
+		log.New(dbLogFile, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  dbLogLevel,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true,
+			Colorful:                  false,
+		},
+	)
+	if ioErr != nil {
+		log.Fatalf("log file could not be opened: %s", ioErr)
+	}
+	return dbLog
+}
+
+// Opens the client database
+func OpenClientDatabase(path string, logger logger.Interface) *gorm.DB {
+	db, dbErr := gorm.Open(sqlite.Open("client/db/client.db"), &gorm.Config{Logger: logger})
+	if dbErr != nil {
+		log.Fatalf("database could not not be opened: %s", dbErr)
+	}
+
+	// Makes migrations
+	db.AutoMigrate(&Server{}, &User{}, &LocalUserData{}, &ExternalUserData{}, &Message{})
+	return db
 }
