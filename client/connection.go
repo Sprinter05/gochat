@@ -44,7 +44,7 @@ func Listen(data *ShellData) {
 		if data.Verbose {
 			cmd.Print()
 		}
-		fmt.Print("gochat() > ")
+		PrintPrompt(*data)
 	}
 }
 
