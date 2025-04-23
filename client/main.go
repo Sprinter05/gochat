@@ -54,7 +54,7 @@ func main() {
 	// Fills the Server related data in the ShellData struct
 	ConnectionStart(data)
 
-	go Listen(&data)
+	// go Listen(&data)
 	NewShell(&data)
 }
 
