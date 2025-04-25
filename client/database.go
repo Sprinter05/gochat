@@ -103,8 +103,14 @@ func UserExists(db *gorm.DB, username string) bool {
 	return found
 }
 
+func GetUser(db *gorm.DB, username string) User {
+	user := User{Username: username}
+	db.First(&user)
+	return user
+}
+
 func GetLocalUser(db *gorm.DB, username string) LocalUserData {
-	localUser := LocalUserData{User: User{Username: username}}
+	localUser := LocalUserData{User: User{Username: username}, UserID: GetUser(db, username).UserID}
 	db.First(&localUser)
 	return localUser
 }
