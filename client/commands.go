@@ -171,7 +171,7 @@ func reg(data *ShellData, args [][]byte) error {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return fmt.Errorf("could not register user: error packet received (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))
+		return fmt.Errorf("error packet received (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))
 	}
 
 	// Creates the user
@@ -195,7 +195,7 @@ func login(data *ShellData, args [][]byte) error {
 		return fmt.Errorf("username not found")
 	}
 
-	// Gets the password
+	// Asks for password
 	fmt.Printf("%s's password: ", username)
 	pass, passErr := term.ReadPassword(0)
 	if passErr != nil {
@@ -204,6 +204,7 @@ func login(data *ShellData, args [][]byte) error {
 	}
 	fmt.Print("\n")
 
+	// Verifies password
 	localUser := GetLocalUser(data.DB, username)
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
@@ -211,24 +212,92 @@ func login(data *ShellData, args [][]byte) error {
 		return fmt.Errorf("wrong credentials")
 	}
 
-	fmt.Printf("login successful. Welcome, %s\n", username)
-	data.User = localUser
+	if data.Verbose {
+		fmt.Println("password correct\n[...] sending LOGIN packet...")
+	}
 
 	// TODO: token
-	pct, pctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
-	if pctErr != nil {
-		return pctErr
+	// Sends a LOGIN packet with the username as an argument
+	LOGINPct, LOGINPctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
+	if LOGINPctErr != nil {
+		return LOGINPctErr
 	}
 
 	if data.Verbose {
-		fmt.Println("The following packet is about to be sent:")
-		cmd := spec.ParsePacket(pct)
-		cmd.Print()
+		fmt.Println("the following packet is about to be sent:")
+		LOGINCmd := spec.ParsePacket(LOGINPct)
+		LOGINCmd.Print()
 	}
 
 	// Sends the packet
-	_, wErr := data.ClientCon.Conn.Write(pct)
-	return wErr
+	_, LOGINwErr := data.ClientCon.Conn.Write(LOGINPct)
+	if LOGINwErr != nil {
+		return LOGINwErr
+	}
 
-	// TODO: RECIV handling
+	// Listens for a response
+	if data.Verbose {
+		fmt.Println("[...] awaiting response...")
+	}
+
+	LOGINReply, LOGINReplyErr := ListenResponse(*data, 1, spec.ERR, spec.VERIF)
+	if LOGINReplyErr != nil {
+		return LOGINReplyErr
+	}
+
+	if LOGINReply.HD.Op == spec.ERR {
+		return fmt.Errorf("error packet received on LOGIN reply (ID %d): %s", LOGINReply.HD.Info, spec.ErrorCodeToError(LOGINReply.HD.Info))
+	}
+
+	// The reply is a VERIF
+	// Decrypts the message
+	pKey, PEMErr := spec.PEMToPrivkey([]byte(localUser.PrvKey))
+	if PEMErr != nil {
+		return PEMErr
+	}
+
+	decrypted, decryptErr := spec.DecryptText([]byte(LOGINReply.Args[0]), pKey)
+	if decryptErr != nil {
+		return decryptErr
+	}
+
+	// Sends a reply to the VERIF packet
+	VERIFPct, VERIFPctErr := spec.NewPacket(spec.VERIF, 1, spec.EmptyInfo, []byte(username), decrypted)
+	if VERIFPctErr != nil {
+		return VERIFPctErr
+	}
+
+	if data.Verbose {
+		fmt.Println("the following packet is about to be sent:")
+		VERIFcmd := spec.ParsePacket(VERIFPct)
+		VERIFcmd.Print()
+	}
+
+	// Sends the packet
+	_, VERIFwErr := data.ClientCon.Conn.Write(VERIFPct)
+	if VERIFwErr != nil {
+		return VERIFwErr
+	}
+
+	// Listens for response
+	if data.Verbose {
+		fmt.Println("[...] awaiting response...")
+	}
+	VERIFReply, VERIFReplyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
+	if VERIFReplyErr != nil {
+		return VERIFReplyErr
+	}
+
+	if VERIFReply.HD.Op == spec.ERR {
+		return fmt.Errorf("error packet received on RECIV reply (ID %d): %s", VERIFReply.HD.Info, spec.ErrorCodeToError(VERIFReply.HD.Info))
+	}
+
+	if data.Verbose {
+		fmt.Println("verification successful")
+	}
+
+	//verifPct, listenErr :=
+	fmt.Printf("login successful. Welcome, %s\n", username)
+	data.User = localUser
+	return nil
 }
