@@ -75,7 +75,6 @@ func req(data *ShellData, args [][]byte) error {
 
 func reg(data *ShellData, args [][]byte) error {
 
-	// TODO: Errors might happen if the user registers a user already registered in the database
 	rd := bufio.NewReader(os.Stdin)
 
 	// Gets the username
@@ -119,7 +118,7 @@ func reg(data *ShellData, args [][]byte) error {
 
 	// Generates the PEM arrays of both the private and public key of the pair
 	if data.Verbose {
-		fmt.Println("generating RSA key pair...")
+		fmt.Println("[...] generating RSA key pair...")
 	}
 	pair, rsaErr := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	if rsaErr != nil {
@@ -132,7 +131,7 @@ func reg(data *ShellData, args [][]byte) error {
 	}
 
 	if data.Verbose {
-		fmt.Println("hashing password...")
+		fmt.Println("[...] hashing password...")
 	}
 	// Hashes the provided password
 	hashPass, hashErr := bcrypt.GenerateFromPassword(pass1, 12)
@@ -141,7 +140,7 @@ func reg(data *ShellData, args [][]byte) error {
 	}
 
 	if data.Verbose {
-		fmt.Println("sending REG packet...")
+		fmt.Println("[...] sending REG packet...")
 	}
 	// Assembles the REG packet
 	pctArgs := [][]byte{[]byte(username), pubKeyPEM}
@@ -151,7 +150,7 @@ func reg(data *ShellData, args [][]byte) error {
 	}
 
 	if data.Verbose {
-		fmt.Println("The following packet is about to be sent:")
+		fmt.Println("the following packet is about to be sent:")
 		cmd := spec.ParsePacket(pct)
 		cmd.Print()
 	}
@@ -164,11 +163,15 @@ func reg(data *ShellData, args [][]byte) error {
 
 	// Awaits a response
 	if data.Verbose {
-		fmt.Println("awaiting response...")
+		fmt.Println("[...] awaiting response...")
 	}
-	REGErr := ListenREGResponse(1, *data)
+	reply, REGErr := ListenResponse(*data, 1, spec.OK, spec.ERR)
 	if REGErr != nil {
 		return REGErr
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return fmt.Errorf("could not register user: error packet received (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))
 	}
 
 	// Creates the user
