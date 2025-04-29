@@ -8,28 +8,23 @@ import (
 	"github.com/rivo/tview"
 )
 
-type tab struct {
-	index    int
-	messages models.Slice[Message]
-	name     string
-	system   bool
-}
-
-type opts struct {
+type state struct {
 	showingUsers bool
 	showingBufs  bool
-	creatingBuf  bool
-	showingHelp  bool
-	freeIndexes  []int
-	lastDate     time.Time
+
+	creatingBuf bool
+	showingHelp bool
+	lastDate    time.Time
 }
 
 type TUI struct {
-	area   areas
-	comp   components
-	tabs   models.Table[string, *tab]
-	status opts
-	active string
+	area areas
+	comp components
+
+	status state
+
+	servers models.Table[string, Server]
+	active  string
 }
 
 func (t *TUI) newbufPopup(app *tview.Application) {
@@ -68,42 +63,23 @@ func (t *TUI) newbufPopup(app *tview.Application) {
 			return
 		}
 
-		if _, ok := t.tabs.Get(text); ok {
-			t.showError(ErrorExists)
+		s := t.Active()
+		if s.Buffers().tabs.Len() > int(maxBuffers) {
+			t.showError(ErrorMaxBufs)
 			return
 		}
 
-		t.newTab(text, false)
-		i := t.tabs.Len() - 1
+		i, r, err := s.Buffers().New(text, false)
+		if err != nil {
+			t.showError(err)
+			return
+		}
+
+		t.comp.buffers.AddItem(text, "", r, nil)
 		t.changeTab(i)
+
 		exit()
 	})
-}
-
-func (t *TUI) newTab(name string, system bool) {
-	num := t.tabs.Len() + 1
-	tab := &tab{
-		index:    num,
-		messages: models.NewSlice[Message](0),
-		name:     name,
-		system:   system,
-	}
-
-	// Check for available index
-	l := len(t.status.freeIndexes)
-	if l > 0 {
-		num = t.status.freeIndexes[0]                   // FIFO
-		t.status.freeIndexes = t.status.freeIndexes[1:] // Remove
-		tab.index = num                                 // Prevents duplication on the slice
-	}
-
-	offset := asciiNumbers + num
-	if num >= 10 {
-		offset = asciiLowercase + (num - 10)
-	}
-
-	t.comp.buffers.AddItem(name, "", int32(offset), nil)
-	t.tabs.Add(name, tab)
 }
 
 func (t *TUI) changeTab(i int) {
@@ -117,27 +93,14 @@ func (t *TUI) changeTab(i int) {
 }
 
 func (t *TUI) removeTab(name string) {
-	b, ok := t.tabs.Get(name)
-	if !ok {
-		t.showError(ErrorNotFound)
-		return
-	}
-
-	if b.system {
-		t.showError(ErrorSystemBuf)
-		return
-	}
-
-	if t.active == name {
-		// First item (System) will always exist
-		t.comp.buffers.SetCurrentItem(0)
-		t.ChangeBuffer("System")
-	}
+	var indexes []int
+	// TODO change buffer
 
 	l := t.comp.buffers.FindItems(name, "", true, false)
 	for _, v := range l {
 		t.comp.buffers.RemoveItem(v)
-		t.status.freeIndexes = append(t.status.freeIndexes, b.index) // Available index
+		indexes = append(indexes, v)
 	}
-	t.tabs.Remove(name)
+
+	t.Active().Buffers().Remove(name, indexes)
 }

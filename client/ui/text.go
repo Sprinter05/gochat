@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 )
@@ -10,6 +11,7 @@ type Message struct {
 	Sender    string
 	Content   string
 	Timestamp time.Time
+	Source    net.Addr
 }
 
 func (t *TUI) renderDate(date time.Time) {
@@ -94,42 +96,18 @@ func (t *TUI) ChangeBuffer(buf string) {
 		return
 	}
 
-	b, ok := t.tabs.Get(buf)
-	if !ok {
-		panic("non created tab when selecting buffer")
-	}
-
-	t.comp.text.Clear()
-	if b.system {
-		fmt.Fprint(t.comp.text, Logo[1:])
-	}
-
-	msgs := b.messages.Copy(0)
+	msgs := t.Active().Messages(buf)
 	for _, v := range msgs {
 		t.renderMsg(v)
 	}
 }
 
 func (t *TUI) SendMessage(buf string, msg Message) {
-	check := strings.Replace(msg.Content, "\n", "", -1)
-	if check == "" {
-		return
+	list := t.servers.GetAll()
+	for _, v := range list {
+		// Each server will handle if its for them
+		v.Receive(msg)
 	}
 
-	b, ok := t.tabs.Get(buf)
-	if !ok {
-		t.newTab(buf, false)
-		b, _ = t.tabs.Get(buf)
-	}
-
-	if b.system && msg.Sender == selfSender {
-		t.showError(ErrorSystemBuf)
-		return
-	}
-
-	b.messages.Add(msg)
-
-	if buf == t.active && !t.status.showingHelp {
-		t.renderMsg(msg)
-	}
+	// TODO: render message
 }

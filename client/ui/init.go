@@ -59,6 +59,7 @@ const (
 	errorMessage   uint   = 3    // seconds
 	asciiNumbers   int    = 0x30 // Start of ASCII for number 1
 	asciiLowercase int    = 0x61 // Start of ASCII for lowercase a
+	maxBuffers     uint   = 35
 )
 
 var (
@@ -278,10 +279,6 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			}
 		case tcell.KeyCtrlN:
 			if !t.status.creatingBuf && !t.status.showingHelp {
-				if t.tabs.Len() >= 35 {
-					t.showError(ErrorMaxBufs)
-					break
-				}
 				t.newbufPopup(app)
 			}
 		case tcell.KeyCtrlX:
@@ -300,10 +297,10 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 func New() (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 	t := &TUI{
-		tabs: models.NewTable[string, *tab](0),
-		comp: comps,
-		area: areas,
-		status: opts{
+		servers: models.NewTable[string, Server](0),
+		comp:    comps,
+		area:    areas,
+		status: state{
 			showingUsers: false,
 			showingBufs:  true,
 			showingHelp:  false,
@@ -321,13 +318,15 @@ func New() (*TUI, *tview.Application) {
 	setupStyle(t)
 	setupInput(t)
 
-	t.newTab("System", true)
+	// fake system server
+
 	t.active = "System"
 	fmt.Fprint(t.comp.text, Logo[1:])
 	t.SendMessage("System", Message{
 		Sender:    "System",
 		Content:   "Welcome to gochat!",
 		Timestamp: time.Now(),
+		Source:    nil,
 	})
 
 	return t, app
