@@ -47,7 +47,7 @@ func (b *Buffers) New(name string, system bool) (int, rune, error) {
 	return i, int32(offset), nil
 }
 
-func (b *Buffers) Remove(name string, indexes []int) error {
+func (b *Buffers) Remove(name string) error {
 	t, ok := b.tabs.Get(name)
 	if !ok {
 		return ErrorNotFound
@@ -57,7 +57,7 @@ func (b *Buffers) Remove(name string, indexes []int) error {
 		return ErrorSystemBuf
 	}
 
-	b.indexes = append(b.indexes, indexes...)
+	b.indexes = append(b.indexes, t.index)
 	b.tabs.Remove(name)
 	return nil
 }

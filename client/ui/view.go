@@ -98,14 +98,27 @@ func (t *TUI) changeTab(i int) {
 }
 
 func (t *TUI) removeTab(name string) {
-	var indexes []int
-	// TODO change buffer
+	err := t.Active().Buffers().Remove(name)
+	if err != nil {
+		t.showError(err)
+		return
+	}
+
+	count := t.comp.buffers.GetItemCount()
+	if count == 1 {
+		t.comp.text.Clear()
+	} else {
+		curr := t.comp.buffers.GetCurrentItem()
+		if curr == 0 {
+			t.changeTab(curr + 1)
+		} else {
+			t.changeTab(curr - 1)
+		}
+	}
 
 	l := t.comp.buffers.FindItems(name, "", true, false)
 	for _, v := range l {
 		t.comp.buffers.RemoveItem(v)
-		indexes = append(indexes, v)
 	}
 
-	t.Active().Buffers().Remove(name, indexes)
 }

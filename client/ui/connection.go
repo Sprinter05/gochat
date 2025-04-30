@@ -81,10 +81,10 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 		return false, ErrorNoText
 	}
 
-	b, ok := s.bufs.tabs.Get(msg.Sender)
+	b, ok := s.bufs.tabs.Get(msg.Destination)
 	if !ok {
-		s.bufs.New(msg.Sender, false)
-		b, _ = s.bufs.tabs.Get(msg.Sender)
+		s.bufs.New(msg.Destination, false)
+		b, _ = s.bufs.tabs.Get(msg.Destination)
 	}
 
 	b.messages.Add(msg)
@@ -111,7 +111,8 @@ func (l *LocalServer) Messages(name string) []Message {
 	msgs := t.messages.Copy(0)
 
 	logo := Message{
-		Content: Logo,
+		Destination: "System",
+		Content:     Logo,
 	}
 
 	ret = append(ret, logo)
@@ -121,7 +122,7 @@ func (l *LocalServer) Messages(name string) []Message {
 }
 
 func (l *LocalServer) Receive(msg Message) (bool, error) {
-	b, ok := l.bufs.tabs.Get(msg.Sender)
+	b, ok := l.bufs.tabs.Get(msg.Destination)
 	if !ok {
 		// Not for this server
 		return false, nil

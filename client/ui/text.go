@@ -8,10 +8,11 @@ import (
 )
 
 type Message struct {
-	Sender    string
-	Content   string
-	Timestamp time.Time
-	Source    net.Addr
+	Sender      string
+	Destination string
+	Content     string
+	Timestamp   time.Time
+	Source      net.Addr
 }
 
 func (t *TUI) renderDate(date time.Time) {
@@ -53,10 +54,10 @@ func (t *TUI) renderMsg(msg Message) {
 
 	_, err := fmt.Fprintf(
 		t.comp.text,
-		"[%s%s%s] at %s%07s%s: %*s\n",
+		"[%s%s%s] at %s%07s%s: %s\n",
 		color, msg.Sender, "[-::-]",
 		"[gray::u]", f, "[-::-]",
-		len(msg.Sender), content,
+		content,
 	)
 
 	if err != nil {
@@ -124,7 +125,7 @@ func (t *TUI) SendMessage(buf string, msg Message) {
 		}
 
 		if ok {
-			if v.Buffers().current == msg.Sender {
+			if v.Buffers().current == msg.Destination {
 				t.renderMsg(msg)
 			}
 			break

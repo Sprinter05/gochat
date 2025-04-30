@@ -194,9 +194,10 @@ func setupInput(t *TUI) {
 			}
 
 			t.SendMessage(t.active, Message{
-				Sender:    selfSender,
-				Content:   t.comp.input.GetText(),
-				Timestamp: time.Now(),
+				Sender:      selfSender,
+				Destination: t.Active().Buffers().current,
+				Content:     t.comp.input.GetText(),
+				Timestamp:   time.Now(),
 			})
 
 			t.comp.input.SetText("", false)
@@ -285,7 +286,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				break
 			}
 
-			t.removeTab(t.active)
+			t.removeTab(t.Active().Buffers().current)
 		case tcell.KeyCtrlR:
 			app.Sync()
 		}
@@ -328,10 +329,11 @@ func New() (*TUI, *tview.Application) {
 	t.addTab("System", true)
 
 	t.SendMessage("System", Message{
-		Sender:    "System",
-		Content:   "Welcome to gochat!",
-		Timestamp: time.Now(),
-		Source:    nil,
+		Sender:      "System",
+		Destination: "System",
+		Content:     "Welcome to gochat!",
+		Timestamp:   time.Now(),
+		Source:      nil,
 	})
 
 	return t, app
