@@ -10,6 +10,8 @@ import (
 )
 
 // TODO show different text for system buffer
+// TODO can send messages to empty server
+// TODO messages on newly added server dont save on table
 
 const Logo string = `
                    _           _   
@@ -26,7 +28,7 @@ const Logo string = `
 const Help string = `
 [-::u]The gochat Instructions Manual:[-::-]
 
-[yellow::b]Ctrl-Alt-H[-::-]: Show/Hide help window
+[yellow::b]Ctrl-Alt-H/Ctrl-Shift-H[-::-]: Show/Hide help window
 
 [yellow::b]Ctrl-Q[-::-]: Exit program
 
@@ -34,11 +36,11 @@ const Help string = `
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
 
-[yellow::b]Ctrl-N[-::-]: Create a new buffer
+[yellow::b]Ctrl-X[-::-]: Remove currenly focused buffer
+
+[yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
 	- [green]Esc[-::-] to cancel
 	- [green]Enter[-::-] to confirm
-
-[yellow::b]Ctrl-X[-::-]: Remove currenly focused buffer
 
 [yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
 	- Press [green]Esc[-::-] to cancel the jump
@@ -197,11 +199,10 @@ func setupHandlers(t *TUI, app *tview.Application) {
 
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.renderBuffer(s1)
-		if t.status.showingHelp {
-			app.SetFocus(t.comp.text)
-		} else {
-			app.SetFocus(t.comp.input)
-		}
+	})
+
+	t.comp.servers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
+		t.changeServer(s1)
 	})
 
 	t.comp.buffers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -304,7 +305,8 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyCtrlH:
-			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
+			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
+				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				app.SetFocus(t.comp.text)
 				t.toggleHelp()
 				if !t.status.showingHelp {
@@ -392,7 +394,7 @@ func New() (*TUI, *tview.Application) {
 		Buffer:    systemBuffer,
 		Content:   "Welcome to gochat!",
 		Timestamp: time.Now(),
-		Source:    nil,
+		Source:    t.Active().Source(),
 	})
 
 	return t, app

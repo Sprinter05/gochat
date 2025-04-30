@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"net"
 	"slices"
 	"strings"
@@ -14,6 +15,7 @@ type Server interface {
 	Messages(string) []Message
 	Receive(Message) (bool, error)
 	Buffers() *Buffers
+	Source() net.Addr
 }
 
 func (t *TUI) Active() Server {
@@ -25,10 +27,15 @@ func (t *TUI) Active() Server {
 	return s
 }
 
-// Adds a remote server
 func (t *TUI) addServer(name string, addr net.Addr) {
 	if t.servers.Len() >= int(maxServers) {
 		t.showError(ErrorMaxServers)
+		return
+	}
+
+	_, ok := t.servers.Get(name)
+	if ok {
+		t.showError(ErrorExists)
 		return
 	}
 
@@ -51,6 +58,34 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 	t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
 }
 
+func (t *TUI) changeServer(name string) {
+	s, ok := t.servers.Get(name)
+	if !ok {
+		return
+	}
+	t.active = name
+
+	t.comp.buffers.Clear()
+	if s.Buffers().tabs.Len() == 0 {
+		t.comp.text.Clear()
+		return
+	}
+
+	tabs := s.Buffers().tabs.GetAll()
+	for _, v := range tabs {
+		if v.index != -1 {
+			t.comp.buffers.AddItem(v.name, "", ascii(v.index), nil)
+		}
+	}
+
+	i, ok := t.findBuffer(t.Tab())
+	if !ok {
+		panic("cannot open server buffer on change")
+	}
+
+	t.changeBuffer(i)
+}
+
 // REMOTE SERVER
 
 type RemoteServer struct {
@@ -71,6 +106,11 @@ func (s *RemoteServer) Messages(name string) []Message {
 
 // Returns true if received
 func (s *RemoteServer) Receive(msg Message) (bool, error) {
+	if msg.Source == nil {
+		// Not this destination
+		return false, nil
+	}
+
 	ip, err := net.ResolveTCPAddr("tcp4", msg.Source.String())
 	if err != nil {
 		// Not this destination
@@ -101,6 +141,17 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 
 func (s *RemoteServer) Buffers() *Buffers {
 	return &s.bufs
+}
+
+func (s *RemoteServer) Source() net.Addr {
+	str := fmt.Sprintf("%s:%d", s.ip.String(), s.port)
+
+	ip, err := net.ResolveTCPAddr("tcp4", str)
+	if err != nil {
+		panic("invalid IP in remote server")
+	}
+
+	return ip
 }
 
 // LOCAL SERVER
@@ -147,4 +198,8 @@ func (l *LocalServer) Receive(msg Message) (bool, error) {
 
 func (l *LocalServer) Buffers() *Buffers {
 	return &l.bufs
+}
+
+func (l *LocalServer) Source() net.Addr {
+	return nil
 }
