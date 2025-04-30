@@ -79,7 +79,7 @@ func (t *TUI) toggleHelp() {
 		t.status.showingHelp = false
 		t.area.chat.ResizeItem(t.comp.input, inputSize, 0)
 		t.comp.text.SetTitle("Messages")
-		t.ChangeBuffer(t.Active().Buffers().current)
+		t.renderBuffer(t.Active().Buffers().current)
 	}
 }
 
@@ -96,7 +96,7 @@ func (t *TUI) showError(err error) {
 }
 
 // Assumes buffer list is already changed
-func (t *TUI) ChangeBuffer(buf string) {
+func (t *TUI) renderBuffer(buf string) {
 	_, ok := t.Active().Buffers().tabs.Get(buf)
 	if !ok {
 		return

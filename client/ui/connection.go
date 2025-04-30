@@ -25,6 +25,7 @@ func (t *TUI) Active() Server {
 	return s
 }
 
+// Adds a remote server
 func (t *TUI) addServer(name string, addr net.Addr) {
 	ip, err := net.ResolveTCPAddr("tcp4", addr.String())
 	if err != nil {
@@ -121,6 +122,7 @@ func (l *LocalServer) Messages(name string) []Message {
 	return ret
 }
 
+// Does not return an error if the server is not the destionation remote
 func (l *LocalServer) Receive(msg Message) (bool, error) {
 	b, ok := l.bufs.tabs.Get(msg.Destination)
 	if !ok {

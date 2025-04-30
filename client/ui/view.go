@@ -27,7 +27,7 @@ type TUI struct {
 	active  string
 }
 
-func (t *TUI) newbufPopup(app *tview.Application) {
+func newbufPopup(t *TUI, app *tview.Application) {
 	t.status.creatingBuf = true
 
 	input := tview.NewInputField().
@@ -69,13 +69,14 @@ func (t *TUI) newbufPopup(app *tview.Application) {
 			return
 		}
 
-		t.addTab(text, false)
+		t.addBuffer(text, false)
 
 		exit()
 	})
 }
 
-func (t *TUI) addTab(name string, system bool) {
+// Adds and changes to new buffer on the list
+func (t *TUI) addBuffer(name string, system bool) {
 	s := t.Active()
 	i, r, err := s.Buffers().New(name, system)
 	if err != nil {
@@ -84,20 +85,22 @@ func (t *TUI) addTab(name string, system bool) {
 	}
 
 	t.comp.buffers.AddItem(name, "", r, nil)
-	t.changeTab(i)
+	t.changeBuffer(i)
 }
 
-func (t *TUI) changeTab(i int) {
+// Changes to buffers on the list
+func (t *TUI) changeBuffer(i int) {
 	if i < 0 || i >= t.comp.buffers.GetItemCount() {
 		return
 	}
 
 	t.comp.buffers.SetCurrentItem(i)
 	text, _ := t.comp.buffers.GetItemText(i)
-	t.ChangeBuffer(text)
+	t.renderBuffer(text)
 }
 
-func (t *TUI) removeTab(name string) {
+// Removes and changes buffer on the list
+func (t *TUI) removeBuffer(name string) {
 	err := t.Active().Buffers().Remove(name)
 	if err != nil {
 		t.showError(err)
@@ -110,9 +113,9 @@ func (t *TUI) removeTab(name string) {
 	} else {
 		curr := t.comp.buffers.GetCurrentItem()
 		if curr == 0 {
-			t.changeTab(curr + 1)
+			t.changeBuffer(curr + 1)
 		} else {
-			t.changeTab(curr - 1)
+			t.changeBuffer(curr - 1)
 		}
 	}
 

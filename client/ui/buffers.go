@@ -15,6 +15,12 @@ type Buffers struct {
 	indexes []int
 }
 
+// Returns the currently active tab
+func (t *TUI) Tab() string {
+	return t.Active().Buffers().current
+}
+
+// Returns the index and asocciated rune
 func (b *Buffers) New(name string, system bool) (int, rune, error) {
 	_, ok := b.tabs.Get(name)
 	if ok {

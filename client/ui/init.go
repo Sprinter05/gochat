@@ -167,7 +167,7 @@ func setupHandlers(t *TUI, app *tview.Application) {
 	})
 
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
-		t.ChangeBuffer(s1)
+		t.renderBuffer(s1)
 		if t.status.showingHelp {
 			app.SetFocus(t.comp.text)
 		} else {
@@ -195,7 +195,7 @@ func setupInput(t *TUI) {
 
 			t.SendMessage(t.active, Message{
 				Sender:      selfSender,
-				Destination: t.Active().Buffers().current,
+				Destination: t.Tab(),
 				Content:     t.comp.input.GetText(),
 				Timestamp:   time.Now(),
 			})
@@ -266,7 +266,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 
 			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				curr := t.comp.buffers.GetCurrentItem()
-				t.changeTab(curr + 1)
+				t.changeBuffer(curr + 1)
 			}
 		case tcell.KeyUp:
 			if t.status.creatingBuf {
@@ -275,18 +275,18 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 
 			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				curr := t.comp.buffers.GetCurrentItem()
-				t.changeTab(curr - 1)
+				t.changeBuffer(curr - 1)
 			}
 		case tcell.KeyCtrlN:
 			if !t.status.creatingBuf && !t.status.showingHelp {
-				t.newbufPopup(app)
+				newbufPopup(t, app)
 			}
 		case tcell.KeyCtrlX:
 			if t.status.creatingBuf || t.status.showingHelp {
 				break
 			}
 
-			t.removeTab(t.Active().Buffers().current)
+			t.removeBuffer(t.Tab())
 		case tcell.KeyCtrlR:
 			app.Sync()
 		}
@@ -326,7 +326,7 @@ func New() (*TUI, *tview.Application) {
 		},
 	})
 	t.active = "Local"
-	t.addTab("System", true)
+	t.addBuffer("System", true)
 
 	t.SendMessage("System", Message{
 		Sender:      "System",
