@@ -9,8 +9,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// TODO show different text for system buffer
-
 const Logo string = `
                    _           _   
                   | |         | |  

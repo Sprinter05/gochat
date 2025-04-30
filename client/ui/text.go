@@ -5,6 +5,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 type Message struct {
@@ -97,12 +99,18 @@ func (t *TUI) showError(err error) {
 
 // Assumes buffer list is already changed
 func (t *TUI) renderBuffer(buf string) {
-	_, ok := t.Active().Buffers().tabs.Get(buf)
+	b, ok := t.Active().Buffers().tabs.Get(buf)
 	if !ok {
 		return
 	}
 
 	t.Active().Buffers().current = buf
+
+	if b.system {
+		t.comp.buffers.SetSelectedTextColor(tcell.ColorPlum)
+	} else {
+		t.comp.buffers.SetSelectedTextColor(tcell.ColorPurple)
+	}
 
 	if t.status.showingHelp {
 		return
