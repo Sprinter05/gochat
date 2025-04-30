@@ -12,7 +12,17 @@ type tab struct {
 type Buffers struct {
 	tabs    models.Table[string, *tab]
 	current string
+	open    int
 	indexes []int
+}
+
+func offset(num int) int32 {
+	offset := asciiNumbers + num
+	if num >= 10 {
+		offset = asciiLowercase + (num - 10)
+	}
+
+	return int32(offset)
 }
 
 // Returns the currently active tab
@@ -20,37 +30,61 @@ func (t *TUI) Tab() string {
 	return t.Active().Buffers().current
 }
 
-// Returns the index and asocciated rune
-func (b *Buffers) New(name string, system bool) (int, rune, error) {
+// Returns the index and asocciated rune unless its hidden
+func (b *Buffers) New(name string, system bool) error {
 	_, ok := b.tabs.Get(name)
 	if ok {
-		return -1, -1, ErrorExists
+		return ErrorExists
 	}
 
-	num := b.tabs.Len() + 1
 	tab := &tab{
-		index:    num,
+		index:    -1,
 		messages: models.NewSlice[Message](0),
 		name:     name,
 		system:   system,
 	}
 
-	// Check for available index
+	b.tabs.Add(name, tab)
+	return nil
+}
+
+func (b *Buffers) Show(name string) (int, rune) {
+	t, ok := b.tabs.Get(name)
+	if !ok {
+		return -1, -1
+	}
+
+	if t.index != -1 {
+		return -1, -1
+	}
+
+	b.open += 1
+	num := b.open
+	t.index = num
 	l := len(b.indexes)
 	if l > 0 {
 		num = b.indexes[0]        // FIFO
 		b.indexes = b.indexes[1:] // Remove
-		tab.index = num           // Prevents duplication on the slice
+		t.index = num             // Prevents duplication on the slice
 	}
 
-	offset := asciiNumbers + num
-	if num >= 10 {
-		offset = asciiLowercase + (num - 10)
+	return b.open - 1, offset(num)
+}
+
+func (b *Buffers) Hide(name string) error {
+	t, ok := b.tabs.Get(name)
+	if !ok {
+		return ErrorNotFound
 	}
 
-	b.tabs.Add(name, tab)
-	i := b.tabs.Len() - 1
-	return i, int32(offset), nil
+	if t.system {
+		return ErrorSystemBuf
+	}
+
+	b.open -= 1
+	b.indexes = append(b.indexes, t.index)
+	t.index = -1
+	return nil
 }
 
 func (b *Buffers) Remove(name string) error {
@@ -63,7 +97,7 @@ func (b *Buffers) Remove(name string) error {
 		return ErrorSystemBuf
 	}
 
-	b.indexes = append(b.indexes, t.index)
+	b.Hide(name)
 	b.tabs.Remove(name)
 	return nil
 }

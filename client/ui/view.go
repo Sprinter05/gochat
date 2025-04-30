@@ -78,9 +78,15 @@ func newbufPopup(t *TUI, app *tview.Application) {
 // Adds and changes to new buffer on the list
 func (t *TUI) addBuffer(name string, system bool) {
 	s := t.Active()
-	i, r, err := s.Buffers().New(name, system)
-	if err != nil && t.findBuffer(name) {
+	err := s.Buffers().New(name, system)
+	_, ok := t.findBuffer(name)
+	if err != nil && ok {
 		t.showError(err)
+		return
+	}
+
+	i, r := s.Buffers().Show(name)
+	if i == -1 {
 		return
 	}
 
@@ -99,14 +105,19 @@ func (t *TUI) changeBuffer(i int) {
 	t.renderBuffer(text)
 }
 
-func (t *TUI) findBuffer(name string) bool {
+func (t *TUI) findBuffer(name string) (int, bool) {
 	l := t.comp.buffers.FindItems(name, "", true, false)
-	return len(l) != 0
+
+	if len(l) != 0 {
+		return l[0], true
+	}
+
+	return -1, false
 }
 
 // Removes and changes buffer on the list
 func (t *TUI) removeBuffer(name string) {
-	err := t.Active().Buffers().Remove(name)
+	err := t.Active().Buffers().Hide(name)
 	if err != nil {
 		t.showError(err)
 		return
@@ -124,9 +135,9 @@ func (t *TUI) removeBuffer(name string) {
 		}
 	}
 
-	l := t.comp.buffers.FindItems(name, "", true, false)
-	for _, v := range l {
-		t.comp.buffers.RemoveItem(v)
+	i, ok := t.findBuffer(name)
+	if ok {
+		t.comp.buffers.RemoveItem(i)
 	}
 
 }
