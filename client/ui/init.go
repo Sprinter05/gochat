@@ -2,7 +2,6 @@ package ui
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
@@ -318,10 +317,16 @@ func New() (*TUI, *tview.Application) {
 	setupStyle(t)
 	setupInput(t)
 
-	// fake system server
+	// system server
+	t.servers.Add("Local", &LocalServer{
+		name: "Local",
+		bufs: Buffers{
+			tabs: models.NewTable[string, *tab](maxBuffers),
+		},
+	})
+	t.active = "Local"
+	t.addTab("System", true)
 
-	t.active = "System"
-	fmt.Fprint(t.comp.text, Logo[1:])
 	t.SendMessage("System", Message{
 		Sender:    "System",
 		Content:   "Welcome to gochat!",

@@ -69,17 +69,22 @@ func (t *TUI) newbufPopup(app *tview.Application) {
 			return
 		}
 
-		i, r, err := s.Buffers().New(text, false)
-		if err != nil {
-			t.showError(err)
-			return
-		}
-
-		t.comp.buffers.AddItem(text, "", r, nil)
-		t.changeTab(i)
+		t.addTab(text, false)
 
 		exit()
 	})
+}
+
+func (t *TUI) addTab(name string, system bool) {
+	s := t.Active()
+	i, r, err := s.Buffers().New(name, system)
+	if err != nil {
+		t.showError(err)
+		return
+	}
+
+	t.comp.buffers.AddItem(name, "", r, nil)
+	t.changeTab(i)
 }
 
 func (t *TUI) changeTab(i int) {

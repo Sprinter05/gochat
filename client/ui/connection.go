@@ -12,7 +12,7 @@ import (
 
 type Server interface {
 	Messages(string) []Message
-	Receive(Message) error
+	Receive(Message) (bool, error)
 	Buffers() *Buffers
 }
 
@@ -61,23 +61,24 @@ func (s *RemoteServer) Messages(name string) []Message {
 	return t.messages.Copy(0)
 }
 
-func (s *RemoteServer) Receive(msg Message) error {
+// Returns true if received
+func (s *RemoteServer) Receive(msg Message) (bool, error) {
 	ip, err := net.ResolveTCPAddr("tcp4", msg.Source.String())
 	if err != nil {
 		// Not this destination
-		return nil
+		return false, nil
 	}
 
 	cmp := slices.Compare(ip.IP, s.ip)
 	if cmp != 0 || ip.Port != int(s.port) {
 		// Not this destination
-		return nil
+		return false, nil
 	}
 
 	check := strings.Replace(msg.Content, "\n", "", -1)
 	if check == "" {
 		// Empty content
-		return nil
+		return false, ErrorNoText
 	}
 
 	b, ok := s.bufs.tabs.Get(msg.Sender)
@@ -87,7 +88,7 @@ func (s *RemoteServer) Receive(msg Message) error {
 	}
 
 	b.messages.Add(msg)
-	return nil
+	return true, nil
 }
 
 func (s *RemoteServer) Buffers() *Buffers {
@@ -119,19 +120,19 @@ func (l *LocalServer) Messages(name string) []Message {
 	return ret
 }
 
-func (l *LocalServer) Receive(msg Message) error {
+func (l *LocalServer) Receive(msg Message) (bool, error) {
 	b, ok := l.bufs.tabs.Get(msg.Sender)
 	if !ok {
 		// Not for this server
-		return nil
+		return false, nil
 	}
 
 	if b.system && msg.Sender == selfSender {
-		return ErrorSystemBuf
+		return false, ErrorSystemBuf
 	}
 
 	b.messages.Add(msg)
-	return nil
+	return true, nil
 }
 
 func (l *LocalServer) Buffers() *Buffers {

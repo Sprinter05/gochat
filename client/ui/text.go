@@ -33,6 +33,12 @@ func (t *TUI) renderDate(date time.Time) {
 }
 
 func (t *TUI) renderMsg(msg Message) {
+	if msg.Sender == "" {
+		fmt.Fprintf(t.comp.text, "%s", msg.Content)
+		t.comp.text.ScrollToEnd()
+		return
+	}
+
 	t.renderDate(msg.Timestamp)
 	format := time.Kitchen
 
@@ -72,7 +78,7 @@ func (t *TUI) toggleHelp() {
 		t.status.showingHelp = false
 		t.area.chat.ResizeItem(t.comp.input, inputSize, 0)
 		t.comp.text.SetTitle("Messages")
-		t.ChangeBuffer(t.active)
+		t.ChangeBuffer(t.Active().Buffers().current)
 	}
 }
 
@@ -90,12 +96,18 @@ func (t *TUI) showError(err error) {
 
 // Assumes buffer list is already changed
 func (t *TUI) ChangeBuffer(buf string) {
-	t.active = buf
+	_, ok := t.Active().Buffers().tabs.Get(buf)
+	if !ok {
+		return
+	}
+
+	t.Active().Buffers().current = buf
 
 	if t.status.showingHelp {
 		return
 	}
 
+	t.comp.text.Clear()
 	msgs := t.Active().Messages(buf)
 	for _, v := range msgs {
 		t.renderMsg(v)
@@ -106,8 +118,16 @@ func (t *TUI) SendMessage(buf string, msg Message) {
 	list := t.servers.GetAll()
 	for _, v := range list {
 		// Each server will handle if its for them
-		v.Receive(msg)
-	}
+		ok, err := v.Receive(msg)
+		if err != nil {
+			t.showError(err)
+		}
 
-	// TODO: render message
+		if ok {
+			if v.Buffers().current == msg.Sender {
+				t.renderMsg(msg)
+			}
+			break
+		}
+	}
 }

@@ -11,7 +11,7 @@ type tab struct {
 
 type Buffers struct {
 	tabs    models.Table[string, *tab]
-	last    string
+	current string
 	indexes []int
 }
 
