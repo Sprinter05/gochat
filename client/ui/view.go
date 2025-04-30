@@ -64,7 +64,7 @@ func newbufPopup(t *TUI, app *tview.Application) {
 		}
 
 		s := t.Active()
-		if s.Buffers().tabs.Len() > int(maxBuffers) {
+		if s.Buffers().open > int(maxBuffers) {
 			t.showError(ErrorMaxBufs)
 			return
 		}

@@ -59,16 +59,14 @@ func (b *Buffers) Show(name string) (int, rune) {
 	}
 
 	b.open += 1
-	num := b.open
-	t.index = num
+	t.index = b.open
 	l := len(b.indexes)
 	if l > 0 {
-		num = b.indexes[0]        // FIFO
+		t.index = b.indexes[0]    // FIFO
 		b.indexes = b.indexes[1:] // Remove
-		t.index = num             // Prevents duplication on the slice
 	}
 
-	return b.open - 1, offset(num)
+	return b.open - 1, offset(t.index)
 }
 
 func (b *Buffers) Hide(name string) error {
