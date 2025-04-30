@@ -26,7 +26,7 @@ func ascii(num int) int32 {
 }
 
 // Returns the currently active tab
-func (t *TUI) Tab() string {
+func (t *TUI) Buffer() string {
 	return t.Active().Buffers().current
 }
 

@@ -34,11 +34,13 @@ const Help string = `
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
 
-[yellow::b]Ctrl-X[-::-]: Hide currently focused buffer
 
 [yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
 	- [green]Esc[-::-] to cancel
 	- [green]Enter[-::-] to confirm
+
+[yellow::b]Ctrl-K + Ctrl-X[-::-]: Hide currently focused buffer
+	- It can be shown again by creating a buffer with the same name
 
 [yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
 	- Press [green]Esc[-::-] to cancel the jump
@@ -46,6 +48,8 @@ const Help string = `
 [yellow::b]Ctrl-S + Ctrl-N[-::-]: Create a new server
 	- [green]Esc[-::-] to cancel
 	- [green]Enter[-::-] to confirm the different steps
+	
+[yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server
 	
 [yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
 	- Press [green]Esc[-::-] to cancel the jump
@@ -74,13 +78,14 @@ const (
 )
 
 var (
-	ErrorSystemBuf  = errors.New("performing action on system buffer")
-	ErrorNoText     = errors.New("no text has been given")
-	ErrorExists     = errors.New("item already exists")
-	ErrorNotFound   = errors.New("item does not exist")
-	ErrorMaxBufs    = errors.New("maximum amount of buffers reached")
-	ErrorMaxServers = errors.New("maximum amount of servers reached")
-	ErrorNoBuffers  = errors.New("no buffers in server")
+	ErrorSystemBuf   = errors.New("performing action on system buffer")
+	ErrorLocalServer = errors.New("performing action on local server")
+	ErrorNoText      = errors.New("no text has been given")
+	ErrorExists      = errors.New("item already exists")
+	ErrorNotFound    = errors.New("item does not exist")
+	ErrorMaxBufs     = errors.New("maximum amount of buffers reached")
+	ErrorMaxServers  = errors.New("maximum amount of servers reached")
+	ErrorNoBuffers   = errors.New("no buffers in server")
 )
 
 type areas struct {
@@ -90,22 +95,24 @@ type areas struct {
 }
 
 type components struct {
-	text    *tview.TextView
 	buffers *tview.List
-	users   *tview.List
 	servers *tview.List
-	input   *tview.TextArea
-	errors  *tview.TextView
+
+	text   *tview.TextView
+	errors *tview.TextView
+	input  *tview.TextArea
+
+	users *tview.List
 }
 
 func setupLayout() (areas, components) {
 	comps := components{
-		text:    tview.NewTextView(),
 		buffers: tview.NewList(),
-		users:   tview.NewList(),
 		servers: tview.NewList(),
-		input:   tview.NewTextArea(),
+		text:    tview.NewTextView(),
 		errors:  tview.NewTextView(),
+		input:   tview.NewTextArea(),
+		users:   tview.NewList(),
 	}
 
 	bottom := tview.NewFlex().
@@ -223,12 +230,13 @@ func setupHandlers(t *TUI, app *tview.Application) {
 			if !t.status.blockCond() {
 				newbufPopup(t, app)
 			}
+		case tcell.KeyCtrlX:
+			if !t.status.blockCond() {
+				t.removeBuffer(t.Buffer())
+				app.SetFocus(t.comp.input)
+			}
 		}
 		return event
-	})
-
-	t.comp.errors.SetChangedFunc(func() {
-		app.Draw()
 	})
 
 	t.comp.servers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -237,8 +245,17 @@ func setupHandlers(t *TUI, app *tview.Application) {
 			if !t.status.blockCond() {
 				newServerPopup(t, app)
 			}
+		case tcell.KeyCtrlX:
+			if !t.status.blockCond() {
+				t.removeServer(t.active)
+				app.SetFocus(t.comp.input)
+			}
 		}
 		return event
+	})
+
+	t.comp.errors.SetChangedFunc(func() {
+		app.Draw()
 	})
 }
 
@@ -257,7 +274,7 @@ func setupInput(t *TUI) {
 
 			t.SendMessage(Message{
 				Sender:    selfSender,
-				Buffer:    t.Tab(),
+				Buffer:    t.Buffer(),
 				Content:   t.comp.input.GetText(),
 				Timestamp: time.Now(),
 				Source:    t.Active().Source(),
@@ -350,11 +367,6 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr - 1)
 			}
-		case tcell.KeyCtrlX:
-			if !t.status.blockCond() {
-				t.removeBuffer(t.Tab())
-			}
-
 		case tcell.KeyCtrlR:
 			app.Sync()
 		}

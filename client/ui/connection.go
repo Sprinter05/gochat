@@ -78,12 +78,43 @@ func (t *TUI) changeServer(name string) {
 		}
 	}
 
-	i, ok := t.findBuffer(t.Tab())
+	i, ok := t.findBuffer(t.Buffer())
 	if !ok {
 		panic("cannot open server buffer on change")
 	}
 
 	t.changeBuffer(i)
+}
+
+func (t *TUI) findServer(name string) (int, bool) {
+	l := t.comp.servers.FindItems(name, "", false, false)
+
+	if len(l) != 0 {
+		return l[0], true
+	}
+
+	return -1, false
+}
+
+func (t *TUI) removeServer(name string) {
+	s, ok := t.servers.Get(name)
+	if !ok {
+		return
+	}
+
+	_, chk := s.(*LocalServer)
+	if chk {
+		t.showError(ErrorLocalServer)
+		return
+	}
+
+	i, ok := t.findServer(name)
+	if ok {
+		t.comp.servers.RemoveItem(i)
+	}
+
+	t.servers.Remove(name)
+	t.changeServer(localServer)
 }
 
 // REMOTE SERVER

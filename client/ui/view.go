@@ -206,5 +206,4 @@ func (t *TUI) removeBuffer(name string) {
 	if ok {
 		t.comp.buffers.RemoveItem(i)
 	}
-
 }
