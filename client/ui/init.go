@@ -10,8 +10,6 @@ import (
 )
 
 // TODO show different text for system buffer
-// TODO can send messages to empty server
-// TODO messages on newly added server dont save on table
 
 const Logo string = `
                    _           _   
@@ -36,7 +34,7 @@ const Help string = `
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
 
-[yellow::b]Ctrl-X[-::-]: Remove currenly focused buffer
+[yellow::b]Ctrl-X[-::-]: Hide currently focused buffer
 
 [yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
 	- [green]Esc[-::-] to cancel
@@ -45,6 +43,13 @@ const Help string = `
 [yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
 	- Press [green]Esc[-::-] to cancel the jump
 
+[yellow::b]Ctrl-S + Ctrl-N[-::-]: Create a new server
+	- [green]Esc[-::-] to cancel
+	- [green]Enter[-::-] to confirm the different steps
+	
+[yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
+	- Press [green]Esc[-::-] to cancel the jump
+	
 [yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
 
 [yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
@@ -65,7 +70,7 @@ const (
 	asciiNumbers   int    = 0x30 // Start of ASCII for number 1
 	asciiLowercase int    = 0x61 // Start of ASCII for lowercase a
 	maxBuffers     uint   = 35
-	maxServers     uint   = 10
+	maxServers     uint   = 9
 )
 
 var (
@@ -75,6 +80,7 @@ var (
 	ErrorNotFound   = errors.New("item does not exist")
 	ErrorMaxBufs    = errors.New("maximum amount of buffers reached")
 	ErrorMaxServers = errors.New("maximum amount of servers reached")
+	ErrorNoBuffers  = errors.New("no buffers in server")
 )
 
 type areas struct {
@@ -197,12 +203,18 @@ func setupHandlers(t *TUI, app *tview.Application) {
 		app.SetFocus(t.comp.input)
 	})
 
+	t.comp.servers.SetDoneFunc(func() {
+		app.SetFocus(t.comp.input)
+	})
+
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.renderBuffer(s1)
+		app.SetFocus(t.comp.input)
 	})
 
 	t.comp.servers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.changeServer(s1)
+		app.SetFocus(t.comp.input)
 	})
 
 	t.comp.buffers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -248,6 +260,7 @@ func setupInput(t *TUI) {
 				Buffer:    t.Tab(),
 				Content:   t.comp.input.GetText(),
 				Timestamp: time.Now(),
+				Source:    t.Active().Source(),
 			})
 
 			t.comp.input.SetText("", false)
@@ -299,9 +312,6 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 
 			if !t.comp.servers.HasFocus() {
 				app.SetFocus(t.comp.servers)
-				return nil
-			} else {
-				app.SetFocus(t.comp.input)
 				return nil
 			}
 		case tcell.KeyCtrlH:

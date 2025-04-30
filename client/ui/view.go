@@ -191,6 +191,8 @@ func (t *TUI) removeBuffer(name string) {
 	count := t.comp.buffers.GetItemCount()
 	if count == 1 {
 		t.comp.text.Clear()
+		t.Active().Buffers().current = ""
+
 	} else {
 		curr := t.comp.buffers.GetCurrentItem()
 		if curr == 0 {

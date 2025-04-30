@@ -129,6 +129,10 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 		return false, ErrorNoText
 	}
 
+	if msg.Buffer == "" || s.bufs.current == "" {
+		return false, ErrorNoBuffers
+	}
+
 	b, ok := s.bufs.tabs.Get(msg.Buffer)
 	if !ok {
 		s.bufs.New(msg.Buffer, false)
@@ -182,6 +186,11 @@ func (l *LocalServer) Messages(name string) []Message {
 
 // Does not return an error if the server is not the destionation remote
 func (l *LocalServer) Receive(msg Message) (bool, error) {
+	if msg.Source != nil {
+		// Not for this server
+		return false, nil
+	}
+
 	b, ok := l.bufs.tabs.Get(msg.Buffer)
 	if !ok {
 		// Not for this server

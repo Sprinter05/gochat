@@ -116,17 +116,6 @@ func (t *TUI) renderBuffer(buf string) {
 }
 
 func (t *TUI) SendMessage(msg Message) {
-	if msg.Sender == selfSender {
-		_, err := t.Active().Receive(msg)
-		if err != nil {
-			t.showError(err)
-			return
-		}
-
-		t.renderMsg(msg)
-		return
-	}
-
 	list := t.servers.GetAll()
 	for _, v := range list {
 		// Each server will handle if its for them
