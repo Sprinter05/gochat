@@ -9,6 +9,8 @@ import (
 	"github.com/rivo/tview"
 )
 
+// TODO show different text for system buffer
+
 const Logo string = `
                    _           _   
                   | |         | |  
@@ -70,14 +72,16 @@ var (
 )
 
 type areas struct {
-	main *tview.Flex
-	chat *tview.Flex
+	main   *tview.Flex
+	bottom *tview.Flex
+	left   *tview.Flex
 }
 
 type components struct {
 	text    *tview.TextView
 	buffers *tview.List
 	users   *tview.List
+	servers *tview.List
 	input   *tview.TextArea
 	errors  *tview.TextView
 }
@@ -87,26 +91,34 @@ func setupLayout() (areas, components) {
 		text:    tview.NewTextView(),
 		buffers: tview.NewList(),
 		users:   tview.NewList(),
+		servers: tview.NewList(),
 		input:   tview.NewTextArea(),
 		errors:  tview.NewTextView(),
 	}
 
-	chat := tview.NewFlex().
+	bottom := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(comps.text, 0, 30, false).
 		AddItem(comps.errors, 0, 0, false).
 		AddItem(comps.input, inputSize, 0, true)
-	chat.SetBackgroundColor(tcell.ColorDefault)
+	bottom.SetBackgroundColor(tcell.ColorDefault)
+
+	left := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(comps.buffers, 0, 4, false).
+		AddItem(comps.servers, 0, 1, false)
+	left.SetBackgroundColor(tcell.ColorDefault)
 
 	main := tview.NewFlex().
-		AddItem(comps.buffers, 0, 2, false).
-		AddItem(chat, 0, 6, true).
+		AddItem(left, 0, 2, false).
+		AddItem(bottom, 0, 6, true).
 		AddItem(comps.users, 0, 0, false)
 	main.SetBackgroundColor(tcell.ColorDefault)
 
 	areas := areas{
-		main: main,
-		chat: chat,
+		main:   main,
+		bottom: bottom,
+		left:   left,
 	}
 
 	return areas, comps
@@ -138,6 +150,19 @@ func setupStyle(t *TUI) {
 	t.comp.users.
 		SetBorder(true).
 		SetTitle("Users").
+		SetBackgroundColor(tcell.ColorDefault)
+
+	t.comp.servers.
+		SetMainTextStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault)).
+		SetSecondaryTextStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault).
+			Foreground(tcell.ColorDarkGray)).
+		ShowSecondaryText(true).
+		SetSelectedStyle(tcell.StyleDefault.Underline(true)).
+		SetSelectedTextColor(tcell.ColorPurple).
+		SetTitle("Servers").
+		SetBorder(true).
 		SetBackgroundColor(tcell.ColorDefault)
 
 	t.comp.input.
@@ -224,10 +249,10 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			}
 		case tcell.KeyCtrlB:
 			if t.status.showingBufs {
-				t.area.main.ResizeItem(t.comp.buffers, 0, 0)
+				t.area.main.ResizeItem(t.area.left, 0, 0)
 				t.status.showingBufs = false
 			} else {
-				t.area.main.ResizeItem(t.comp.buffers, 0, 2)
+				t.area.main.ResizeItem(t.area.left, 0, 2)
 				t.status.showingBufs = true
 			}
 		case tcell.KeyCtrlT:
@@ -237,6 +262,18 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 
 			if !t.comp.text.HasFocus() {
 				app.SetFocus(t.comp.text)
+				return nil
+			} else {
+				app.SetFocus(t.comp.input)
+				return nil
+			}
+		case tcell.KeyCtrlS:
+			if t.status.creatingBuf || t.status.showingHelp {
+				break
+			}
+
+			if !t.comp.servers.HasFocus() {
+				app.SetFocus(t.comp.servers)
 				return nil
 			} else {
 				app.SetFocus(t.comp.input)
@@ -327,6 +364,7 @@ func New() (*TUI, *tview.Application) {
 	})
 	t.active = "Local"
 	t.addBuffer("System", true)
+	t.comp.servers.AddItem("Local", "localhost", 0, nil)
 
 	t.SendMessage("System", Message{
 		Sender:    "System",

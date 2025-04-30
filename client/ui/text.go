@@ -71,13 +71,13 @@ func (t *TUI) toggleHelp() {
 	if !t.status.showingHelp {
 		t.status.showingHelp = true
 		t.comp.text.Clear()
-		t.area.chat.ResizeItem(t.comp.input, 0, 0)
+		t.area.bottom.ResizeItem(t.comp.input, 0, 0)
 		t.comp.text.SetTitle("Help")
 		fmt.Fprint(t.comp.text, Help[1:])
 		t.comp.text.ScrollToBeginning()
 	} else {
 		t.status.showingHelp = false
-		t.area.chat.ResizeItem(t.comp.input, inputSize, 0)
+		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
 		t.comp.text.SetTitle("Messages")
 		t.renderBuffer(t.Active().Buffers().current)
 	}
@@ -85,13 +85,13 @@ func (t *TUI) toggleHelp() {
 
 func (t *TUI) showError(err error) {
 	t.comp.errors.Clear()
-	t.area.chat.ResizeItem(t.comp.errors, 0, 1)
+	t.area.bottom.ResizeItem(t.comp.errors, 0, 1)
 	fmt.Fprintf(t.comp.errors, " [red]Error: %s![-:-:-:-]", err)
 
 	go func() {
 		<-time.After(time.Duration(errorMessage) * time.Second)
 		t.comp.errors.Clear()
-		t.area.chat.ResizeItem(t.comp.errors, 0, 0)
+		t.area.bottom.ResizeItem(t.comp.errors, 0, 0)
 	}()
 }
 

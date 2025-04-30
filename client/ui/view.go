@@ -40,13 +40,13 @@ func newbufPopup(t *TUI, app *tview.Application) {
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorderPadding(0, 0, 1, 0)
 
-	t.area.chat.ResizeItem(t.comp.input, 0, 0)
-	t.area.chat.AddItem(input, 2, 0, true)
+	t.area.bottom.ResizeItem(t.comp.input, 0, 0)
+	t.area.bottom.AddItem(input, 2, 0, true)
 	app.SetFocus(input)
 
 	exit := func() {
-		t.area.chat.RemoveItem(input)
-		t.area.chat.ResizeItem(t.comp.input, inputSize, 0)
+		t.area.bottom.RemoveItem(input)
+		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
 		app.SetFocus(t.comp.input)
 		t.status.creatingBuf = false
 	}

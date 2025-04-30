@@ -42,6 +42,7 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 	}
 
 	t.servers.Add(name, s)
+	t.comp.servers.AddItem(name, addr.String(), 0, nil)
 }
 
 // REMOTE SERVER
