@@ -21,8 +21,10 @@ const Logo string = `
 
 `
 
+// todo render date not working
+
 const Help string = `
-[-::u]The gochat Instructions Manual:[-::-]
+[-::u]Keybinds Manual:[-::-]
 
 [yellow::b]Ctrl-Alt-H/Ctrl-Shift-H[-::-]: Show/Hide help window
 
@@ -61,6 +63,11 @@ const Help string = `
 [yellow::b]Ctrl-U[-::-]: Show/Hide user list
 
 [yellow::b]Ctrl-R[-::-]: Redraw screen
+
+[-::u]Commands Manual:[-::-]
+
+[yellow::b]/list[-::-]: Displays a list of all buffers in the current server
+	- Those that have been hidden will also be displayed
 `
 
 const (
@@ -84,6 +91,8 @@ var (
 	ErrorMaxBufs     = errors.New("maximum amount of buffers reached")
 	ErrorMaxServers  = errors.New("maximum amount of servers reached")
 	ErrorNoBuffers   = errors.New("no buffers in server")
+	ErrorEmptyCmd    = errors.New("empty command given")
+	ErrorInvalidCmd  = errors.New("invalid command given")
 )
 
 type areas struct {
@@ -266,14 +275,21 @@ func setupInput(t *TUI) {
 				return event
 			}
 
-			if t.comp.input.GetText() == "" {
+			text := t.comp.input.GetText()
+			if text == "" {
+				return nil
+			}
+
+			if text[0] == '/' {
+				t.parseCommand(text[1:])
+				t.comp.input.SetText("", false)
 				return nil
 			}
 
 			t.SendMessage(Message{
 				Sender:    selfSender,
 				Buffer:    t.Buffer(),
-				Content:   t.comp.input.GetText(),
+				Content:   text,
 				Timestamp: time.Now(),
 				Source:    t.Active().Source(),
 			})

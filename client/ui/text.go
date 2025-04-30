@@ -46,7 +46,10 @@ func (t *TUI) renderMsg(msg Message) {
 	format := time.Kitchen
 
 	pad := strings.Repeat(" ", len(msg.Sender))
-	content := strings.Replace(msg.Content, "\n", "\n\t\t\t   "+pad, -1)
+
+	// removes only until last newline
+	n := strings.Count(msg.Content, "\n")
+	content := strings.Replace(msg.Content, "\n", "\n\t\t\t   "+pad, n)
 
 	f := msg.Timestamp.Format(format)
 	color := "[blue::b]"
@@ -88,7 +91,7 @@ func (t *TUI) toggleHelp() {
 func (t *TUI) showError(err error) {
 	t.comp.errors.Clear()
 	t.area.bottom.ResizeItem(t.comp.errors, 0, 1)
-	fmt.Fprintf(t.comp.errors, " [red]Error: %s![-:-:-:-]", err)
+	fmt.Fprintf(t.comp.errors, " [red]Error: %s![-:-]", err)
 
 	go func() {
 		<-time.After(time.Duration(errorMessage) * time.Second)
