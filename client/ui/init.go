@@ -56,19 +56,23 @@ const Help string = `
 
 const (
 	selfSender     string = "You"
+	systemBuffer   string = "System"
+	localServer    string = "Local"
 	inputSize      int    = 4
 	errorMessage   uint   = 3    // seconds
 	asciiNumbers   int    = 0x30 // Start of ASCII for number 1
 	asciiLowercase int    = 0x61 // Start of ASCII for lowercase a
 	maxBuffers     uint   = 35
+	maxServers     uint   = 10
 )
 
 var (
-	ErrorSystemBuf = errors.New("performing action on system buffer")
-	ErrorNoText    = errors.New("no text has been given")
-	ErrorExists    = errors.New("item already exists")
-	ErrorNotFound  = errors.New("item does not exist")
-	ErrorMaxBufs   = errors.New("maximum amount of buffers reached")
+	ErrorSystemBuf  = errors.New("performing action on system buffer")
+	ErrorNoText     = errors.New("no text has been given")
+	ErrorExists     = errors.New("item already exists")
+	ErrorNotFound   = errors.New("item does not exist")
+	ErrorMaxBufs    = errors.New("maximum amount of buffers reached")
+	ErrorMaxServers = errors.New("maximum amount of servers reached")
 )
 
 type areas struct {
@@ -105,7 +109,7 @@ func setupLayout() (areas, components) {
 
 	left := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(comps.buffers, 0, 4, false).
+		AddItem(comps.buffers, 0, 3, false).
 		AddItem(comps.servers, 0, 1, false)
 	left.SetBackgroundColor(tcell.ColorDefault)
 
@@ -200,8 +204,28 @@ func setupHandlers(t *TUI, app *tview.Application) {
 		}
 	})
 
+	t.comp.buffers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlN:
+			if !t.status.blockCond() {
+				newbufPopup(t, app)
+			}
+		}
+		return event
+	})
+
 	t.comp.errors.SetChangedFunc(func() {
 		app.Draw()
+	})
+
+	t.comp.servers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlN:
+			if !t.status.blockCond() {
+				newServerPopup(t, app)
+			}
+		}
+		return event
 	})
 }
 
@@ -218,7 +242,7 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
-			t.SendMessage(t.active, Message{
+			t.SendMessage(Message{
 				Sender:    selfSender,
 				Buffer:    t.Tab(),
 				Content:   t.comp.input.GetText(),
@@ -256,7 +280,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.status.showingBufs = true
 			}
 		case tcell.KeyCtrlT:
-			if t.status.creatingBuf || t.status.showingHelp {
+			if t.status.blockCond() {
 				break
 			}
 
@@ -268,7 +292,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyCtrlS:
-			if t.status.creatingBuf || t.status.showingHelp {
+			if t.status.blockCond() {
 				break
 			}
 
@@ -288,7 +312,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				}
 			}
 		case tcell.KeyCtrlK:
-			if t.status.creatingBuf {
+			if t.status.blockCond() {
 				break
 			}
 
@@ -297,7 +321,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				return nil
 			}
 		case tcell.KeyDown:
-			if t.status.creatingBuf {
+			if t.status.blockCond() {
 				break
 			}
 
@@ -306,7 +330,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.changeBuffer(curr + 1)
 			}
 		case tcell.KeyUp:
-			if t.status.creatingBuf {
+			if t.status.blockCond() {
 				break
 			}
 
@@ -314,16 +338,11 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr - 1)
 			}
-		case tcell.KeyCtrlN:
-			if !t.status.creatingBuf && !t.status.showingHelp {
-				newbufPopup(t, app)
-			}
 		case tcell.KeyCtrlX:
-			if t.status.creatingBuf || t.status.showingHelp {
-				break
+			if !t.status.blockCond() {
+				t.removeBuffer(t.Tab())
 			}
 
-			t.removeBuffer(t.Tab())
 		case tcell.KeyCtrlR:
 			app.Sync()
 		}
@@ -338,11 +357,12 @@ func New() (*TUI, *tview.Application) {
 		comp:    comps,
 		area:    areas,
 		status: state{
-			showingUsers: false,
-			showingBufs:  true,
-			showingHelp:  false,
-			creatingBuf:  false,
-			lastDate:     time.Now(),
+			showingUsers:   false,
+			showingBufs:    true,
+			showingHelp:    false,
+			creatingBuf:    false,
+			creatingServer: false,
+			lastDate:       time.Now(),
 		},
 	}
 	app := tview.NewApplication().
@@ -356,19 +376,20 @@ func New() (*TUI, *tview.Application) {
 	setupInput(t)
 
 	// system server
-	t.servers.Add("Local", &LocalServer{
-		name: "Local",
+	t.servers.Add(localServer, &LocalServer{
+		name: localServer,
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
 		},
 	})
-	t.active = "Local"
-	t.addBuffer("System", true)
-	t.comp.servers.AddItem("Local", "localhost", 0, nil)
+	t.active = localServer
+	t.addBuffer(systemBuffer, true)
+	l := t.servers.Len()
+	t.comp.servers.AddItem(localServer, "System Server", ascii(l), nil)
 
-	t.SendMessage("System", Message{
+	t.SendMessage(Message{
 		Sender:    "System",
-		Buffer:    "System",
+		Buffer:    systemBuffer,
 		Content:   "Welcome to gochat!",
 		Timestamp: time.Now(),
 		Source:    nil,

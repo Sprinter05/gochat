@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"net"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
@@ -12,9 +13,11 @@ type state struct {
 	showingUsers bool
 	showingBufs  bool
 
-	creatingBuf bool
-	showingHelp bool
-	lastDate    time.Time
+	creatingBuf    bool
+	creatingServer bool
+	showingHelp    bool
+
+	lastDate time.Time
 }
 
 type TUI struct {
@@ -27,11 +30,15 @@ type TUI struct {
 	active  string
 }
 
-func newbufPopup(t *TUI, app *tview.Application) {
-	t.status.creatingBuf = true
+func (s *state) blockCond() bool {
+	return s.creatingBuf || s.creatingServer || s.showingHelp
+}
+
+func createPopup(t *TUI, app *tview.Application, cond *bool, title string) (*tview.InputField, func()) {
+	*cond = true
 
 	input := tview.NewInputField().
-		SetPlaceholder("Enter buffer name...").
+		SetPlaceholder(title).
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetPlaceholderStyle(tcell.StyleDefault.
 			Background(tcell.ColorDefault).
@@ -48,8 +55,17 @@ func newbufPopup(t *TUI, app *tview.Application) {
 		t.area.bottom.RemoveItem(input)
 		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
 		app.SetFocus(t.comp.input)
-		t.status.creatingBuf = false
+		*cond = false
 	}
+
+	return input, exit
+}
+
+func newbufPopup(t *TUI, app *tview.Application) {
+	input, exit := createPopup(t, app,
+		&t.status.creatingBuf,
+		"Enter buffer name...",
+	)
 
 	input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEscape {
@@ -63,21 +79,70 @@ func newbufPopup(t *TUI, app *tview.Application) {
 			return
 		}
 
-		s := t.Active()
-		if s.Buffers().open > int(maxBuffers) {
-			t.showError(ErrorMaxBufs)
-			return
-		}
-
 		t.addBuffer(text, false)
 
 		exit()
 	})
 }
 
+func newServerPopup(t *TUI, app *tview.Application) {
+	sInput, sExit := createPopup(t, app,
+		&t.status.creatingServer,
+		"Enter server name...",
+	)
+
+	sInput.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			sExit()
+			return
+		}
+
+		name := sInput.GetText()
+		if name == "" {
+			t.showError(ErrorNoText)
+			return
+		}
+
+		sExit()
+
+		pInput, pExit := createPopup(t, app,
+			&t.status.creatingServer,
+			"Enter server IP and port...",
+		)
+
+		pInput.SetDoneFunc(func(key tcell.Key) {
+			if key == tcell.KeyEscape {
+				pExit()
+				return
+			}
+
+			ip := pInput.GetText()
+			if ip == "" {
+				t.showError(ErrorNoText)
+				return
+			}
+
+			addr, err := net.ResolveTCPAddr("tcp4", ip)
+			if err != nil {
+				t.showError(err)
+				pExit()
+				return
+			}
+
+			t.addServer(name, addr)
+			pExit()
+		})
+	})
+}
+
 // Adds and changes to new buffer on the list
 func (t *TUI) addBuffer(name string, system bool) {
 	s := t.Active()
+	if s.Buffers().open >= int(maxBuffers) {
+		t.showError(ErrorMaxBufs)
+		return
+	}
+
 	err := s.Buffers().New(name, system)
 	_, ok := t.findBuffer(name)
 	if err != nil && ok {

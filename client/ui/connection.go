@@ -27,6 +27,11 @@ func (t *TUI) Active() Server {
 
 // Adds a remote server
 func (t *TUI) addServer(name string, addr net.Addr) {
+	if t.servers.Len() >= int(maxServers) {
+		t.showError(ErrorMaxServers)
+		return
+	}
+
 	ip, err := net.ResolveTCPAddr("tcp4", addr.String())
 	if err != nil {
 		t.showError(err)
@@ -42,7 +47,8 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 	}
 
 	t.servers.Add(name, s)
-	t.comp.servers.AddItem(name, addr.String(), 0, nil)
+	l := t.servers.Len()
+	t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
 }
 
 // REMOTE SERVER
@@ -113,7 +119,7 @@ func (l *LocalServer) Messages(name string) []Message {
 	msgs := t.messages.Copy(0)
 
 	logo := Message{
-		Buffer:  "System",
+		Buffer:  systemBuffer,
 		Content: Logo[1:],
 	}
 

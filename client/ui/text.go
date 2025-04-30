@@ -115,7 +115,7 @@ func (t *TUI) renderBuffer(buf string) {
 	}
 }
 
-func (t *TUI) SendMessage(buf string, msg Message) {
+func (t *TUI) SendMessage(msg Message) {
 	list := t.servers.GetAll()
 	for _, v := range list {
 		// Each server will handle if its for them

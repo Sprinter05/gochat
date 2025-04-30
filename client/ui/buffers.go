@@ -16,7 +16,7 @@ type Buffers struct {
 	indexes []int
 }
 
-func offset(num int) int32 {
+func ascii(num int) int32 {
 	offset := asciiNumbers + num
 	if num >= 10 {
 		offset = asciiLowercase + (num - 10)
@@ -66,7 +66,7 @@ func (b *Buffers) Show(name string) (int, rune) {
 		b.indexes = b.indexes[1:] // Remove
 	}
 
-	return b.open - 1, offset(t.index)
+	return b.open - 1, ascii(t.index)
 }
 
 func (b *Buffers) Hide(name string) error {
