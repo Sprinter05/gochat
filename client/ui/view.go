@@ -79,7 +79,7 @@ func newbufPopup(t *TUI, app *tview.Application) {
 func (t *TUI) addBuffer(name string, system bool) {
 	s := t.Active()
 	i, r, err := s.Buffers().New(name, system)
-	if err != nil {
+	if err != nil && t.findBuffer(name) {
 		t.showError(err)
 		return
 	}
@@ -97,6 +97,11 @@ func (t *TUI) changeBuffer(i int) {
 	t.comp.buffers.SetCurrentItem(i)
 	text, _ := t.comp.buffers.GetItemText(i)
 	t.renderBuffer(text)
+}
+
+func (t *TUI) findBuffer(name string) bool {
+	l := t.comp.buffers.FindItems(name, "", true, false)
+	return len(l) != 0
 }
 
 // Removes and changes buffer on the list

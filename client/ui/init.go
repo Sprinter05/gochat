@@ -194,10 +194,10 @@ func setupInput(t *TUI) {
 			}
 
 			t.SendMessage(t.active, Message{
-				Sender:      selfSender,
-				Destination: t.Tab(),
-				Content:     t.comp.input.GetText(),
-				Timestamp:   time.Now(),
+				Sender:    selfSender,
+				Buffer:    t.Tab(),
+				Content:   t.comp.input.GetText(),
+				Timestamp: time.Now(),
 			})
 
 			t.comp.input.SetText("", false)
@@ -329,11 +329,11 @@ func New() (*TUI, *tview.Application) {
 	t.addBuffer("System", true)
 
 	t.SendMessage("System", Message{
-		Sender:      "System",
-		Destination: "System",
-		Content:     "Welcome to gochat!",
-		Timestamp:   time.Now(),
-		Source:      nil,
+		Sender:    "System",
+		Buffer:    "System",
+		Content:   "Welcome to gochat!",
+		Timestamp: time.Now(),
+		Source:    nil,
 	})
 
 	return t, app

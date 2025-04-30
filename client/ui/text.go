@@ -8,11 +8,11 @@ import (
 )
 
 type Message struct {
-	Sender      string
-	Destination string
-	Content     string
-	Timestamp   time.Time
-	Source      net.Addr
+	Buffer    string
+	Sender    string
+	Content   string
+	Timestamp time.Time
+	Source    net.Addr
 }
 
 func (t *TUI) renderDate(date time.Time) {
@@ -125,7 +125,7 @@ func (t *TUI) SendMessage(buf string, msg Message) {
 		}
 
 		if ok {
-			if v.Buffers().current == msg.Destination {
+			if v.Buffers().current == msg.Buffer {
 				t.renderMsg(msg)
 			}
 			break
