@@ -21,8 +21,6 @@ const Logo string = `
 
 `
 
-// todo render date not working
-
 const Help string = `
 [-::u]Keybinds Manual:[-::-]
 
