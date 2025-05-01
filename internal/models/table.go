@@ -63,6 +63,14 @@ func (t *Table[I, T]) Get(i I) (T, bool) {
 	return v, true
 }
 
+// Returns the amount of elements present
+// in the table
+func (t *Table[I, T]) Len() int {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	return len(t.data)
+}
+
 // Returns all value elements of the
 // table in an array
 func (t *Table[I, T]) GetAll() []T {

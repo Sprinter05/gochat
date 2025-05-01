@@ -16,6 +16,18 @@
             "cwd": "${workspaceFolder}",
         },
         {
+            "name": "Client Debug",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "args": [
+                ".env"
+            ],
+            "program": "${workspaceFolder}/client",
+            "cwd": "${workspaceFolder}",
+            "console": "externalTerminal"
+        },
+        {
             "name": "Injection Test (Server)",
             "type": "go",
             "request": "launch",

@@ -1,0 +1,245 @@
+package ui
+
+import (
+	"fmt"
+	"net"
+	"slices"
+	"strings"
+
+	"github.com/Sprinter05/gochat/internal/models"
+)
+
+// SERVER INTERFACE
+
+type Server interface {
+	Messages(string) []Message
+	Receive(Message) (bool, error)
+	Buffers() *Buffers
+	Source() net.Addr
+}
+
+func (t *TUI) Active() Server {
+	s, ok := t.servers.Get(t.active)
+	if !ok {
+		panic("active server does not exist")
+	}
+
+	return s
+}
+
+func (t *TUI) addServer(name string, addr net.Addr) {
+	if t.servers.Len() >= int(maxServers) {
+		t.showError(ErrorMaxServers)
+		return
+	}
+
+	_, ok := t.servers.Get(name)
+	if ok {
+		t.showError(ErrorExists)
+		return
+	}
+
+	ip, err := net.ResolveTCPAddr("tcp4", addr.String())
+	if err != nil {
+		t.showError(err)
+	}
+
+	s := &RemoteServer{
+		ip:   ip.IP,
+		port: int16(ip.Port),
+		name: name,
+		bufs: Buffers{
+			tabs: models.NewTable[string, *tab](maxBuffers),
+		},
+	}
+
+	t.servers.Add(name, s)
+	l := t.servers.Len()
+	t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
+}
+
+func (t *TUI) changeServer(name string) {
+	s, ok := t.servers.Get(name)
+	if !ok {
+		return
+	}
+	t.active = name
+
+	t.comp.buffers.Clear()
+	if s.Buffers().tabs.Len() == 0 {
+		t.comp.text.Clear()
+		return
+	}
+
+	tabs := s.Buffers().tabs.GetAll()
+	for _, v := range tabs {
+		if v.index != -1 {
+			t.comp.buffers.AddItem(v.name, "", ascii(v.index), nil)
+		}
+	}
+
+	i, ok := t.findBuffer(t.Buffer())
+	if !ok {
+		panic("cannot open server buffer on change")
+	}
+
+	t.changeBuffer(i)
+}
+
+func (t *TUI) findServer(name string) (int, bool) {
+	l := t.comp.servers.FindItems(name, "", false, false)
+
+	if len(l) != 0 {
+		return l[0], true
+	}
+
+	return -1, false
+}
+
+func (t *TUI) removeServer(name string) {
+	s, ok := t.servers.Get(name)
+	if !ok {
+		return
+	}
+
+	_, chk := s.(*LocalServer)
+	if chk {
+		t.showError(ErrorLocalServer)
+		return
+	}
+
+	i, ok := t.findServer(name)
+	if ok {
+		t.comp.servers.RemoveItem(i)
+	}
+
+	t.servers.Remove(name)
+	t.changeServer(localServer)
+}
+
+// REMOTE SERVER
+
+type RemoteServer struct {
+	ip   net.IP
+	port int16
+	name string
+	bufs Buffers
+}
+
+func (s *RemoteServer) Messages(name string) []Message {
+	t, ok := s.bufs.tabs.Get(name)
+	if !ok {
+		return nil
+	}
+
+	return t.messages.Copy(0)
+}
+
+// Returns true if received
+func (s *RemoteServer) Receive(msg Message) (bool, error) {
+	if msg.Source == nil {
+		// Not this destination
+		return false, nil
+	}
+
+	ip, err := net.ResolveTCPAddr("tcp4", msg.Source.String())
+	if err != nil {
+		// Not this destination
+		return false, nil
+	}
+
+	cmp := slices.Compare(ip.IP, s.ip)
+	if cmp != 0 || ip.Port != int(s.port) {
+		// Not this destination
+		return false, nil
+	}
+
+	check := strings.Replace(msg.Content, "\n", "", -1)
+	if check == "" {
+		// Empty content
+		return false, ErrorNoText
+	}
+
+	if msg.Buffer == "" || s.bufs.current == "" {
+		return false, ErrorNoBuffers
+	}
+
+	b, ok := s.bufs.tabs.Get(msg.Buffer)
+	if !ok {
+		s.bufs.New(msg.Buffer, false)
+		b, _ = s.bufs.tabs.Get(msg.Buffer)
+	}
+
+	b.messages.Add(msg)
+	return true, nil
+}
+
+func (s *RemoteServer) Buffers() *Buffers {
+	return &s.bufs
+}
+
+func (s *RemoteServer) Source() net.Addr {
+	str := fmt.Sprintf("%s:%d", s.ip.String(), s.port)
+
+	ip, err := net.ResolveTCPAddr("tcp4", str)
+	if err != nil {
+		panic("invalid IP in remote server")
+	}
+
+	return ip
+}
+
+// LOCAL SERVER
+
+type LocalServer struct {
+	name string
+	bufs Buffers
+}
+
+func (l *LocalServer) Messages(name string) []Message {
+	var ret []Message
+	t, ok := l.bufs.tabs.Get(name)
+	if !ok {
+		return nil
+	}
+	msgs := t.messages.Copy(0)
+
+	logo := Message{
+		Buffer:  systemBuffer,
+		Content: Logo[1:],
+	}
+
+	ret = append(ret, logo)
+	ret = append(ret, msgs...)
+
+	return ret
+}
+
+// Does not return an error if the server is not the destionation remote
+func (l *LocalServer) Receive(msg Message) (bool, error) {
+	if msg.Source != nil {
+		// Not for this server
+		return false, nil
+	}
+
+	b, ok := l.bufs.tabs.Get(msg.Buffer)
+	if !ok {
+		// Not for this server
+		return false, nil
+	}
+
+	if b.system && msg.Sender == selfSender {
+		return false, ErrorSystemBuf
+	}
+
+	b.messages.Add(msg)
+	return true, nil
+}
+
+func (l *LocalServer) Buffers() *Buffers {
+	return &l.bufs
+}
+
+func (l *LocalServer) Source() net.Addr {
+	return nil
+}
