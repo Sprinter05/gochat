@@ -11,14 +11,27 @@ type Command struct {
 	Arguments []string
 }
 
+type Reply struct {
+	Arguments []string
+	Error     error
+}
+
 type operation func(*TUI, Command)
 
 var commands map[string]operation = map[string]operation{
 	"list": listBuffers,
 }
 
-func (t *TUI) Requests() <-chan Command {
-	return t.reqs
+func (t *TUI) CmdsChan() <-chan Command {
+	return t.cmds
+}
+
+func (t *TUI) RepsChan() chan<- Reply {
+	return t.reps
+}
+
+func (t *TUI) MsgsChan() chan<- string {
+	return t.msgs
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -44,6 +57,18 @@ func (t *TUI) parseCommand(text string) {
 }
 
 // COMMANDS
+
+func cmdMessages(t *TUI) {
+	for msg := range t.msgs {
+		t.SendMessage(Message{
+			Buffer:    t.Buffer(),
+			Sender:    "System",
+			Content:   msg,
+			Timestamp: time.Now(),
+			Source:    t.Active().Source(),
+		})
+	}
+}
 
 func listBuffers(t *TUI, cmd Command) {
 	var list strings.Builder

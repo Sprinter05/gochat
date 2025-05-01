@@ -78,6 +78,7 @@ const (
 	asciiLowercase int    = 0x61 // Start of ASCII for lowercase a
 	maxBuffers     uint   = 35
 	maxServers     uint   = 9
+	maxMsgs        uint   = 5
 )
 
 var (
@@ -403,7 +404,9 @@ func New() (*TUI, *tview.Application) {
 			creatingServer: false,
 			lastDate:       time.Now(),
 		},
-		reqs: make(chan Command),
+		cmds: make(chan Command),
+		reps: make(chan Reply),
+		msgs: make(chan string, maxMsgs),
 	}
 	app := tview.NewApplication().
 		EnableMouse(true).
@@ -434,6 +437,8 @@ func New() (*TUI, *tview.Application) {
 		Timestamp: time.Now(),
 		Source:    t.Active().Source(),
 	})
+
+	go cmdMessages(t)
 
 	return t, app
 }
