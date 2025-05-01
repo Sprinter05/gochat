@@ -54,6 +54,7 @@ func verbose(data *Data, args [][]byte) error {
 }
 
 // Sends a REQ packet to the server
+// TODO
 func req(data *Data, args [][]byte) error {
 	if len(args) < 1 {
 		return fmt.Errorf("not enough arguments")
@@ -64,9 +65,7 @@ func req(data *Data, args [][]byte) error {
 	}
 
 	if data.Verbose {
-		fmt.Println("The following packet is about to be sent:")
-		cmd := spec.ParsePacket(pct)
-		cmd.Print()
+		packetPrint(pct)
 	}
 
 	_, wErr := data.ClientCon.Conn.Write(pct)
@@ -102,7 +101,7 @@ func reg(data *Data, args [][]byte) error {
 		fmt.Print("\n")
 		return pass1Err
 	}
-	fmt.Print("\n")
+	shellPrint("\n", *data)
 
 	fmt.Print("repeat password: ")
 	pass2, pass2Err := term.ReadPassword(0)
@@ -110,16 +109,14 @@ func reg(data *Data, args [][]byte) error {
 		fmt.Print("\n")
 		return pass2Err
 	}
-	fmt.Print("\n")
+	shellPrint("\n", *data)
 
 	if string(pass1) != string(pass2) {
 		return fmt.Errorf("passwords do not match")
 	}
 
 	// Generates the PEM arrays of both the private and public key of the pair
-	if data.Verbose {
-		fmt.Println("[...] generating RSA key pair...")
-	}
+	verbosePrint("[...] generating RSA key pair...", *data)
 	pair, rsaErr := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	if rsaErr != nil {
 		return rsaErr
@@ -130,18 +127,14 @@ func reg(data *Data, args [][]byte) error {
 		return pubKeyPEMErr
 	}
 
-	if data.Verbose {
-		fmt.Println("[...] hashing password...")
-	}
 	// Hashes the provided password
+	verbosePrint("[...] hashing password...", *data)
 	hashPass, hashErr := bcrypt.GenerateFromPassword(pass1, 12)
 	if hashErr != nil {
 		return hashErr
 	}
 
-	if data.Verbose {
-		fmt.Println("[...] sending REG packet...")
-	}
+	verbosePrint("[...] sending REG packet...", *data)
 	// Assembles the REG packet
 	pctArgs := [][]byte{[]byte(username), pubKeyPEM}
 	pct, pctErr := spec.NewPacket(spec.REG, 1, spec.EmptyInfo, pctArgs...)
@@ -150,9 +143,7 @@ func reg(data *Data, args [][]byte) error {
 	}
 
 	if data.Verbose {
-		fmt.Println("the following packet is about to be sent:")
-		cmd := spec.ParsePacket(pct)
-		cmd.Print()
+		packetPrint(pct)
 	}
 
 	// Sends the packet
@@ -162,9 +153,7 @@ func reg(data *Data, args [][]byte) error {
 	}
 
 	// Awaits a response
-	if data.Verbose {
-		fmt.Println("[...] awaiting response...")
-	}
+	verbosePrint("[...] awaiting response...", *data)
 	reply, REGErr := ListenResponse(*data, 1, spec.OK, spec.ERR)
 	if REGErr != nil {
 		return REGErr
@@ -180,7 +169,7 @@ func reg(data *Data, args [][]byte) error {
 		return insertErr
 	}
 
-	fmt.Printf("user %s successfully added to the database\n", username)
+	shellPrint(fmt.Sprintf("user %s successfully added to the database\n", username), *data)
 	return nil
 }
 
@@ -202,7 +191,7 @@ func login(data *Data, args [][]byte) error {
 		fmt.Print("\n")
 		return passErr
 	}
-	fmt.Print("\n")
+	shellPrint("\n", *data)
 
 	// Verifies password
 	localUser := GetLocalUser(data.DB, username)
@@ -212,10 +201,7 @@ func login(data *Data, args [][]byte) error {
 		return fmt.Errorf("wrong credentials")
 	}
 
-	if data.Verbose {
-		fmt.Println("password correct\n[...] sending LOGIN packet...")
-	}
-
+	verbosePrint("password correct\n[...] sending LOGIN packet...", *data)
 	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
 	LOGINPct, LOGINPctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
@@ -224,9 +210,7 @@ func login(data *Data, args [][]byte) error {
 	}
 
 	if data.Verbose {
-		fmt.Println("the following packet is about to be sent:")
-		LOGINCmd := spec.ParsePacket(LOGINPct)
-		LOGINCmd.Print()
+		packetPrint(LOGINPct)
 	}
 
 	// Sends the packet
@@ -235,11 +219,7 @@ func login(data *Data, args [][]byte) error {
 		return LOGINwErr
 	}
 
-	// Listens for a response
-	if data.Verbose {
-		fmt.Println("[...] awaiting response...")
-	}
-
+	verbosePrint("[...] awaiting response...", *data)
 	LOGINReply, LOGINReplyErr := ListenResponse(*data, 1, spec.ERR, spec.VERIF)
 	if LOGINReplyErr != nil {
 		return LOGINReplyErr
@@ -268,9 +248,7 @@ func login(data *Data, args [][]byte) error {
 	}
 
 	if data.Verbose {
-		fmt.Println("the following packet is about to be sent:")
-		VERIFcmd := spec.ParsePacket(VERIFPct)
-		VERIFcmd.Print()
+		packetPrint(VERIFPct)
 	}
 
 	// Sends the packet
@@ -280,9 +258,7 @@ func login(data *Data, args [][]byte) error {
 	}
 
 	// Listens for response
-	if data.Verbose {
-		fmt.Println("[...] awaiting response...")
-	}
+	verbosePrint("[...] awaiting response...", *data)
 	VERIFReply, VERIFReplyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
 	if VERIFReplyErr != nil {
 		return VERIFReplyErr
@@ -292,12 +268,27 @@ func login(data *Data, args [][]byte) error {
 		return fmt.Errorf("error packet received on RECIV reply (ID %d): %s", VERIFReply.HD.Info, spec.ErrorCodeToError(VERIFReply.HD.Info))
 	}
 
-	if data.Verbose {
-		fmt.Println("verification successful")
-	}
-
-	//verifPct, listenErr :=
-	fmt.Printf("login successful. Welcome, %s\n", username)
+	verbosePrint("verification successful", *data)
+	shellPrint(fmt.Sprintf("login successful. Welcome, %s\n", username), *data)
 	data.User = localUser
 	return nil
+}
+
+// Prints information in stdout if ShellMode is on
+func shellPrint(info string, data Data) {
+	if data.ShellMode {
+		fmt.Println(info)
+	}
+}
+
+func verbosePrint(info string, data Data) {
+	if data.Verbose {
+		shellPrint(info, data)
+	}
+}
+
+func packetPrint(pct []byte) {
+	fmt.Println("the following packet is about to be sent:")
+	VERIFcmd := spec.ParsePacket(pct)
+	VERIFcmd.Print()
 }
