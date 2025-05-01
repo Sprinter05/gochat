@@ -115,7 +115,7 @@ func GetLocalUser(db *gorm.DB, username string) LocalUserData {
 	return localUser
 }
 
-func AddUser(db *gorm.DB, username string, data ShellData) (User, error) {
+func AddUser(db *gorm.DB, username string, data Data) (User, error) {
 	user := User{UserID: getMaxID(db, "users") + 1, Username: username, ServerID: data.Server.ServerID}
 	result := db.Create(&user)
 	if result.RowsAffected != 1 {
@@ -124,7 +124,7 @@ func AddUser(db *gorm.DB, username string, data ShellData) (User, error) {
 	return user, nil
 }
 
-func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, data ShellData) error {
+func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, data Data) error {
 	user, userErr := AddUser(db, username, data)
 	if userErr != nil {
 		return userErr

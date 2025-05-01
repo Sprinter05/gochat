@@ -16,7 +16,7 @@ import (
 // TODO: PENDING and packet buffer
 
 // Map that contains every shell command with its respective execution functions
-var clientCmds = map[string]func(data *ShellData, args [][]byte) error{
+var clientCmds = map[string]func(data *Data, args [][]byte) error{
 	"VER":     ver,
 	"VERBOSE": verbose,
 	"REQ":     req,
@@ -25,7 +25,7 @@ var clientCmds = map[string]func(data *ShellData, args [][]byte) error{
 }
 
 // Given a string containing a command name, returns its execution function
-func FetchClientCmd(op string) func(data *ShellData, args [][]byte) error {
+func FetchClientCmd(op string) func(data *Data, args [][]byte) error {
 	v, ok := clientCmds[op]
 	if !ok {
 		fmt.Printf("%s: command not found\n", op)
@@ -37,13 +37,13 @@ func FetchClientCmd(op string) func(data *ShellData, args [][]byte) error {
 // CLIENT COMMANDS
 
 // Prints the gochat version used by the client
-func ver(data *ShellData, args [][]byte) error {
+func ver(data *Data, args [][]byte) error {
 	fmt.Printf("gochat version %d\n", spec.ProtocolVersion)
 	return nil
 }
 
 // Switches on/off the shell verbose mode
-func verbose(data *ShellData, args [][]byte) error {
+func verbose(data *Data, args [][]byte) error {
 	data.Verbose = !data.Verbose
 	if data.Verbose {
 		fmt.Println("verbose mode on")
@@ -54,7 +54,7 @@ func verbose(data *ShellData, args [][]byte) error {
 }
 
 // Sends a REQ packet to the server
-func req(data *ShellData, args [][]byte) error {
+func req(data *Data, args [][]byte) error {
 	if len(args) < 1 {
 		return fmt.Errorf("not enough arguments")
 	}
@@ -73,7 +73,7 @@ func req(data *ShellData, args [][]byte) error {
 	return wErr
 }
 
-func reg(data *ShellData, args [][]byte) error {
+func reg(data *Data, args [][]byte) error {
 
 	rd := bufio.NewReader(os.Stdin)
 
@@ -184,7 +184,7 @@ func reg(data *ShellData, args [][]byte) error {
 	return nil
 }
 
-func login(data *ShellData, args [][]byte) error {
+func login(data *Data, args [][]byte) error {
 	if len(args) < 1 {
 		return fmt.Errorf("not enough arguments")
 	}

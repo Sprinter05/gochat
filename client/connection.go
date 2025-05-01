@@ -10,7 +10,7 @@ import (
 
 // Listens for incoming server packets. It also executes
 // the appropiate client actions depending on the packet received
-func Listen(data *ShellData) {
+func Listen(data *Data) {
 	defer data.ClientCon.Conn.Close()
 
 	for {
@@ -51,7 +51,7 @@ func Listen(data *ShellData) {
 
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
-func ConnectionStart(data ShellData) {
+func ConnectionStart(data Data) {
 
 	cmd := spec.Command{}
 
@@ -80,7 +80,7 @@ func ConnectionStart(data ShellData) {
 // Receives a slice of command operations to listen to, then starts
 // listening until a received packet fits one of the actions provided
 // and returns it
-func ListenResponse(data ShellData, id spec.ID, ops ...spec.Action) (spec.Command, error) {
+func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, error) {
 	// TODO: timeouts
 	var cmd spec.Command
 

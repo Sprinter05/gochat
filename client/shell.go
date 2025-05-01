@@ -14,7 +14,7 @@ import (
 
 // Struct that contains all the data required for the shell to function.
 // Commands may alter the data if necessary
-type ShellData struct {
+type Data struct {
 	ClientCon spec.Connection
 	Verbose   bool
 	DB        *gorm.DB
@@ -24,7 +24,7 @@ type ShellData struct {
 
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
-func NewShell(data *ShellData) {
+func NewShell(data *Data) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
 		PrintPrompt(*data)
@@ -63,7 +63,7 @@ func NewShell(data *ShellData) {
 	}
 }
 
-func PrintPrompt(data ShellData) {
+func PrintPrompt(data Data) {
 	username := ""
 	if !(data.User.User.Username == "") {
 		username = data.User.User.Username
