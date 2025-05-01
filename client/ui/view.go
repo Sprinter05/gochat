@@ -28,6 +28,8 @@ type TUI struct {
 
 	servers models.Table[string, Server]
 	active  string
+
+	reqs chan Command
 }
 
 func (s *state) blockCond() bool {

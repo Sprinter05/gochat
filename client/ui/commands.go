@@ -17,6 +17,10 @@ var commands map[string]operation = map[string]operation{
 	"list": listBuffers,
 }
 
+func (t *TUI) Requests() <-chan Command {
+	return t.reqs
+}
+
 func (t *TUI) parseCommand(text string) {
 	parts := strings.Split(text, " ")
 
@@ -36,7 +40,7 @@ func (t *TUI) parseCommand(text string) {
 		return
 	}
 
-	fun(t, cmd)
+	go fun(t, cmd)
 }
 
 // COMMANDS

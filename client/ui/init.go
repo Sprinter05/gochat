@@ -182,6 +182,9 @@ func setupStyle(t *TUI) {
 		SetSecondaryTextStyle(tcell.StyleDefault.
 			Background(tcell.ColorDefault).
 			Foreground(tcell.ColorDarkGray)).
+		SetShortcutStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault).
+			Foreground(tcell.ColorYellow)).
 		ShowSecondaryText(true).
 		SetSelectedStyle(tcell.StyleDefault.Underline(true)).
 		SetSelectedTextColor(tcell.ColorPurple).
@@ -400,6 +403,7 @@ func New() (*TUI, *tview.Application) {
 			creatingServer: false,
 			lastDate:       time.Now(),
 		},
+		reqs: make(chan Command),
 	}
 	app := tview.NewApplication().
 		EnableMouse(true).
