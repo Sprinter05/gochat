@@ -17,6 +17,7 @@ import (
 type Data struct {
 	ClientCon spec.Connection
 	Verbose   bool
+	ShellMode bool // If ShellMode is true, the struct belongs to the shell and the output should be printed
 	DB        *gorm.DB
 	Server    Server
 	User      LocalUserData
