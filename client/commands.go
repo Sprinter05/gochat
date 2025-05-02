@@ -15,6 +15,7 @@ import (
 
 // TODO: PENDING and packet buffer
 // TODO: CHANGESV command
+// TODO: cache requested users in memory
 
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, args [][]byte) error{
@@ -23,6 +24,7 @@ var clientCmds = map[string]func(data *Data, args [][]byte) error{
 	"REQ":     req,
 	"REG":     reg,
 	"LOGIN":   login,
+	"LOGOUT":  logout,
 }
 
 // Given a string containing a command name, returns its execution function
@@ -289,8 +291,45 @@ func login(data *Data, args [][]byte) error {
 	}
 
 	verbosePrint("verification successful", *data)
-	shellPrint(fmt.Sprintf("login successful. Welcome, %s\n", username), *data)
+	shellPrint(fmt.Sprintf("login successful. Welcome, %s", username), *data)
 	data.User = localUser
+	return nil
+}
+
+func logout(data *Data, args [][]byte) error {
+	if data.User.User.Username == "" {
+		return fmt.Errorf("cannot log out because there is no logged in user")
+	}
+
+	pct, pctErr := spec.NewPacket(spec.LOGOUT, 1, spec.EmptyInfo)
+	if pctErr != nil {
+		return pctErr
+	}
+
+	if data.Verbose {
+		packetPrint(pct)
+	}
+
+	// Sends the packet
+	_, loginWErr := data.ClientCon.Conn.Write(pct)
+	if loginWErr != nil {
+		return loginWErr
+	}
+
+	// Listens for response
+	verbosePrint("[...] awaiting response...", *data)
+	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
+	if replyErr != nil {
+		return replyErr
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return fmt.Errorf("error packet received on LOGOUT reply (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))
+	}
+
+	// Empties the user value in Data
+	data.User = LocalUserData{}
+	shellPrint("logged out", *data)
 	return nil
 }
 
