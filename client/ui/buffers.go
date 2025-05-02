@@ -3,10 +3,13 @@ package ui
 import "github.com/Sprinter05/gochat/internal/models"
 
 type tab struct {
-	index    int
+	index int
+	name  string
+
 	messages models.Slice[Message]
-	name     string
-	system   bool
+
+	connected bool
+	system    bool
 }
 
 type Buffers struct {
@@ -30,6 +33,15 @@ func (t *TUI) Buffer() string {
 	return t.Active().Buffers().current
 }
 
+func (t *TUI) findTab(name string) *tab {
+	b, ok := t.Active().Buffers().tabs.Get(name)
+	if ok {
+		return b
+	}
+
+	return nil
+}
+
 // Returns the index and asocciated rune unless its hidden
 func (b *Buffers) New(name string, system bool) error {
 	_, ok := b.tabs.Get(name)
@@ -38,10 +50,11 @@ func (b *Buffers) New(name string, system bool) error {
 	}
 
 	tab := &tab{
-		index:    -1,
-		messages: models.NewSlice[Message](0),
-		name:     name,
-		system:   system,
+		index:     -1,
+		messages:  models.NewSlice[Message](0),
+		name:      name,
+		system:    system,
+		connected: false,
 	}
 
 	b.tabs.Add(name, tab)

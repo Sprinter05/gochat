@@ -282,6 +282,11 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
+			if t.Buffer() == "" {
+				t.showError(ErrorNoBuffers)
+				return nil
+			}
+
 			if text[0] == '/' {
 				t.parseCommand(text[1:])
 				t.comp.input.SetText("", false)
@@ -295,6 +300,18 @@ func setupInput(t *TUI) {
 				Timestamp: time.Now(),
 				Source:    t.Active().Source(),
 			})
+
+			b := t.findTab(t.Buffer())
+			if b != nil && b.connected {
+				t.cmds <- Command{
+					Operation: "MSG",
+					Arguments: []string{
+						b.name,
+						text,
+					},
+					Server: t.Active().Source(),
+				}
+			}
 
 			t.comp.input.SetText("", false)
 			return nil

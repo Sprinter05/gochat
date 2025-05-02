@@ -160,10 +160,6 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 		return false, ErrorNoText
 	}
 
-	if msg.Buffer == "" || s.bufs.current == "" {
-		return false, ErrorNoBuffers
-	}
-
 	b, ok := s.bufs.tabs.Get(msg.Buffer)
 	if !ok {
 		s.bufs.New(msg.Buffer, false)
