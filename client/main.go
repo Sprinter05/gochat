@@ -49,7 +49,8 @@ func main() {
 	db := OpenClientDatabase(config.Database.Path, dbLog)
 
 	server := SaveServer(db, address, port)
-	data := Data{ClientCon: cl, Verbose: true, DB: db, Server: server}
+	// TODO: verbose to config
+	data := Data{ClientCon: cl, Verbose: true, ShellMode: true, DB: db, Server: server}
 
 	// Fills the Server related data in the ShellData struct
 	ConnectionStart(data)
