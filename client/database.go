@@ -137,3 +137,16 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 	}
 	return nil
 }
+
+func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, data Data) error {
+	user, userErr := AddUser(db, username, data)
+	if userErr != nil {
+		return userErr
+	}
+	externalUser := ExternalUserData{User: user, UserID: user.UserID, PubKey: pubKeyPEM}
+	result := db.Create(&externalUser)
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("unexpected number of rows affected in ExternalUserData creation")
+	}
+	return nil
+}
