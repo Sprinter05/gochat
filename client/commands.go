@@ -14,6 +14,7 @@ import (
 )
 
 // TODO: PENDING and packet buffer
+// TODO: CHANGESV command
 
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, args [][]byte) error{
@@ -53,8 +54,7 @@ func verbose(data *Data, args [][]byte) error {
 	return nil
 }
 
-// Sends a REQ packet to the server
-// TODO
+// Sends a REQ packet to the server and stores the received user in the database
 func req(data *Data, args [][]byte) error {
 	if len(args) < 1 {
 		return fmt.Errorf("not enough arguments")
@@ -69,7 +69,27 @@ func req(data *Data, args [][]byte) error {
 	}
 
 	_, wErr := data.ClientCon.Conn.Write(pct)
-	return wErr
+	if wErr != nil {
+		return wErr
+	}
+
+	// Awaits a response
+	verbosePrint("[...] awaiting response...", *data)
+	reply, regErr := ListenResponse(*data, 1, spec.REQ, spec.ERR)
+	if regErr != nil {
+		return regErr
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return fmt.Errorf("error packet received (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))
+	}
+
+	dbErr := AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), *data)
+	if dbErr != nil {
+		return dbErr
+	}
+	shellPrint(fmt.Sprintf("user %s successfully added to the database", args[0]), *data)
+	return nil
 }
 
 func reg(data *Data, args [][]byte) error {
@@ -101,7 +121,7 @@ func reg(data *Data, args [][]byte) error {
 		fmt.Print("\n")
 		return pass1Err
 	}
-	shellPrint("\n", *data)
+	shellPrint("", *data)
 
 	fmt.Print("repeat password: ")
 	pass2, pass2Err := term.ReadPassword(0)
@@ -109,7 +129,7 @@ func reg(data *Data, args [][]byte) error {
 		fmt.Print("\n")
 		return pass2Err
 	}
-	shellPrint("\n", *data)
+	shellPrint("", *data)
 
 	if string(pass1) != string(pass2) {
 		return fmt.Errorf("passwords do not match")
@@ -169,7 +189,7 @@ func reg(data *Data, args [][]byte) error {
 		return insertErr
 	}
 
-	shellPrint(fmt.Sprintf("user %s successfully added to the database\n", username), *data)
+	shellPrint(fmt.Sprintf("user %s successfully added to the database", username), *data)
 	return nil
 }
 
@@ -289,6 +309,6 @@ func verbosePrint(info string, data Data) {
 
 func packetPrint(pct []byte) {
 	fmt.Println("the following packet is about to be sent:")
-	VERIFcmd := spec.ParsePacket(pct)
-	VERIFcmd.Print()
+	cmd := spec.ParsePacket(pct)
+	cmd.Print()
 }
