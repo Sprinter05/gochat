@@ -405,7 +405,7 @@ func usrs(data *Data, args [][]byte) error {
 
 func printLocalUsers(data Data) {
 	localUsers := GetAllLocalUsernames(data.DB)
-	for i := 0; i < len(localUsers); i++ {
+	for i := range localUsers {
 		shellPrint(localUsers[i], data)
 	}
 }
