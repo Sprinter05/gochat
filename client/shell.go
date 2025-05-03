@@ -7,21 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-
-	"github.com/Sprinter05/gochat/internal/spec"
-	"gorm.io/gorm"
 )
-
-// Struct that contains all the data required for the shell to function.
-// Commands may alter the data if necessary
-type Data struct {
-	ClientCon spec.Connection
-	Verbose   bool
-	ShellMode bool // If ShellMode is true, the struct belongs to the shell and the output should be printed
-	DB        *gorm.DB
-	Server    Server
-	User      LocalUserData
-}
 
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.

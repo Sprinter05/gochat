@@ -13,11 +13,23 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
+	"gorm.io/gorm"
 )
 
 // TODO: PENDING and packet buffer
 // TODO: cache requested users in memory
 // TODO: USERINFO command
+
+// Struct that contains all the data required for the shell to function.
+// Commands may alter the data if necessary
+type Data struct {
+	ClientCon spec.Connection
+	Verbose   bool
+	ShellMode bool // If ShellMode is true, the struct belongs to the shell and the output should be printed
+	DB        *gorm.DB
+	Server    Server
+	User      LocalUserData
+}
 
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, args [][]byte) ui.Reply{

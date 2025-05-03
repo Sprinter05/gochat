@@ -1,6 +1,6 @@
 {
     "server": {
-        "address": "127.0.0.1",
+        "address": "",
         "port": 9037
     },
     "database": {
