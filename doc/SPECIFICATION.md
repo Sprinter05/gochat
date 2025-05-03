@@ -6,6 +6,8 @@
 - Error occurred: `ERR <error_code>`
 - Inminent server shutdown: `SHTDWN <unix_stamp>`
 
+> **NOTE**: All commands send by the client except `KEEP` will get a response from the server.
+
 ## Connection
 
 When connecting to the server it is important to know that **any malformed packet** will automatically close the connection. Moreover, the server has a **10 minutes** deadline for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be used to allow the connection to persist. Also, the server might be **unable to accept new clients** on the connection, in which case the connection **will await** until a spot is free. Once the client can be connected, an `OK` packet with a _Null ID_ will be sent to the client. It is important to note that the server can implement whatever method it wants for choosing which awaiting client should be connected next.
@@ -40,13 +42,13 @@ Informs the server that the user should be marked as **offline**. No parameters 
 ## Communication
 
 ### Requesting connection with a user
-To start messaging a user, the client application must request the public key from that user to the server. Said key can be cached by the client so the request is only made once per user.
+To start messaging a user, the client application must request the public key from that user to the server. Said key can be cached by the client so the request is only made once per user. The server will reply with the public key and the permission level that user has.
 
 `REQ <username>` _Client_
 
 If the user does not exist an error will be given.
 
-`REQ <username> <rsa_pub>` _Server_
+`REQ <username> <rsa_pub> <permission>` _Server_
 
 ### Listing all users
 

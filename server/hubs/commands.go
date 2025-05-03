@@ -285,6 +285,9 @@ func requestUser(h *Hub, u User, cmd spec.Command) {
 	pak, e := spec.NewPacket(spec.REQ, cmd.HD.ID, spec.EmptyInfo,
 		[]byte(req.name),
 		p,
+		[]byte{
+			byte(u.perms),
+		},
 	)
 	if e != nil {
 		log.Packet(spec.REQ, e)

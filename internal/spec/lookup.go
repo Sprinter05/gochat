@@ -64,7 +64,7 @@ var (
 	errLookup    = lookup{ERR, 0x02, "ERR", -1, 0}
 	regLookup    = lookup{REG, 0x03, "REG", 2, -1}
 	verifLookup  = lookup{VERIF, 0x04, "VERIF", 2, 1}
-	reqLookup    = lookup{REQ, 0x05, "REQ", 1, 2}
+	reqLookup    = lookup{REQ, 0x05, "REQ", 1, 3}
 	usrsLookup   = lookup{USRS, 0x06, "USRS", 0, 1}
 	recivLookup  = lookup{RECIV, 0x07, "RECIV", 0, 3}
 	loginLookup  = lookup{LOGIN, 0x08, "LOGIN", 1, -1}
