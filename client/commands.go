@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/Sprinter05/gochat/client/ui"
 	"github.com/Sprinter05/gochat/internal/spec"
@@ -15,12 +16,12 @@ import (
 )
 
 // TODO: PENDING and packet buffer
-// TODO: CHANGESV command
 // TODO: cache requested users in memory
 // TODO: USERINFO command
 
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, args [][]byte) ui.Reply{
+	"CONN":    conn,
 	"VER":     ver,
 	"VERBOSE": verbose,
 	"REQ":     req,
@@ -42,6 +43,29 @@ func FetchClientCmd(op string) func(data *Data, args [][]byte) ui.Reply {
 
 // CLIENT COMMANDS
 
+func conn(data *Data, args [][]byte) ui.Reply {
+	if data.ClientCon.Conn != nil {
+		return ui.Reply{Error: fmt.Errorf("already connected to a server")}
+	}
+	if len(args) < 2 {
+		return ui.Reply{Error: fmt.Errorf("not enough arguments")}
+	}
+
+	port, parseErr := strconv.ParseUint(string(args[1]), 10, 16)
+	if parseErr != nil {
+		return ui.Reply{Error: parseErr}
+	}
+
+	con, conErr := Connect(string(args[0]), uint16(port))
+	if conErr != nil {
+		return ui.Reply{Error: conErr}
+	}
+
+	data.ClientCon.Conn = con
+	shellPrint("succesfully connected to the server", *data)
+	return ui.Reply{Error: nil}
+}
+
 // Prints the gochat version used by the client
 func ver(data *Data, args [][]byte) ui.Reply {
 	fmt.Printf("gochat version %d\n", spec.ProtocolVersion)
@@ -61,6 +85,9 @@ func verbose(data *Data, args [][]byte) ui.Reply {
 
 // Sends a REQ packet to the server and stores the received user in the database
 func req(data *Data, args [][]byte) ui.Reply {
+	if data.ClientCon.Conn == nil {
+		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
+	}
 	if len(args) < 1 {
 		return ui.Reply{Error: fmt.Errorf("not enough arguments")}
 	}
@@ -98,7 +125,9 @@ func req(data *Data, args [][]byte) ui.Reply {
 }
 
 func reg(data *Data, args [][]byte) ui.Reply {
-
+	if data.ClientCon.Conn == nil {
+		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
+	}
 	rd := bufio.NewReader(os.Stdin)
 
 	// Gets the username
@@ -198,6 +227,9 @@ func reg(data *Data, args [][]byte) ui.Reply {
 }
 
 func login(data *Data, args [][]byte) ui.Reply {
+	if data.ClientCon.Conn == nil {
+		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
+	}
 	if len(args) < 1 {
 		return ui.Reply{Error: fmt.Errorf("not enough arguments")}
 	}
@@ -300,6 +332,9 @@ func login(data *Data, args [][]byte) ui.Reply {
 }
 
 func logout(data *Data, args [][]byte) ui.Reply {
+	if data.ClientCon.Conn == nil {
+		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
+	}
 	if data.User.User.Username == "" {
 		return ui.Reply{Error: fmt.Errorf("cannot log out because there is no logged in user")}
 	}
@@ -340,6 +375,9 @@ func logout(data *Data, args [][]byte) ui.Reply {
 func usrs(data *Data, args [][]byte) ui.Reply {
 	if len(args) < 1 {
 		return ui.Reply{Error: fmt.Errorf("not enough arguments")}
+	}
+	if data.ClientCon.Conn == nil && !(string(args[0]) == "local") {
+		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
 
 	var option byte
