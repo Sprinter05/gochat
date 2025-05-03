@@ -65,9 +65,13 @@ func NewShell(data *Data) {
 }
 
 func PrintPrompt(data Data) {
+	connected := ""
 	username := ""
 	if !(data.User.User.Username == "") {
 		username = data.User.User.Username
 	}
-	fmt.Printf("\033[36mgochat(%s) > \033[0m", username)
+	if data.ClientCon.Conn == nil {
+		connected = "(not connected) "
+	}
+	fmt.Printf("\033[36m%sgochat(%s) > \033[0m", connected, username)
 }
