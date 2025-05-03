@@ -79,6 +79,7 @@ const (
 	maxBuffers     uint   = 35
 	maxServers     uint   = 9
 	maxMsgs        uint   = 5
+	maxCmds        uint   = 10
 )
 
 var (
@@ -293,16 +294,17 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
+			s := t.Active()
 			t.SendMessage(Message{
 				Sender:    selfSender,
 				Buffer:    t.Buffer(),
 				Content:   text,
 				Timestamp: time.Now(),
-				Source:    t.Active().Source(),
+				Source:    s.Source(),
 			})
 
 			b := t.findTab(t.Buffer())
-			if b != nil && b.connected {
+			if b != nil && b.connected && s.Online() {
 				t.cmds <- Command{
 					Operation: "MSG",
 					Arguments: []string{
@@ -421,9 +423,7 @@ func New() (*TUI, *tview.Application) {
 			creatingServer: false,
 			lastDate:       time.Now(),
 		},
-		cmds: make(chan Command),
-		reps: make(chan Reply),
-		msgs: make(chan string, maxMsgs),
+		cmds: make(chan Command, maxCmds),
 	}
 	app := tview.NewApplication().
 		EnableMouse(true).
@@ -454,8 +454,6 @@ func New() (*TUI, *tview.Application) {
 		Timestamp: time.Now(),
 		Source:    t.Active().Source(),
 	})
-
-	go cmdMessages(t)
 
 	return t, app
 }

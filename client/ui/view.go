@@ -30,8 +30,6 @@ type TUI struct {
 	active  string
 
 	cmds chan Command
-	reps chan Reply
-	msgs chan string
 }
 
 func (s *state) blockCond() bool {
