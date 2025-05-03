@@ -12,7 +12,7 @@ type Command struct {
 }
 
 type Reply struct {
-	Arguments []string
+	Arguments [][]byte
 	Error     error
 }
 
