@@ -22,6 +22,7 @@ import (
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, args [][]byte) ui.Reply{
 	"CONN":    conn,
+	"DISCN":   discn,
 	"VER":     ver,
 	"VERBOSE": verbose,
 	"REQ":     req,
@@ -63,6 +64,22 @@ func conn(data *Data, args [][]byte) ui.Reply {
 
 	data.ClientCon.Conn = con
 	shellPrint("succesfully connected to the server", *data)
+	return ui.Reply{Error: nil}
+}
+
+func discn(data *Data, args [][]byte) ui.Reply {
+	if data.ClientCon.Conn == nil {
+		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
+	}
+
+	err := data.ClientCon.Conn.Close()
+	if err != nil {
+		return ui.Reply{Error: err}
+	}
+	data.ClientCon.Conn = nil
+	// Closes the shell client session
+	data.User = LocalUserData{}
+	shellPrint("sucessfully disconnected from the server", *data)
 	return ui.Reply{Error: nil}
 }
 
