@@ -41,22 +41,35 @@ func main() {
 
 	address := config.Server.Address
 	port := config.Server.Port
-	con := Connect(address, port)
-	cl := spec.Connection{Conn: con}
-	defer con.Close() // Closes conection right before execution ends
 
+	// Opens the database
 	dbLog := getDBLogger(config)
 	db := openClientDatabase(config.Database.Path, dbLog)
+
+	var cl spec.Connection
+	var con net.Conn
+	if address != "" {
+		var conErr error
+		con, conErr = Connect(address, port)
+		if conErr != nil {
+			log.Fatal(conErr)
+		}
+	}
+	cl = spec.Connection{Conn: con}
 
 	server := SaveServer(db, address, port)
 	// TODO: verbose to config
 	data := Data{ClientCon: cl, Verbose: true, ShellMode: true, DB: db, Server: server}
 
-	// Fills the Server related data in the ShellData struct
-	ConnectionStart(data)
+	if address != "" {
+		ConnectionStart(data)
+	}
 
 	// go Listen(&data)
 	NewShell(&data)
+	if data.ClientCon.Conn != nil {
+		data.ClientCon.Conn.Close()
+	}
 }
 
 // Returns a Config struct with the data obtained from the json
@@ -76,13 +89,13 @@ func getConfig() Config {
 }
 
 // Connects to the gochat server given its address and port
-func Connect(address string, port uint16) net.Conn {
+func Connect(address string, port uint16) (net.Conn, error) {
 	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
 	con, conErr := net.Dial("tcp4", socket)
 	if conErr != nil {
-		log.Fatalf("could not establish a TCP connection with server: %s", conErr)
+		return nil, conErr
 	}
-	return con
+	return con, conErr
 }
 
 // Gets the specified log level in the client configuration file
