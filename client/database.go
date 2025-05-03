@@ -115,6 +115,13 @@ func GetLocalUser(db *gorm.DB, username string) LocalUserData {
 	return localUser
 }
 
+func GetAllLocalUsernames(db *gorm.DB) []string {
+	var usernames []string
+	db.Raw("SELECT username FROM users, local_user_data WHERE local_user_data.user_id = users.user_id").Scan(&usernames)
+	return usernames
+
+}
+
 func AddUser(db *gorm.DB, username string, data Data) (User, error) {
 	user := User{UserID: getMaxID(db, "users") + 1, Username: username, ServerID: data.Server.ServerID}
 	result := db.Create(&user)
