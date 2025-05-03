@@ -16,6 +16,7 @@ import (
 // TODO: PENDING and packet buffer
 // TODO: CHANGESV command
 // TODO: cache requested users in memory
+// TODO: Print local users
 
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, args [][]byte) error{
@@ -25,6 +26,7 @@ var clientCmds = map[string]func(data *Data, args [][]byte) error{
 	"REG":     reg,
 	"LOGIN":   login,
 	"LOGOUT":  logout,
+	"USRS":    usrs,
 }
 
 // Given a string containing a command name, returns its execution function
@@ -311,9 +313,9 @@ func logout(data *Data, args [][]byte) error {
 	}
 
 	// Sends the packet
-	_, loginWErr := data.ClientCon.Conn.Write(pct)
-	if loginWErr != nil {
-		return loginWErr
+	_, pctWErr := data.ClientCon.Conn.Write(pct)
+	if pctWErr != nil {
+		return pctWErr
 	}
 
 	// Listens for response
@@ -343,6 +345,68 @@ func shellPrint(info string, data Data) {
 func verbosePrint(info string, data Data) {
 	if data.Verbose {
 		shellPrint(info, data)
+	}
+}
+
+func usrs(data *Data, args [][]byte) error {
+	if len(args) < 1 {
+		return fmt.Errorf("not enough arguments")
+	}
+
+	var option byte
+	switch string(args[0]) {
+	case "online":
+		option = 0x01
+	case "all":
+		option = 0x00
+	case "local":
+		shellPrint("local users:", *data)
+		printLocalUsers(*data)
+		return nil
+
+	default:
+		return fmt.Errorf("unknown option. make sure the option is either 'online' or 'all'")
+	}
+
+	pct, pctErr := spec.NewPacket(spec.USRS, 1, option)
+	if pctErr != nil {
+		return pctErr
+	}
+
+	if data.Verbose {
+		packetPrint(pct)
+	}
+
+	// Sends the packet
+	_, wErr := data.ClientCon.Conn.Write(pct)
+	if wErr != nil {
+		return wErr
+	}
+
+	// Listens for response
+	verbosePrint("[...] awaiting response...", *data)
+	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.USRS)
+	if replyErr != nil {
+		return replyErr
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return fmt.Errorf("error packet received on USRS reply (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))
+	}
+
+	if option == 0x01 {
+		shellPrint("online users:", *data)
+	} else {
+		shellPrint("all users:", *data)
+	}
+	shellPrint(string(reply.Args[0]), *data)
+	return nil
+}
+
+func printLocalUsers(data Data) {
+	localUsers := GetAllLocalUsernames(data.DB)
+	for i := 0; i < len(localUsers); i++ {
+		shellPrint(localUsers[i], data)
 	}
 }
 
