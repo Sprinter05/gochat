@@ -45,8 +45,8 @@ func main() {
 	cl := spec.Connection{Conn: con}
 	defer con.Close() // Closes conection right before execution ends
 
-	dbLog := GetDBLogger(config)
-	db := OpenClientDatabase(config.Database.Path, dbLog)
+	dbLog := getDBLogger(config)
+	db := openClientDatabase(config.Database.Path, dbLog)
 
 	server := SaveServer(db, address, port)
 	// TODO: verbose to config
@@ -86,7 +86,7 @@ func Connect(address string, port uint16) net.Conn {
 }
 
 // Gets the specified log level in the client configuration file
-func GetDBLogger(config Config) logger.Interface {
+func getDBLogger(config Config) logger.Interface {
 	dbLogLevel, ok := intToLogLevel[config.Database.LogLevel]
 	if !ok {
 		log.Fatal("config: unknown log level specified in configuration file")
@@ -110,8 +110,8 @@ func GetDBLogger(config Config) logger.Interface {
 }
 
 // Opens the client database
-func OpenClientDatabase(path string, logger logger.Interface) *gorm.DB {
-	db, dbErr := gorm.Open(sqlite.Open("client/db/client.db"), &gorm.Config{Logger: logger})
+func openClientDatabase(path string, logger logger.Interface) *gorm.DB {
+	db, dbErr := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger})
 	if dbErr != nil {
 		log.Fatalf("database could not not be opened: %s", dbErr)
 	}
