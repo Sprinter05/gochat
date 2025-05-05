@@ -463,11 +463,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: fmt.Errorf("error packet received on USRS reply (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))}
 	}
 
-	if option == 0x01 {
-		outputFunc("online users:\n")
-	} else {
-		outputFunc("all users:\n")
-	}
+	outputFunc(fmt.Sprintf("%s users:\n", args[0]))
 	outputFunc(string(reply.Args[0]))
 	outputFunc("\n")
 	return ReplyData{Error: nil, Arguments: reply.Args}
