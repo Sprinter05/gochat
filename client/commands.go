@@ -45,10 +45,10 @@ var clientCmds = map[string]func(data *Data, outputFunc func(text string), args 
 }
 
 // Given a string containing a command name, returns its execution function
-func FetchClientCmd(op string, outputFunc func(a ...any)) func(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func FetchClientCmd(op string, outputFunc func(text string)) func(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	v, ok := clientCmds[op]
 	if !ok {
-		outputFunc("%s: command not found\n", op)
+		outputFunc(fmt.Sprintf("%s: command not found\n", op))
 		return nil
 	}
 	return v
