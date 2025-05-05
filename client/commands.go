@@ -33,15 +33,15 @@ type Data struct {
 
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply{
-	"CONN":    conn,
-	"DISCN":   discn,
-	"VER":     ver,
-	"VERBOSE": verbose,
-	"REQ":     req,
-	"REG":     reg,
-	"LOGIN":   login,
-	"LOGOUT":  logout,
-	"USRS":    usrs,
+	"CONN":    Conn,
+	"DISCN":   Discn,
+	"VER":     Ver,
+	"VERBOSE": Verbose,
+	"REQ":     Req,
+	"REG":     Reg,
+	"LOGIN":   Login,
+	"LOGOUT":  Logout,
+	"USRS":    Usrs,
 }
 
 // Given a string containing a command name, returns its execution function
@@ -56,7 +56,7 @@ func FetchClientCmd(op string, outputFunc func(text string)) func(data *Data, ou
 
 // CLIENT COMMANDS
 
-func conn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Conn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn != nil {
 		return ui.Reply{Error: fmt.Errorf("already connected to a server")}
 	}
@@ -79,7 +79,7 @@ func conn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil}
 }
 
-func discn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Discn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -96,13 +96,13 @@ func discn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 }
 
 // Prints the gochat version used by the client
-func ver(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Ver(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	outputFunc(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
 	return ui.Reply{Error: nil}
 }
 
 // Switches on/off the shell verbose mode
-func verbose(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Verbose(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	data.Verbose = !data.Verbose
 	if data.Verbose {
 		outputFunc("verbose mode on\n")
@@ -113,7 +113,7 @@ func verbose(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply 
 }
 
 // Sends a REQ packet to the server and stores the received user in the database
-func req(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Req(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -153,7 +153,7 @@ func req(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
-func reg(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Reg(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -255,7 +255,7 @@ func reg(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
-func login(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Login(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -360,7 +360,7 @@ func login(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: verifReply.Args}
 }
 
-func logout(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Logout(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -401,7 +401,7 @@ func logout(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
-func usrs(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if len(args) < 1 {
 		return ui.Reply{Error: fmt.Errorf("not enough arguments")}
 	}
