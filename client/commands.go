@@ -30,11 +30,29 @@ type Data struct {
 	User      LocalUserData
 }
 
+func (data Data) isUserLoggedIn() bool {
+	return data.User.User.Username != ""
+}
+
 // Contains data received from the reply of a command
 type ReplyData struct {
 	Arguments [][]byte
 	Error     error
 }
+
+var (
+	ErrorInsuficientArgs   error = fmt.Errorf("not enough arguments")
+	ErrorNotConnected      error = fmt.Errorf("not connected to a server")
+	ErrorAlreadyConnected  error = fmt.Errorf("already connected to a server")
+	ErrorNotLoggedIn       error = fmt.Errorf("you are not logged in")
+	ErrorERRPacket         error = fmt.Errorf("ERR packet received")
+	ErrorWrongCredentials  error = fmt.Errorf("wrong credentials")
+	ErrorUnknownUSRSOption error = fmt.Errorf("unknown option. make sure the option is either 'online' or 'all'")
+	ErrorUsernameEmpty     error = fmt.Errorf("username cannot be empty")
+	ErrorUserExists        error = fmt.Errorf("user exists")
+	ErrorPasswordsNotMatch error = fmt.Errorf("passwords do not match")
+	ErrorUserNotFound      error = fmt.Errorf("username not found")
+)
 
 // Map that contains every shell command with its respective execution functions
 var clientCmds = map[string]func(data *Data, outputFunc func(text string), args ...[]byte) ReplyData{
@@ -64,10 +82,10 @@ func FetchClientCmd(op string, outputFunc func(text string)) func(data *Data, ou
 // Connects a client to a gochat server
 func Conn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if data.ClientCon.Conn != nil {
-		return ReplyData{Error: fmt.Errorf("already connected to a server")}
+		return ReplyData{Error: ErrorAlreadyConnected}
 	}
 	if len(args) < 2 {
-		return ReplyData{Error: fmt.Errorf("not enough arguments")}
+		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 
 	port, parseErr := strconv.ParseUint(string(args[1]), 10, 16)
@@ -88,7 +106,7 @@ func Conn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 // Disconnects a client from a gochat server
 func Discn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if data.ClientCon.Conn == nil {
-		return ReplyData{Error: fmt.Errorf("not connected to a server")}
+		return ReplyData{Error: ErrorNotConnected}
 	}
 
 	err := data.ClientCon.Conn.Close()
@@ -122,11 +140,15 @@ func Verbose(data *Data, outputFunc func(text string), args ...[]byte) ReplyData
 // Requests the information of an external user to add it to the client database
 func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if data.ClientCon.Conn == nil {
-		return ReplyData{Error: fmt.Errorf("not connected to a server")}
+		return ReplyData{Error: ErrorNotConnected}
 	}
 	if len(args) < 1 {
-		return ReplyData{Error: fmt.Errorf("not enough arguments")}
+		return ReplyData{Error: ErrorInsuficientArgs}
 	}
+	if !data.isUserLoggedIn() {
+		return ReplyData{Error: ErrorNotLoggedIn}
+	}
+
 	pct, pctErr := spec.NewPacket(spec.REQ, 1, spec.EmptyInfo, args...)
 	if pctErr != nil {
 		return ReplyData{Error: pctErr}
@@ -149,7 +171,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: fmt.Errorf("error packet received (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))}
+		return ReplyData{Error: ErrorERRPacket, Arguments: reply.Args}
 	}
 
 	dbErr := AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), *data)
@@ -163,8 +185,12 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 // Registers a user to a server and also adds it to the client database
 func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if data.ClientCon.Conn == nil {
-		return ReplyData{Error: fmt.Errorf("not connected to a server")}
+		return ReplyData{Error: ErrorNotConnected}
 	}
+	if !data.isUserLoggedIn() {
+		return ReplyData{Error: ErrorNotLoggedIn}
+	}
+
 	rd := bufio.NewReader(os.Stdin)
 
 	// Gets the username
@@ -177,12 +203,12 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	// Removes unecessary spaces and the line jump in the username
 	username = bytes.TrimSpace(username)
 	if len(username) == 0 {
-		return ReplyData{Error: fmt.Errorf("username cannot be empty")}
+		return ReplyData{Error: ErrorUsernameEmpty}
 	}
 
 	exists := LocalUserExists(data.DB, string(username))
 	if exists {
-		return ReplyData{Error: fmt.Errorf("user already exists")}
+		return ReplyData{Error: ErrorUserExists}
 	}
 
 	// Gets the password
@@ -203,7 +229,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	outputFunc("\n")
 
 	if string(pass1) != string(pass2) {
-		return ReplyData{Error: fmt.Errorf("passwords do not match")}
+		return ReplyData{Error: ErrorPasswordsNotMatch}
 	}
 
 	// Generates the PEM arrays of both the private and public key of the pair
@@ -251,7 +277,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: fmt.Errorf("error packet received (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))}
+		return ReplyData{Error: ErrorERRPacket}
 	}
 
 	// Creates the user
@@ -266,16 +292,19 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 // Logs a user to a server
 func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if data.ClientCon.Conn == nil {
-		return ReplyData{Error: fmt.Errorf("not connected to a server")}
+		return ReplyData{Error: ErrorNotConnected}
 	}
 	if len(args) < 1 {
-		return ReplyData{Error: fmt.Errorf("not enough arguments")}
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+	if !data.isUserLoggedIn() {
+		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
 	username := string(args[0])
 	found := LocalUserExists(data.DB, username)
 	if !found {
-		return ReplyData{Error: fmt.Errorf("username not found")}
+		return ReplyData{Error: ErrorUserNotFound}
 	}
 
 	// Asks for password
@@ -292,7 +321,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
 	if cmpErr != nil {
-		return ReplyData{Error: fmt.Errorf("wrong credentials")}
+		return ReplyData{Error: ErrorWrongCredentials}
 	}
 
 	verbosePrint("password correct\n[...] sending LOGIN packet...", outputFunc, *data)
@@ -320,7 +349,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if loginReply.HD.Op == spec.ERR {
-		return ReplyData{Error: fmt.Errorf("error packet received on LOGIN reply (ID %d): %s", loginReply.HD.Info, spec.ErrorCodeToError(loginReply.HD.Info))}
+		return ReplyData{Error: ErrorERRPacket}
 	}
 
 	// The reply is a VERIF
@@ -359,7 +388,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if verifReply.HD.Op == spec.ERR {
-		return ReplyData{Error: fmt.Errorf("error packet received on RECIV reply (ID %d): %s", verifReply.HD.Info, spec.ErrorCodeToError(verifReply.HD.Info))}
+		return ReplyData{Error: ErrorERRPacket}
 	}
 	verbosePrint("verification successful\n", outputFunc, *data)
 	// Assigns the logged in user to Data
@@ -372,10 +401,10 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 // Logs out a user from a server
 func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if data.ClientCon.Conn == nil {
-		return ReplyData{Error: fmt.Errorf("not connected to a server")}
+		return ReplyData{Error: ErrorNotConnected}
 	}
-	if data.User.User.Username == "" {
-		return ReplyData{Error: fmt.Errorf("cannot log out because there is no logged in user")}
+	if !data.isUserLoggedIn() {
+		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
 	pct, pctErr := spec.NewPacket(spec.LOGOUT, 1, spec.EmptyInfo)
@@ -401,7 +430,7 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: fmt.Errorf("error packet received on LOGOUT reply (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))}
+		return ReplyData{Error: ErrorERRPacket}
 	}
 
 	// Empties the user value in Data
@@ -416,10 +445,13 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 // will be performed
 func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if len(args) < 1 {
-		return ReplyData{Error: fmt.Errorf("not enough arguments")}
+		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 	if data.ClientCon.Conn == nil && !(string(args[0]) == "local") {
-		return ReplyData{Error: fmt.Errorf("not connected to a server")}
+		return ReplyData{Error: ErrorNotConnected}
+	}
+	if !data.isUserLoggedIn() && !(string(args[0]) == "local") {
+		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
 	var option byte
@@ -434,7 +466,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: nil}
 
 	default:
-		return ReplyData{Error: fmt.Errorf("unknown option. make sure the option is either 'online' or 'all'")}
+		return ReplyData{Error: ErrorUnknownOption}
 	}
 
 	pct, pctErr := spec.NewPacket(spec.USRS, 1, option)
@@ -460,7 +492,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: fmt.Errorf("error packet received on USRS reply (ID %d): %s", reply.HD.Info, spec.ErrorCodeToError(reply.HD.Info))}
+		return ReplyData{Error: ErrorERRPacket}
 	}
 
 	outputFunc(fmt.Sprintf("%s users:\n", args[0]))
