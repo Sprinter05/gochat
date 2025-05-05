@@ -56,6 +56,7 @@ func FetchClientCmd(op string, outputFunc func(text string)) func(data *Data, ou
 
 // CLIENT COMMANDS
 
+// Connects a client to a gochat server
 func Conn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn != nil {
 		return ui.Reply{Error: fmt.Errorf("already connected to a server")}
@@ -79,6 +80,7 @@ func Conn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil}
 }
 
+// Disconnects a client from a gochat server
 func Discn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
@@ -101,7 +103,7 @@ func Ver(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil}
 }
 
-// Switches on/off the shell verbose mode
+// Switches on/off the verbose mode
 func Verbose(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	data.Verbose = !data.Verbose
 	if data.Verbose {
@@ -112,7 +114,7 @@ func Verbose(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply 
 	return ui.Reply{Error: nil}
 }
 
-// Sends a REQ packet to the server and stores the received user in the database
+// Requests the information of an external user to add it to the client database
 func Req(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
@@ -153,6 +155,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
+// Registers a user to a server and also adds it to the client database
 func Reg(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
@@ -255,6 +258,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
+// Logs a user to a server
 func Login(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
@@ -360,6 +364,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: verifReply.Args}
 }
 
+// Logs out a user from a server
 func Logout(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
@@ -401,6 +406,9 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
+// Requests a list of either "online" or "all" registered users and prints it. If "local"
+// is used as an argument, the local users will be printed insteads and no server requests
+// will be performed
 func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if len(args) < 1 {
 		return ui.Reply{Error: fmt.Errorf("not enough arguments")}
@@ -459,6 +467,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
+// Prints out all local users
 func printLocalUsers(data Data, outputFunc func(text string)) {
 	localUsers := GetAllLocalUsernames(data.DB)
 	for i := range localUsers {
@@ -466,12 +475,14 @@ func printLocalUsers(data Data, outputFunc func(text string)) {
 	}
 }
 
+// Prints a packet
 func packetPrint(pct []byte, outputFunc func(text string)) {
 	fmt.Println("the following packet is about to be sent:")
 	cmd := spec.ParsePacket(pct)
 	cmd.Print(outputFunc)
 }
 
+// Prints text if the verbose mode is on
 func verbosePrint(text string, outputFunc func(text string), data Data) {
 	if data.Verbose {
 		outputFunc(text)
