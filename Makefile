@@ -1,11 +1,11 @@
 # Environment
-CC = go
-BUILD = build
+CC=go
+BUILD=build
 
 .PHONY: clean
 all: $(BUILD)/gcserver $(BUILD)/gcclient
 server: $(BUILD)/gcserver
-client $(BUILD)/gcclient
+client: $(BUILD)/gcclient
 
 # Create build folder if it doesn't exist
 $(BUILD):
@@ -25,3 +25,4 @@ $(BUILD)/gcclient: $(BUILD)
 # Clean build folder
 clean: $(BUILD)
 	rm -r $(BUILD)
+
