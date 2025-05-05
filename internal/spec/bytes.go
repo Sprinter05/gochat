@@ -61,7 +61,7 @@ func (cmd *Command) Print(outputFunc func(text string)) {
 	outputFunc(fmt.Sprintf("* Args: %d\n", cmd.HD.Args))
 	outputFunc(fmt.Sprintf("* Length: %d\n", cmd.HD.Len))
 	outputFunc(fmt.Sprintf("* ID: %d\n", cmd.HD.ID))
-	outputFunc("-------- PAYLOAD --------")
+	outputFunc("-------- PAYLOAD --------\n")
 	for i, v := range cmd.Args {
 		outputFunc(fmt.Sprintf("[%d] %s\n", i, v))
 	}
