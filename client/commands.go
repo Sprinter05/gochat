@@ -32,7 +32,7 @@ type Data struct {
 }
 
 // Map that contains every shell command with its respective execution functions
-var clientCmds = map[string]func(data *Data, args [][]byte) ui.Reply{
+var clientCmds = map[string]func(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply{
 	"CONN":    conn,
 	"DISCN":   discn,
 	"VER":     ver,
@@ -45,10 +45,10 @@ var clientCmds = map[string]func(data *Data, args [][]byte) ui.Reply{
 }
 
 // Given a string containing a command name, returns its execution function
-func FetchClientCmd(op string) func(data *Data, args [][]byte) ui.Reply {
+func FetchClientCmd(op string, outputFunc func(a ...any)) func(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	v, ok := clientCmds[op]
 	if !ok {
-		fmt.Printf("%s: command not found\n", op)
+		outputFunc("%s: command not found\n", op)
 		return nil
 	}
 	return v
@@ -56,7 +56,7 @@ func FetchClientCmd(op string) func(data *Data, args [][]byte) ui.Reply {
 
 // CLIENT COMMANDS
 
-func conn(data *Data, args [][]byte) ui.Reply {
+func conn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn != nil {
 		return ui.Reply{Error: fmt.Errorf("already connected to a server")}
 	}
@@ -75,11 +75,11 @@ func conn(data *Data, args [][]byte) ui.Reply {
 	}
 
 	data.ClientCon.Conn = con
-	shellPrint("succesfully connected to the server", *data)
+	outputFunc("succesfully connected to the server\n")
 	return ui.Reply{Error: nil}
 }
 
-func discn(data *Data, args [][]byte) ui.Reply {
+func discn(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -91,29 +91,29 @@ func discn(data *Data, args [][]byte) ui.Reply {
 	data.ClientCon.Conn = nil
 	// Closes the shell client session
 	data.User = LocalUserData{}
-	shellPrint("sucessfully disconnected from the server", *data)
+	outputFunc("sucessfully disconnected from the server\n")
 	return ui.Reply{Error: nil}
 }
 
 // Prints the gochat version used by the client
-func ver(data *Data, args [][]byte) ui.Reply {
-	fmt.Printf("gochat version %d\n", spec.ProtocolVersion)
+func ver(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
+	outputFunc(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
 	return ui.Reply{Error: nil}
 }
 
 // Switches on/off the shell verbose mode
-func verbose(data *Data, args [][]byte) ui.Reply {
+func verbose(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	data.Verbose = !data.Verbose
 	if data.Verbose {
-		fmt.Println("verbose mode on")
+		outputFunc("verbose mode on\n")
 	} else {
-		fmt.Println("verbose mode off")
+		outputFunc("verbose mode off\n")
 	}
 	return ui.Reply{Error: nil}
 }
 
 // Sends a REQ packet to the server and stores the received user in the database
-func req(data *Data, args [][]byte) ui.Reply {
+func req(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -126,7 +126,7 @@ func req(data *Data, args [][]byte) ui.Reply {
 	}
 
 	if data.Verbose {
-		packetPrint(pct)
+		packetPrint(pct, outputFunc)
 	}
 
 	_, wErr := data.ClientCon.Conn.Write(pct)
@@ -135,7 +135,7 @@ func req(data *Data, args [][]byte) ui.Reply {
 	}
 
 	// Awaits a response
-	verbosePrint("[...] awaiting response...", *data)
+	verbosePrint("[...] awaiting response...", outputFunc, *data)
 	reply, regErr := ListenResponse(*data, 1, spec.REQ, spec.ERR)
 	if regErr != nil {
 		return ui.Reply{Error: regErr}
@@ -149,18 +149,18 @@ func req(data *Data, args [][]byte) ui.Reply {
 	if dbErr != nil {
 		return ui.Reply{Error: dbErr}
 	}
-	shellPrint(fmt.Sprintf("user %s successfully added to the database", args[0]), *data)
+	outputFunc(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
-func reg(data *Data, args [][]byte) ui.Reply {
+func reg(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
 	rd := bufio.NewReader(os.Stdin)
 
 	// Gets the username
-	fmt.Print("username: ")
+	outputFunc("username: \n")
 	username, readErr := rd.ReadBytes('\n')
 	if readErr != nil {
 		return ui.Reply{Error: readErr}
@@ -181,25 +181,25 @@ func reg(data *Data, args [][]byte) ui.Reply {
 	fmt.Print("password: ")
 	pass1, pass1Err := term.ReadPassword(0)
 	if pass1Err != nil {
-		shellPrint("\n", *data)
+		outputFunc("\n")
 		return ui.Reply{Error: pass1Err}
 	}
-	shellPrint("", *data)
+	outputFunc("\n")
 
-	fmt.Print("repeat password: ")
+	outputFunc("repeat password: ")
 	pass2, pass2Err := term.ReadPassword(0)
 	if pass2Err != nil {
-		shellPrint("\n", *data)
+		outputFunc("\n")
 		return ui.Reply{Error: pass2Err}
 	}
-	shellPrint("", *data)
+	outputFunc("\n")
 
 	if string(pass1) != string(pass2) {
 		return ui.Reply{Error: fmt.Errorf("passwords do not match")}
 	}
 
 	// Generates the PEM arrays of both the private and public key of the pair
-	verbosePrint("[...] generating RSA key pair...", *data)
+	verbosePrint("[...] generating RSA key pair...\n", outputFunc, *data)
 	pair, rsaErr := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	if rsaErr != nil {
 		return ui.Reply{Error: rsaErr}
@@ -211,13 +211,13 @@ func reg(data *Data, args [][]byte) ui.Reply {
 	}
 
 	// Hashes the provided password
-	verbosePrint("[...] hashing password...", *data)
+	verbosePrint("[...] hashing password...\n", outputFunc, *data)
 	hashPass, hashErr := bcrypt.GenerateFromPassword(pass1, 12)
 	if hashErr != nil {
 		return ui.Reply{Error: hashErr}
 	}
 
-	verbosePrint("[...] sending REG packet...", *data)
+	verbosePrint("[...] sending REG packet...", outputFunc, *data)
 	// Assembles the REG packet
 	pctArgs := [][]byte{[]byte(username), pubKeyPEM}
 	pct, pctErr := spec.NewPacket(spec.REG, 1, spec.EmptyInfo, pctArgs...)
@@ -226,7 +226,7 @@ func reg(data *Data, args [][]byte) ui.Reply {
 	}
 
 	if data.Verbose {
-		packetPrint(pct)
+		packetPrint(pct, outputFunc)
 	}
 
 	// Sends the packet
@@ -236,7 +236,7 @@ func reg(data *Data, args [][]byte) ui.Reply {
 	}
 
 	// Awaits a response
-	verbosePrint("[...] awaiting response...", *data)
+	verbosePrint("[...] awaiting response...", outputFunc, *data)
 	reply, regErr := ListenResponse(*data, 1, spec.OK, spec.ERR)
 	if regErr != nil {
 		return ui.Reply{Error: regErr}
@@ -251,11 +251,11 @@ func reg(data *Data, args [][]byte) ui.Reply {
 	if insertErr != nil {
 		return ui.Reply{Error: insertErr}
 	}
-	shellPrint(fmt.Sprintf("user %s successfully added to the database", args[0]), *data)
+	outputFunc(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
-func login(data *Data, args [][]byte) ui.Reply {
+func login(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -273,10 +273,10 @@ func login(data *Data, args [][]byte) ui.Reply {
 	fmt.Printf("%s's password: ", username)
 	pass, passErr := term.ReadPassword(0)
 	if passErr != nil {
-		shellPrint("\n", *data)
+		outputFunc("\n")
 		return ui.Reply{Error: passErr}
 	}
-	shellPrint("\n", *data)
+	outputFunc("\n")
 
 	// Verifies password
 	localUser := GetLocalUser(data.DB, username)
@@ -286,7 +286,7 @@ func login(data *Data, args [][]byte) ui.Reply {
 		return ui.Reply{Error: fmt.Errorf("wrong credentials")}
 	}
 
-	verbosePrint("password correct\n[...] sending LOGIN packet...", *data)
+	verbosePrint("password correct\n[...] sending LOGIN packet...", outputFunc, *data)
 	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
 	loginPct, loginPctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
@@ -295,7 +295,7 @@ func login(data *Data, args [][]byte) ui.Reply {
 	}
 
 	if data.Verbose {
-		packetPrint(loginPct)
+		packetPrint(loginPct, outputFunc)
 	}
 
 	// Sends the packet
@@ -304,7 +304,7 @@ func login(data *Data, args [][]byte) ui.Reply {
 		return ui.Reply{Error: loginWErr}
 	}
 
-	verbosePrint("[...] awaiting response...", *data)
+	verbosePrint("[...] awaiting response...", outputFunc, *data)
 	loginReply, loginReplyErr := ListenResponse(*data, 1, spec.ERR, spec.VERIF)
 	if loginReplyErr != nil {
 		return ui.Reply{Error: loginReplyErr}
@@ -333,7 +333,7 @@ func login(data *Data, args [][]byte) ui.Reply {
 	}
 
 	if data.Verbose {
-		packetPrint(verifPct)
+		packetPrint(verifPct, outputFunc)
 	}
 
 	// Sends the packet
@@ -343,7 +343,7 @@ func login(data *Data, args [][]byte) ui.Reply {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...", *data)
+	verbosePrint("[...] awaiting response...", outputFunc, *data)
 	verifReply, verifReplyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
 	if verifReplyErr != nil {
 		return ui.Reply{Error: verifReplyErr}
@@ -352,15 +352,15 @@ func login(data *Data, args [][]byte) ui.Reply {
 	if verifReply.HD.Op == spec.ERR {
 		return ui.Reply{Error: fmt.Errorf("error packet received on RECIV reply (ID %d): %s", verifReply.HD.Info, spec.ErrorCodeToError(verifReply.HD.Info))}
 	}
-	verbosePrint("verification successful", *data)
+	verbosePrint("verification successful\n", outputFunc, *data)
 	// Assigns the logged in user to Data
 	data.User = localUser
 
-	shellPrint(fmt.Sprintf("login successful. Welcome, %s", username), *data)
+	outputFunc(fmt.Sprintf("login successful. Welcome, %s\n", username))
 	return ui.Reply{Error: nil, Arguments: verifReply.Args}
 }
 
-func logout(data *Data, args [][]byte) ui.Reply {
+func logout(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if data.ClientCon.Conn == nil {
 		return ui.Reply{Error: fmt.Errorf("not connected to a server")}
 	}
@@ -374,7 +374,7 @@ func logout(data *Data, args [][]byte) ui.Reply {
 	}
 
 	if data.Verbose {
-		packetPrint(pct)
+		packetPrint(pct, outputFunc)
 	}
 
 	// Sends the packet
@@ -384,7 +384,7 @@ func logout(data *Data, args [][]byte) ui.Reply {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...", *data)
+	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
 	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
 	if replyErr != nil {
 		return ui.Reply{Error: replyErr}
@@ -397,11 +397,11 @@ func logout(data *Data, args [][]byte) ui.Reply {
 	// Empties the user value in Data
 	data.User = LocalUserData{}
 
-	shellPrint("logged out", *data)
+	outputFunc("logged out")
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
-func usrs(data *Data, args [][]byte) ui.Reply {
+func usrs(data *Data, outputFunc func(text string), args ...[]byte) ui.Reply {
 	if len(args) < 1 {
 		return ui.Reply{Error: fmt.Errorf("not enough arguments")}
 	}
@@ -416,8 +416,8 @@ func usrs(data *Data, args [][]byte) ui.Reply {
 	case "all":
 		option = 0x00
 	case "local":
-		shellPrint("local users:", *data)
-		printLocalUsers(*data)
+		outputFunc("local users:")
+		printLocalUsers(*data, outputFunc)
 		return ui.Reply{Error: nil}
 
 	default:
@@ -430,7 +430,7 @@ func usrs(data *Data, args [][]byte) ui.Reply {
 	}
 
 	if data.Verbose {
-		packetPrint(pct)
+		packetPrint(pct, outputFunc)
 	}
 
 	// Sends the packet
@@ -440,7 +440,7 @@ func usrs(data *Data, args [][]byte) ui.Reply {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...", *data)
+	verbosePrint("[...] awaiting response...", outputFunc, *data)
 	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.USRS)
 	if replyErr != nil {
 		return ui.Reply{Error: replyErr}
@@ -451,36 +451,29 @@ func usrs(data *Data, args [][]byte) ui.Reply {
 	}
 
 	if option == 0x01 {
-		shellPrint("online users:", *data)
+		outputFunc("online users:\n")
 	} else {
-		shellPrint("all users:", *data)
+		outputFunc("all users:\n")
 	}
-	shellPrint(string(reply.Args[0]), *data)
+	outputFunc(string(reply.Args[0]))
 	return ui.Reply{Error: nil, Arguments: reply.Args}
 }
 
-func printLocalUsers(data Data) {
+func printLocalUsers(data Data, outputFunc func(text string)) {
 	localUsers := GetAllLocalUsernames(data.DB)
 	for i := range localUsers {
-		shellPrint(localUsers[i], data)
+		outputFunc(fmt.Sprintf("%s\n", localUsers[i]))
 	}
 }
 
-func packetPrint(pct []byte) {
+func packetPrint(pct []byte, outputFunc func(text string)) {
 	fmt.Println("the following packet is about to be sent:")
 	cmd := spec.ParsePacket(pct)
-	cmd.Print()
+	cmd.Print(outputFunc)
 }
 
-// Prints information in stdout if ShellMode is on
-func shellPrint(info string, data Data) {
-	if data.ShellMode {
-		fmt.Println(info)
-	}
-}
-
-func verbosePrint(info string, data Data) {
+func verbosePrint(text string, outputFunc func(text string), data Data) {
 	if data.Verbose {
-		shellPrint(info, data)
+		outputFunc(text)
 	}
 }
