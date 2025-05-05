@@ -34,6 +34,10 @@ func (data Data) isUserLoggedIn() bool {
 	return data.User.User.Username != ""
 }
 
+func (data Data) isConnected() bool {
+	return data.ClientCon.Conn != nil
+}
+
 // Contains data received from the reply of a command
 type ReplyData struct {
 	Arguments [][]byte
@@ -81,7 +85,7 @@ func FetchClientCmd(op string, outputFunc func(text string)) func(data *Data, ou
 
 // Connects a client to a gochat server
 func Conn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
-	if data.ClientCon.Conn != nil {
+	if data.isConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
 	}
 	if len(args) < 2 {
@@ -105,7 +109,7 @@ func Conn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 // Disconnects a client from a gochat server
 func Discn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
-	if data.ClientCon.Conn == nil {
+	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 
@@ -139,7 +143,7 @@ func Verbose(data *Data, outputFunc func(text string), args ...[]byte) ReplyData
 
 // Requests the information of an external user to add it to the client database
 func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
-	if data.ClientCon.Conn == nil {
+	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if len(args) < 1 {
@@ -184,7 +188,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 // Registers a user to a server and also adds it to the client database
 func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
-	if data.ClientCon.Conn == nil {
+	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if !data.isUserLoggedIn() {
@@ -291,7 +295,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 // Logs a user to a server
 func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
-	if data.ClientCon.Conn == nil {
+	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if len(args) < 1 {
@@ -400,7 +404,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 // Logs out a user from a server
 func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
-	if data.ClientCon.Conn == nil {
+	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if !data.isUserLoggedIn() {
@@ -447,7 +451,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
-	if data.ClientCon.Conn == nil && !(string(args[0]) == "local") {
+	if !data.isConnected() && !(string(args[0]) == "local") {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if !data.isUserLoggedIn() && !(string(args[0]) == "local") {
