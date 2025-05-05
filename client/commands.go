@@ -466,7 +466,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: nil}
 
 	default:
-		return ReplyData{Error: ErrorUnknownOption}
+		return ReplyData{Error: ErrorUnknownUSRSOption}
 	}
 
 	pct, pctErr := spec.NewPacket(spec.USRS, 1, option)
