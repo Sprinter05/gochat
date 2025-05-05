@@ -38,12 +38,12 @@ func NewShell(data *Data) {
 		args = append(args, bytes.Fields(input)[1:]...)
 
 		// Gets the appropiate command and executes it
-		f := FetchClientCmd(op)
+		f := FetchClientCmd(op, ShellPrint)
 		if f == nil {
 			continue
 		}
 
-		cmdReply := f(data, args)
+		cmdReply := f(data, ShellPrint, args...)
 		if cmdReply.Error != nil {
 			fmt.Printf("%s: %s\n", op, cmdReply.Error)
 		}
@@ -60,4 +60,8 @@ func PrintPrompt(data Data) {
 		connected = "(not connected) "
 	}
 	fmt.Printf("\033[36m%sgochat(%s) > \033[0m", connected, username)
+}
+
+func ShellPrint(text string) {
+	fmt.Print(text)
 }

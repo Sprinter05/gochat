@@ -28,7 +28,7 @@ func Listen(data *Data) {
 			fmt.Print("\r\033[K")
 			fmt.Println("invalid header received from server:")
 			if data.Verbose {
-				cmd.Print()
+				cmd.Print(ShellPrint)
 			}
 			fmt.Print("gochat() > ")
 			continue
@@ -43,7 +43,7 @@ func Listen(data *Data) {
 		fmt.Print("\r\033[K")
 		fmt.Println("Packet received from server:")
 		if data.Verbose {
-			cmd.Print()
+			cmd.Print(ShellPrint)
 		}
 		PrintPrompt(*data)
 	}
@@ -65,7 +65,7 @@ func ConnectionStart(data Data) {
 	chErr := cmd.HD.ClientCheck()
 	if chErr != nil {
 		if data.Verbose {
-			cmd.Print()
+			cmd.Print(ShellPrint)
 		}
 		log.Fatal("could not connect to server: malformed header received")
 	}
@@ -96,7 +96,7 @@ func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, er
 		chErr := cmd.HD.ClientCheck()
 		if chErr != nil {
 			if data.Verbose {
-				cmd.Print()
+				cmd.Print(ShellPrint)
 			}
 			return cmd, chErr
 		}
@@ -110,7 +110,7 @@ func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, er
 
 	if data.Verbose {
 		fmt.Println("Packet received from server:")
-		cmd.Print()
+		cmd.Print(ShellPrint)
 	}
 
 	if cmd.HD.ID != id {
