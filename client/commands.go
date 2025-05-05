@@ -49,7 +49,6 @@ var (
 	ErrorNotConnected      error = fmt.Errorf("not connected to a server")
 	ErrorAlreadyConnected  error = fmt.Errorf("already connected to a server")
 	ErrorNotLoggedIn       error = fmt.Errorf("you are not logged in")
-	ErrorERRPacket         error = fmt.Errorf("ERR packet received")
 	ErrorWrongCredentials  error = fmt.Errorf("wrong credentials")
 	ErrorUnknownUSRSOption error = fmt.Errorf("unknown option. make sure the option is either 'online' or 'all'")
 	ErrorUsernameEmpty     error = fmt.Errorf("username cannot be empty")
@@ -175,7 +174,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: ErrorERRPacket, Arguments: reply.Args}
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
 	dbErr := AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), *data)
@@ -281,7 +280,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: ErrorERRPacket}
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
 	// Creates the user
@@ -353,7 +352,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if loginReply.HD.Op == spec.ERR {
-		return ReplyData{Error: ErrorERRPacket}
+		return ReplyData{Error: spec.ErrorCodeToError(loginReply.HD.Info)}
 	}
 
 	// The reply is a VERIF
@@ -392,7 +391,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if verifReply.HD.Op == spec.ERR {
-		return ReplyData{Error: ErrorERRPacket}
+		return ReplyData{Error: spec.ErrorCodeToError(verifReply.HD.Info)}
 	}
 	verbosePrint("verification successful\n", outputFunc, *data)
 	// Assigns the logged in user to Data
@@ -434,7 +433,7 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: ErrorERRPacket}
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
 	// Empties the user value in Data
@@ -496,7 +495,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: ErrorERRPacket}
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
 	outputFunc(fmt.Sprintf("%s users:\n", args[0]))
