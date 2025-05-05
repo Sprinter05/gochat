@@ -3,6 +3,7 @@ package test
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -81,7 +82,7 @@ func TestREG(t *testing.T) {
 	l.Write(test1)
 
 	r1 := readFromConn(conn) // ignored OK
-	r1.Print()
+	r1.Print(PrintTest)
 
 	// Login
 	test2, err := spec.NewPacket(spec.LOGIN, spec.ID(894), spec.EmptyInfo, []byte("pepe"))
@@ -91,7 +92,7 @@ func TestREG(t *testing.T) {
 	l.Write(test2)
 
 	vpak := readFromConn(conn) // VERIF packet
-	vpak.Print()
+	vpak.Print(PrintTest)
 
 	dec, e := spec.DecryptText(vpak.Args[0], v)
 	if e != nil {
@@ -106,7 +107,7 @@ func TestREG(t *testing.T) {
 	l.Write(test3)
 
 	r2 := readFromConn(conn) // OK packet
-	r2.Print()
+	r2.Print(PrintTest)
 
 	// Msg
 	stamp := spec.UnixStampToBytes(time.Now())
@@ -117,6 +118,10 @@ func TestREG(t *testing.T) {
 	l.Write(test4)
 
 	r3 := readFromConn(conn) // OK packet
-	r3.Print()
+	r3.Print(PrintTest)
 
+}
+
+func PrintTest(text string) {
+	fmt.Print(text)
 }

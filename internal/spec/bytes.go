@@ -47,25 +47,25 @@ type Command struct {
 /* COMMAND FUNCTIONS */
 
 // Prints to standard output all information about a packet.
-func (cmd *Command) Print() {
-	fmt.Println("-------- HEADER --------")
-	fmt.Printf("* Version: %d\n", cmd.HD.Ver)
-	fmt.Printf("* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
-	fmt.Printf("* Info: %d\n", cmd.HD.Info)
+func (cmd *Command) Print(outputFunc func(text string)) {
+	outputFunc("-------- HEADER --------\n")
+	outputFunc(fmt.Sprintf("* Version: %d\n", cmd.HD.Ver))
+	outputFunc(fmt.Sprintf("* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op)))
+	outputFunc(fmt.Sprintf("* Info: %d\n", cmd.HD.Info))
 	if cmd.HD.Op == ERR {
-		fmt.Printf("* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
+		outputFunc(fmt.Sprintf("* Error: %s\n", ErrorCodeToError(cmd.HD.Info)))
 	}
 	if cmd.HD.Op == ADMIN {
-		fmt.Printf("* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
+		outputFunc(fmt.Sprintf("* Admin: %s\n", AdminString(Admin(cmd.HD.Info))))
 	}
-	fmt.Printf("* Args: %d\n", cmd.HD.Args)
-	fmt.Printf("* Length: %d\n", cmd.HD.Len)
-	fmt.Printf("* ID: %d\n", cmd.HD.ID)
-	fmt.Println("-------- PAYLOAD --------")
+	outputFunc(fmt.Sprintf("* Args: %d\n", cmd.HD.Args))
+	outputFunc(fmt.Sprintf("* Length: %d\n", cmd.HD.Len))
+	outputFunc(fmt.Sprintf("* ID: %d\n", cmd.HD.ID))
+	outputFunc("-------- PAYLOAD --------")
 	for i, v := range cmd.Args {
-		fmt.Printf("[%d] %s\n", i, v)
+		outputFunc(fmt.Sprintf("[%d] %s\n", i, v))
 	}
-	fmt.Println()
+	outputFunc("\n")
 }
 
 /* HEADER FUNCTIONS */

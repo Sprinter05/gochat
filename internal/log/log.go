@@ -4,6 +4,7 @@
 package log
 
 import (
+	"fmt"
 	"log"
 	"net"
 
@@ -238,5 +239,9 @@ func Request(ip string, cmd spec.Command) {
 		"[-] New packet from %s:\n",
 		ip,
 	)
-	cmd.Print()
+	cmd.Print(LogPrint)
+}
+
+func LogPrint(text string) {
+	fmt.Print(text)
 }
