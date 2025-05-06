@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -44,7 +45,7 @@ func main() {
 
 	// Opens the database
 	dbLog := getDBLogger(config)
-	db := openClientDatabase(config.Database.Path, dbLog)
+	clientDB := openClientDatabase(config.Database.Path, dbLog)
 
 	var cl spec.Connection
 	var con net.Conn
@@ -57,9 +58,9 @@ func main() {
 	}
 	cl = spec.Connection{Conn: con}
 
-	server := SaveServer(db, address, port)
+	server := db.SaveServer(clientDB, address, port)
 	// TODO: verbose to config
-	data := Data{ClientCon: cl, Verbose: true, ShellMode: true, DB: db, Server: server}
+	data := Data{ClientCon: cl, Verbose: true, ShellMode: true, DB: clientDB, Server: server}
 
 	if address != "" {
 		ConnectionStart(data)
@@ -124,12 +125,12 @@ func getDBLogger(config Config) logger.Interface {
 
 // Opens the client database
 func openClientDatabase(path string, logger logger.Interface) *gorm.DB {
-	db, dbErr := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger})
+	clientDB, dbErr := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger})
 	if dbErr != nil {
 		log.Fatalf("database could not not be opened: %s", dbErr)
 	}
 
 	// Makes migrations
-	db.AutoMigrate(&Server{}, &User{}, &LocalUserData{}, &ExternalUserData{}, &Message{})
-	return db
+	clientDB.AutoMigrate(&db.Server{}, &db.User{}, &db.LocalUserData{}, &db.ExternalUserData{}, &db.Message{})
+	return clientDB
 }

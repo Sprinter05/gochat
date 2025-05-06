@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
@@ -27,8 +28,8 @@ type Data struct {
 	Verbose   bool
 	ShellMode bool // If ShellMode is true, the struct belongs to the shell and the output should be printed
 	DB        *gorm.DB
-	Server    Server
-	User      LocalUserData
+	Server    db.Server
+	User      db.LocalUserData
 }
 
 func (data Data) isUserLoggedIn() bool {
@@ -121,7 +122,7 @@ func Discn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 	data.ClientCon.Conn = nil
 	// Closes the shell client session
-	data.User = LocalUserData{}
+	data.User = db.LocalUserData{}
 	outputFunc("sucessfully disconnected from the server\n")
 	return ReplyData{}
 }
@@ -180,7 +181,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	dbErr := AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), data.Server.ServerID)
+	dbErr := db.AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), data.Server.ServerID)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
@@ -212,7 +213,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorUsernameEmpty}
 	}
 
-	exists := LocalUserExists(data.DB, string(username))
+	exists := db.LocalUserExists(data.DB, string(username))
 	if exists {
 		return ReplyData{Error: ErrorUserExists}
 	}
@@ -287,7 +288,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Creates the user
-	insertErr := AddLocalUser(data.DB, string(username), string(hashPass), string(prvKeyPEM), data.Server.ServerID)
+	insertErr := db.AddLocalUser(data.DB, string(username), string(hashPass), string(prvKeyPEM), data.Server.ServerID)
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
@@ -308,7 +309,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	username := string(args[0])
-	found := LocalUserExists(data.DB, username)
+	found := db.LocalUserExists(data.DB, username)
 	if !found {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
@@ -323,7 +324,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	outputFunc("\n")
 
 	// Verifies password
-	localUser := GetLocalUser(data.DB, username)
+	localUser := db.GetLocalUser(data.DB, username)
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
 	if cmpErr != nil {
@@ -440,7 +441,7 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 	}
 
 	// Empties the user value in Data
-	data.User = LocalUserData{}
+	data.User = db.LocalUserData{}
 
 	outputFunc("logged out\n")
 	return ReplyData{Arguments: reply.Args}
@@ -522,12 +523,12 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	plainMessage := make([]byte, len(args[1]))
 	copy(plainMessage, args[1])
 
-	found := ExternalUserExists(data.DB, string(args[0]))
+	found := db.ExternalUserExists(data.DB, string(args[0]))
 	if !found {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
 	// Retrieves the public key in PEM format to encrypt the message
-	pubKeyPEM := GetExternalUser(data.DB, string(args[0])).PubKey
+	pubKeyPEM := db.GetExternalUser(data.DB, string(args[0])).PubKey
 	pubKey, pemErr := spec.PEMToPubkey([]byte(pubKeyPEM))
 	if pemErr != nil {
 		return ReplyData{Error: pemErr}
@@ -567,7 +568,7 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	outputFunc("message sent correctly\n")
-	dbErr := StoreMessage(data.DB, string(data.User.User.Username), string(args[0]), string(plainMessage), stamp)
+	dbErr := db.StoreMessage(data.DB, string(data.User.User.Username), string(args[0]), string(plainMessage), stamp)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
@@ -576,7 +577,7 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 // Prints out all local users
 func printLocalUsers(data Data, outputFunc func(text string)) {
-	localUsers := GetAllLocalUsernames(data.DB)
+	localUsers := db.GetAllLocalUsernames(data.DB)
 	for i := range localUsers {
 		outputFunc(fmt.Sprintf("%s\n", localUsers[i]))
 	}
