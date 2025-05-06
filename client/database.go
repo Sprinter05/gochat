@@ -157,3 +157,25 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, data Data) 
 	}
 	return nil
 }
+
+func GetExternalUser(db *gorm.DB, username string) ExternalUserData {
+	externalUser := ExternalUserData{User: User{Username: username}, UserID: GetUser(db, username).UserID}
+	db.First(&externalUser)
+	return externalUser
+}
+
+func ExternalUserExists(db *gorm.DB, username string) bool {
+	var found bool = false
+	db.Raw("SELECT EXISTS(SELECT * FROM users, external_user_data WHERE users.user_id = external_user_data.user_id AND username = ?) AS found", username).Scan(&found)
+	return found
+}
+
+func StoreMessage(db *gorm.DB, src string, dst string, text string, stamp time.Time) error {
+	msg := Message{SourceID: GetUser(db, src).UserID, DestinationID: GetUser(db, dst).UserID, Text: text, Stamp: stamp}
+	result := db.Create(&msg)
+
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("unexpected number of rows affected in Message creation")
+	}
+	return nil
+}
