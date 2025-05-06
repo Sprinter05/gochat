@@ -7,11 +7,13 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+
+	"github.com/Sprinter05/gochat/client/commands"
 )
 
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
-func NewShell(data *Data) {
+func NewShell(data *commands.Data) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
 		PrintPrompt(*data)
@@ -38,7 +40,7 @@ func NewShell(data *Data) {
 		args = append(args, bytes.Fields(input)[1:]...)
 
 		// Gets the appropiate command and executes it
-		f := FetchClientCmd(op, ShellPrint)
+		f := commands.FetchClientCmd(op, ShellPrint)
 		if f == nil {
 			continue
 		}
@@ -50,7 +52,7 @@ func NewShell(data *Data) {
 	}
 }
 
-func PrintPrompt(data Data) {
+func PrintPrompt(data commands.Data) {
 	connected := ""
 	username := ""
 	if !(data.User.User.Username == "") {

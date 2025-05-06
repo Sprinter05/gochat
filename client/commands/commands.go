@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"bufio"
@@ -172,7 +172,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, regErr := ListenResponse(*data, 1, spec.REQ, spec.ERR)
+	reply, regErr := ListenResponse(*data, outputFunc, 1, spec.REQ, spec.ERR)
 	if regErr != nil {
 		return ReplyData{Error: regErr}
 	}
@@ -278,7 +278,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, regErr := ListenResponse(*data, 1, spec.OK, spec.ERR)
+	reply, regErr := ListenResponse(*data, outputFunc, 1, spec.OK, spec.ERR)
 	if regErr != nil {
 		return ReplyData{Error: regErr}
 	}
@@ -350,7 +350,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	loginReply, loginReplyErr := ListenResponse(*data, 1, spec.ERR, spec.VERIF)
+	loginReply, loginReplyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.VERIF)
 	if loginReplyErr != nil {
 		return ReplyData{Error: loginReplyErr}
 	}
@@ -389,7 +389,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	verifReply, verifReplyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
+	verifReply, verifReplyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.OK)
 	if verifReplyErr != nil {
 		return ReplyData{Error: verifReplyErr}
 	}
@@ -431,7 +431,7 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 
 	// Listens for response
 	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
+	reply, replyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.OK)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
 	}
@@ -493,7 +493,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.USRS)
+	reply, replyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.USRS)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
 	}
@@ -558,7 +558,7 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
+	reply, replyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.OK)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
 	}

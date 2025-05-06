@@ -5,9 +5,9 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"time"
 
+	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"gorm.io/driver/sqlite"
@@ -51,7 +51,7 @@ func main() {
 	var con net.Conn
 	if address != "" {
 		var conErr error
-		con, conErr = Connect(address, port)
+		con, conErr = commands.Connect(address, port)
 		if conErr != nil {
 			log.Fatal(conErr)
 		}
@@ -60,10 +60,10 @@ func main() {
 
 	server := db.SaveServer(clientDB, address, port)
 	// TODO: verbose to config
-	data := Data{ClientCon: cl, Verbose: true, ShellMode: true, DB: clientDB, Server: server}
+	data := commands.Data{ClientCon: cl, Verbose: true, ShellMode: true, DB: clientDB, Server: server}
 
 	if address != "" {
-		ConnectionStart(data)
+		commands.ConnectionStart(data, ShellPrint)
 	}
 
 	// go Listen(&data)
@@ -87,16 +87,6 @@ func getConfig() Config {
 	jsonParser := json.NewDecoder(f)
 	jsonParser.Decode(&config)
 	return config
-}
-
-// Connects to the gochat server given its address and port
-func Connect(address string, port uint16) (net.Conn, error) {
-	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
-	con, conErr := net.Dial("tcp4", socket)
-	if conErr != nil {
-		return nil, conErr
-	}
-	return con, conErr
 }
 
 // Gets the specified log level in the client configuration file
