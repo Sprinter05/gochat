@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Sprinter05/gochat/client/commands"
 )
@@ -31,7 +32,7 @@ func NewShell(data *commands.Data) {
 		}
 
 		op := string(bytes.Fields(input)[0])
-		if op == "EXIT" {
+		if strings.ToUpper(op) == "EXIT" {
 			return
 		}
 

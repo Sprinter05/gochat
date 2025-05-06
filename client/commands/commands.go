@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
@@ -76,7 +77,7 @@ var clientCmds = map[string]func(data *Data, args ...[]byte) ReplyData{
 
 // Given a string containing a command name, returns its execution function
 func FetchClientCmd(op string, data Data) func(data *Data, args ...[]byte) ReplyData {
-	v, ok := clientCmds[op]
+	v, ok := clientCmds[strings.ToUpper(op)]
 	if !ok {
 		data.Output(fmt.Sprintf("%s: command not found\n", op))
 		return nil
