@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
@@ -55,7 +56,7 @@ var (
 	ErrorUsernameEmpty     error = fmt.Errorf("username cannot be empty")
 	ErrorUserExists        error = fmt.Errorf("user exists")
 	ErrorPasswordsNotMatch error = fmt.Errorf("passwords do not match")
-	ErrorUserNotFound      error = fmt.Errorf("username not found")
+	ErrorUserNotFound      error = fmt.Errorf("user not found")
 )
 
 // Map that contains every shell command with its respective execution functions
@@ -69,6 +70,7 @@ var clientCmds = map[string]func(data *Data, outputFunc func(text string), args 
 	"LOGIN":   Login,
 	"LOGOUT":  Logout,
 	"USRS":    Usrs,
+	"MSG":     Msg,
 }
 
 // Given a string containing a command name, returns its execution function
@@ -104,7 +106,7 @@ func Conn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 
 	data.ClientCon.Conn = con
 	outputFunc("succesfully connected to the server\n")
-	return ReplyData{Error: nil}
+	return ReplyData{}
 }
 
 // Disconnects a client from a gochat server
@@ -121,13 +123,13 @@ func Discn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	// Closes the shell client session
 	data.User = LocalUserData{}
 	outputFunc("sucessfully disconnected from the server\n")
-	return ReplyData{Error: nil}
+	return ReplyData{}
 }
 
 // Prints the gochat version used by the client
 func Ver(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	outputFunc(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
-	return ReplyData{Error: nil}
+	return ReplyData{}
 }
 
 // Switches on/off the verbose mode
@@ -138,7 +140,7 @@ func Verbose(data *Data, outputFunc func(text string), args ...[]byte) ReplyData
 	} else {
 		outputFunc("verbose mode off\n")
 	}
-	return ReplyData{Error: nil}
+	return ReplyData{}
 }
 
 // Requests the information of an external user to add it to the client database
@@ -183,7 +185,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: dbErr}
 	}
 	outputFunc(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
-	return ReplyData{Error: nil, Arguments: reply.Args}
+	return ReplyData{Arguments: reply.Args}
 }
 
 // Registers a user to a server and also adds it to the client database
@@ -290,7 +292,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: insertErr}
 	}
 	outputFunc(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
-	return ReplyData{Error: nil, Arguments: reply.Args}
+	return ReplyData{Arguments: reply.Args}
 }
 
 // Logs a user to a server
@@ -399,7 +401,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	data.User = localUser
 
 	outputFunc(fmt.Sprintf("login successful. Welcome, %s\n", username))
-	return ReplyData{Error: nil, Arguments: verifReply.Args}
+	return ReplyData{Arguments: verifReply.Args}
 }
 
 // Logs out a user from a server
@@ -441,7 +443,7 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 	data.User = LocalUserData{}
 
 	outputFunc("logged out\n")
-	return ReplyData{Error: nil, Arguments: reply.Args}
+	return ReplyData{Arguments: reply.Args}
 }
 
 // Requests a list of either "online" or "all" registered users and prints it. If "local"
@@ -467,7 +469,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	case "local":
 		outputFunc("local users:\n")
 		printLocalUsers(*data, outputFunc)
-		return ReplyData{Error: nil}
+		return ReplyData{}
 
 	default:
 		return ReplyData{Error: ErrorUnknownUSRSOption}
@@ -502,7 +504,73 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	outputFunc(fmt.Sprintf("%s users:\n", args[0]))
 	outputFunc(string(reply.Args[0]))
 	outputFunc("\n")
-	return ReplyData{Error: nil, Arguments: reply.Args}
+	return ReplyData{Arguments: reply.Args}
+}
+
+func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+	if len(args) < 2 {
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+	if !data.isConnected() {
+		return ReplyData{Error: ErrorNotConnected}
+	}
+	if !data.isUserLoggedIn() {
+		return ReplyData{Error: ErrorNotLoggedIn}
+	}
+	// Stores the message before encrypting to store it in the database
+	plainMessage := make([]byte, len(args[1]))
+	copy(plainMessage, args[1])
+
+	found := ExternalUserExists(data.DB, string(args[0]))
+	if !found {
+		return ReplyData{Error: ErrorUserNotFound}
+	}
+	// Retrieves the public key in PEM format to encrypt the message
+	pubKeyPEM := GetExternalUser(data.DB, string(args[0])).PubKey
+	pubKey, pemErr := spec.PEMToPubkey([]byte(pubKeyPEM))
+	if pemErr != nil {
+		return ReplyData{Error: pemErr}
+	}
+	// Encrypts the text
+	encrypted, encryptErr := spec.EncryptText(args[1], pubKey)
+	if encryptErr != nil {
+		return ReplyData{Error: encryptErr}
+	}
+
+	stamp := time.Now()
+	// Generates the packet, using the current UNIX timestamp
+	pct, pctErr := spec.NewPacket(spec.MSG, 1, spec.EmptyInfo, args[0], []byte(fmt.Sprintf("%d", stamp.Unix())), encrypted)
+	if pctErr != nil {
+		return ReplyData{Error: pctErr}
+	}
+
+	if data.Verbose {
+		packetPrint(pct, outputFunc)
+	}
+
+	// Sends the packet
+	_, wErr := data.ClientCon.Conn.Write(pct)
+	if wErr != nil {
+		return ReplyData{Error: wErr}
+	}
+
+	// Listens for response
+	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
+	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
+	if replyErr != nil {
+		return ReplyData{Error: replyErr}
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
+	}
+
+	outputFunc("message sent correctly\n")
+	dbErr := StoreMessage(data.DB, string(data.User.User.Username), string(args[0]), string(plainMessage), stamp)
+	if dbErr != nil {
+		return ReplyData{Error: dbErr}
+	}
+	return ReplyData{}
 }
 
 // Prints out all local users
