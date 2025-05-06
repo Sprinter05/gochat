@@ -94,7 +94,7 @@ func ConnectionStart(data Data, outputFunc func(text string)) {
 // Receives a slice of command operations to listen to, then starts
 // listening until a received packet fits one of the actions provided
 // and returns it
-func ListenResponse(data Data, outputFunc func(text string), id spec.ID, ops ...spec.Action) (spec.Command, error) {
+func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, error) {
 	// TODO: timeouts
 	var cmd spec.Command
 
@@ -110,7 +110,7 @@ func ListenResponse(data Data, outputFunc func(text string), id spec.ID, ops ...
 		chErr := cmd.HD.ClientCheck()
 		if chErr != nil {
 			if data.Verbose {
-				cmd.Print(outputFunc)
+				cmd.Print(data.Output)
 			}
 			return cmd, chErr
 		}
@@ -124,7 +124,7 @@ func ListenResponse(data Data, outputFunc func(text string), id spec.ID, ops ...
 
 	if data.Verbose {
 		fmt.Println("Packet received from server:")
-		cmd.Print(outputFunc)
+		cmd.Print(data.Output)
 	}
 
 	if cmd.HD.ID != id {

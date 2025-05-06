@@ -26,7 +26,7 @@ import (
 type Data struct {
 	ClientCon spec.Connection
 	Verbose   bool
-	ShellMode bool // If ShellMode is true, the struct belongs to the shell and the output should be printed
+	Output    func(text string)
 	DB        *gorm.DB
 	Server    db.Server
 	User      db.LocalUserData
@@ -61,7 +61,7 @@ var (
 )
 
 // Map that contains every shell command with its respective execution functions
-var clientCmds = map[string]func(data *Data, outputFunc func(text string), args ...[]byte) ReplyData{
+var clientCmds = map[string]func(data *Data, args ...[]byte) ReplyData{
 	"CONN":    Conn,
 	"DISCN":   Discn,
 	"VER":     Ver,
@@ -75,10 +75,10 @@ var clientCmds = map[string]func(data *Data, outputFunc func(text string), args 
 }
 
 // Given a string containing a command name, returns its execution function
-func FetchClientCmd(op string, outputFunc func(text string)) func(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func FetchClientCmd(op string, data Data) func(data *Data, args ...[]byte) ReplyData {
 	v, ok := clientCmds[op]
 	if !ok {
-		outputFunc(fmt.Sprintf("%s: command not found\n", op))
+		data.Output(fmt.Sprintf("%s: command not found\n", op))
 		return nil
 	}
 	return v
@@ -87,7 +87,7 @@ func FetchClientCmd(op string, outputFunc func(text string)) func(data *Data, ou
 // CLIENT COMMANDS
 
 // Connects a client to a gochat server
-func Conn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Conn(data *Data, args ...[]byte) ReplyData {
 	if data.isConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
 	}
@@ -106,12 +106,12 @@ func Conn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	data.ClientCon.Conn = con
-	outputFunc("succesfully connected to the server\n")
+	data.Output("succesfully connected to the server\n")
 	return ReplyData{}
 }
 
 // Disconnects a client from a gochat server
-func Discn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Discn(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -123,29 +123,29 @@ func Discn(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	data.ClientCon.Conn = nil
 	// Closes the shell client session
 	data.User = db.LocalUserData{}
-	outputFunc("sucessfully disconnected from the server\n")
+	data.Output("sucessfully disconnected from the server\n")
 	return ReplyData{}
 }
 
 // Prints the gochat version used by the client
-func Ver(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
-	outputFunc(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
+func Ver(data *Data, args ...[]byte) ReplyData {
+	data.Output(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
 	return ReplyData{}
 }
 
 // Switches on/off the verbose mode
-func Verbose(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Verbose(data *Data, args ...[]byte) ReplyData {
 	data.Verbose = !data.Verbose
 	if data.Verbose {
-		outputFunc("verbose mode on\n")
+		data.Output("verbose mode on\n")
 	} else {
-		outputFunc("verbose mode off\n")
+		data.Output("verbose mode off\n")
 	}
 	return ReplyData{}
 }
 
 // Requests the information of an external user to add it to the client database
-func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Req(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -162,7 +162,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if data.Verbose {
-		packetPrint(pct, outputFunc)
+		packetPrint(pct, *data)
 	}
 
 	_, wErr := data.ClientCon.Conn.Write(pct)
@@ -171,8 +171,8 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Awaits a response
-	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, regErr := ListenResponse(*data, outputFunc, 1, spec.REQ, spec.ERR)
+	verbosePrint("[...] awaiting response...\n", *data)
+	reply, regErr := ListenResponse(*data, 1, spec.REQ, spec.ERR)
 	if regErr != nil {
 		return ReplyData{Error: regErr}
 	}
@@ -185,12 +185,12 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
-	outputFunc(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
+	data.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
 	return ReplyData{Arguments: reply.Args}
 }
 
 // Registers a user to a server and also adds it to the client database
-func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Reg(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -201,7 +201,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	rd := bufio.NewReader(os.Stdin)
 
 	// Gets the username
-	outputFunc("username: ")
+	data.Output("username: ")
 	username, readErr := rd.ReadBytes('\n')
 	if readErr != nil {
 		return ReplyData{Error: readErr}
@@ -222,25 +222,25 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	fmt.Print("password: ")
 	pass1, pass1Err := term.ReadPassword(0)
 	if pass1Err != nil {
-		outputFunc("\n")
+		data.Output("\n")
 		return ReplyData{Error: pass1Err}
 	}
-	outputFunc("\n")
+	data.Output("\n")
 
-	outputFunc("repeat password: ")
+	data.Output("repeat password: ")
 	pass2, pass2Err := term.ReadPassword(0)
 	if pass2Err != nil {
-		outputFunc("\n")
+		data.Output("\n")
 		return ReplyData{Error: pass2Err}
 	}
-	outputFunc("\n")
+	data.Output("\n")
 
 	if string(pass1) != string(pass2) {
 		return ReplyData{Error: ErrorPasswordsNotMatch}
 	}
 
 	// Generates the PEM arrays of both the private and public key of the pair
-	verbosePrint("[...] generating RSA key pair...\n", outputFunc, *data)
+	verbosePrint("[...] generating RSA key pair...\n", *data)
 	pair, rsaErr := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	if rsaErr != nil {
 		return ReplyData{Error: rsaErr}
@@ -252,13 +252,13 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Hashes the provided password
-	verbosePrint("[...] hashing password...\n", outputFunc, *data)
+	verbosePrint("[...] hashing password...\n", *data)
 	hashPass, hashErr := bcrypt.GenerateFromPassword(pass1, 12)
 	if hashErr != nil {
 		return ReplyData{Error: hashErr}
 	}
 
-	verbosePrint("[...] sending REG packet...\n", outputFunc, *data)
+	verbosePrint("[...] sending REG packet...\n", *data)
 	// Assembles the REG packet
 	pctArgs := [][]byte{[]byte(username), pubKeyPEM}
 	pct, pctErr := spec.NewPacket(spec.REG, 1, spec.EmptyInfo, pctArgs...)
@@ -267,7 +267,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if data.Verbose {
-		packetPrint(pct, outputFunc)
+		packetPrint(pct, *data)
 	}
 
 	// Sends the packet
@@ -277,8 +277,8 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Awaits a response
-	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, regErr := ListenResponse(*data, outputFunc, 1, spec.OK, spec.ERR)
+	verbosePrint("[...] awaiting response...\n", *data)
+	reply, regErr := ListenResponse(*data, 1, spec.OK, spec.ERR)
 	if regErr != nil {
 		return ReplyData{Error: regErr}
 	}
@@ -292,12 +292,12 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
-	outputFunc(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
+	data.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
 	return ReplyData{Arguments: reply.Args}
 }
 
 // Logs a user to a server
-func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Login(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -318,10 +318,10 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	fmt.Printf("%s's password: ", username)
 	pass, passErr := term.ReadPassword(0)
 	if passErr != nil {
-		outputFunc("\n")
+		data.Output("\n")
 		return ReplyData{Error: passErr}
 	}
-	outputFunc("\n")
+	data.Output("\n")
 
 	// Verifies password
 	localUser := db.GetLocalUser(data.DB, username)
@@ -331,7 +331,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorWrongCredentials}
 	}
 
-	verbosePrint("password correct\n[...] sending LOGIN packet...", outputFunc, *data)
+	verbosePrint("password correct\n[...] sending LOGIN packet...", *data)
 	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
 	loginPct, loginPctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
@@ -340,7 +340,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if data.Verbose {
-		packetPrint(loginPct, outputFunc)
+		packetPrint(loginPct, *data)
 	}
 
 	// Sends the packet
@@ -349,8 +349,8 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: loginWErr}
 	}
 
-	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	loginReply, loginReplyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.VERIF)
+	verbosePrint("[...] awaiting response...\n", *data)
+	loginReply, loginReplyErr := ListenResponse(*data, 1, spec.ERR, spec.VERIF)
 	if loginReplyErr != nil {
 		return ReplyData{Error: loginReplyErr}
 	}
@@ -378,7 +378,7 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if data.Verbose {
-		packetPrint(verifPct, outputFunc)
+		packetPrint(verifPct, *data)
 	}
 
 	// Sends the packet
@@ -388,8 +388,8 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	verifReply, verifReplyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.OK)
+	verbosePrint("[...] awaiting response...\n", *data)
+	verifReply, verifReplyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
 	if verifReplyErr != nil {
 		return ReplyData{Error: verifReplyErr}
 	}
@@ -397,16 +397,16 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if verifReply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(verifReply.HD.Info)}
 	}
-	verbosePrint("verification successful\n", outputFunc, *data)
+	verbosePrint("verification successful\n", *data)
 	// Assigns the logged in user to Data
 	data.User = localUser
 
-	outputFunc(fmt.Sprintf("login successful. Welcome, %s\n", username))
+	data.Output(fmt.Sprintf("login successful. Welcome, %s\n", username))
 	return ReplyData{Arguments: verifReply.Args}
 }
 
 // Logs out a user from a server
-func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Logout(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -420,7 +420,7 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 	}
 
 	if data.Verbose {
-		packetPrint(pct, outputFunc)
+		packetPrint(pct, *data)
 	}
 
 	// Sends the packet
@@ -430,8 +430,8 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, replyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.OK)
+	verbosePrint("[...] awaiting response...\n", *data)
+	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
 	}
@@ -443,14 +443,14 @@ func Logout(data *Data, outputFunc func(text string), args ...[]byte) ReplyData 
 	// Empties the user value in Data
 	data.User = db.LocalUserData{}
 
-	outputFunc("logged out\n")
+	data.Output("logged out\n")
 	return ReplyData{Arguments: reply.Args}
 }
 
 // Requests a list of either "online" or "all" registered users and prints it. If "local"
 // is used as an argument, the local users will be printed insteads and no server requests
 // will be performed
-func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Usrs(data *Data, args ...[]byte) ReplyData {
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
@@ -468,8 +468,8 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	case "all":
 		option = 0x00
 	case "local":
-		outputFunc("local users:\n")
-		printLocalUsers(*data, outputFunc)
+		data.Output("local users:\n")
+		printLocalUsers(*data)
 		return ReplyData{}
 
 	default:
@@ -482,7 +482,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if data.Verbose {
-		packetPrint(pct, outputFunc)
+		packetPrint(pct, *data)
 	}
 
 	// Sends the packet
@@ -492,8 +492,8 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, replyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.USRS)
+	verbosePrint("[...] awaiting response...\n", *data)
+	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.USRS)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
 	}
@@ -502,14 +502,14 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	outputFunc(fmt.Sprintf("%s users:\n", args[0]))
-	outputFunc(string(reply.Args[0]))
-	outputFunc("\n")
+	data.Output(fmt.Sprintf("%s users:\n", args[0]))
+	data.Output(string(reply.Args[0]))
+	data.Output("\n")
 	return ReplyData{Arguments: reply.Args}
 }
 
 // Sends a message to a user with the current time stamp and stores it in the database
-func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
+func Msg(data *Data, args ...[]byte) ReplyData {
 	if len(args) < 2 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
@@ -547,7 +547,7 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	if data.Verbose {
-		packetPrint(pct, outputFunc)
+		packetPrint(pct, *data)
 	}
 
 	// Sends the packet
@@ -557,8 +557,8 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...\n", outputFunc, *data)
-	reply, replyErr := ListenResponse(*data, outputFunc, 1, spec.ERR, spec.OK)
+	verbosePrint("[...] awaiting response...\n", *data)
+	reply, replyErr := ListenResponse(*data, 1, spec.ERR, spec.OK)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
 	}
@@ -567,7 +567,7 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	outputFunc("message sent correctly\n")
+	data.Output("message sent correctly\n")
 	dbErr := db.StoreMessage(data.DB, string(data.User.User.Username), string(args[0]), string(plainMessage), stamp)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
@@ -576,23 +576,23 @@ func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 }
 
 // Prints out all local users
-func printLocalUsers(data Data, outputFunc func(text string)) {
+func printLocalUsers(data Data) {
 	localUsers := db.GetAllLocalUsernames(data.DB)
 	for i := range localUsers {
-		outputFunc(fmt.Sprintf("%s\n", localUsers[i]))
+		data.Output(fmt.Sprintf("%s\n", localUsers[i]))
 	}
 }
 
 // Prints a packet
-func packetPrint(pct []byte, outputFunc func(text string)) {
+func packetPrint(pct []byte, data Data) {
 	fmt.Println("the following packet is about to be sent:")
 	cmd := spec.ParsePacket(pct)
-	cmd.Print(outputFunc)
+	cmd.Print(data.Output)
 }
 
 // Prints text if the verbose mode is on
-func verbosePrint(text string, outputFunc func(text string), data Data) {
+func verbosePrint(text string, data Data) {
 	if data.Verbose {
-		outputFunc(text)
+		data.Output(text)
 	}
 }

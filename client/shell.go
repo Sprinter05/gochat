@@ -40,12 +40,12 @@ func NewShell(data *commands.Data) {
 		args = append(args, bytes.Fields(input)[1:]...)
 
 		// Gets the appropiate command and executes it
-		f := commands.FetchClientCmd(op, ShellPrint)
+		f := commands.FetchClientCmd(op, *data)
 		if f == nil {
 			continue
 		}
 
-		cmdReply := f(data, ShellPrint, args...)
+		cmdReply := f(data, args...)
 		if cmdReply.Error != nil {
 			fmt.Printf("%s: %s\n", op, cmdReply.Error)
 		}
