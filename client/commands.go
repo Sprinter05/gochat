@@ -507,6 +507,7 @@ func Usrs(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	return ReplyData{Arguments: reply.Args}
 }
 
+// Sends a message to a user with the current time stamp and stores it in the database
 func Msg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if len(args) < 2 {
 		return ReplyData{Error: ErrorInsuficientArgs}
