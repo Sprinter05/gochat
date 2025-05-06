@@ -49,6 +49,7 @@ var (
 	ErrorNotConnected      error = fmt.Errorf("not connected to a server")
 	ErrorAlreadyConnected  error = fmt.Errorf("already connected to a server")
 	ErrorNotLoggedIn       error = fmt.Errorf("you are not logged in")
+	ErrorAlreadyLoggedIn   error = fmt.Errorf("you are already logged in")
 	ErrorWrongCredentials  error = fmt.Errorf("wrong credentials")
 	ErrorUnknownUSRSOption error = fmt.Errorf("unknown option. make sure the option is either 'online' or 'all'")
 	ErrorUsernameEmpty     error = fmt.Errorf("username cannot be empty")
@@ -300,8 +301,8 @@ func Login(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
-	if !data.isUserLoggedIn() {
-		return ReplyData{Error: ErrorNotLoggedIn}
+	if data.isUserLoggedIn() {
+		return ReplyData{Error: ErrorAlreadyLoggedIn}
 	}
 
 	username := string(args[0])
