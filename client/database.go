@@ -122,8 +122,8 @@ func GetAllLocalUsernames(db *gorm.DB) []string {
 
 }
 
-func AddUser(db *gorm.DB, username string, data Data) (User, error) {
-	user := User{UserID: getMaxID(db, "users") + 1, Username: username, ServerID: data.Server.ServerID}
+func AddUser(db *gorm.DB, username string, serverID uint) (User, error) {
+	user := User{UserID: getMaxID(db, "users") + 1, Username: username, ServerID: serverID}
 	result := db.Create(&user)
 	if result.RowsAffected != 1 {
 		return User{}, fmt.Errorf("unexpected number of rows affected in User creation")
@@ -131,8 +131,8 @@ func AddUser(db *gorm.DB, username string, data Data) (User, error) {
 	return user, nil
 }
 
-func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, data Data) error {
-	user, userErr := AddUser(db, username, data)
+func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, serverID uint) error {
+	user, userErr := AddUser(db, username, serverID)
 	if userErr != nil {
 		return userErr
 	}
@@ -145,8 +145,8 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 	return nil
 }
 
-func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, data Data) error {
-	user, userErr := AddUser(db, username, data)
+func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID uint) error {
+	user, userErr := AddUser(db, username, serverID)
 	if userErr != nil {
 		return userErr
 	}

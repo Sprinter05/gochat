@@ -180,7 +180,7 @@ func Req(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	dbErr := AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), *data)
+	dbErr := AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), data.Server.ServerID)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
@@ -287,7 +287,7 @@ func Reg(data *Data, outputFunc func(text string), args ...[]byte) ReplyData {
 	}
 
 	// Creates the user
-	insertErr := AddLocalUser(data.DB, string(username), string(hashPass), string(prvKeyPEM), *data)
+	insertErr := AddLocalUser(data.DB, string(username), string(hashPass), string(prvKeyPEM), data.Server.ServerID)
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
