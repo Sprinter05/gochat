@@ -76,13 +76,13 @@ func SaveServer(db *gorm.DB, address string, port uint16) Server {
 	if !serverExists(db, address, port) {
 		db.Create(&server)
 	} else {
-		server.ServerID = getServer(db, address, port).ServerID
+		server.ServerID = GetServer(db, address, port).ServerID
 	}
 	return server
 }
 
 // Returns the server that with the specified socket
-func getServer(db *gorm.DB, address string, port uint16) Server {
+func GetServer(db *gorm.DB, address string, port uint16) Server {
 	var server Server
 	db.Where("address = ? AND port = ?", address, port).First(&server)
 	return server
