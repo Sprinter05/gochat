@@ -404,9 +404,6 @@ func New() (*TUI, *tview.Application) {
 			creatingServer: false,
 			lastDate:       time.Now(),
 		},
-		cmds: make(chan Command),
-		reps: make(chan Reply),
-		msgs: make(chan string, maxMsgs),
 	}
 	app := tview.NewApplication().
 		EnableMouse(true).
@@ -437,8 +434,6 @@ func New() (*TUI, *tview.Application) {
 		Timestamp: time.Now(),
 		Source:    t.Active().Source(),
 	})
-
-	go cmdMessages(t)
 
 	return t, app
 }

@@ -28,10 +28,6 @@ type TUI struct {
 
 	servers models.Table[string, Server]
 	active  string
-
-	cmds chan Command
-	reps chan Reply
-	msgs chan string
 }
 
 func (s *state) blockCond() bool {
