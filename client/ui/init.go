@@ -79,6 +79,7 @@ const (
 	maxBuffers     uint   = 35
 	maxServers     uint   = 9
 	maxMsgs        uint   = 5
+	maxCmds        uint   = 10
 )
 
 var (
@@ -282,18 +283,24 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
+			if t.Buffer() == "" {
+				t.showError(ErrorNoBuffers)
+				return nil
+			}
+
 			if text[0] == '/' {
 				t.parseCommand(text[1:])
 				t.comp.input.SetText("", false)
 				return nil
 			}
 
+			s := t.Active()
 			t.SendMessage(Message{
 				Sender:    selfSender,
 				Buffer:    t.Buffer(),
 				Content:   text,
 				Timestamp: time.Now(),
-				Source:    t.Active().Source(),
+				Source:    s.Source(),
 			})
 
 			t.comp.input.SetText("", false)

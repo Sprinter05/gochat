@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"net"
 	"strings"
 	"time"
 )
@@ -10,7 +9,6 @@ import (
 type Command struct {
 	Operation string
 	Arguments []string
-	Server    net.Addr
 }
 
 type operation func(*TUI, Command)

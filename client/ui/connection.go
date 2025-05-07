@@ -16,6 +16,7 @@ type Server interface {
 	Receive(Message) (bool, error)
 	Buffers() *Buffers
 	Source() net.Addr
+	Online() bool
 }
 
 func (t *TUI) Active() Server {
@@ -120,10 +121,11 @@ func (t *TUI) removeServer(name string) {
 // REMOTE SERVER
 
 type RemoteServer struct {
-	ip   net.IP
-	port int16
-	name string
-	bufs Buffers
+	ip     net.IP
+	port   int16
+	name   string
+	bufs   Buffers
+	online bool
 }
 
 func (s *RemoteServer) Messages(name string) []Message {
@@ -160,10 +162,6 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 		return false, ErrorNoText
 	}
 
-	if msg.Buffer == "" || s.bufs.current == "" {
-		return false, ErrorNoBuffers
-	}
-
 	b, ok := s.bufs.tabs.Get(msg.Buffer)
 	if !ok {
 		s.bufs.New(msg.Buffer, false)
@@ -176,6 +174,10 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 
 func (s *RemoteServer) Buffers() *Buffers {
 	return &s.bufs
+}
+
+func (s *RemoteServer) Online() bool {
+	return s.online
 }
 
 func (s *RemoteServer) Source() net.Addr {
@@ -242,4 +244,8 @@ func (l *LocalServer) Buffers() *Buffers {
 
 func (l *LocalServer) Source() net.Addr {
 	return nil
+}
+
+func (l *LocalServer) Online() bool {
+	return false
 }
