@@ -102,13 +102,6 @@ func LocalUserExists(db *gorm.DB, username string) bool {
 	return found
 }
 
-// Returns true if the specified username and server defines a user in the database
-func UserExists(db *gorm.DB, username string) bool {
-	var found bool = false
-	db.Raw("SELECT EXISTS(SELECT * FROM users WHERE username = ?) AS found", username).Scan(&found)
-	return found
-}
-
 // Returns the user that is defined by the username and server
 func getUser(db *gorm.DB, username string) User {
 	user := User{Username: username}
