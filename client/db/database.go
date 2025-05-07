@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Map that contains the ID column of each non-autoincremental table
+// Map that contains the ID column of each non-autoincremental table, used in getMaxID
 var tableToID = map[string]string{
 	"servers": "server_id",
 	"users":   "user_id",
@@ -58,6 +58,8 @@ type Server struct {
 	ServerID uint   `gorm:"autoIncrement:false;not null"`
 }
 
+// Returns the highest ID in the specified table
+// This is used to simulate autincremental behaviour in row creation
 func getMaxID(db *gorm.DB, table string) uint {
 	var maxID uint
 	// If the result of the query is null (the table has no rows) a 0 is returned
@@ -67,7 +69,7 @@ func getMaxID(db *gorm.DB, table string) uint {
 }
 
 // Adds a socket pair to the database if the socket is not on it already. Then,
-// it returns it
+// returns it
 func SaveServer(db *gorm.DB, address string, port uint16) Server {
 	// Adds the server to the database only if it is not in it already
 	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port}
@@ -79,42 +81,49 @@ func SaveServer(db *gorm.DB, address string, port uint16) Server {
 	return server
 }
 
+// Returns the server that with the specified socket
 func getServer(db *gorm.DB, address string, port uint16) Server {
 	var server Server
 	db.Where("address = ? AND port = ?", address, port).First(&server)
 	return server
 }
 
+// Returns true if the specified socket exists in the database
 func serverExists(db *gorm.DB, address string, port uint16) bool {
 	var found bool = false
 	db.Raw("SELECT EXISTS(SELECT * FROM servers WHERE address = ? AND port = ?) AS found", address, port).Scan(&found)
 	return found
 }
 
+// Returns true if the specified username and server defines a local user in the database
 func LocalUserExists(db *gorm.DB, username string) bool {
 	var found bool = false
 	db.Raw("SELECT EXISTS(SELECT * FROM users, local_user_data WHERE users.user_id = local_user_data.user_id AND username = ?) AS found", username).Scan(&found)
 	return found
 }
 
+// Returns true if the specified username and server defines a user in the database
 func UserExists(db *gorm.DB, username string) bool {
 	var found bool = false
 	db.Raw("SELECT EXISTS(SELECT * FROM users WHERE username = ?) AS found", username).Scan(&found)
 	return found
 }
 
+// Returns the user that is defined by the username and server
 func GetUser(db *gorm.DB, username string) User {
 	user := User{Username: username}
 	db.First(&user)
 	return user
 }
 
+// Returns the local user that is defined by the specified username and server
 func GetLocalUser(db *gorm.DB, username string) LocalUserData {
 	localUser := LocalUserData{User: User{Username: username}, UserID: GetUser(db, username).UserID}
 	db.First(&localUser)
 	return localUser
 }
 
+// Gets all the local usernames (used in USRS to print local usernames)
 func GetAllLocalUsernames(db *gorm.DB) []string {
 	var usernames []string
 	db.Raw("SELECT username FROM users, local_user_data WHERE local_user_data.user_id = users.user_id").Scan(&usernames)
@@ -122,6 +131,7 @@ func GetAllLocalUsernames(db *gorm.DB) []string {
 
 }
 
+// Adds a user autoincrementally in the database and then returns it
 func AddUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	user := User{UserID: getMaxID(db, "users") + 1, Username: username, ServerID: serverID}
 	result := db.Create(&user)
@@ -131,7 +141,10 @@ func AddUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	return user, nil
 }
 
+// Adds a local user autoincrementally in the database and then returns it
 func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, serverID uint) error {
+	// Attempts to create the user. If there's a user with that username and server already
+	// the local user will not be created
 	user, userErr := AddUser(db, username, serverID)
 	if userErr != nil {
 		return userErr
@@ -145,7 +158,10 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 	return nil
 }
 
+// Adds a local user autoincrementally in the database and then returns it
 func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID uint) error {
+	// Attempts to create the user. If there's a user with that username and server already
+	// the local user will not be created
 	user, userErr := AddUser(db, username, serverID)
 	if userErr != nil {
 		return userErr
@@ -158,18 +174,21 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID ui
 	return nil
 }
 
+// Returns the external user that is defined by the specified username and server
 func GetExternalUser(db *gorm.DB, username string) ExternalUserData {
 	externalUser := ExternalUserData{User: User{Username: username}, UserID: GetUser(db, username).UserID}
 	db.First(&externalUser)
 	return externalUser
 }
 
+// Returns true if the specified username and server defines an external user in the database
 func ExternalUserExists(db *gorm.DB, username string) bool {
 	var found bool = false
 	db.Raw("SELECT EXISTS(SELECT * FROM users, external_user_data WHERE users.user_id = external_user_data.user_id AND username = ?) AS found", username).Scan(&found)
 	return found
 }
 
+// Creates a message
 func StoreMessage(db *gorm.DB, src string, dst string, text string, stamp time.Time) error {
 	msg := Message{SourceID: GetUser(db, src).UserID, DestinationID: GetUser(db, dst).UserID, Text: text, Stamp: stamp}
 	result := db.Create(&msg)
