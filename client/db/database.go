@@ -110,7 +110,7 @@ func UserExists(db *gorm.DB, username string) bool {
 }
 
 // Returns the user that is defined by the username and server
-func GetUser(db *gorm.DB, username string) User {
+func getUser(db *gorm.DB, username string) User {
 	user := User{Username: username}
 	db.First(&user)
 	return user
@@ -118,7 +118,7 @@ func GetUser(db *gorm.DB, username string) User {
 
 // Returns the local user that is defined by the specified username and server
 func GetLocalUser(db *gorm.DB, username string) LocalUserData {
-	localUser := LocalUserData{User: User{Username: username}, UserID: GetUser(db, username).UserID}
+	localUser := LocalUserData{User: User{Username: username}, UserID: getUser(db, username).UserID}
 	db.First(&localUser)
 	return localUser
 }
@@ -132,7 +132,7 @@ func GetAllLocalUsernames(db *gorm.DB) []string {
 }
 
 // Adds a user autoincrementally in the database and then returns it
-func AddUser(db *gorm.DB, username string, serverID uint) (User, error) {
+func addUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	user := User{UserID: getMaxID(db, "users") + 1, Username: username, ServerID: serverID}
 	result := db.Create(&user)
 	if result.RowsAffected != 1 {
@@ -145,7 +145,7 @@ func AddUser(db *gorm.DB, username string, serverID uint) (User, error) {
 func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, serverID uint) error {
 	// Attempts to create the user. If there's a user with that username and server already
 	// the local user will not be created
-	user, userErr := AddUser(db, username, serverID)
+	user, userErr := addUser(db, username, serverID)
 	if userErr != nil {
 		return userErr
 	}
@@ -162,7 +162,7 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID uint) error {
 	// Attempts to create the user. If there's a user with that username and server already
 	// the local user will not be created
-	user, userErr := AddUser(db, username, serverID)
+	user, userErr := addUser(db, username, serverID)
 	if userErr != nil {
 		return userErr
 	}
@@ -176,7 +176,7 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID ui
 
 // Returns the external user that is defined by the specified username and server
 func GetExternalUser(db *gorm.DB, username string) ExternalUserData {
-	externalUser := ExternalUserData{User: User{Username: username}, UserID: GetUser(db, username).UserID}
+	externalUser := ExternalUserData{User: User{Username: username}, UserID: getUser(db, username).UserID}
 	db.First(&externalUser)
 	return externalUser
 }
@@ -190,7 +190,7 @@ func ExternalUserExists(db *gorm.DB, username string) bool {
 
 // Creates a message
 func StoreMessage(db *gorm.DB, src string, dst string, text string, stamp time.Time) error {
-	msg := Message{SourceID: GetUser(db, src).UserID, DestinationID: GetUser(db, dst).UserID, Text: text, Stamp: stamp}
+	msg := Message{SourceID: getUser(db, src).UserID, DestinationID: getUser(db, dst).UserID, Text: text, Stamp: stamp}
 	result := db.Create(&msg)
 
 	if result.RowsAffected != 1 {
