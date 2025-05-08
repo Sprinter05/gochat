@@ -325,7 +325,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	data.Output("\n")
 
 	// Verifies password
-	localUser := db.GetLocalUser(data.DB, username)
+	localUser := db.GetLocalUser(data.DB, username, data.Server.ServerID)
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
 	if cmpErr != nil {
@@ -529,7 +529,7 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
 	// Retrieves the public key in PEM format to encrypt the message
-	pubKeyPEM := db.GetExternalUser(data.DB, string(args[0])).PubKey
+	pubKeyPEM := db.GetExternalUser(data.DB, string(args[0]), data.Server.ServerID).PubKey
 	pubKey, pemErr := spec.PEMToPubkey([]byte(pubKeyPEM))
 	if pemErr != nil {
 		return ReplyData{Error: pemErr}
@@ -569,7 +569,9 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 	}
 
 	data.Output("message sent correctly\n")
-	dbErr := db.StoreMessage(data.DB, string(data.User.User.Username), string(args[0]), string(plainMessage), stamp)
+	src := db.GetUser(data.DB, data.User.User.Username, data.Server.ServerID)
+	dst := db.GetUser(data.DB, string(args[0]), data.Server.ServerID)
+	dbErr := db.StoreMessage(data.DB, src, dst, string(plainMessage), stamp)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
