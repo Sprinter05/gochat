@@ -81,6 +81,26 @@ func SaveServer(db *gorm.DB, address string, port uint16) Server {
 	return server
 }
 
+// Creates a server, then returns it
+func AddServer(db *gorm.DB, address string, port uint16) (Server, error) {
+	server := Server{Address: address, Port: port}
+	result := db.Create(&server)
+	if result.RowsAffected != 1 {
+		return Server{}, fmt.Errorf("unexpected number of rows affected in User creation")
+	}
+	return server, nil
+}
+
+// Deletes a server from the database
+func RemoveServer(db *gorm.DB, address string, port uint16) error {
+	server := Server{Address: address, Port: port}
+	result := db.Delete(&server)
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("unexpected number of rows affected in User creation")
+	}
+	return nil
+}
+
 // Returns the server that with the specified socket
 func GetServer(db *gorm.DB, address string, port uint16) Server {
 	var server Server
