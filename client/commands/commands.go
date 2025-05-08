@@ -23,7 +23,7 @@ import (
 // TODO: USERINFO command
 
 // Struct that contains all the data required for the shell to function.
-// Commands may alter the data if necessary
+// Commands may alter the data if necessary.
 type Data struct {
 	ClientCon spec.Connection
 	Verbose   bool
@@ -41,7 +41,7 @@ func (data Data) isConnected() bool {
 	return data.ClientCon.Conn != nil
 }
 
-// Contains data received from the reply of a command
+// Contains data received from the reply of a command.
 type ReplyData struct {
 	Arguments [][]byte
 	Error     error
@@ -61,7 +61,7 @@ var (
 	ErrorUserNotFound      error = fmt.Errorf("user not found")
 )
 
-// Map that contains every shell command with its respective execution functions
+// Map that contains every shell command with its respective execution functions.
 var clientCmds = map[string]func(data *Data, args ...[]byte) ReplyData{
 	"CONN":    Conn,
 	"DISCN":   Discn,
@@ -75,7 +75,7 @@ var clientCmds = map[string]func(data *Data, args ...[]byte) ReplyData{
 	"MSG":     Msg,
 }
 
-// Given a string containing a command name, returns its execution function
+// Given a string containing a command name, returns its execution function.
 func FetchClientCmd(op string, data Data) func(data *Data, args ...[]byte) ReplyData {
 	v, ok := clientCmds[strings.ToUpper(op)]
 	if !ok {
@@ -87,7 +87,11 @@ func FetchClientCmd(op string, data Data) func(data *Data, args ...[]byte) Reply
 
 // CLIENT COMMANDS
 
-// Connects a client to a gochat server
+// Starts a connection with a server.
+//
+// Arguments: <server address> <server port>
+//
+// Returns a zero value ReplyData if the connection was successful.
 func Conn(data *Data, args ...[]byte) ReplyData {
 	if data.isConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
@@ -111,7 +115,11 @@ func Conn(data *Data, args ...[]byte) ReplyData {
 	return ReplyData{}
 }
 
-// Disconnects a client from a gochat server
+// Disconnects a client from a gochat server.
+//
+// Arguments: none
+//
+// Returns a zero value ReplyData if the disconnection was successful.
 func Discn(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
@@ -134,7 +142,11 @@ func Ver(data *Data, args ...[]byte) ReplyData {
 	return ReplyData{}
 }
 
-// Switches on/off the verbose mode
+// Switches on/off the verbose mode.
+//
+// Arguments: none
+//
+// Returns a zero value ReplyData.
 func Verbose(data *Data, args ...[]byte) ReplyData {
 	data.Verbose = !data.Verbose
 	if data.Verbose {
@@ -145,7 +157,11 @@ func Verbose(data *Data, args ...[]byte) ReplyData {
 	return ReplyData{}
 }
 
-// Requests the information of an external user to add it to the client database
+// Requests the information of an external user to add it to the client database.
+//
+// Arguments: <username to be requested>
+//
+// Returns a ReplyData containing the reply REQ arguments.
 func Req(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
@@ -190,7 +206,11 @@ func Req(data *Data, args ...[]byte) ReplyData {
 	return ReplyData{Arguments: reply.Args}
 }
 
-// Registers a user to a server and also adds it to the client database
+// Registers a user to a server and also adds it to the client database.
+//
+// Arguments: none
+//
+// Returns a zero value ReplyData if an OK packet is received after the sent REG packet.
 func Reg(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
@@ -294,10 +314,14 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: insertErr}
 	}
 	data.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
-	return ReplyData{Arguments: reply.Args}
+	return ReplyData{}
 }
 
-// Logs a user to a server
+// Logs a user to a server.
+//
+// Arguments: <username>
+//
+// Returns a zero value ReplyData if an OK packet is received after the sent VERIF packet.
 func Login(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
@@ -406,7 +430,11 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	return ReplyData{Arguments: verifReply.Args}
 }
 
-// Logs out a user from a server
+// Logs out a user from a server.
+//
+// Arguments: none
+//
+// Returns a zero value ReplyData if an OK packet is received after the sent LOGOUT packet.
 func Logout(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
@@ -445,12 +473,16 @@ func Logout(data *Data, args ...[]byte) ReplyData {
 	data.User = db.LocalUserData{}
 
 	data.Output("logged out\n")
-	return ReplyData{Arguments: reply.Args}
+	return ReplyData{}
 }
 
 // Requests a list of either "online" or "all" registered users and prints it. If "local"
 // is used as an argument, the local users will be printed insteads and no server requests
-// will be performed
+// will be performed.
+//
+// Arguments: <username>
+//
+// Returns a zero value ReplyData if an OK packet is received after the sent VERIF packet.
 func Usrs(data *Data, args ...[]byte) ReplyData {
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
@@ -509,7 +541,11 @@ func Usrs(data *Data, args ...[]byte) ReplyData {
 	return ReplyData{Arguments: reply.Args}
 }
 
-// Sends a message to a user with the current time stamp and stores it in the database
+// Sends a message to a user with the current time stamp and stores it in the database.
+//
+// Arguments: <dest. username> <unencyrpted text message>
+//
+// Returns a zero value ReplyData if an OK packet is received after the sent MSG packet
 func Msg(data *Data, args ...[]byte) ReplyData {
 	if len(args) < 2 {
 		return ReplyData{Error: ErrorInsuficientArgs}
@@ -578,7 +614,7 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 	return ReplyData{}
 }
 
-// Prints out all local users
+// Prints out all local users.
 func printLocalUsers(data Data) {
 	localUsers := db.GetAllLocalUsernames(data.DB)
 	for i := range localUsers {
@@ -586,14 +622,14 @@ func printLocalUsers(data Data) {
 	}
 }
 
-// Prints a packet
+// Prints a packet.
 func packetPrint(pct []byte, data Data) {
 	fmt.Println("the following packet is about to be sent:")
 	cmd := spec.ParsePacket(pct)
 	cmd.Print(data.Output)
 }
 
-// Prints text if the verbose mode is on
+// Prints text if the verbose mode is on.
 func verbosePrint(text string, data Data) {
 	if data.Verbose {
 		data.Output(text)
