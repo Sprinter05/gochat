@@ -58,6 +58,8 @@ type Server struct {
 	ServerID uint   `gorm:"autoIncrement:false;not null"`
 }
 
+var ErrorUnexpectedRows error = fmt.Errorf("unexpected number of rows affected in User creation")
+
 // Returns the highest ID in the specified table
 // This is used to simulate autincremental behaviour in row creation
 func getMaxID(db *gorm.DB, table string) uint {
@@ -86,7 +88,7 @@ func AddServer(db *gorm.DB, address string, port uint16) (Server, error) {
 	server := Server{Address: address, Port: port}
 	result := db.Create(&server)
 	if result.RowsAffected != 1 {
-		return Server{}, fmt.Errorf("unexpected number of rows affected in User creation")
+		return Server{}, ErrorUnexpectedRows
 	}
 	return server, nil
 }
@@ -96,7 +98,7 @@ func RemoveServer(db *gorm.DB, address string, port uint16) error {
 	server := Server{Address: address, Port: port}
 	result := db.Delete(&server)
 	if result.RowsAffected != 1 {
-		return fmt.Errorf("unexpected number of rows affected in User creation")
+		return ErrorUnexpectedRows
 	}
 	return nil
 }
@@ -149,7 +151,7 @@ func addUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	user := User{UserID: getMaxID(db, "users") + 1, Username: username, ServerID: serverID}
 	result := db.Create(&user)
 	if result.RowsAffected != 1 {
-		return User{}, fmt.Errorf("unexpected number of rows affected in User creation")
+		return User{}, ErrorUnexpectedRows
 	}
 	return user, nil
 }
@@ -166,7 +168,7 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 
 	result := db.Create(&localUser)
 	if result.RowsAffected != 1 {
-		return fmt.Errorf("unexpected number of rows affected in LocalUserData creation")
+		return ErrorUnexpectedRows
 	}
 	return nil
 }
@@ -182,7 +184,7 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID ui
 	externalUser := ExternalUserData{User: user, UserID: user.UserID, PubKey: pubKeyPEM}
 	result := db.Create(&externalUser)
 	if result.RowsAffected != 1 {
-		return fmt.Errorf("unexpected number of rows affected in ExternalUserData creation")
+		return ErrorUnexpectedRows
 	}
 	return nil
 }
@@ -207,7 +209,7 @@ func StoreMessage(db *gorm.DB, src User, dst User, text string, stamp time.Time)
 	result := db.Create(&msg)
 
 	if result.RowsAffected != 1 {
-		return fmt.Errorf("unexpected number of rows affected in Message creation")
+		return ErrorUnexpectedRows
 	}
 	return nil
 }
