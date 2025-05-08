@@ -5,22 +5,11 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
-
-var intToLogLevel = map[uint8]logger.LogLevel{
-	1: logger.Silent,
-	2: logger.Error,
-	3: logger.Warn,
-	4: logger.Info,
-}
 
 // Stores the json attributes of the client configuration file
 type Config struct {
@@ -44,8 +33,8 @@ func main() {
 	port := config.Server.Port
 
 	// Opens the database
-	dbLog := getDBLogger(config)
-	clientDB := openClientDatabase(config.Database.Path, dbLog)
+	dbLog := db.GetDBLogger(config.Database.LogLevel, config.Database.LogPath)
+	clientDB := db.OpenClientDatabase(config.Database.Path, dbLog)
 
 	var cl spec.Connection
 	var con net.Conn
@@ -87,40 +76,4 @@ func getConfig() Config {
 	jsonParser := json.NewDecoder(f)
 	jsonParser.Decode(&config)
 	return config
-}
-
-// Gets the specified log level in the client configuration file
-func getDBLogger(config Config) logger.Interface {
-	dbLogLevel, ok := intToLogLevel[config.Database.LogLevel]
-	if !ok {
-		log.Fatal("config: unknown log level specified in configuration file")
-	}
-	// Creates the custom logger
-	dbLogFile, ioErr := os.OpenFile(config.Database.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	dbLog := logger.New(
-		log.New(dbLogFile, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  dbLogLevel,
-			IgnoreRecordNotFoundError: true,
-			ParameterizedQueries:      true,
-			Colorful:                  false,
-		},
-	)
-	if ioErr != nil {
-		log.Fatalf("log file could not be opened: %s", ioErr)
-	}
-	return dbLog
-}
-
-// Opens the client database
-func openClientDatabase(path string, logger logger.Interface) *gorm.DB {
-	clientDB, dbErr := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger})
-	if dbErr != nil {
-		log.Fatalf("database could not not be opened: %s", dbErr)
-	}
-
-	// Makes migrations
-	clientDB.AutoMigrate(&db.Server{}, &db.User{}, &db.LocalUserData{}, &db.ExternalUserData{}, &db.Message{})
-	return clientDB
 }

@@ -5,15 +5,27 @@ package db
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // Map that contains the ID column of each non-autoincremental table, used in getMaxID.
 var tableToID = map[string]string{
 	"servers": "server_id",
 	"users":   "user_id",
+}
+
+// Map that allows LogLevel conversions.
+var intToLogLevel = map[uint8]logger.LogLevel{
+	1: logger.Silent,
+	2: logger.Error,
+	3: logger.Warn,
+	4: logger.Info,
 }
 
 // Generic user table that defines the columns every user shares.
@@ -62,6 +74,42 @@ type Server struct {
 }
 
 var ErrorUnexpectedRows error = fmt.Errorf("unexpected number of rows affected in User creation")
+
+// Opens the client database.
+func OpenClientDatabase(path string, logger logger.Interface) *gorm.DB {
+	clientDB, dbErr := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger})
+	if dbErr != nil {
+		log.Fatalf("database could not not be opened: %s", dbErr)
+	}
+
+	// Makes migrations
+	clientDB.AutoMigrate(Server{}, User{}, LocalUserData{}, ExternalUserData{}, Message{})
+	return clientDB
+}
+
+// Gets the specified log level in the client configuration file
+func GetDBLogger(logLevel uint8, logPath string) logger.Interface {
+	dbLogLevel, ok := intToLogLevel[logLevel]
+	if !ok {
+		log.Fatal("config: unknown log level specified in configuration file")
+	}
+	// Creates the custom logger
+	dbLogFile, ioErr := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	dbLog := logger.New(
+		log.New(dbLogFile, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  dbLogLevel,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true,
+			Colorful:                  false,
+		},
+	)
+	if ioErr != nil {
+		log.Fatalf("log file could not be opened: %s", ioErr)
+	}
+	return dbLog
+}
 
 // Returns the highest ID in the specified table.
 // This is used to simulate autincremental behaviour in row creation.
