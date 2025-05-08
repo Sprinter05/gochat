@@ -161,6 +161,13 @@ func GetServer(db *gorm.DB, address string, port uint16) Server {
 	return server
 }
 
+// Returns all servers
+func GetAllServers(db *gorm.DB) []Server {
+	var servers []Server
+	db.Raw("SELECT * FROM servers").Scan(servers)
+	return servers
+}
+
 // Returns true if the specified socket exists in the database.
 func ServerExists(db *gorm.DB, address string, port uint16) bool {
 	var found bool = false
