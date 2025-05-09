@@ -321,15 +321,17 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
-	data.Static.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
+	data.Static.Output(fmt.Sprintf("user %s successfully added to the database\n", username))
 	return ReplyData{}
 }
 
-// Logs a user to a server.
+// Logs a user to a server. If only the username
+// is given, the command will ask for the password.
 //
-// Arguments: <username>
+// Arguments: <username> [password]
 //
-// Returns a zero value ReplyData if an OK packet is received after the sent VERIF packet.
+// Returns a zero value ReplyData if an OK packet
+// is received after the sent VERIF packet.
 func Login(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
@@ -340,21 +342,27 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	if data.isUserLoggedIn() {
 		return ReplyData{Error: ErrorAlreadyLoggedIn}
 	}
-
 	username := string(args[0])
 	found := db.LocalUserExists(data.Static.DB, username)
 	if !found {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
 
-	// Asks for password
-	data.Static.Output(fmt.Sprintf("%s's password: ", username))
-	pass, passErr := term.ReadPassword(0)
-	if passErr != nil {
+	var pass []byte
+	var passErr error
+
+	if len(args) == 1 {
+		// Asks for password
+		data.Static.Output(fmt.Sprintf("%s's password: ", username))
+		pass, passErr = term.ReadPassword(0)
+		if passErr != nil {
+			data.Static.Output("\n")
+			return ReplyData{Error: passErr}
+		}
 		data.Static.Output("\n")
-		return ReplyData{Error: passErr}
+	} else {
+		pass = args[1]
 	}
-	data.Static.Output("\n")
 
 	// Verifies password
 	localUser := db.GetLocalUser(data.Static.DB, username, data.Server.ServerID)
@@ -364,7 +372,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorWrongCredentials}
 	}
 
-	verbosePrint("password correct\n[...] sending LOGIN packet...", *data)
+	verbosePrint("password correct\n[...] sending LOGIN packet...\n", *data)
 	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
 	loginPct, loginPctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
