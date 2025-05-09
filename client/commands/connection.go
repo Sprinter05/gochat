@@ -78,7 +78,7 @@ func ConnectionStart(data Data, outputFunc func(text string)) {
 	// Header check
 	chErr := cmd.HD.ClientCheck()
 	if chErr != nil {
-		if data.Verbose {
+		if data.Static.Verbose {
 			cmd.Print(outputFunc)
 		}
 		log.Fatal("could not connect to server: malformed header received")
@@ -109,8 +109,8 @@ func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, er
 		// Header check
 		chErr := cmd.HD.ClientCheck()
 		if chErr != nil {
-			if data.Verbose {
-				cmd.Print(data.Output)
+			if data.Static.Verbose {
+				cmd.Print(data.Static.Output)
 			}
 			return cmd, chErr
 		}
@@ -122,9 +122,9 @@ func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, er
 		}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		fmt.Println("Packet received from server:")
-		cmd.Print(data.Output)
+		cmd.Print(data.Static.Output)
 	}
 
 	if cmd.HD.ID != id {

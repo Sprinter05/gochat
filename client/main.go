@@ -49,7 +49,8 @@ func main() {
 
 	server := db.SaveServer(clientDB, address, port)
 	// TODO: verbose to config
-	data := commands.Data{ClientCon: cl, Verbose: true, Output: ShellPrint, DB: clientDB, Server: server}
+	static := commands.StaticData{Verbose: true, Output: ShellPrint, DB: clientDB}
+	data := commands.Data{ClientCon: cl, Server: server, Static: &static}
 
 	if address != "" {
 		commands.ConnectionStart(data, ShellPrint)

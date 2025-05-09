@@ -21,16 +21,22 @@ import (
 // TODO: PENDING and packet buffer
 // TODO: cache requested users in memory
 // TODO: USERINFO command
+// TODO: HELP
 
 // Struct that contains all the data required for the shell to function.
 // Commands may alter the data if necessary.
 type Data struct {
 	ClientCon spec.Connection
-	Verbose   bool
-	Output    func(text string)
-	DB        *gorm.DB
 	Server    db.Server
 	User      db.LocalUserData
+	Static    *StaticData
+}
+
+// Separated struct that eases interaction with the terminal UI
+type StaticData struct {
+	Verbose bool
+	Output  func(text string)
+	DB      *gorm.DB
 }
 
 func (data Data) isUserLoggedIn() bool {
@@ -79,7 +85,7 @@ var clientCmds = map[string]func(data *Data, args ...[]byte) ReplyData{
 func FetchClientCmd(op string, data Data) func(data *Data, args ...[]byte) ReplyData {
 	v, ok := clientCmds[strings.ToUpper(op)]
 	if !ok {
-		data.Output(fmt.Sprintf("%s: command not found\n", op))
+		data.Static.Output(fmt.Sprintf("%s: command not found\n", op))
 		return nil
 	}
 	return v
@@ -111,7 +117,7 @@ func Conn(data *Data, args ...[]byte) ReplyData {
 	}
 
 	data.ClientCon.Conn = con
-	data.Output("succesfully connected to the server\n")
+	data.Static.Output("succesfully connected to the server\n")
 	return ReplyData{}
 }
 
@@ -132,13 +138,13 @@ func Discn(data *Data, args ...[]byte) ReplyData {
 	data.ClientCon.Conn = nil
 	// Closes the shell client session
 	data.User = db.LocalUserData{}
-	data.Output("sucessfully disconnected from the server\n")
+	data.Static.Output("sucessfully disconnected from the server\n")
 	return ReplyData{}
 }
 
 // Prints the gochat version used by the client
 func Ver(data *Data, args ...[]byte) ReplyData {
-	data.Output(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
+	data.Static.Output(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
 	return ReplyData{}
 }
 
@@ -148,11 +154,11 @@ func Ver(data *Data, args ...[]byte) ReplyData {
 //
 // Returns a zero value ReplyData.
 func Verbose(data *Data, args ...[]byte) ReplyData {
-	data.Verbose = !data.Verbose
-	if data.Verbose {
-		data.Output("verbose mode on\n")
+	data.Static.Verbose = !data.Static.Verbose
+	if data.Static.Verbose {
+		data.Static.Output("verbose mode on\n")
 	} else {
-		data.Output("verbose mode off\n")
+		data.Static.Output("verbose mode off\n")
 	}
 	return ReplyData{}
 }
@@ -178,7 +184,7 @@ func Req(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: pctErr}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		packetPrint(pct, *data)
 	}
 
@@ -198,11 +204,11 @@ func Req(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	dbErr := db.AddExternalUser(data.DB, string(reply.Args[0]), string(reply.Args[1]), data.Server.ServerID)
+	dbErr := db.AddExternalUser(data.Static.DB, string(reply.Args[0]), string(reply.Args[1]), data.Server.ServerID)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
-	data.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
+	data.Static.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
 	return ReplyData{Arguments: reply.Args}
 }
 
@@ -222,7 +228,7 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 	rd := bufio.NewReader(os.Stdin)
 
 	// Gets the username
-	data.Output("username: ")
+	data.Static.Output("username: ")
 	username, readErr := rd.ReadBytes('\n')
 	if readErr != nil {
 		return ReplyData{Error: readErr}
@@ -234,7 +240,7 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorUsernameEmpty}
 	}
 
-	exists := db.LocalUserExists(data.DB, string(username))
+	exists := db.LocalUserExists(data.Static.DB, string(username))
 	if exists {
 		return ReplyData{Error: ErrorUserExists}
 	}
@@ -243,18 +249,18 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 	fmt.Print("password: ")
 	pass1, pass1Err := term.ReadPassword(0)
 	if pass1Err != nil {
-		data.Output("\n")
+		data.Static.Output("\n")
 		return ReplyData{Error: pass1Err}
 	}
-	data.Output("\n")
+	data.Static.Output("\n")
 
-	data.Output("repeat password: ")
+	data.Static.Output("repeat password: ")
 	pass2, pass2Err := term.ReadPassword(0)
 	if pass2Err != nil {
-		data.Output("\n")
+		data.Static.Output("\n")
 		return ReplyData{Error: pass2Err}
 	}
-	data.Output("\n")
+	data.Static.Output("\n")
 
 	if string(pass1) != string(pass2) {
 		return ReplyData{Error: ErrorPasswordsNotMatch}
@@ -287,7 +293,7 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: pctErr}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		packetPrint(pct, *data)
 	}
 
@@ -309,11 +315,11 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Creates the user
-	insertErr := db.AddLocalUser(data.DB, string(username), string(hashPass), string(prvKeyPEM), data.Server.ServerID)
+	insertErr := db.AddLocalUser(data.Static.DB, string(username), string(hashPass), string(prvKeyPEM), data.Server.ServerID)
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
-	data.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
+	data.Static.Output(fmt.Sprintf("user %s successfully added to the database\n", args[0]))
 	return ReplyData{}
 }
 
@@ -334,7 +340,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	}
 
 	username := string(args[0])
-	found := db.LocalUserExists(data.DB, username)
+	found := db.LocalUserExists(data.Static.DB, username)
 	if !found {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
@@ -343,13 +349,13 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	fmt.Printf("%s's password: ", username)
 	pass, passErr := term.ReadPassword(0)
 	if passErr != nil {
-		data.Output("\n")
+		data.Static.Output("\n")
 		return ReplyData{Error: passErr}
 	}
-	data.Output("\n")
+	data.Static.Output("\n")
 
 	// Verifies password
-	localUser := db.GetLocalUser(data.DB, username, data.Server.ServerID)
+	localUser := db.GetLocalUser(data.Static.DB, username, data.Server.ServerID)
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
 	if cmpErr != nil {
@@ -364,7 +370,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: loginPctErr}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		packetPrint(loginPct, *data)
 	}
 
@@ -402,7 +408,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: verifPctErr}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		packetPrint(verifPct, *data)
 	}
 
@@ -426,7 +432,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	// Assigns the logged in user to Data
 	data.User = localUser
 
-	data.Output(fmt.Sprintf("login successful. Welcome, %s\n", username))
+	data.Static.Output(fmt.Sprintf("login successful. Welcome, %s\n", username))
 	return ReplyData{Arguments: verifReply.Args}
 }
 
@@ -448,7 +454,7 @@ func Logout(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: pctErr}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		packetPrint(pct, *data)
 	}
 
@@ -472,7 +478,7 @@ func Logout(data *Data, args ...[]byte) ReplyData {
 	// Empties the user value in Data
 	data.User = db.LocalUserData{}
 
-	data.Output("logged out\n")
+	data.Static.Output("logged out\n")
 	return ReplyData{}
 }
 
@@ -501,7 +507,7 @@ func Usrs(data *Data, args ...[]byte) ReplyData {
 	case "all":
 		option = 0x00
 	case "local":
-		data.Output("local users:\n")
+		data.Static.Output("local users:\n")
 		printLocalUsers(*data)
 		return ReplyData{}
 
@@ -514,7 +520,7 @@ func Usrs(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: pctErr}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		packetPrint(pct, *data)
 	}
 
@@ -535,9 +541,9 @@ func Usrs(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	data.Output(fmt.Sprintf("%s users:\n", args[0]))
-	data.Output(string(reply.Args[0]))
-	data.Output("\n")
+	data.Static.Output(fmt.Sprintf("%s users:\n", args[0]))
+	data.Static.Output(string(reply.Args[0]))
+	data.Static.Output("\n")
 	return ReplyData{Arguments: reply.Args}
 }
 
@@ -560,12 +566,12 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 	plainMessage := make([]byte, len(args[1]))
 	copy(plainMessage, args[1])
 
-	found := db.ExternalUserExists(data.DB, string(args[0]))
+	found := db.ExternalUserExists(data.Static.DB, string(args[0]))
 	if !found {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
 	// Retrieves the public key in PEM format to encrypt the message
-	pubKeyPEM := db.GetExternalUser(data.DB, string(args[0]), data.Server.ServerID).PubKey
+	pubKeyPEM := db.GetExternalUser(data.Static.DB, string(args[0]), data.Server.ServerID).PubKey
 	pubKey, pemErr := spec.PEMToPubkey([]byte(pubKeyPEM))
 	if pemErr != nil {
 		return ReplyData{Error: pemErr}
@@ -583,7 +589,7 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: pctErr}
 	}
 
-	if data.Verbose {
+	if data.Static.Verbose {
 		packetPrint(pct, *data)
 	}
 
@@ -604,10 +610,10 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	data.Output("message sent correctly\n")
-	src := db.GetUser(data.DB, data.User.User.Username, data.Server.ServerID)
-	dst := db.GetUser(data.DB, string(args[0]), data.Server.ServerID)
-	dbErr := db.StoreMessage(data.DB, src, dst, string(plainMessage), stamp)
+	data.Static.Output("message sent correctly\n")
+	src := db.GetUser(data.Static.DB, data.User.User.Username, data.Server.ServerID)
+	dst := db.GetUser(data.Static.DB, string(args[0]), data.Server.ServerID)
+	dbErr := db.StoreMessage(data.Static.DB, src, dst, string(plainMessage), stamp)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
@@ -616,9 +622,9 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 
 // Prints out all local users.
 func printLocalUsers(data Data) {
-	localUsers := db.GetAllLocalUsernames(data.DB)
+	localUsers := db.GetAllLocalUsernames(data.Static.DB)
 	for i := range localUsers {
-		data.Output(fmt.Sprintf("%s\n", localUsers[i]))
+		data.Static.Output(fmt.Sprintf("%s\n", localUsers[i]))
 	}
 }
 
@@ -626,12 +632,12 @@ func printLocalUsers(data Data) {
 func packetPrint(pct []byte, data Data) {
 	fmt.Println("the following packet is about to be sent:")
 	cmd := spec.ParsePacket(pct)
-	cmd.Print(data.Output)
+	cmd.Print(data.Static.Output)
 }
 
 // Prints text if the verbose mode is on.
 func verbosePrint(text string, data Data) {
-	if data.Verbose {
-		data.Output(text)
+	if data.Static.Verbose {
+		data.Static.Output(text)
 	}
 }
