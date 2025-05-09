@@ -132,6 +132,12 @@ func newServerPopup(t *TUI, app *tview.Application) {
 			}
 
 			t.addServer(name, addr)
+			i, ok := t.findServer(name)
+			if ok {
+				t.comp.servers.SetCurrentItem(i)
+			}
+
+			t.renderServer(name)
 			pExit()
 		})
 	})

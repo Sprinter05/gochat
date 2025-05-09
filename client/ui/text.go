@@ -67,6 +67,7 @@ func (t *TUI) renderMsg(msg Message) {
 
 	if err != nil {
 		t.showError(err)
+		return
 	}
 
 	t.comp.text.ScrollToEnd()

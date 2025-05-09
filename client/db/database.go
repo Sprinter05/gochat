@@ -71,6 +71,7 @@ type Server struct {
 	Address  string `gorm:"primaryKey;autoIncrement:false;not null"`
 	Port     uint16 `gorm:"primaryKey;autoIncrement:false;not null"`
 	ServerID uint   `gorm:"autoIncrement:false;not null"`
+	Name     string `gorm:"not null"`
 }
 
 var ErrorUnexpectedRows error = fmt.Errorf("unexpected number of rows affected in User creation")
@@ -123,9 +124,9 @@ func getMaxID(db *gorm.DB, table string) uint {
 
 // Adds a socket pair to the database if the socket is not on it already. Then,
 // returns it.
-func SaveServer(db *gorm.DB, address string, port uint16) Server {
+func SaveServer(db *gorm.DB, address string, port uint16, name string) Server {
 	// Adds the server to the database only if it is not in it already
-	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port}
+	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port, Name: name}
 	if !ServerExists(db, address, port) {
 		db.Create(&server)
 	} else {
@@ -135,8 +136,8 @@ func SaveServer(db *gorm.DB, address string, port uint16) Server {
 }
 
 // Creates a server, then returns it.
-func AddServer(db *gorm.DB, address string, port uint16) (Server, error) {
-	server := Server{Address: address, Port: port}
+func AddServer(db *gorm.DB, address string, port uint16, name string) (Server, error) {
+	server := Server{Address: address, Port: port, Name: name}
 	result := db.Create(&server)
 	if result.RowsAffected != 1 {
 		return Server{}, ErrorUnexpectedRows
@@ -164,7 +165,7 @@ func GetServer(db *gorm.DB, address string, port uint16) Server {
 // Returns all servers
 func GetAllServers(db *gorm.DB) []Server {
 	var servers []Server
-	db.Raw("SELECT * FROM servers").Scan(servers)
+	db.Raw("SELECT * FROM servers").Scan(&servers)
 	return servers
 }
 

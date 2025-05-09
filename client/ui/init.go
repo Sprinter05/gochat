@@ -2,9 +2,12 @@ package ui
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -233,7 +236,7 @@ func setupHandlers(t *TUI, app *tview.Application) {
 	})
 
 	t.comp.servers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
-		t.changeServer(s1)
+		t.renderServer(s1)
 		app.SetFocus(t.comp.input)
 	})
 
@@ -438,13 +441,20 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 	l := t.servers.Len()
 	t.comp.servers.AddItem(localServer, "System Server", ascii(l), nil)
 
-	t.SendMessage(Message{
-		Sender:    "System",
-		Buffer:    systemBuffer,
-		Content:   "Welcome to gochat!",
-		Timestamp: time.Now(),
-		Source:    t.Active().Source(),
-	})
+	print := t.systemMessage()
+	print("Welcome to gochat!")
+	print("Restoring previous session...")
+	t.restoreSession()
 
 	return t, app
+}
+
+func (t *TUI) restoreSession() {
+	// Restore servers
+	list := db.GetAllServers(t.data.DB)
+	for _, v := range list {
+		str := fmt.Sprintf("%s:%d", v.Address, v.Port)
+		addr, _ := net.ResolveTCPAddr("tcp4", str)
+		t.addServer(v.Name, addr)
+	}
 }

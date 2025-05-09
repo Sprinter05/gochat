@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 )
@@ -45,11 +46,12 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 	ip, err := net.ResolveTCPAddr("tcp4", addr.String())
 	if err != nil {
 		t.showError(err)
+		return
 	}
 
 	s := &RemoteServer{
 		ip:   ip.IP,
-		port: int16(ip.Port),
+		port: uint16(ip.Port),
 		name: name,
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
@@ -57,12 +59,19 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 		data: new(cmds.Data),
 	}
 
+	s.data.Server = db.SaveServer(
+		t.data.DB,
+		ip.IP.String(),
+		uint16(ip.Port),
+		name,
+	)
+
 	t.servers.Add(name, s)
 	l := t.servers.Len()
 	t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
 }
 
-func (t *TUI) changeServer(name string) {
+func (t *TUI) renderServer(name string) {
 	s, ok := t.servers.Get(name)
 	if !ok {
 		return
@@ -125,14 +134,14 @@ func (t *TUI) removeServer(name string) {
 	}
 
 	t.servers.Remove(name)
-	t.changeServer(localServer)
+	t.renderServer(localServer)
 }
 
 // REMOTE SERVER
 
 type RemoteServer struct {
 	ip   net.IP
-	port int16
+	port uint16
 	name string
 
 	bufs Buffers

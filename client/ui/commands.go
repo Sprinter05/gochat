@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/gdamore/tcell/v2"
@@ -46,28 +45,30 @@ func (t *TUI) parseCommand(text string) {
 
 // COMMANDS
 
+// TODO: handle disconnection
 func connectServer(t *TUI, cmd Command) {
+	print := t.systemMessage()
 	addr := t.Active().Source()
 	if addr == nil {
-		t.showError(ErrorLocal)
+		print(ErrorLocal.Error())
 		return
 	}
 
 	parts := strings.Split(addr.String(), ":")
 	data, ok := t.Active().Online()
 	if ok {
-		t.showError(ErrorAlreadyOnline)
+		print(ErrorAlreadyOnline.Error())
 		return
 	}
 
 	r := cmds.Conn(&cmds.CmdArgs{
 		Data:   data,
 		Static: t.data,
-		Output: t.systemMessage(),
+		Output: print,
 	}, []byte(parts[0]), []byte(parts[1]))
 
 	if r.Error != nil {
-		t.showError(r.Error)
+		print(r.Error.Error())
 		return
 	}
 
@@ -76,6 +77,7 @@ func connectServer(t *TUI, cmd Command) {
 
 func listBuffers(t *TUI, cmd Command) {
 	var list strings.Builder
+	print := t.systemMessage()
 	bufs := t.Active().Buffers()
 	l := bufs.tabs.GetAll()
 
@@ -95,11 +97,5 @@ func listBuffers(t *TUI, cmd Command) {
 
 	content := list.String()
 
-	t.SendMessage(Message{
-		Buffer:    t.Buffer(),
-		Sender:    "System",
-		Content:   content[:len(content)-1],
-		Timestamp: time.Now(),
-		Source:    t.Active().Source(),
-	})
+	print(content[:len(content)-1])
 }
