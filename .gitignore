@@ -1,6 +1,7 @@
 build/
 logs/
 certs/
+config/
 *.key
 *.pem
 *.crt

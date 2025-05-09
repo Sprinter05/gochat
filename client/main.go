@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -26,6 +27,9 @@ type Config struct {
 
 // Main client function
 func main() {
+	//! Temporary
+	log.SetOutput(io.Discard)
+
 	// Reads configuration file
 	config := getConfig()
 
