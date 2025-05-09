@@ -346,7 +346,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Asks for password
-	fmt.Printf("%s's password: ", username)
+	data.Static.Output(fmt.Sprintf("%s's password: ", username))
 	pass, passErr := term.ReadPassword(0)
 	if passErr != nil {
 		data.Static.Output("\n")
