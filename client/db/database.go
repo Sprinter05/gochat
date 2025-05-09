@@ -179,7 +179,7 @@ func ServerExists(db *gorm.DB, address string, port uint16) bool {
 // Returns true if the specified username and server defines a local user in the database.
 func LocalUserExists(db *gorm.DB, username string) bool {
 	var found bool = false
-	db.Raw("SELECT EXISTS(SELECT * FROM users, local_user_data WHERE users.user_id = local_user_data.user_id AND username = ?) AS found", username).Scan(&found)
+	db.Raw("SELECT EXISTS(SELECT * FROM users, local_users WHERE users.user_id = local_users.user_id AND username = ?) AS found", username).Scan(&found)
 	return found
 }
 
@@ -200,7 +200,7 @@ func GetLocalUser(db *gorm.DB, username string, serverID uint) LocalUser {
 // Gets all the local usernames (used in USRS to print local usernames).
 func GetAllLocalUsernames(db *gorm.DB) []string {
 	var usernames []string
-	db.Raw("SELECT username FROM users, local_user_data WHERE local_user_data.user_id = users.user_id").Scan(&usernames)
+	db.Raw("SELECT username FROM users, local_users WHERE local_users.user_id = users.user_id").Scan(&usernames)
 	return usernames
 
 }
@@ -258,7 +258,7 @@ func GetExternalUser(db *gorm.DB, username string, serverID uint) ExternalUser {
 // Returns true if the specified username and server defines an external user in the database.
 func ExternalUserExists(db *gorm.DB, username string) bool {
 	var found bool = false
-	db.Raw("SELECT EXISTS(SELECT * FROM users, external_user_data WHERE users.user_id = external_user_data.user_id AND username = ?) AS found", username).Scan(&found)
+	db.Raw("SELECT EXISTS(SELECT * FROM users, external_users WHERE users.user_id = external_users.user_id AND username = ?) AS found", username).Scan(&found)
 	return found
 }
 
