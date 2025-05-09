@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"flag"
 	"fmt"
 	stdlog "log"
 	"net"
@@ -20,20 +21,29 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// CLI Flags
+var (
+	envFile string
+	useTLS  bool
+)
+
 /* INIT */
 
-// Sets up logging and read an environment file
-// from the first cli argument, if present.
+// Sets up logging and reads cli flags
 //
 // init() always runs first when the program starts
 func init() {
+	flag.StringVar(&envFile, "env", "", "Environment file to load")
+	flag.BoolVar(&useTLS, "tls", true, "Whether to use a TLS socket or not")
+
 	// If we default to stderr it won't print unless debugged
 	stdlog.SetOutput(os.Stdout)
 
+	flag.Parse()
+
 	// Read argument 1 as .env if it exists
-	if len(os.Args) > 1 {
-		// Argument 0 is the pathname to the executable
-		err := godotenv.Load(os.Args[1])
+	if envFile != "" {
+		err := godotenv.Load(envFile)
 		if err != nil {
 			log.Fatal("env file reading", err)
 		}
@@ -111,6 +121,7 @@ func setupConn() net.Listener {
 		log.Fatal("socket setup", err)
 	}
 
+	log.Notice(fmt.Sprintf("Running TCP Socket on port %s", port))
 	return l
 }
 
@@ -149,6 +160,7 @@ func setupTLSConn() net.Listener {
 		log.Fatal("tls socket setup", err)
 	}
 
+	log.Notice(fmt.Sprintf("Running TLS Socket on port %s", port))
 	return l
 }
 
@@ -230,8 +242,14 @@ func manual(close context.CancelFunc) {
 
 func main() {
 	// Setup sockets
-	sock := setupConn()
-	tlssock := setupTLSConn()
+	var sock, tlssock net.Listener
+	sockets := 1
+
+	sock = setupConn()
+	if useTLS {
+		tlssock = setupTLSConn()
+		sockets += 1
+	}
 
 	// Set up database logging file only
 	// if the logging level is INFO or more
@@ -250,7 +268,12 @@ func main() {
 	// Setup hub and make it wait until a shutdown signal is sent
 	ctx, cancel := context.WithCancel(context.Background())
 	hub := hubs.NewHub(database, ctx, cancel, spec.MaxClients)
-	go hub.Wait(sock, tlssock)
+
+	if useTLS {
+		go hub.Wait(sock, tlssock)
+	} else {
+		go hub.Wait(sock)
+	}
 
 	// Just in case a CTRL-C signal happens
 	go manual(cancel)
@@ -265,9 +288,11 @@ func main() {
 	}
 
 	// Endless loop to listen for connections
-	server.wg.Add(2)
+	server.wg.Add(sockets)
 	go server.Run(sock, hub)
-	go server.Run(tlssock, hub)
+	if useTLS {
+		go server.Run(tlssock, hub)
+	}
 
 	// Condition to end program
 	server.wg.Wait()

@@ -185,14 +185,9 @@ func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	// Update in database
-	e := db.ChangePermission(h.db, u.name, level)
-	if e != nil {
-		//! This shouldnt happen as the user was already queried before
-		SendErrorPacket(cmd.HD.ID, spec.ErrorUndefined, u.conn)
-		log.Fatal("promotion for "+string(u.name), e)
-		return
-	}
+	// Update in database, we do not check error
+	// because it was already queried
+	db.ChangePermission(h.db, u.name, level)
 
 	// Update if online
 	chg, ok := h.FindUser(string(cmd.Args[0]))
