@@ -6,6 +6,7 @@ import (
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/gdamore/tcell/v2"
 )
 
 type Command struct {
@@ -46,15 +47,20 @@ func (t *TUI) parseCommand(text string) {
 // COMMANDS
 
 func connectServer(t *TUI, cmd Command) {
-	name := t.active
 	s := t.Active()
 	curr := t.Buffer()
 
 	addr := s.Source()
+	if addr == nil {
+		t.showError(ErrorLocal)
+		return
+	}
+
 	parts := strings.Split(addr.String(), ":")
 	data, ok := s.Online()
 	if ok {
 		t.showError(ErrorAlreadyOnline)
+		return
 	}
 
 	r := cmds.Conn(&cmds.CmdArgs{
@@ -73,12 +79,10 @@ func connectServer(t *TUI, cmd Command) {
 
 	if r.Error != nil {
 		t.showError(r.Error)
+		return
 	}
 
-	i, ok := t.findServer(name)
-	if ok {
-		t.comp.servers.SetItemText(i, name, addr.String()+" - Online")
-	}
+	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 }
 
 func listBuffers(t *TUI, cmd Command) {

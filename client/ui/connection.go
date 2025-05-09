@@ -8,6 +8,7 @@ import (
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/models"
+	"github.com/gdamore/tcell/v2"
 )
 
 // SERVER INTERFACE
@@ -53,6 +54,7 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
 		},
+		data: new(cmds.Data),
 	}
 
 	t.servers.Add(name, s)
@@ -78,6 +80,13 @@ func (t *TUI) changeServer(name string) {
 		if v.index != -1 {
 			t.comp.buffers.AddItem(v.name, "", ascii(v.index), nil)
 		}
+	}
+
+	_, online := s.Online()
+	if online {
+		t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
+	} else {
+		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 	}
 
 	i, ok := t.findBuffer(t.Buffer())

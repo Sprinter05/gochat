@@ -95,6 +95,7 @@ var (
 	ErrorEmptyCmd      = errors.New("empty command given")
 	ErrorInvalidCmd    = errors.New("invalid command given")
 	ErrorAlreadyOnline = errors.New("connection is already established")
+	ErrorLocal         = errors.New("cannot connect on local server")
 )
 
 type areas struct {
