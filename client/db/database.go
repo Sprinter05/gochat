@@ -39,7 +39,7 @@ type User struct {
 // User extension dedicated to shell-created users.
 // The passwords should be hashed and the private
 // keys need to be stored in PEM format.
-type LocalUserData struct {
+type LocalUser struct {
 	UserID   uint   `gorm:"primaryKey;not null;autoIncrement:false"`
 	Password string `gorm:"not null"`
 	PrvKey   string
@@ -84,7 +84,7 @@ func OpenClientDatabase(path string, logger logger.Interface) *gorm.DB {
 	}
 
 	// Makes migrations
-	clientDB.AutoMigrate(Server{}, User{}, LocalUserData{}, ExternalUserData{}, Message{})
+	clientDB.AutoMigrate(Server{}, User{}, LocalUser{}, ExternalUserData{}, Message{})
 	return clientDB
 }
 
@@ -191,8 +191,8 @@ func GetUser(db *gorm.DB, username string, serverID uint) User {
 }
 
 // Returns the local user that is defined by the specified username and server.
-func GetLocalUser(db *gorm.DB, username string, serverID uint) LocalUserData {
-	localUser := LocalUserData{User: User{Username: username}, UserID: GetUser(db, username, serverID).UserID}
+func GetLocalUser(db *gorm.DB, username string, serverID uint) LocalUser {
+	localUser := LocalUser{User: User{Username: username}, UserID: GetUser(db, username, serverID).UserID}
 	db.First(&localUser)
 	return localUser
 }
@@ -223,7 +223,7 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 	if userErr != nil {
 		return userErr
 	}
-	localUser := LocalUserData{User: user, UserID: user.UserID, Password: hashPass, PrvKey: prvKeyPEM}
+	localUser := LocalUser{User: user, UserID: user.UserID, Password: hashPass, PrvKey: prvKeyPEM}
 
 	result := db.Create(&localUser)
 	if result.RowsAffected != 1 {

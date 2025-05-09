@@ -29,7 +29,7 @@ type Data struct {
 	// TODO: Thread safe??
 	ClientCon spec.Connection
 	Server    db.Server
-	User      db.LocalUserData
+	User      db.LocalUser
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -148,7 +148,7 @@ func Discn(data *CmdArgs, args ...[]byte) ReplyData {
 	}
 	data.Data.ClientCon.Conn = nil
 	// Closes the shell client session
-	data.Data.User = db.LocalUserData{}
+	data.Data.User = db.LocalUser{}
 	data.Output("sucessfully disconnected from the server\n")
 	return ReplyData{}
 }
@@ -505,7 +505,7 @@ func Logout(data *CmdArgs, args ...[]byte) ReplyData {
 	}
 
 	// Empties the user value in Data
-	data.Data.User = db.LocalUserData{}
+	data.Data.User = db.LocalUser{}
 
 	data.Output("logged out\n")
 	return ReplyData{}
