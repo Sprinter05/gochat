@@ -4,6 +4,7 @@
 package log
 
 import (
+	"fmt"
 	"log"
 	"net"
 
@@ -33,7 +34,7 @@ const (
 // Notifies any generic server message.
 func Notice(msg string) {
 	log.Printf(
-		"[*] Notifying %s...\n",
+		"[*] Notification: %s...\n",
 		msg,
 	)
 }
@@ -238,5 +239,9 @@ func Request(ip string, cmd spec.Command) {
 		"[-] New packet from %s:\n",
 		ip,
 	)
-	cmd.Print()
+	cmd.Print(LogPrint)
+}
+
+func LogPrint(text string) {
+	fmt.Print(text)
 }

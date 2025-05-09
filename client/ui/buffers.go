@@ -33,14 +33,14 @@ func (t *TUI) Buffer() string {
 	return t.Active().Buffers().current
 }
 
-func (t *TUI) findTab(name string) *tab {
-	b, ok := t.Active().Buffers().tabs.Get(name)
-	if ok {
-		return b
-	}
+// func (t *TUI) findTab(name string) *tab {
+// 	b, ok := t.Active().Buffers().tabs.Get(name)
+// 	if ok {
+// 		return b
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // Returns the index and asocciated rune unless its hidden
 func (b *Buffers) New(name string, system bool) error {

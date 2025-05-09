@@ -1,0 +1,11 @@
+{
+    "server": {
+        "address": "",
+        "port": 9037
+    },
+    "database": {
+        "path": "client/db/client.db",
+        "log_path": "logs/client_db.log",
+        "log_level": 4
+    }
+}
