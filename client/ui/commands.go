@@ -47,17 +47,14 @@ func (t *TUI) parseCommand(text string) {
 // COMMANDS
 
 func connectServer(t *TUI, cmd Command) {
-	s := t.Active()
-	curr := t.Buffer()
-
-	addr := s.Source()
+	addr := t.Active().Source()
 	if addr == nil {
 		t.showError(ErrorLocal)
 		return
 	}
 
 	parts := strings.Split(addr.String(), ":")
-	data, ok := s.Online()
+	data, ok := t.Active().Online()
 	if ok {
 		t.showError(ErrorAlreadyOnline)
 		return
@@ -66,15 +63,7 @@ func connectServer(t *TUI, cmd Command) {
 	r := cmds.Conn(&cmds.CmdArgs{
 		Data:   data,
 		Static: t.data,
-		Output: func(text string) {
-			t.SendMessage(Message{
-				Buffer:    curr,
-				Sender:    "System",
-				Content:   text,
-				Timestamp: time.Now(),
-				Source:    addr,
-			})
-		},
+		Output: t.systemMessage(),
 	}, []byte(parts[0]), []byte(parts[1]))
 
 	if r.Error != nil {

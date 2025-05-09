@@ -124,7 +124,11 @@ func Conn(data *CmdArgs, args ...[]byte) ReplyData {
 	data.Data.ClientCon.Conn = con
 	data.Data.Server.Address = string(args[0])
 	data.Data.Server.Port = uint16(port)
-	ConnectionStart(data)
+	err := ConnectionStart(data)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
 	return ReplyData{}
 }
 

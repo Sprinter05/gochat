@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -35,9 +34,6 @@ var (
 )
 
 func init() {
-	//! Temporary
-	log.SetOutput(io.Discard)
-
 	flag.StringVar(&configFile, "config", "config.json", "Configuration file to use. Must be in JSON format.")
 	flag.BoolVar(&useShell, "shell", false, "Whether to use a shell instead of a TUI.")
 	flag.BoolVar(&verbosePrint, "verbose", true, "Whether or not to print verbose output information.")

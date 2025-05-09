@@ -144,3 +144,19 @@ func (t *TUI) SendMessage(msg Message) {
 		}
 	}
 }
+
+func (t *TUI) systemMessage() func(string) {
+	buffer := t.Buffer()
+	server := t.Active().Source()
+	fun := func(s string) {
+		t.SendMessage(Message{
+			Buffer:    buffer,
+			Sender:    "System",
+			Content:   s,
+			Timestamp: time.Now(),
+			Source:    server,
+		})
+	}
+
+	return fun
+}

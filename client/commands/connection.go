@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"slices"
 	"strconv"
@@ -66,14 +65,13 @@ func Listen(data *Data) {
 // TODO: Change to return error
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
-func ConnectionStart(data *CmdArgs) {
-
-	cmd := spec.Command{}
+func ConnectionStart(data *CmdArgs) error {
+	cmd := new(spec.Command)
 
 	// Header listen
 	hdErr := cmd.ListenHeader(data.Data.ClientCon)
 	if hdErr != nil {
-		log.Fatal("could not connect to server: invalid header received")
+		return hdErr
 	}
 
 	// Header check
@@ -82,20 +80,22 @@ func ConnectionStart(data *CmdArgs) {
 		if data.Static.Verbose {
 			cmd.Print(data.Output)
 		}
-		log.Fatal("could not connect to server: malformed header received")
+		return chErr
 	}
 
 	// Payload listen
 	pldErr := cmd.ListenPayload(data.Data.ClientCon)
 	if pldErr != nil {
-		log.Fatal("could not connect to server: invalid payload received")
+		return pldErr
 	}
 
 	if cmd.HD.Op == 1 {
 		data.Output("successfully connected to the server\n")
 	} else {
-		log.Fatal("could not connect to server: unexpected action code received")
+		return spec.ErrorUndefined
 	}
+
+	return nil
 }
 
 // Receives a slice of command operations to listen to, then starts
