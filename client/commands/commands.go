@@ -117,7 +117,9 @@ func Conn(data *Data, args ...[]byte) ReplyData {
 	}
 
 	data.ClientCon.Conn = con
-	data.Static.Output("succesfully connected to the server\n")
+	data.Server.Address = string(args[0])
+	data.Server.Port = uint16(port)
+	ConnectionStart(data)
 	return ReplyData{}
 }
 
