@@ -84,16 +84,17 @@ const (
 )
 
 var (
-	ErrorSystemBuf   = errors.New("performing action on system buffer")
-	ErrorLocalServer = errors.New("performing action on local server")
-	ErrorNoText      = errors.New("no text has been given")
-	ErrorExists      = errors.New("item already exists")
-	ErrorNotFound    = errors.New("item does not exist")
-	ErrorMaxBufs     = errors.New("maximum amount of buffers reached")
-	ErrorMaxServers  = errors.New("maximum amount of servers reached")
-	ErrorNoBuffers   = errors.New("no buffers in server")
-	ErrorEmptyCmd    = errors.New("empty command given")
-	ErrorInvalidCmd  = errors.New("invalid command given")
+	ErrorSystemBuf     = errors.New("performing action on system buffer")
+	ErrorLocalServer   = errors.New("performing action on local server")
+	ErrorNoText        = errors.New("no text has been given")
+	ErrorExists        = errors.New("item already exists")
+	ErrorNotFound      = errors.New("item does not exist")
+	ErrorMaxBufs       = errors.New("maximum amount of buffers reached")
+	ErrorMaxServers    = errors.New("maximum amount of servers reached")
+	ErrorNoBuffers     = errors.New("no buffers in server")
+	ErrorEmptyCmd      = errors.New("empty command given")
+	ErrorInvalidCmd    = errors.New("invalid command given")
+	ErrorAlreadyOnline = errors.New("connection is already established")
 )
 
 type areas struct {

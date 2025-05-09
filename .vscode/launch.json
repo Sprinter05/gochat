@@ -10,7 +10,8 @@
             "request": "launch",
             "mode": "debug",
             "args": [
-                ".env"
+                "-env",
+                "config/.env"
             ],
             "program": "${workspaceFolder}/server",
             "cwd": "${workspaceFolder}",
@@ -21,7 +22,8 @@
             "request": "launch",
             "mode": "debug",
             "args": [
-                ".env"
+                "-config",
+                "config/client.json"
             ],
             "program": "${workspaceFolder}/client",
             "cwd": "${workspaceFolder}",

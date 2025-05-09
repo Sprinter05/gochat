@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	cmds "github.com/Sprinter05/gochat/client/commands"
 )
 
 type Command struct {
@@ -44,7 +46,39 @@ func (t *TUI) parseCommand(text string) {
 // COMMANDS
 
 func connectServer(t *TUI, cmd Command) {
+	name := t.active
+	s := t.Active()
+	curr := t.Buffer()
 
+	addr := s.Source()
+	parts := strings.Split(addr.String(), ":")
+	data, ok := s.Online()
+	if ok {
+		t.showError(ErrorAlreadyOnline)
+	}
+
+	r := cmds.Conn(&cmds.CmdArgs{
+		Data:   data,
+		Static: t.data,
+		Output: func(text string) {
+			t.SendMessage(Message{
+				Buffer:    curr,
+				Sender:    "System",
+				Content:   text,
+				Timestamp: time.Now(),
+				Source:    addr,
+			})
+		},
+	}, []byte(parts[0]), []byte(parts[1]))
+
+	if r.Error != nil {
+		t.showError(r.Error)
+	}
+
+	i, ok := t.findServer(name)
+	if ok {
+		t.comp.servers.SetItemText(i, name, addr.String()+" - Online")
+	}
 }
 
 func listBuffers(t *TUI, cmd Command) {

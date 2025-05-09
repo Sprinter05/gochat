@@ -26,6 +26,7 @@ import (
 // Struct that contains all the data required for the shell to function.
 // Commands may alter the data if necessary.
 type Data struct {
+	// TODO: Thread safe??
 	ClientCon spec.Connection
 	Server    db.Server
 	User      db.LocalUserData
@@ -39,7 +40,7 @@ type StaticData struct {
 
 type CmdArgs struct {
 	Output func(text string)
-	Static *StaticData
+	Static StaticData
 	Data   *Data
 }
 
