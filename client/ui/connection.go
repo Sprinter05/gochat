@@ -17,7 +17,8 @@ type Server interface {
 	Receive(Message) (bool, error)
 	Buffers() *Buffers
 	Source() net.Addr
-	Online() bool
+	Online() (cmds.Data, bool)
+	Fill(cmds.Data)
 }
 
 func (t *TUI) Active() Server {
@@ -126,9 +127,8 @@ type RemoteServer struct {
 	port int16
 	name string
 
-	bufs   Buffers
-	data   cmds.Data
-	online bool
+	bufs Buffers
+	data cmds.Data
 }
 
 func (s *RemoteServer) Messages(name string) []Message {
@@ -179,8 +179,8 @@ func (s *RemoteServer) Buffers() *Buffers {
 	return &s.bufs
 }
 
-func (s *RemoteServer) Online() bool {
-	return s.online
+func (s *RemoteServer) Online() (cmds.Data, bool) {
+	return s.data, s.data.IsConnected()
 }
 
 func (s *RemoteServer) Source() net.Addr {
@@ -192,6 +192,10 @@ func (s *RemoteServer) Source() net.Addr {
 	}
 
 	return ip
+}
+
+func (s *RemoteServer) Fill(d cmds.Data) {
+	s.data = d
 }
 
 // LOCAL SERVER
@@ -249,6 +253,8 @@ func (l *LocalServer) Source() net.Addr {
 	return nil
 }
 
-func (l *LocalServer) Online() bool {
-	return false
+func (l *LocalServer) Online() (cmds.Data, bool) {
+	return cmds.Data{}, false
 }
+
+func (l *LocalServer) Fill(d cmds.Data) {}

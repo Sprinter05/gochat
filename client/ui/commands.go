@@ -14,11 +14,13 @@ type Command struct {
 type operation func(*TUI, Command)
 
 var commands map[string]operation = map[string]operation{
-	"list": listBuffers,
+	"list":    listBuffers,
+	"connect": connectServer,
 }
 
 func (t *TUI) parseCommand(text string) {
-	parts := strings.Split(text, " ")
+	lower := strings.ToLower(text)
+	parts := strings.Split(lower, " ")
 
 	if parts[0] == "" {
 		t.showError(ErrorEmptyCmd)
@@ -40,6 +42,10 @@ func (t *TUI) parseCommand(text string) {
 }
 
 // COMMANDS
+
+func connectServer(t *TUI, cmd Command) {
+
+}
 
 func listBuffers(t *TUI, cmd Command) {
 	var list strings.Builder

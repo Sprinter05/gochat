@@ -65,12 +65,12 @@ func Listen(data *Data) {
 
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
-func ConnectionStart(data *Data) {
+func ConnectionStart(data *CmdArgs) {
 
 	cmd := spec.Command{}
 
 	// Header listen
-	hdErr := cmd.ListenHeader(data.ClientCon)
+	hdErr := cmd.ListenHeader(data.Data.ClientCon)
 	if hdErr != nil {
 		log.Fatal("could not connect to server: invalid header received")
 	}
@@ -85,7 +85,7 @@ func ConnectionStart(data *Data) {
 	}
 
 	// Payload listen
-	pldErr := cmd.ListenPayload(data.ClientCon)
+	pldErr := cmd.ListenPayload(data.Data.ClientCon)
 	if pldErr != nil {
 		log.Fatal("could not connect to server: invalid payload received")
 	}
@@ -100,14 +100,14 @@ func ConnectionStart(data *Data) {
 // Receives a slice of command operations to listen to, then starts
 // listening until a received packet fits one of the actions provided
 // and returns it
-func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, error) {
+func ListenResponse(data CmdArgs, id spec.ID, ops ...spec.Action) (spec.Command, error) {
 	// TODO: timeouts
 	var cmd spec.Command
 
 	for !(slices.Contains(ops, cmd.HD.Op)) {
 		cmd = spec.Command{}
 		// Header listen
-		hdErr := cmd.ListenHeader(data.ClientCon)
+		hdErr := cmd.ListenHeader(data.Data.ClientCon)
 		if hdErr != nil {
 			return cmd, hdErr
 		}
@@ -122,7 +122,7 @@ func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, er
 		}
 
 		// Payload listen
-		pldErr := cmd.ListenPayload(data.ClientCon)
+		pldErr := cmd.ListenPayload(data.Data.ClientCon)
 		if pldErr != nil {
 			return cmd, pldErr
 		}

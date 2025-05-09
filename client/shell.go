@@ -14,10 +14,10 @@ import (
 
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
-func NewShell(data *commands.Data) {
+func NewShell(data *commands.CmdArgs) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
-		PrintPrompt(*data)
+		PrintPrompt(*data.Data)
 		// Reads user input
 		input, readErr := rd.ReadBytes('\n')
 		if readErr != nil {

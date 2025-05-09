@@ -29,8 +29,6 @@ type Data struct {
 	ClientCon spec.Connection
 	Server    db.Server
 	User      db.LocalUserData
-	Static    *StaticData
-	Output    func(text string)
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -39,11 +37,17 @@ type StaticData struct {
 	DB      *gorm.DB
 }
 
-func (data Data) isUserLoggedIn() bool {
+type CmdArgs struct {
+	Output func(text string)
+	Static *StaticData
+	Data   *Data
+}
+
+func (data Data) IsUserLoggedIn() bool {
 	return data.User.User.Username != ""
 }
 
-func (data Data) isConnected() bool {
+func (data Data) IsConnected() bool {
 	return data.ClientCon.Conn != nil
 }
 
@@ -68,7 +72,7 @@ var (
 )
 
 // Map that contains every shell command with its respective execution functions.
-var clientCmds = map[string]func(data *Data, args ...[]byte) ReplyData{
+var clientCmds = map[string]func(data *CmdArgs, args ...[]byte) ReplyData{
 	"CONN":    Conn,
 	"DISCN":   Discn,
 	"VER":     Ver,
@@ -82,7 +86,7 @@ var clientCmds = map[string]func(data *Data, args ...[]byte) ReplyData{
 }
 
 // Given a string containing a command name, returns its execution function.
-func FetchClientCmd(op string, data Data) func(data *Data, args ...[]byte) ReplyData {
+func FetchClientCmd(op string, data CmdArgs) func(data *CmdArgs, args ...[]byte) ReplyData {
 	v, ok := clientCmds[strings.ToUpper(op)]
 	if !ok {
 		data.Output(fmt.Sprintf("%s: command not found\n", op))
@@ -98,8 +102,8 @@ func FetchClientCmd(op string, data Data) func(data *Data, args ...[]byte) Reply
 // Arguments: <server address> <server port>
 //
 // Returns a zero value ReplyData if the connection was successful.
-func Conn(data *Data, args ...[]byte) ReplyData {
-	if data.isConnected() {
+func Conn(data *CmdArgs, args ...[]byte) ReplyData {
+	if data.Data.IsConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
 	}
 	if len(args) < 2 {
@@ -116,9 +120,9 @@ func Conn(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: conErr}
 	}
 
-	data.ClientCon.Conn = con
-	data.Server.Address = string(args[0])
-	data.Server.Port = uint16(port)
+	data.Data.ClientCon.Conn = con
+	data.Data.Server.Address = string(args[0])
+	data.Data.Server.Port = uint16(port)
 	ConnectionStart(data)
 	return ReplyData{}
 }
@@ -128,24 +132,24 @@ func Conn(data *Data, args ...[]byte) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData if the disconnection was successful.
-func Discn(data *Data, args ...[]byte) ReplyData {
-	if !data.isConnected() {
+func Discn(data *CmdArgs, args ...[]byte) ReplyData {
+	if !data.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 
-	err := data.ClientCon.Conn.Close()
+	err := data.Data.ClientCon.Conn.Close()
 	if err != nil {
 		return ReplyData{Error: err}
 	}
-	data.ClientCon.Conn = nil
+	data.Data.ClientCon.Conn = nil
 	// Closes the shell client session
-	data.User = db.LocalUserData{}
+	data.Data.User = db.LocalUserData{}
 	data.Output("sucessfully disconnected from the server\n")
 	return ReplyData{}
 }
 
 // Prints the gochat version used by the client
-func Ver(data *Data, args ...[]byte) ReplyData {
+func Ver(data *CmdArgs, args ...[]byte) ReplyData {
 	data.Output(fmt.Sprintf("gochat version %d\n", spec.ProtocolVersion))
 	return ReplyData{}
 }
@@ -155,7 +159,7 @@ func Ver(data *Data, args ...[]byte) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData.
-func Verbose(data *Data, args ...[]byte) ReplyData {
+func Verbose(data *CmdArgs, args ...[]byte) ReplyData {
 	data.Static.Verbose = !data.Static.Verbose
 	if data.Static.Verbose {
 		data.Output("verbose mode on\n")
@@ -170,14 +174,14 @@ func Verbose(data *Data, args ...[]byte) ReplyData {
 // Arguments: <username to be requested>
 //
 // Returns a ReplyData containing the reply REQ arguments.
-func Req(data *Data, args ...[]byte) ReplyData {
-	if !data.isConnected() {
+func Req(data *CmdArgs, args ...[]byte) ReplyData {
+	if !data.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
-	if !data.isUserLoggedIn() {
+	if !data.Data.IsUserLoggedIn() {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
@@ -190,7 +194,7 @@ func Req(data *Data, args ...[]byte) ReplyData {
 		packetPrint(pct, *data)
 	}
 
-	_, wErr := data.ClientCon.Conn.Write(pct)
+	_, wErr := data.Data.ClientCon.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -206,7 +210,7 @@ func Req(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	dbErr := db.AddExternalUser(data.Static.DB, string(reply.Args[0]), string(reply.Args[1]), data.Server.ServerID)
+	dbErr := db.AddExternalUser(data.Static.DB, string(reply.Args[0]), string(reply.Args[1]), data.Data.Server.ServerID)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
@@ -220,8 +224,8 @@ func Req(data *Data, args ...[]byte) ReplyData {
 // Arguments: [user] [password]
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent REG packet.
-func Reg(data *Data, args ...[]byte) ReplyData {
-	if !data.isConnected() {
+func Reg(data *CmdArgs, args ...[]byte) ReplyData {
+	if !data.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if len(args) == 1 {
@@ -310,7 +314,7 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, wErr := data.ClientCon.Conn.Write(pct)
+	_, wErr := data.Data.ClientCon.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -327,7 +331,7 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Creates the user
-	insertErr := db.AddLocalUser(data.Static.DB, string(username), string(hashPass), string(prvKeyPEM), data.Server.ServerID)
+	insertErr := db.AddLocalUser(data.Static.DB, string(username), string(hashPass), string(prvKeyPEM), data.Data.Server.ServerID)
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
@@ -342,14 +346,14 @@ func Reg(data *Data, args ...[]byte) ReplyData {
 //
 // Returns a zero value ReplyData if an OK packet
 // is received after the sent VERIF packet.
-func Login(data *Data, args ...[]byte) ReplyData {
-	if !data.isConnected() {
+func Login(data *CmdArgs, args ...[]byte) ReplyData {
+	if !data.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
-	if data.isUserLoggedIn() {
+	if data.Data.IsUserLoggedIn() {
 		return ReplyData{Error: ErrorAlreadyLoggedIn}
 	}
 	username := string(args[0])
@@ -375,7 +379,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Verifies password
-	localUser := db.GetLocalUser(data.Static.DB, username, data.Server.ServerID)
+	localUser := db.GetLocalUser(data.Static.DB, username, data.Data.Server.ServerID)
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
 	if cmpErr != nil {
@@ -395,7 +399,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, loginWErr := data.ClientCon.Conn.Write(loginPct)
+	_, loginWErr := data.Data.ClientCon.Conn.Write(loginPct)
 	if loginWErr != nil {
 		return ReplyData{Error: loginWErr}
 	}
@@ -433,7 +437,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, verifWErr := data.ClientCon.Conn.Write(verifPct)
+	_, verifWErr := data.Data.ClientCon.Conn.Write(verifPct)
 	if verifWErr != nil {
 		return ReplyData{Error: verifWErr}
 	}
@@ -450,7 +454,7 @@ func Login(data *Data, args ...[]byte) ReplyData {
 	}
 	verbosePrint("verification successful\n", *data)
 	// Assigns the logged in user to Data
-	data.User = localUser
+	data.Data.User = localUser
 
 	data.Output(fmt.Sprintf("login successful. Welcome, %s\n", username))
 	return ReplyData{Arguments: verifReply.Args}
@@ -461,11 +465,11 @@ func Login(data *Data, args ...[]byte) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent LOGOUT packet.
-func Logout(data *Data, args ...[]byte) ReplyData {
-	if !data.isConnected() {
+func Logout(data *CmdArgs, args ...[]byte) ReplyData {
+	if !data.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
-	if !data.isUserLoggedIn() {
+	if !data.Data.IsUserLoggedIn() {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
@@ -479,7 +483,7 @@ func Logout(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, pctWErr := data.ClientCon.Conn.Write(pct)
+	_, pctWErr := data.Data.ClientCon.Conn.Write(pct)
 	if pctWErr != nil {
 		return ReplyData{Error: pctWErr}
 	}
@@ -496,7 +500,7 @@ func Logout(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Empties the user value in Data
-	data.User = db.LocalUserData{}
+	data.Data.User = db.LocalUserData{}
 
 	data.Output("logged out\n")
 	return ReplyData{}
@@ -509,14 +513,14 @@ func Logout(data *Data, args ...[]byte) ReplyData {
 // Arguments: <online/all/local>
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent VERIF packet.
-func Usrs(data *Data, args ...[]byte) ReplyData {
+func Usrs(data *CmdArgs, args ...[]byte) ReplyData {
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
-	if !data.isConnected() && !(string(args[0]) == "local") {
+	if !data.Data.IsConnected() && !(string(args[0]) == "local") {
 		return ReplyData{Error: ErrorNotConnected}
 	}
-	if !data.isUserLoggedIn() && !(string(args[0]) == "local") {
+	if !data.Data.IsUserLoggedIn() && !(string(args[0]) == "local") {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
@@ -545,7 +549,7 @@ func Usrs(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, wErr := data.ClientCon.Conn.Write(pct)
+	_, wErr := data.Data.ClientCon.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -572,14 +576,14 @@ func Usrs(data *Data, args ...[]byte) ReplyData {
 // Arguments: <dest. username> <unencyrpted text message>
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent MSG packet
-func Msg(data *Data, args ...[]byte) ReplyData {
+func Msg(data *CmdArgs, args ...[]byte) ReplyData {
 	if len(args) < 2 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
-	if !data.isConnected() {
+	if !data.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
-	if !data.isUserLoggedIn() {
+	if !data.Data.IsUserLoggedIn() {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 	// Stores the message before encrypting to store it in the database
@@ -591,7 +595,7 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
 	// Retrieves the public key in PEM format to encrypt the message
-	pubKeyPEM := db.GetExternalUser(data.Static.DB, string(args[0]), data.Server.ServerID).PubKey
+	pubKeyPEM := db.GetExternalUser(data.Static.DB, string(args[0]), data.Data.Server.ServerID).PubKey
 	pubKey, pemErr := spec.PEMToPubkey([]byte(pubKeyPEM))
 	if pemErr != nil {
 		return ReplyData{Error: pemErr}
@@ -614,7 +618,7 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, wErr := data.ClientCon.Conn.Write(pct)
+	_, wErr := data.Data.ClientCon.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -631,8 +635,8 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 	}
 
 	data.Output("message sent correctly\n")
-	src := db.GetUser(data.Static.DB, data.User.User.Username, data.Server.ServerID)
-	dst := db.GetUser(data.Static.DB, string(args[0]), data.Server.ServerID)
+	src := db.GetUser(data.Static.DB, data.Data.User.User.Username, data.Data.Server.ServerID)
+	dst := db.GetUser(data.Static.DB, string(args[0]), data.Data.Server.ServerID)
 	dbErr := db.StoreMessage(data.Static.DB, src, dst, string(plainMessage), stamp)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
@@ -641,7 +645,7 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 }
 
 // Prints out all local users.
-func printLocalUsers(data Data) {
+func printLocalUsers(data CmdArgs) {
 	localUsers := db.GetAllLocalUsernames(data.Static.DB)
 	for i := range localUsers {
 		data.Output(fmt.Sprintf("%s\n", localUsers[i]))
@@ -649,14 +653,14 @@ func printLocalUsers(data Data) {
 }
 
 // Prints a packet.
-func packetPrint(pct []byte, data Data) {
+func packetPrint(pct []byte, data CmdArgs) {
 	data.Output("the following packet is about to be sent:\n")
 	cmd := spec.ParsePacket(pct)
 	cmd.Print(data.Output)
 }
 
 // Prints text if the verbose mode is on.
-func verbosePrint(text string, data Data) {
+func verbosePrint(text string, data CmdArgs) {
 	if data.Static.Verbose {
 		data.Output(text)
 	}
