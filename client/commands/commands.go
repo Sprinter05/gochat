@@ -632,7 +632,7 @@ func printLocalUsers(data Data) {
 
 // Prints a packet.
 func packetPrint(pct []byte, data Data) {
-	fmt.Println("the following packet is about to be sent:")
+	data.Static.Output("the following packet is about to be sent:\n")
 	cmd := spec.ParsePacket(pct)
 	cmd.Print(data.Static.Output)
 }
