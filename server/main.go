@@ -199,7 +199,7 @@ func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 		sock.count.Inc()
 
 		// Set timeout for the initial write to prevent blocking new connections
-		deadline := time.Now().Add(time.Duration(spec.HandshakeTimeout) * time.Second)
+		deadline := time.Now().Add(time.Duration(spec.HandshakeTimeout) * time.Minute)
 		c.SetDeadline(deadline)
 
 		// Notify the user they are connected

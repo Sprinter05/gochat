@@ -78,6 +78,13 @@ func (t *TUI) renderServer(name string) {
 	}
 	t.active = name
 
+	_, online := s.Online()
+	if online {
+		t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
+	} else {
+		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+	}
+
 	t.comp.buffers.Clear()
 	if s.Buffers().tabs.Len() == 0 {
 		t.comp.text.Clear()
@@ -89,13 +96,6 @@ func (t *TUI) renderServer(name string) {
 		if v.index != -1 {
 			t.comp.buffers.AddItem(v.name, "", ascii(v.index), nil)
 		}
-	}
-
-	_, online := s.Online()
-	if online {
-		t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
-	} else {
-		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 	}
 
 	i, ok := t.findBuffer(t.Buffer())
@@ -139,6 +139,7 @@ func (t *TUI) removeServer(name string) {
 	ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
 
 	db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
+	t.comp.servers.SetCurrentItem(0)
 	t.renderServer(localServer)
 }
 

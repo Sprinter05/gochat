@@ -90,7 +90,7 @@ func ConnectionStart(data *CmdArgs) error {
 	}
 
 	if cmd.HD.Op == 1 {
-		data.Output("successfully connected to the server\n")
+		data.Output("successfully connected to the server")
 	} else {
 		return spec.ErrorUndefined
 	}
