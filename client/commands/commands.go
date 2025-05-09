@@ -486,7 +486,7 @@ func Logout(data *Data, args ...[]byte) ReplyData {
 // is used as an argument, the local users will be printed insteads and no server requests
 // will be performed.
 //
-// Arguments: <username>
+// Arguments: <online/all/local>
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent VERIF packet.
 func Usrs(data *Data, args ...[]byte) ReplyData {
