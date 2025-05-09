@@ -584,7 +584,7 @@ func Msg(data *Data, args ...[]byte) ReplyData {
 
 	stamp := time.Now()
 	// Generates the packet, using the current UNIX timestamp
-	pct, pctErr := spec.NewPacket(spec.MSG, 1, spec.EmptyInfo, args[0], []byte(fmt.Sprintf("%d", stamp.Unix())), encrypted)
+	pct, pctErr := spec.NewPacket(spec.MSG, 1, spec.EmptyInfo, args[0], spec.UnixStampToBytes(stamp), encrypted)
 	if pctErr != nil {
 		return ReplyData{Error: pctErr}
 	}
