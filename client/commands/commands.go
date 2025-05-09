@@ -215,57 +215,67 @@ func Req(data *Data, args ...[]byte) ReplyData {
 }
 
 // Registers a user to a server and also adds it to the client database.
+// A prompt will get the user input if the user and password is not specified.
 //
-// Arguments: none
+// Arguments: [user] [password]
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent REG packet.
 func Reg(data *Data, args ...[]byte) ReplyData {
 	if !data.isConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
-	if !data.isUserLoggedIn() {
-		return ReplyData{Error: ErrorNotLoggedIn}
+	if len(args) == 1 {
+		return ReplyData{Error: spec.ErrorArguments}
 	}
+	var username []byte
+	var pass1 []byte
 
-	rd := bufio.NewReader(os.Stdin)
+	if len(args) == 0 {
+		rd := bufio.NewReader(os.Stdin)
 
-	// Gets the username
-	data.Static.Output("username: ")
-	username, readErr := rd.ReadBytes('\n')
-	if readErr != nil {
-		return ReplyData{Error: readErr}
-	}
+		// Gets the username
+		data.Static.Output("username: ")
+		var readErr error
+		username, readErr = rd.ReadBytes('\n')
+		if readErr != nil {
+			return ReplyData{Error: readErr}
+		}
 
-	// Removes unecessary spaces and the line jump in the username
-	username = bytes.TrimSpace(username)
-	if len(username) == 0 {
-		return ReplyData{Error: ErrorUsernameEmpty}
-	}
+		// Removes unecessary spaces and the line jump in the username
+		username = bytes.TrimSpace(username)
+		if len(username) == 0 {
+			return ReplyData{Error: ErrorUsernameEmpty}
+		}
 
-	exists := db.LocalUserExists(data.Static.DB, string(username))
-	if exists {
-		return ReplyData{Error: ErrorUserExists}
-	}
+		exists := db.LocalUserExists(data.Static.DB, string(username))
+		if exists {
+			return ReplyData{Error: ErrorUserExists}
+		}
 
-	// Gets the password
-	fmt.Print("password: ")
-	pass1, pass1Err := term.ReadPassword(0)
-	if pass1Err != nil {
+		// Gets the password
+		data.Static.Output("password: ")
+		var pass1Err error
+		pass1, pass1Err = term.ReadPassword(0)
+		if pass1Err != nil {
+			data.Static.Output("\n")
+			return ReplyData{Error: pass1Err}
+		}
 		data.Static.Output("\n")
-		return ReplyData{Error: pass1Err}
-	}
-	data.Static.Output("\n")
 
-	data.Static.Output("repeat password: ")
-	pass2, pass2Err := term.ReadPassword(0)
-	if pass2Err != nil {
+		data.Static.Output("repeat password: ")
+		pass2, pass2Err := term.ReadPassword(0)
+		if pass2Err != nil {
+			data.Static.Output("\n")
+			return ReplyData{Error: pass2Err}
+		}
 		data.Static.Output("\n")
-		return ReplyData{Error: pass2Err}
-	}
-	data.Static.Output("\n")
 
-	if string(pass1) != string(pass2) {
-		return ReplyData{Error: ErrorPasswordsNotMatch}
+		if string(pass1) != string(pass2) {
+			return ReplyData{Error: ErrorPasswordsNotMatch}
+		}
+	} else {
+		username = args[0]
+		pass1 = args[1]
 	}
 
 	// Generates the PEM arrays of both the private and public key of the pair
