@@ -134,6 +134,11 @@ func (t *TUI) removeServer(name string) {
 	}
 
 	t.servers.Remove(name)
+
+	addr := s.Source()
+	ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
+
+	db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
 	t.renderServer(localServer)
 }
 

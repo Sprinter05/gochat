@@ -71,7 +71,7 @@ type Server struct {
 	Address  string `gorm:"primaryKey;autoIncrement:false;not null"`
 	Port     uint16 `gorm:"primaryKey;autoIncrement:false;not null"`
 	ServerID uint   `gorm:"autoIncrement:false;not null"`
-	Name     string `gorm:"not null"`
+	Name     string `gorm:"unique;not null"`
 }
 
 var ErrorUnexpectedRows error = fmt.Errorf("unexpected number of rows affected in User creation")

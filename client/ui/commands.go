@@ -61,6 +61,7 @@ func connectServer(t *TUI, cmd Command) {
 		return
 	}
 
+	print("attempting to connect...")
 	r := cmds.Conn(&cmds.CmdArgs{
 		Data:   data,
 		Static: t.data,

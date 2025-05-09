@@ -270,6 +270,10 @@ func setupHandlers(t *TUI, app *tview.Application) {
 		return event
 	})
 
+	t.comp.text.SetChangedFunc(func() {
+		app.Draw()
+	})
+
 	t.comp.errors.SetChangedFunc(func() {
 		app.Draw()
 	})
