@@ -79,7 +79,7 @@ func ConnectionStart(data *Data) {
 	chErr := cmd.HD.ClientCheck()
 	if chErr != nil {
 		if data.Static.Verbose {
-			cmd.Print(data.Static.Output)
+			cmd.Print(data.Output)
 		}
 		log.Fatal("could not connect to server: malformed header received")
 	}
@@ -91,7 +91,7 @@ func ConnectionStart(data *Data) {
 	}
 
 	if cmd.HD.Op == 1 {
-		data.Static.Output("successfully connected to the server\n")
+		data.Output("successfully connected to the server\n")
 	} else {
 		log.Fatal("could not connect to server: unexpected action code received")
 	}
@@ -116,7 +116,7 @@ func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, er
 		chErr := cmd.HD.ClientCheck()
 		if chErr != nil {
 			if data.Static.Verbose {
-				cmd.Print(data.Static.Output)
+				cmd.Print(data.Output)
 			}
 			return cmd, chErr
 		}
@@ -130,7 +130,7 @@ func ListenResponse(data Data, id spec.ID, ops ...spec.Action) (spec.Command, er
 
 	if data.Static.Verbose {
 		fmt.Println("Packet received from server:")
-		cmd.Print(data.Static.Output)
+		cmd.Print(data.Output)
 	}
 
 	if cmd.HD.ID != id {

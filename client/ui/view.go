@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -25,6 +26,7 @@ type TUI struct {
 	comp components
 
 	status state
+	data   cmds.StaticData
 
 	servers models.Table[string, Server]
 	active  string

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -397,7 +398,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 	})
 }
 
-func New() (*TUI, *tview.Application) {
+func New(static cmds.StaticData) (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 	t := &TUI{
 		servers: models.NewTable[string, Server](0),
@@ -411,6 +412,7 @@ func New() (*TUI, *tview.Application) {
 			creatingServer: false,
 			lastDate:       time.Now(),
 		},
+		data: static,
 	}
 	app := tview.NewApplication().
 		EnableMouse(true).

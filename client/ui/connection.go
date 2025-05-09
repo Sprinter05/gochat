@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/models"
 )
 
@@ -121,10 +122,12 @@ func (t *TUI) removeServer(name string) {
 // REMOTE SERVER
 
 type RemoteServer struct {
-	ip     net.IP
-	port   int16
-	name   string
+	ip   net.IP
+	port int16
+	name string
+
 	bufs   Buffers
+	data   cmds.Data
 	online bool
 }
 

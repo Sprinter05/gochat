@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io"
 	"log"
 	"net"
@@ -9,7 +10,9 @@ import (
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
+	"github.com/Sprinter05/gochat/client/ui"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"gorm.io/gorm"
 )
 
 // Stores the json attributes of the client configuration file
@@ -25,20 +28,68 @@ type Config struct {
 	} `json:"database"`
 }
 
-// Main client function
-func main() {
+var (
+	configFile   string
+	useShell     bool
+	verbosePrint bool
+)
+
+func init() {
 	//! Temporary
 	log.SetOutput(io.Discard)
 
+	flag.StringVar(&configFile, "config", "config.json", "Configuration file to use. Must be in JSON format.")
+	flag.BoolVar(&useShell, "shell", false, "Whether to use a shell instead of a TUI.")
+	flag.BoolVar(&verbosePrint, "verbose", true, "Whether or not to print verbose output information.")
+	flag.Parse()
+}
+
+// Main client function
+func main() {
 	// Reads configuration file
 	config := getConfig()
-
-	address := config.Server.Address
-	port := config.Server.Port
 
 	// Opens the database
 	dbLog := db.GetDBLogger(config.Database.LogLevel, config.Database.LogPath)
 	clientDB := db.OpenClientDatabase(config.Database.Path, dbLog)
+
+	if useShell {
+		setupShell(config, clientDB)
+	} else {
+		setupTUI(clientDB)
+	}
+}
+
+// Returns a Config struct with the data obtained from the json
+// configuration file.
+func getConfig() Config {
+	config := Config{}
+
+	f, err := os.Open(configFile)
+	if err != nil {
+		log.Fatalf("configuration file could not be opened: %s", err)
+	}
+	defer f.Close()
+
+	jsonParser := json.NewDecoder(f)
+	jsonParser.Decode(&config)
+	return config
+}
+
+func setupTUI(dbconn *gorm.DB) {
+	_, app := ui.New(commands.StaticData{
+		Verbose: verbosePrint,
+		DB:      dbconn,
+	})
+
+	if err := app.Run(); err != nil {
+		panic(err)
+	}
+}
+
+func setupShell(config Config, dbconn *gorm.DB) {
+	address := config.Server.Address
+	port := config.Server.Port
 
 	var cl spec.Connection
 	var con net.Conn
@@ -51,10 +102,10 @@ func main() {
 	}
 	cl = spec.Connection{Conn: con}
 
-	server := db.SaveServer(clientDB, address, port)
+	server := db.SaveServer(dbconn, address, port)
 	// TODO: verbose to config
-	static := commands.StaticData{Verbose: true, Output: ShellPrint, DB: clientDB}
-	data := commands.Data{ClientCon: cl, Server: server, Static: &static}
+	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
+	data := commands.Data{ClientCon: cl, Server: server, Static: &static, Output: ShellPrint}
 
 	if address != "" {
 		commands.ConnectionStart(&data)
@@ -65,20 +116,4 @@ func main() {
 	if data.ClientCon.Conn != nil {
 		data.ClientCon.Conn.Close()
 	}
-}
-
-// Returns a Config struct with the data obtained from the json
-// configuration file.
-func getConfig() Config {
-	config := Config{}
-
-	f, err := os.Open("client_config.json")
-	if err != nil {
-		log.Fatalf("configuration file could not be opened: %s", err)
-	}
-	defer f.Close()
-
-	jsonParser := json.NewDecoder(f)
-	jsonParser.Decode(&config)
-	return config
 }
