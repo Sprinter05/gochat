@@ -49,7 +49,7 @@ type LocalUser struct {
 // User extension dedicated to REQ'd users. Only
 // their public key is needed to encrypt messages
 // to them.
-type ExternalUserData struct {
+type ExternalUser struct {
 	UserID uint   `gorm:"primaryKey;not null"`
 	PubKey string `gorm:"not null"`
 	User   User   `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
@@ -84,7 +84,7 @@ func OpenClientDatabase(path string, logger logger.Interface) *gorm.DB {
 	}
 
 	// Makes migrations
-	clientDB.AutoMigrate(Server{}, User{}, LocalUser{}, ExternalUserData{}, Message{})
+	clientDB.AutoMigrate(Server{}, User{}, LocalUser{}, ExternalUser{}, Message{})
 	return clientDB
 }
 
@@ -240,7 +240,7 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID ui
 	if userErr != nil {
 		return userErr
 	}
-	externalUser := ExternalUserData{User: user, UserID: user.UserID, PubKey: pubKeyPEM}
+	externalUser := ExternalUser{User: user, UserID: user.UserID, PubKey: pubKeyPEM}
 	result := db.Create(&externalUser)
 	if result.RowsAffected != 1 {
 		return ErrorUnexpectedRows
@@ -249,8 +249,8 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID ui
 }
 
 // Returns the external user that is defined by the specified username and server.
-func GetExternalUser(db *gorm.DB, username string, serverID uint) ExternalUserData {
-	externalUser := ExternalUserData{User: User{Username: username}, UserID: GetUser(db, username, serverID).UserID}
+func GetExternalUser(db *gorm.DB, username string, serverID uint) ExternalUser {
+	externalUser := ExternalUser{User: User{Username: username}, UserID: GetUser(db, username, serverID).UserID}
 	db.First(&externalUser)
 	return externalUser
 }

@@ -66,5 +66,5 @@ func PrintPrompt(data commands.Data) {
 }
 
 func ShellPrint(text string) {
-	fmt.Print(text)
+	fmt.Print(text + "\n")
 }
