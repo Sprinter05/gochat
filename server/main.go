@@ -198,6 +198,10 @@ func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 		}
 		sock.count.Inc()
 
+		// Set timeout for the initial write to prevent blocking new connections
+		deadline := time.Now().Add(time.Duration(spec.HandshakeTimeout) * time.Minute)
+		c.SetWriteDeadline(deadline)
+
 		// Notify the user they are connected
 		pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
 		if e != nil {
@@ -205,6 +209,9 @@ func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 		} else {
 			c.Write(pak)
 		}
+
+		// Disable timeout as it is only for the first write
+		c.SetWriteDeadline(time.Time{})
 
 		// Check if its tls
 		_, ok := c.(*tls.Conn)

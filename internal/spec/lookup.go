@@ -3,21 +3,22 @@ package spec
 /* PREDEFINED VALUES */
 
 const (
-	ProtocolVersion uint8  = 1         // Current version of the protocol
-	MaxClients      uint   = 20        // Max amount of clients the server allows at the same time
-	NullOp          Action = 0         // Invalid operation code
-	NullID          ID     = 0         // Only valid for specific documented cases
-	MaxID           ID     = 1<<10 - 1 // Maximum value according to the bit field
-	EmptyInfo       byte   = 0xFF      // No information provided
-	HeaderSize      int    = 8         // Max size of the header in bytes
-	MaxArgs         int    = 1<<4 - 1  // Max amount of arguments
-	MaxPayload      int    = 1<<14 - 1 // Max amount of total arguments size
-	MaxArgSize      int    = 1<<11 - 1 // Max amount of single argument size
-	RSABitSize      int    = 4096      // Size of the RSA keypair used by the spec crypto functions
-	UsernameSize    int    = 32        // Max size of a username in bytes
-	LoginTimeout    int    = 2         // Timeout for a handshake process in minutes
-	ReadTimeout     int    = 10        // Timeout for a TCP read block in minutes
-	TokenExpiration int    = 30        // Deadline for a reusable token expiration in minutes
+	ProtocolVersion  uint8  = 1         // Current version of the protocol
+	MaxClients       uint   = 20        // Max amount of clients the server allows at the same time
+	NullOp           Action = 0         // Invalid operation code
+	NullID           ID     = 0         // Only valid for specific documented cases
+	MaxID            ID     = 1<<10 - 1 // Maximum value according to the bit field
+	EmptyInfo        byte   = 0xFF      // No information provided
+	HeaderSize       int    = 8         // Max size of the header in bytes
+	MaxArgs          int    = 1<<4 - 1  // Max amount of arguments
+	MaxPayload       int    = 1<<14 - 1 // Max amount of total arguments size
+	MaxArgSize       int    = 1<<11 - 1 // Max amount of single argument size
+	RSABitSize       int    = 4096      // Size of the RSA keypair used by the spec crypto functions
+	UsernameSize     int    = 32        // Max size of a username in bytes
+	LoginTimeout     int    = 2         // Timeout for a handshake process in minutes
+	ReadTimeout      int    = 10        // Timeout for a TCP read block in minutes
+	HandshakeTimeout int    = 1         // Timeout for a connection handshake block in minutes
+	TokenExpiration  int    = 30        // Deadline for a reusable token expiration in minutes
 )
 
 /* ACTION CODES */

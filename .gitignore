@@ -1,8 +1,10 @@
 build/
 logs/
 certs/
+config/
 *.key
 *.pem
 *.crt
 *.env
 *.db
+**/__debug_bin*
