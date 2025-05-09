@@ -53,7 +53,7 @@ func main() {
 	data := commands.Data{ClientCon: cl, Server: server, Static: &static}
 
 	if address != "" {
-		commands.ConnectionStart(data, ShellPrint)
+		commands.ConnectionStart(&data)
 	}
 
 	// go Listen(&data)

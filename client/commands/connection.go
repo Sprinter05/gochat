@@ -65,7 +65,7 @@ func Listen(data *Data) {
 
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
-func ConnectionStart(data Data, outputFunc func(text string)) {
+func ConnectionStart(data *Data) {
 
 	cmd := spec.Command{}
 
@@ -79,13 +79,19 @@ func ConnectionStart(data Data, outputFunc func(text string)) {
 	chErr := cmd.HD.ClientCheck()
 	if chErr != nil {
 		if data.Static.Verbose {
-			cmd.Print(outputFunc)
+			cmd.Print(data.Static.Output)
 		}
 		log.Fatal("could not connect to server: malformed header received")
 	}
 
+	// Payload listen
+	pldErr := cmd.ListenPayload(data.ClientCon)
+	if pldErr != nil {
+		log.Fatal("could not connect to server: invalid payload received")
+	}
+
 	if cmd.HD.Op == 1 {
-		fmt.Println("successfully connected to the server")
+		data.Static.Output("successfully connected to the server\n")
 	} else {
 		log.Fatal("could not connect to server: unexpected action code received")
 	}
