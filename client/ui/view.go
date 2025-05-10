@@ -24,19 +24,20 @@ type state struct {
 type TUI struct {
 	area areas
 	comp components
+	app  *tview.Application
 
 	status state
 	data   cmds.StaticData
 
 	servers models.Table[string, Server]
-	active  string
+	focus   string
 }
 
 func (s *state) blockCond() bool {
 	return s.creatingBuf || s.creatingServer || s.showingHelp
 }
 
-func createPopup(t *TUI, app *tview.Application, cond *bool, title string) (*tview.InputField, func()) {
+func createPopup(t *TUI, cond *bool, title string) (*tview.InputField, func()) {
 	*cond = true
 
 	input := tview.NewInputField().
@@ -51,20 +52,20 @@ func createPopup(t *TUI, app *tview.Application, cond *bool, title string) (*tvi
 
 	t.area.bottom.ResizeItem(t.comp.input, 0, 0)
 	t.area.bottom.AddItem(input, 2, 0, true)
-	app.SetFocus(input)
+	t.app.SetFocus(input)
 
 	exit := func() {
 		t.area.bottom.RemoveItem(input)
 		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
-		app.SetFocus(t.comp.input)
+		t.app.SetFocus(t.comp.input)
 		*cond = false
 	}
 
 	return input, exit
 }
 
-func newbufPopup(t *TUI, app *tview.Application) {
-	input, exit := createPopup(t, app,
+func newbufPopup(t *TUI) {
+	input, exit := createPopup(t,
 		&t.status.creatingBuf,
 		"Enter buffer name...",
 	)
@@ -87,8 +88,8 @@ func newbufPopup(t *TUI, app *tview.Application) {
 	})
 }
 
-func newServerPopup(t *TUI, app *tview.Application) {
-	sInput, sExit := createPopup(t, app,
+func newServerPopup(t *TUI) {
+	sInput, sExit := createPopup(t,
 		&t.status.creatingServer,
 		"Enter server name...",
 	)
@@ -107,7 +108,7 @@ func newServerPopup(t *TUI, app *tview.Application) {
 
 		sExit()
 
-		pInput, pExit := createPopup(t, app,
+		pInput, pExit := createPopup(t,
 			&t.status.creatingServer,
 			"Enter server IP and port...",
 		)
@@ -141,6 +142,10 @@ func newServerPopup(t *TUI, app *tview.Application) {
 			pExit()
 		})
 	})
+}
+
+func newLoginPopup(t *TUI) {
+
 }
 
 // Adds and changes to new buffer on the list

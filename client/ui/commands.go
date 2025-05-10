@@ -43,6 +43,11 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  1,
 		format: "/users <online/all/local>",
 	},
+	"login": {
+		fun:    loginUser,
+		nArgs:  1,
+		format: "/login <user>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -99,6 +104,22 @@ func (c Command) printResult(arr ...[]byte) {
 }
 
 // COMMANDS
+
+func loginUser(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if !ok {
+		cmd.print(ErrorOffline.Error())
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	r := cmds.Login(c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error())
+		return
+	}
+}
 
 func listUsers(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()

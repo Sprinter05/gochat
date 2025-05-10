@@ -223,35 +223,35 @@ func setupStyle(t *TUI) {
 		SetBorder(false)
 }
 
-func setupHandlers(t *TUI, app *tview.Application) {
+func setupHandlers(t *TUI) {
 	t.comp.buffers.SetDoneFunc(func() {
-		app.SetFocus(t.comp.input)
+		t.app.SetFocus(t.comp.input)
 	})
 
 	t.comp.servers.SetDoneFunc(func() {
-		app.SetFocus(t.comp.input)
+		t.app.SetFocus(t.comp.input)
 	})
 
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.renderBuffer(s1)
-		app.SetFocus(t.comp.input)
+		t.app.SetFocus(t.comp.input)
 	})
 
 	t.comp.servers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.renderServer(s1)
-		app.SetFocus(t.comp.input)
+		t.app.SetFocus(t.comp.input)
 	})
 
 	t.comp.buffers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlN:
 			if !t.status.blockCond() {
-				newbufPopup(t, app)
+				newbufPopup(t)
 			}
 		case tcell.KeyCtrlX:
 			if !t.status.blockCond() {
 				t.removeBuffer(t.Buffer())
-				app.SetFocus(t.comp.input)
+				t.app.SetFocus(t.comp.input)
 			}
 		}
 		return event
@@ -261,23 +261,23 @@ func setupHandlers(t *TUI, app *tview.Application) {
 		switch event.Key() {
 		case tcell.KeyCtrlN:
 			if !t.status.blockCond() {
-				newServerPopup(t, app)
+				newServerPopup(t)
 			}
 		case tcell.KeyCtrlX:
 			if !t.status.blockCond() {
-				t.removeServer(t.active)
-				app.SetFocus(t.comp.input)
+				t.removeServer(t.focus)
+				t.app.SetFocus(t.comp.input)
 			}
 		}
 		return event
 	})
 
 	t.comp.text.SetChangedFunc(func() {
-		app.Draw()
+		t.app.Draw()
 	})
 
 	t.comp.errors.SetChangedFunc(func() {
-		app.Draw()
+		t.app.Draw()
 	})
 }
 
@@ -322,11 +322,11 @@ func setupInput(t *TUI) {
 	})
 }
 
-func setupKeybinds(t *TUI, app *tview.Application) {
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+func setupKeybinds(t *TUI) {
+	t.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ:
-			app.Stop()
+			t.app.Stop()
 		case tcell.KeyCtrlC:
 			return nil
 		case tcell.KeyCtrlU:
@@ -351,10 +351,10 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			}
 
 			if !t.comp.text.HasFocus() {
-				app.SetFocus(t.comp.text)
+				t.app.SetFocus(t.comp.text)
 				return nil
 			} else {
-				app.SetFocus(t.comp.input)
+				t.app.SetFocus(t.comp.input)
 				return nil
 			}
 		case tcell.KeyCtrlS:
@@ -363,16 +363,16 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			}
 
 			if !t.comp.servers.HasFocus() {
-				app.SetFocus(t.comp.servers)
+				t.app.SetFocus(t.comp.servers)
 				return nil
 			}
 		case tcell.KeyCtrlH:
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
 				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
-				app.SetFocus(t.comp.text)
+				t.app.SetFocus(t.comp.text)
 				t.toggleHelp()
 				if !t.status.showingHelp {
-					app.SetFocus(t.comp.input)
+					t.app.SetFocus(t.comp.input)
 				}
 			}
 		case tcell.KeyCtrlK:
@@ -381,7 +381,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 			}
 
 			if !t.comp.buffers.HasFocus() {
-				app.SetFocus(t.comp.buffers)
+				t.app.SetFocus(t.comp.buffers)
 				return nil
 			}
 		case tcell.KeyDown:
@@ -403,7 +403,7 @@ func setupKeybinds(t *TUI, app *tview.Application) {
 				t.changeBuffer(curr - 1)
 			}
 		case tcell.KeyCtrlR:
-			app.Sync()
+			t.app.Sync()
 		}
 		return event
 	})
@@ -429,9 +429,10 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 		EnableMouse(true).
 		SetRoot(t.area.main, true).
 		SetFocus(t.area.main)
+	t.app = app
 
-	setupKeybinds(t, app)
-	setupHandlers(t, app)
+	setupKeybinds(t)
+	setupHandlers(t)
 	setupStyle(t)
 	setupInput(t)
 
@@ -442,7 +443,7 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 			tabs: models.NewTable[string, *tab](maxBuffers),
 		},
 	})
-	t.active = localServer
+	t.focus = localServer
 	t.addBuffer(systemBuffer, true)
 	l := t.servers.Len()
 	t.comp.servers.AddItem(localServer, "System Server", ascii(l), nil)

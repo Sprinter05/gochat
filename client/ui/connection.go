@@ -23,7 +23,7 @@ type Server interface {
 }
 
 func (t *TUI) Active() Server {
-	s, ok := t.servers.Get(t.active)
+	s, ok := t.servers.Get(t.focus)
 	if !ok {
 		panic("active server does not exist")
 	}
@@ -76,7 +76,7 @@ func (t *TUI) renderServer(name string) {
 	if !ok {
 		return
 	}
-	t.active = name
+	t.focus = name
 
 	_, online := s.Online()
 	if online {
