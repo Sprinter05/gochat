@@ -14,7 +14,7 @@ import (
 
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
-func NewShell(data *commands.CmdArgs) {
+func NewShell(data commands.Command) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
 		PrintPrompt(*data.Data)
@@ -41,7 +41,7 @@ func NewShell(data *commands.CmdArgs) {
 		args = append(args, bytes.Fields(input)[1:]...)
 
 		// Gets the appropiate command and executes it
-		f := commands.FetchClientCmd(op, *data)
+		f := commands.FetchClientCmd(op, data)
 		if f == nil {
 			continue
 		}

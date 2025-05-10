@@ -13,11 +13,28 @@ type Command struct {
 	Arguments []string
 }
 
-type operation func(*TUI, Command)
+type operation struct {
+	fun    func(*TUI, Command)
+	nArgs  uint
+	format string
+}
 
 var commands map[string]operation = map[string]operation{
-	"list":    listBuffers,
-	"connect": connectServer,
+	"list": operation{
+		fun:    listBuffers,
+		nArgs:  0,
+		format: "/list",
+	},
+	"connect": operation{
+		fun:    connectServer,
+		nArgs:  0,
+		format: "/connect",
+	},
+	"register": operation{
+		fun:    registerUser,
+		nArgs:  2,
+		format: "/register <username> <password>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -29,40 +46,67 @@ func (t *TUI) parseCommand(text string) {
 		return
 	}
 
+	l := len(parts)
 	cmd := Command{
 		Operation: parts[0],
-		Arguments: parts[1:],
+		Arguments: parts[1 : l-2],
 	}
 
-	fun, ok := commands[cmd.Operation]
+	op, ok := commands[cmd.Operation]
 	if !ok {
 		t.showError(ErrorInvalidCmd)
 		return
 	}
 
-	go fun(t, cmd)
+	if len(cmd.Arguments) < int(op.nArgs) {
+		print := t.systemMessage()
+		str := fmt.Sprintf("%s: %s", ErrorArguments, op.format)
+		print(str)
+		return
+	}
+
+	go op.fun(t, cmd)
 }
 
 // COMMANDS
 
+func registerUser(t *TUI, cmd Command) {
+	print := t.systemMessage()
+	s := t.Active()
+	data, ok := s.Online()
+
+	if !ok {
+		print(ErrorOffline.Error())
+		return
+	}
+
+	r := cmds.Reg(cmds.Command{
+		Data:   data,
+		Static: t.data,
+		Output: print,
+	})
+
+}
+
 // TODO: handle disconnection
 func connectServer(t *TUI, cmd Command) {
 	print := t.systemMessage()
-	addr := t.Active().Source()
+	s := t.Active()
+	addr := s.Source()
 	if addr == nil {
 		print(ErrorLocal.Error())
 		return
 	}
 
 	parts := strings.Split(addr.String(), ":")
-	data, ok := t.Active().Online()
+	data, ok := s.Online()
 	if ok {
 		print(ErrorAlreadyOnline.Error())
 		return
 	}
 
 	print("attempting to connect...")
-	r := cmds.Conn(&cmds.CmdArgs{
+	r := cmds.Conn(cmds.Command{
 		Data:   data,
 		Static: t.data,
 		Output: print,

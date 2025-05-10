@@ -65,7 +65,7 @@ func Listen(data *Data) {
 // TODO: Change to return error
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
-func ConnectionStart(data *CmdArgs) error {
+func ConnectionStart(data Command) error {
 	cmd := new(spec.Command)
 
 	// Header listen
@@ -101,7 +101,7 @@ func ConnectionStart(data *CmdArgs) error {
 // Receives a slice of command operations to listen to, then starts
 // listening until a received packet fits one of the actions provided
 // and returns it
-func ListenResponse(data CmdArgs, id spec.ID, ops ...spec.Action) (spec.Command, error) {
+func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command, error) {
 	// TODO: timeouts
 	var cmd spec.Command
 
