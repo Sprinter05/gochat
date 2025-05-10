@@ -163,13 +163,9 @@ func (t *TUI) renderServer(name string) {
 
 	tabs := s.Buffers().tabs.GetAll()
 	slices.SortFunc(tabs, func(a, b *tab) int {
-		if a.index == -1 || b.index == -1 {
-			return 0
-		}
-
-		if a.index < b.index {
+		if a.creation < b.creation {
 			return -1
-		} else if a.index > b.index {
+		} else if a.creation > b.creation {
 			return 1
 		}
 

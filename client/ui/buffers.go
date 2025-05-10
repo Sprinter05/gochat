@@ -10,8 +10,9 @@ import (
 // Specifies a buffer inside of a server that can
 // be shown or hidden.
 type tab struct {
-	index int    // Identifies the order of the buffer
-	name  string // Identifies the name
+	index    int    // Identifies the order of the buffer
+	name     string // Identifies the name
+	creation int    // Identifies the internal buffer list order
 
 	messages models.Slice[Message] // Messages stored in the buffer
 
@@ -59,8 +60,9 @@ func (b *Buffers) New(name string, system bool) error {
 
 	tab := &tab{
 		index:     -1,
-		messages:  models.NewSlice[Message](0),
 		name:      name,
+		creation:  b.tabs.Len() + 1,
+		messages:  models.NewSlice[Message](0),
 		system:    system,
 		connected: false,
 	}
