@@ -103,10 +103,10 @@ func (t *TUI) findServer(name string) (int, bool) {
 	return -1, false
 }
 
-// Deletes a server and all its contents (not in the database).
+// Deletes a server and all its contents (including the database).
 // It then changes to the "Local" server by default. This also
 // implies the "Local" server cannot be hidden.
-func (t *TUI) hideServer(name string) {
+func (t *TUI) removeServer(name string) {
 	s, ok := t.servers.Get(name)
 	if !ok {
 		return
@@ -125,9 +125,9 @@ func (t *TUI) hideServer(name string) {
 
 	t.servers.Remove(name)
 
-	// addr := s.Source()
-	// ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
-	// db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
+	addr := s.Source()
+	ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
+	db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
 
 	t.renderServer(localServer)
 }

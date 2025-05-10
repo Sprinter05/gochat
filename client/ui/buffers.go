@@ -42,7 +42,8 @@ func ascii(num int) int32 {
 }
 
 // Returns the currently active tab
-// in the current server.
+// in the current server. Only returns
+// the name and not the actual data.
 func (t *TUI) Buffer() string {
 	return t.Active().Buffers().current
 }
@@ -212,7 +213,8 @@ func (t *TUI) hideBuffer(name string) {
 
 // Shows all messages in a buffer and changes the color of the
 // TUI component for system buffers. It assumes the buffer has
-// already been changed in the TUI component.
+// already been changed in the TUI component. It also sets the
+// variable controlling the currently rendered buffer.
 func (t *TUI) renderBuffer(buf string) {
 	b, ok := t.Active().Buffers().tabs.Get(buf)
 	if !ok {

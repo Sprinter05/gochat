@@ -274,7 +274,7 @@ func setupHandlers(t *TUI) {
 			}
 		case tcell.KeyCtrlX: // Remove server
 			if !t.status.blockCond() {
-				t.hideServer(t.focus)
+				t.removeServer(t.focus)
 				t.app.SetFocus(t.comp.input)
 			}
 		}
@@ -483,5 +483,6 @@ func (t *TUI) restoreSession() {
 		str := fmt.Sprintf("%s:%d", v.Address, v.Port)
 		addr, _ := net.ResolveTCPAddr("tcp4", str)
 		t.addServer(v.Name, addr)
+		t.addBuffer("Default", false)
 	}
 }
