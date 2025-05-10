@@ -100,6 +100,7 @@ var (
 	ErrorAlreadyOnline = errors.New("connection is already established")
 	ErrorOffline       = errors.New("connection to the server is not established")
 	ErrorArguments     = errors.New("invalid number of arguments")
+	ErrorLoggedIn      = errors.New("you are already logged in")
 )
 
 type areas struct {

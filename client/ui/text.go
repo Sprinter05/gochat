@@ -153,8 +153,8 @@ func (t *TUI) systemMessage(command ...string) func(string) {
 	var prompt string
 	if len(command) != 0 {
 		prompt = fmt.Sprintf(
-			"[lighrgray::b]Command %s: ",
-			command,
+			"Running [lighrgray::b]%s[-::-]: ",
+			command[0],
 		)
 	}
 

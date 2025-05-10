@@ -568,7 +568,8 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	return ReplyData{Arguments: reply.Args}
+	split := bytes.Split(reply.Args[0], []byte("\n"))
+	return ReplyData{Arguments: split}
 }
 
 // Sends a message to a user with the current time stamp and stores it in the database.

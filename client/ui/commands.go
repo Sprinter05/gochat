@@ -22,10 +22,8 @@ type operation struct {
 	format string
 }
 
-// TODO: Command not showing in system print
-// TODO: last user in online/all not showing
+// TODO: default buffer for servers
 // TODO: login prompt for register
-// TODO: speciel debug bool for packet print
 
 var commands map[string]operation = map[string]operation{
 	"list": {
@@ -114,6 +112,11 @@ func loginUser(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
 	if !ok {
 		cmd.print(ErrorOffline.Error())
+		return
+	}
+
+	if data.IsUserLoggedIn() {
+		cmd.print(ErrorLoggedIn.Error())
 		return
 	}
 
