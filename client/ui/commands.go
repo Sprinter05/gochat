@@ -11,6 +11,9 @@ import (
 type Command struct {
 	Operation string
 	Arguments []string
+
+	serv  Server
+	print func(string)
 }
 
 type operation struct {
@@ -20,20 +23,25 @@ type operation struct {
 }
 
 var commands map[string]operation = map[string]operation{
-	"list": operation{
+	"list": {
 		fun:    listBuffers,
 		nArgs:  0,
 		format: "/list",
 	},
-	"connect": operation{
+	"connect": {
 		fun:    connectServer,
 		nArgs:  0,
 		format: "/connect",
 	},
-	"register": operation{
+	"register": {
 		fun:    registerUser,
 		nArgs:  2,
 		format: "/register <username> <password>",
+	},
+	"users": {
+		fun:    listUsers,
+		nArgs:  1,
+		format: "/users <online/all/local>",
 	},
 }
 
@@ -50,6 +58,8 @@ func (t *TUI) parseCommand(text string) {
 	cmd := Command{
 		Operation: parts[0],
 		Arguments: parts[1 : l-2],
+		serv:      t.Active(),
+		print:     t.systemMessage(),
 	}
 
 	op, ok := commands[cmd.Operation]
@@ -59,61 +69,92 @@ func (t *TUI) parseCommand(text string) {
 	}
 
 	if len(cmd.Arguments) < int(op.nArgs) {
-		print := t.systemMessage()
 		str := fmt.Sprintf("%s: %s", ErrorArguments, op.format)
-		print(str)
+		cmd.print(str)
 		return
 	}
 
 	go op.fun(t, cmd)
 }
 
+// AUX
+
+func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
+	array := make([][]byte, len(c.Arguments))
+	for i, v := range c.Arguments {
+		array[i] = []byte(v)
+	}
+
+	return cmds.Command{
+		Data:   d,
+		Static: t.data,
+		Output: c.print,
+	}, array
+}
+
+func (c Command) printResult(arr ...[]byte) {
+	for _, v := range arr {
+		c.print(string(v))
+	}
+}
+
 // COMMANDS
 
-func registerUser(t *TUI, cmd Command) {
-	print := t.systemMessage()
-	s := t.Active()
-	data, ok := s.Online()
-
-	if !ok {
-		print(ErrorOffline.Error())
+func listUsers(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if !ok && cmd.Arguments[0] != "local" {
+		cmd.print(ErrorOffline.Error())
 		return
 	}
 
-	r := cmds.Reg(cmds.Command{
-		Data:   data,
-		Static: t.data,
-		Output: print,
-	})
+	c, args := cmd.createCmd(t, data)
+	r := cmds.Usrs(c, args...)
 
+	if r.Error != nil {
+		cmd.print(r.Error.Error())
+		return
+	}
+
+	cmd.printResult(r.Arguments...)
+}
+
+func registerUser(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if !ok {
+		cmd.print(ErrorOffline.Error())
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	r := cmds.Reg(c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error())
+		return
+	}
 }
 
 // TODO: handle disconnection
 func connectServer(t *TUI, cmd Command) {
-	print := t.systemMessage()
-	s := t.Active()
-	addr := s.Source()
+	addr := cmd.serv.Source()
 	if addr == nil {
-		print(ErrorLocal.Error())
+		cmd.print(ErrorLocal.Error())
 		return
 	}
 
 	parts := strings.Split(addr.String(), ":")
-	data, ok := s.Online()
+	data, ok := cmd.serv.Online()
 	if ok {
-		print(ErrorAlreadyOnline.Error())
+		cmd.print(ErrorAlreadyOnline.Error())
 		return
 	}
 
-	print("attempting to connect...")
-	r := cmds.Conn(cmds.Command{
-		Data:   data,
-		Static: t.data,
-		Output: print,
-	}, []byte(parts[0]), []byte(parts[1]))
+	cmd.print("attempting to connect...")
+	c, _ := cmd.createCmd(t, data)
+	r := cmds.Conn(c, []byte(parts[0]), []byte(parts[1]))
 
 	if r.Error != nil {
-		print(r.Error.Error())
+		cmd.print(r.Error.Error())
 		return
 	}
 
@@ -122,8 +163,7 @@ func connectServer(t *TUI, cmd Command) {
 
 func listBuffers(t *TUI, cmd Command) {
 	var list strings.Builder
-	print := t.systemMessage()
-	bufs := t.Active().Buffers()
+	bufs := cmd.serv.Buffers()
 	l := bufs.tabs.GetAll()
 
 	for i, v := range l {
@@ -142,5 +182,5 @@ func listBuffers(t *TUI, cmd Command) {
 
 	content := list.String()
 
-	print(content[:len(content)-1])
+	cmd.print(content[:len(content)-1])
 }
