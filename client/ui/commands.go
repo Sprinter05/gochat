@@ -38,8 +38,8 @@ var commands map[string]operation = map[string]operation{
 	},
 	"register": {
 		fun:    registerUser,
-		nArgs:  2,
-		format: "/register <username> <password>",
+		nArgs:  1,
+		format: "/register <username>",
 	},
 	"users": {
 		fun:    listUsers,
@@ -50,6 +50,16 @@ var commands map[string]operation = map[string]operation{
 		fun:    loginUser,
 		nArgs:  1,
 		format: "/login <user>",
+	},
+	"logout": {
+		fun:    logoutUser,
+		nArgs:  0,
+		format: "/logout",
+	},
+	"disconnect": {
+		fun:    disconnectServer,
+		nArgs:  0,
+		format: "/disconnect",
 	},
 }
 
@@ -108,15 +118,54 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 
 // COMMANDS
 
+func disconnectServer(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error())
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	r := cmds.Discn(c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error())
+		return
+	}
+
+	t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+}
+
+func logoutUser(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error())
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	r := cmds.Logout(c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error())
+		return
+	}
+}
+
 func loginUser(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
-	if !ok {
-		cmd.print(ErrorOffline.Error())
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error())
 		return
 	}
 
 	if data.IsUserLoggedIn() {
 		cmd.print(ErrorLoggedIn.Error())
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error())
 		return
 	}
 
@@ -136,12 +185,7 @@ func loginUser(t *TUI, cmd Command) {
 }
 
 func listUsers(t *TUI, cmd Command) {
-	data, ok := cmd.serv.Online()
-	if !ok && cmd.Arguments[0] != "local" {
-		cmd.print(ErrorOffline.Error())
-		return
-	}
-
+	data, _ := cmd.serv.Online()
 	if data == nil {
 		cmd.print(ErrorLocalServer.Error())
 		return
@@ -167,13 +211,24 @@ func listUsers(t *TUI, cmd Command) {
 
 func registerUser(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error())
+		return
+	}
+
 	if !ok {
 		cmd.print(ErrorOffline.Error())
 		return
 	}
 
+	pswd, err := newLoginPopup(t)
+	if err != nil {
+		cmd.print(err.Error())
+		return
+	}
+
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Reg(c, args...)
+	r := cmds.Reg(c, args[0], []byte(pswd))
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error())
