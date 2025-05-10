@@ -160,6 +160,7 @@ func newServerPopup(t *TUI) {
 
 			t.addServer(name, addr)
 			t.addBuffer("Default", false)
+			welcomeMessage(t)
 
 			pExit()
 		})

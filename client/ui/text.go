@@ -7,6 +7,80 @@ import (
 	"time"
 )
 
+/* TEXT */
+
+const KeybindHelp string = `
+[-::u]Keybinds Manual:[-::-]
+
+[yellow::b]Ctrl-Alt-H/Ctrl-Shift-H[-::-]: Show/Hide help window
+
+[yellow::b]Ctrl-Q[-::-]: Exit program
+
+[yellow::b]Ctrl-T[-::-]: Focus chat/input window
+	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
+	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
+
+[yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
+	- [green]Esc[-::-] to cancel
+	- [green]Enter[-::-] to confirm
+
+[yellow::b]Ctrl-K + Ctrl-X[-::-]: Hide currently focused buffer
+	- It can be shown again by creating a buffer with the same name
+
+[yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
+	- Press [green]Esc[-::-] to cancel the jump
+
+[yellow::b]Ctrl-S + Ctrl-N[-::-]: Create a new server
+	- [green]Esc[-::-] to cancel
+	- [green]Enter[-::-] to confirm the different steps
+	
+[yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server
+	
+[yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
+	- Press [green]Esc[-::-] to cancel the jump
+	
+[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
+
+[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
+
+[yellow::b]Ctrl-B[-::-]: Show/Hide buffer list
+
+[yellow::b]Ctrl-U[-::-]: Show/Hide user list
+
+[yellow::b]Ctrl-R[-::-]: Redraw screen
+`
+
+const CommandHelp string = `
+[-::u]Commands Manual:[-::-]
+
+[yellow::b]/buflist[-::-]: Displays a list of all buffers in the current server
+	- Those that have been hidden will also be displayed
+	
+[yellow::b]/connect[-::-]: Connects to the currently active server using its address
+	- This will fail if the server is local
+
+[yellow::b]/register[-::-] [green]<username>[-]: Creates a new account in the currently active server
+	- A popup asking for a password to register will show up when creating a new account
+	- No two accounts with the same name can exist in one single server
+	- You need an active connection to use this command
+	
+[yellow::b]/login[-::-] [green]<username>[-]: Tries to login in the server with an account
+	- A popup asking for the password asocciated to the account will show up
+	- You need an active connection to use this command
+
+[yellow::b]/logout[-::-]: Logs out of your account in the currently active server
+	- You need an active connection to use this command
+
+[yellow::b]/disconnect[-::-]: Interrumps the connection with the currently active server
+	- You need an active connection to use this command
+
+[yellow::b]/users[-::-] [green]<local/online/all>[-]: Shows a list of users according to the specified filter
+	- Local will display accounts created for this server in this client
+	- Online will display all connected accounts in the server
+	- All will display all accounts registered in the server
+	- You need an active connection to use this command unless you are displaying local users
+`
+
 /* MESSAGES */
 
 // Identifies a TUI message.
@@ -16,6 +90,22 @@ type Message struct {
 	Content   string    // Message text
 	Timestamp time.Time // Time when it occurred
 	Source    net.Addr  // Destination server
+}
+
+func welcomeMessage(t *TUI) {
+	s := t.Active()
+
+	text := "You are currently in the default channel for this server.\n" +
+		"Use [yellow]/connect[-] to establish connection to the server.\n" +
+		"You may then use [yellow]/register[-] or [yellow]/login[-] to use an account.\n"
+
+	t.SendMessage(Message{
+		Buffer:    "Default",
+		Sender:    "System",
+		Content:   text,
+		Timestamp: time.Now(),
+		Source:    s.Source(),
+	})
 }
 
 // Binds a function that sends System message to the server
@@ -142,7 +232,11 @@ func (t *TUI) toggleHelp() {
 		t.comp.text.Clear()
 		t.area.bottom.ResizeItem(t.comp.input, 0, 0)
 		t.comp.text.SetTitle("Help")
-		fmt.Fprint(t.comp.text, Help[1:])
+
+		fmt.Fprint(t.comp.text, KeybindHelp[1:])
+		fmt.Fprint(t.comp.text, "\n")
+		fmt.Fprint(t.comp.text, CommandHelp[1:])
+
 		t.comp.text.ScrollToBeginning()
 	} else {
 		t.status.showingHelp = false

@@ -22,13 +22,11 @@ type operation struct {
 	format string
 }
 
-// TODO: default buffer for servers
-
 var commands map[string]operation = map[string]operation{
-	"list": {
+	"buflist": {
 		fun:    listBuffers,
 		nArgs:  0,
-		format: "/list",
+		format: "/buflist",
 	},
 	"connect": {
 		fun:    connectServer,

@@ -25,53 +25,6 @@ const Logo string = `
 
 `
 
-const Help string = `
-[-::u]Keybinds Manual:[-::-]
-
-[yellow::b]Ctrl-Alt-H/Ctrl-Shift-H[-::-]: Show/Hide help window
-
-[yellow::b]Ctrl-Q[-::-]: Exit program
-
-[yellow::b]Ctrl-T[-::-]: Focus chat/input window
-	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
-	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
-
-
-[yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
-	- [green]Esc[-::-] to cancel
-	- [green]Enter[-::-] to confirm
-
-[yellow::b]Ctrl-K + Ctrl-X[-::-]: Hide currently focused buffer
-	- It can be shown again by creating a buffer with the same name
-
-[yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
-	- Press [green]Esc[-::-] to cancel the jump
-
-[yellow::b]Ctrl-S + Ctrl-N[-::-]: Create a new server
-	- [green]Esc[-::-] to cancel
-	- [green]Enter[-::-] to confirm the different steps
-	
-[yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server
-	
-[yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
-	- Press [green]Esc[-::-] to cancel the jump
-	
-[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
-
-[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
-
-[yellow::b]Ctrl-B[-::-]: Show/Hide buffer list
-
-[yellow::b]Ctrl-U[-::-]: Show/Hide user list
-
-[yellow::b]Ctrl-R[-::-]: Redraw screen
-
-[-::u]Commands Manual:[-::-]
-
-[yellow::b]/list[-::-]: Displays a list of all buffers in the current server
-	- Those that have been hidden will also be displayed
-`
-
 const (
 	selfSender     string = "You"    // Self sender of a message
 	systemBuffer   string = "System" // System buffer name
@@ -484,5 +437,6 @@ func (t *TUI) restoreSession() {
 		addr, _ := net.ResolveTCPAddr("tcp4", str)
 		t.addServer(v.Name, addr)
 		t.addBuffer("Default", false)
+		welcomeMessage(t)
 	}
 }
