@@ -464,4 +464,6 @@ func (t *TUI) restoreSession() {
 		addr, _ := net.ResolveTCPAddr("tcp4", str)
 		t.addServer(v.Name, addr)
 	}
+
+	t.renderServer(localServer)
 }

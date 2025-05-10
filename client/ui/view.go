@@ -11,6 +11,8 @@ import (
 	"github.com/rivo/tview"
 )
 
+// TODO: Order buffers when rendering server
+
 type state struct {
 	showingUsers bool
 	showingBufs  bool
@@ -135,12 +137,7 @@ func newServerPopup(t *TUI) {
 			}
 
 			t.addServer(name, addr)
-			i, ok := t.findServer(name)
-			if ok {
-				t.comp.servers.SetCurrentItem(i)
-			}
 
-			t.renderServer(name)
 			pExit()
 		})
 	})

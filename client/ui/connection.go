@@ -69,6 +69,8 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 	t.servers.Add(name, s)
 	l := t.servers.Len()
 	t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
+
+	t.renderServer(name)
 }
 
 func (t *TUI) renderServer(name string) {
@@ -76,7 +78,13 @@ func (t *TUI) renderServer(name string) {
 	if !ok {
 		return
 	}
+
 	t.focus = name
+
+	index, ok := t.findServer(name)
+	if ok {
+		t.comp.servers.SetCurrentItem(index)
+	}
 
 	_, online := s.Online()
 	if online {
