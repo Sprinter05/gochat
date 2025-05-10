@@ -23,7 +23,6 @@ type operation struct {
 }
 
 // TODO: default buffer for servers
-// TODO: login prompt for register
 
 var commands map[string]operation = map[string]operation{
 	"list": {
