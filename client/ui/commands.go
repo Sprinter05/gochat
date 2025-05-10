@@ -51,18 +51,17 @@ var commands map[string]operation = map[string]operation{
 }
 
 func (t *TUI) parseCommand(text string) {
-	lower := strings.ToLower(text)
-	parts := strings.Split(lower, " ")
+	parts := strings.Split(text, " ")
 
-	if parts[0] == "" {
+	operation := strings.ToLower(parts[0])
+	if operation == "" {
 		t.showError(ErrorEmptyCmd)
 		return
 	}
 
-	l := len(parts)
 	cmd := Command{
-		Operation: parts[0],
-		Arguments: parts[1 : l-2],
+		Operation: operation,
+		Arguments: parts[1:],
 		serv:      t.Active(),
 		print:     t.systemMessage(),
 	}
@@ -74,7 +73,14 @@ func (t *TUI) parseCommand(text string) {
 	}
 
 	if len(cmd.Arguments) < int(op.nArgs) {
-		str := fmt.Sprintf("%s: %s", ErrorArguments, op.format)
+		var builder strings.Builder
+		parts := strings.Split(op.format, " ")
+		builder.WriteString("[yellow]" + parts[0] + "[-]")
+		for _, v := range parts[1:] {
+			builder.WriteString(" [green]" + v + "[-]")
+		}
+
+		str := fmt.Sprintf("%s: %s", ErrorArguments, builder.String())
 		cmd.print(str)
 		return
 	}
@@ -95,12 +101,6 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 		Static: t.data,
 		Output: c.print,
 	}, array
-}
-
-func (c Command) printResult(arr ...[]byte) {
-	for _, v := range arr {
-		c.print(string(v))
-	}
 }
 
 // COMMANDS
@@ -134,6 +134,11 @@ func listUsers(t *TUI, cmd Command) {
 		return
 	}
 
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error())
+		return
+	}
+
 	c, args := cmd.createCmd(t, data)
 	r := cmds.Usrs(c, args...)
 
@@ -142,7 +147,14 @@ func listUsers(t *TUI, cmd Command) {
 		return
 	}
 
-	cmd.printResult(r.Arguments...)
+	var list strings.Builder
+	list.WriteString("Showing " + cmd.Arguments[0] + " users:\n")
+	for _, v := range r.Arguments {
+		list.WriteString("- [pink::i]" + string(v) + "[-::-]\n")
+	}
+
+	l := list.Len()
+	cmd.print(list.String()[:l-1])
 }
 
 func registerUser(t *TUI, cmd Command) {
@@ -165,7 +177,7 @@ func registerUser(t *TUI, cmd Command) {
 func connectServer(t *TUI, cmd Command) {
 	addr := cmd.serv.Source()
 	if addr == nil {
-		cmd.print(ErrorLocal.Error())
+		cmd.print(ErrorLocalServer.Error())
 		return
 	}
 

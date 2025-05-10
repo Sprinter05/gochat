@@ -98,7 +98,6 @@ var (
 	ErrorEmptyCmd      = errors.New("empty command given")
 	ErrorInvalidCmd    = errors.New("invalid command given")
 	ErrorAlreadyOnline = errors.New("connection is already established")
-	ErrorLocal         = errors.New("cannot connect on local server")
 	ErrorOffline       = errors.New("connection to the server is not established")
 	ErrorArguments     = errors.New("invalid number of arguments")
 )

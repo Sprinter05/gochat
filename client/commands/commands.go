@@ -536,9 +536,8 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 	case "all":
 		option = 0x00
 	case "local":
-		cmd.Output("local users:")
-		printLocalUsers(cmd)
-		return ReplyData{}
+		users := printLocalUsers(cmd)
+		return ReplyData{Arguments: users}
 
 	default:
 		return ReplyData{Error: ErrorUnknownUSRSOption}
@@ -650,11 +649,13 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 }
 
 // Prints out all local users.
-func printLocalUsers(cmd Command) {
+func printLocalUsers(cmd Command) [][]byte {
 	localUsers := db.GetAllLocalUsernames(cmd.Static.DB)
-	for i := range localUsers {
-		cmd.Output(fmt.Sprintf(localUsers[i]))
+	users := make([][]byte, 0, len(localUsers))
+	for _, v := range localUsers {
+		users = append(users, []byte(v))
 	}
+	return users
 }
 
 // Prints a packet.

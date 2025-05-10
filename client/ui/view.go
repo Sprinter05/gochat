@@ -2,6 +2,7 @@ package ui
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
@@ -146,6 +147,10 @@ func newServerPopup(t *TUI) {
 }
 
 func newLoginPopup(t *TUI) (pswd string, err error) {
+	cond := sync.NewCond(new(sync.Mutex))
+	cond.L.Lock()
+	defer cond.L.Unlock()
+
 	input, exit := createPopup(t,
 		&t.status.typingPassword,
 		"Enter password...",
@@ -153,9 +158,13 @@ func newLoginPopup(t *TUI) (pswd string, err error) {
 
 	input.SetMaskCharacter('*')
 	input.SetDoneFunc(func(key tcell.Key) {
+		cond.L.Lock()
+		defer cond.L.Unlock()
+
 		if key == tcell.KeyEscape {
 			err = ErrorNoText
 			exit()
+			cond.Signal()
 			return
 		}
 
@@ -167,8 +176,11 @@ func newLoginPopup(t *TUI) (pswd string, err error) {
 
 		pswd = text
 		err = nil
+		cond.Signal()
+		exit()
 	})
 
+	cond.Wait()
 	return pswd, err
 }
 
