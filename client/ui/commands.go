@@ -22,6 +22,11 @@ type operation struct {
 	format string
 }
 
+// TODO: Command not showing in system print
+// TODO: last user in online/all not showing
+// TODO: login prompt for register
+// TODO: speciel debug bool for packet print
+
 var commands map[string]operation = map[string]operation{
 	"list": {
 		fun:    listBuffers,
@@ -63,7 +68,7 @@ func (t *TUI) parseCommand(text string) {
 		Operation: operation,
 		Arguments: parts[1:],
 		serv:      t.Active(),
-		print:     t.systemMessage(),
+		print:     t.systemMessage(operation),
 	}
 
 	op, ok := commands[cmd.Operation]

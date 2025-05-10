@@ -65,7 +65,7 @@ var (
 	ErrorNotLoggedIn       error = fmt.Errorf("you are not logged in")
 	ErrorAlreadyLoggedIn   error = fmt.Errorf("you are already logged in")
 	ErrorWrongCredentials  error = fmt.Errorf("wrong credentials")
-	ErrorUnknownUSRSOption error = fmt.Errorf("unknown option. make sure the option is either 'online' or 'all'")
+	ErrorUnknownUSRSOption error = fmt.Errorf("unknown option; valid options are online, all or local")
 	ErrorUsernameEmpty     error = fmt.Errorf("username cannot be empty")
 	ErrorUserExists        error = fmt.Errorf("user exists")
 	ErrorPasswordsNotMatch error = fmt.Errorf("passwords do not match")
@@ -538,7 +538,6 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 	case "local":
 		users := printLocalUsers(cmd)
 		return ReplyData{Arguments: users}
-
 	default:
 		return ReplyData{Error: ErrorUnknownUSRSOption}
 	}
@@ -569,9 +568,6 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	cmd.Output(fmt.Sprintf("%s users:", args[0]))
-	cmd.Output(string(reply.Args[0]))
-	cmd.Output("")
 	return ReplyData{Arguments: reply.Args}
 }
 

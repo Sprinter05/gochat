@@ -132,7 +132,7 @@ func (t *TUI) SendMessage(msg Message) {
 	for _, v := range list {
 		// Each server will handle if its for them
 		ok, err := v.Receive(msg)
-		if err != nil {
+		if err != nil && msg.Sender == selfSender {
 			t.showError(err)
 			return
 		}
@@ -146,14 +146,23 @@ func (t *TUI) SendMessage(msg Message) {
 	}
 }
 
-func (t *TUI) systemMessage() func(string) {
+func (t *TUI) systemMessage(command ...string) func(string) {
 	buffer := t.Buffer()
 	server := t.Active().Source()
+
+	var prompt string
+	if len(command) != 0 {
+		prompt = fmt.Sprintf(
+			"[lighrgray::b]Command %s: ",
+			command,
+		)
+	}
+
 	fun := func(s string) {
 		t.SendMessage(Message{
 			Buffer:    buffer,
 			Sender:    "System",
-			Content:   s,
+			Content:   prompt + s,
 			Timestamp: time.Now(),
 			Source:    server,
 		})
