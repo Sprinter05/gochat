@@ -11,8 +11,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// TODO: Order buffers when rendering server
-
 /* TUI */
 
 // Identifies conditions that may in any moment

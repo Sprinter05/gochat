@@ -162,6 +162,20 @@ func (t *TUI) renderServer(name string) {
 	}
 
 	tabs := s.Buffers().tabs.GetAll()
+	slices.SortFunc(tabs, func(a, b *tab) int {
+		if a.index == -1 || b.index == -1 {
+			return 0
+		}
+
+		if a.index < b.index {
+			return -1
+		} else if a.index > b.index {
+			return 1
+		}
+
+		return 0 // Equal
+	})
+
 	for _, v := range tabs {
 		if v.index != -1 {
 			t.comp.buffers.AddItem(v.name, "", ascii(v.index), nil)
