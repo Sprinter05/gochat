@@ -112,8 +112,14 @@ func loginUser(t *TUI, cmd Command) {
 		return
 	}
 
+	pswd, err := newLoginPopup(t)
+	if err != nil {
+		cmd.print(err.Error())
+		return
+	}
+
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Login(c, args...)
+	r := cmds.Login(c, args[0], []byte(pswd))
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error())

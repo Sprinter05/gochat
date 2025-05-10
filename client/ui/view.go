@@ -16,6 +16,7 @@ type state struct {
 
 	creatingBuf    bool
 	creatingServer bool
+	typingPassword bool
 	showingHelp    bool
 
 	lastDate time.Time
@@ -34,7 +35,7 @@ type TUI struct {
 }
 
 func (s *state) blockCond() bool {
-	return s.creatingBuf || s.creatingServer || s.showingHelp
+	return s.creatingBuf || s.creatingServer || s.showingHelp || s.typingPassword
 }
 
 func createPopup(t *TUI, cond *bool, title string) (*tview.InputField, func()) {
@@ -144,8 +145,31 @@ func newServerPopup(t *TUI) {
 	})
 }
 
-func newLoginPopup(t *TUI) {
+func newLoginPopup(t *TUI) (pswd string, err error) {
+	input, exit := createPopup(t,
+		&t.status.typingPassword,
+		"Enter password...",
+	)
 
+	input.SetMaskCharacter('*')
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			err = ErrorNoText
+			exit()
+			return
+		}
+
+		text := input.GetText()
+		if text == "" {
+			t.showError(ErrorNoText)
+			return
+		}
+
+		pswd = text
+		err = nil
+	})
+
+	return pswd, err
 }
 
 // Adds and changes to new buffer on the list
