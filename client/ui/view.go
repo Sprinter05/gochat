@@ -13,34 +13,48 @@ import (
 
 // TODO: Order buffers when rendering server
 
+/* TUI */
+
+// Identifies conditions that may in any moment
+// block another action from being performed, or
+// gives instructions on how to render another element.
 type state struct {
-	showingUsers bool
-	showingBufs  bool
+	showingUsers bool // Showing user list component
+	showingBufs  bool // Showing buffer list component
 
-	creatingBuf    bool
-	creatingServer bool
-	typingPassword bool
-	showingHelp    bool
+	creatingBuf    bool // Creating a new buffer
+	creatingServer bool // Creating a new server
+	typingPassword bool // Inputting a password
+	showingHelp    bool // Showing the help window
 
-	lastDate time.Time
+	lastDate time.Time // Last rendered date in the current buffer
 }
 
+// Identifies the main TUI with all its
+// components and data.
 type TUI struct {
-	area areas
-	comp components
-	app  *tview.Application
+	area areas              // Flex boxes with components
+	comp components         // Actual tview components
+	app  *tview.Application // App that runs
 
-	status state
-	data   cmds.StaticData
+	status state           // Identifies rendering states
+	data   cmds.StaticData // Identifies command data
 
-	servers models.Table[string, Server]
-	focus   string
+	servers models.Table[string, Server] // Table storing servers
+	focus   string                       // Currently active server
 }
 
+// Condition that prevents another operation from being performed
+// depending on the state of the TUI.
 func (s *state) blockCond() bool {
 	return s.creatingBuf || s.creatingServer || s.showingHelp || s.typingPassword
 }
 
+/* POPUPS */
+
+// Creates a basic popup with its corresponding blocking condition
+// and puts the app's focus in said new popup. Returns the popup and
+// a function to exit it.
 func createPopup(t *TUI, cond *bool, title string) (*tview.InputField, func()) {
 	*cond = true
 
@@ -68,6 +82,9 @@ func createPopup(t *TUI, cond *bool, title string) (*tview.InputField, func()) {
 	return input, exit
 }
 
+// Popup to create a new buffer that asks for the name of the
+// buffer and then creates it, adds it to the TUI, and changes
+// to it.
 func newbufPopup(t *TUI) {
 	input, exit := createPopup(t,
 		&t.status.creatingBuf,
@@ -92,12 +109,16 @@ func newbufPopup(t *TUI) {
 	})
 }
 
+// Popup to create a new server that asks for the
+// name of the server and the address, then creates
+// it, adds it to the TUI and changes to it.
 func newServerPopup(t *TUI) {
 	sInput, sExit := createPopup(t,
 		&t.status.creatingServer,
 		"Enter server name...",
 	)
 
+	// Asks for name
 	sInput.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEscape {
 			sExit()
@@ -117,6 +138,7 @@ func newServerPopup(t *TUI) {
 			"Enter server IP and port...",
 		)
 
+		// Asks for address
 		pInput.SetDoneFunc(func(key tcell.Key) {
 			if key == tcell.KeyEscape {
 				pExit()
@@ -143,6 +165,10 @@ func newServerPopup(t *TUI) {
 	})
 }
 
+// Popup that asks for a password. This popup is blocking, meaning
+// that until the popup exits the function itself will not exit.
+// Therefore this shouldn't run in the main thread as it will
+// block all other components.
 func newLoginPopup(t *TUI) (pswd string, err error) {
 	cond := sync.NewCond(new(sync.Mutex))
 	cond.L.Lock()
@@ -179,77 +205,4 @@ func newLoginPopup(t *TUI) (pswd string, err error) {
 
 	cond.Wait()
 	return pswd, err
-}
-
-// Adds and changes to new buffer on the list
-func (t *TUI) addBuffer(name string, system bool) {
-	s := t.Active()
-	if s.Buffers().open >= int(maxBuffers) {
-		t.showError(ErrorMaxBufs)
-		return
-	}
-
-	err := s.Buffers().New(name, system)
-	_, ok := t.findBuffer(name)
-	if err != nil && ok {
-		t.showError(err)
-		return
-	}
-
-	i, r := s.Buffers().Show(name)
-	if i == -1 {
-		return
-	}
-
-	t.comp.buffers.AddItem(name, "", r, nil)
-	t.changeBuffer(i)
-}
-
-// Changes to buffers on the list
-func (t *TUI) changeBuffer(i int) {
-	if i < 0 || i >= t.comp.buffers.GetItemCount() {
-		return
-	}
-
-	t.comp.buffers.SetCurrentItem(i)
-	text, _ := t.comp.buffers.GetItemText(i)
-	t.renderBuffer(text)
-}
-
-func (t *TUI) findBuffer(name string) (int, bool) {
-	l := t.comp.buffers.FindItems(name, "", true, false)
-
-	if len(l) != 0 {
-		return l[0], true
-	}
-
-	return -1, false
-}
-
-// Removes and changes buffer on the list
-func (t *TUI) removeBuffer(name string) {
-	err := t.Active().Buffers().Hide(name)
-	if err != nil {
-		t.showError(err)
-		return
-	}
-
-	count := t.comp.buffers.GetItemCount()
-	if count == 1 {
-		t.comp.text.Clear()
-		t.Active().Buffers().current = ""
-
-	} else {
-		curr := t.comp.buffers.GetCurrentItem()
-		if curr == 0 {
-			t.changeBuffer(curr + 1)
-		} else {
-			t.changeBuffer(curr - 1)
-		}
-	}
-
-	i, ok := t.findBuffer(name)
-	if ok {
-		t.comp.buffers.RemoveItem(i)
-	}
 }

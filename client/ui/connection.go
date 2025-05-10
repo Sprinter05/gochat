@@ -12,25 +12,43 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// SERVER INTERFACE
+/* INTERFACE */
 
+// Identifies the operations a server
+// must fulfill in order to be considered
+// a server by the TUI.
 type Server interface {
+	// Returns all messages contained in the specified buffer
 	Messages(string) []Message
+
+	// Tries to receive a message and indicates if it was for them
+	// and if any error occurred
 	Receive(Message) (bool, error)
+
+	// Returns the internal buffer struct they may contain
 	Buffers() *Buffers
+
+	// Returns the address corresponding to their endpoint
 	Source() net.Addr
+
+	// Returns the command asocciated data and whether
+	// they are connected to the endpoint or not
 	Online() (*cmds.Data, bool)
 }
 
+// Returns the currently active server.
 func (t *TUI) Active() Server {
 	s, ok := t.servers.Get(t.focus)
 	if !ok {
+		// This condition should never trigger
 		panic("active server does not exist")
 	}
 
 	return s
 }
 
+// Adds a server connected to a remote endpoint, stores it in
+// the database, adds it to the TUI and changes to it.
 func (t *TUI) addServer(name string, addr net.Addr) {
 	if t.servers.Len() >= int(maxServers) {
 		t.showError(ErrorMaxServers)
@@ -73,6 +91,50 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 	t.renderServer(name)
 }
 
+// Finds a server by a given name and returns its internal
+// index and whether it was found or not.
+func (t *TUI) findServer(name string) (int, bool) {
+	l := t.comp.servers.FindItems(name, "", false, false)
+
+	if len(l) != 0 {
+		return l[0], true
+	}
+
+	return -1, false
+}
+
+// Deletes a server and all its contents (not in the database).
+// It then changes to the "Local" server by default. This also
+// implies the "Local" server cannot be hidden.
+func (t *TUI) hideServer(name string) {
+	s, ok := t.servers.Get(name)
+	if !ok {
+		return
+	}
+
+	_, chk := s.(*LocalServer)
+	if chk {
+		t.showError(ErrorLocalServer)
+		return
+	}
+
+	i, ok := t.findServer(name)
+	if ok {
+		t.comp.servers.RemoveItem(i)
+	}
+
+	t.servers.Remove(name)
+
+	// addr := s.Source()
+	// ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
+	// db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
+
+	t.renderServer(localServer)
+}
+
+// Changes to a server specified by its name and updates all
+// TUI components accordingly. It also renders the last
+// buffer that was in use.
 func (t *TUI) renderServer(name string) {
 	s, ok := t.servers.Get(name)
 	if !ok {
@@ -114,44 +176,7 @@ func (t *TUI) renderServer(name string) {
 	t.changeBuffer(i)
 }
 
-func (t *TUI) findServer(name string) (int, bool) {
-	l := t.comp.servers.FindItems(name, "", false, false)
-
-	if len(l) != 0 {
-		return l[0], true
-	}
-
-	return -1, false
-}
-
-func (t *TUI) removeServer(name string) {
-	s, ok := t.servers.Get(name)
-	if !ok {
-		return
-	}
-
-	_, chk := s.(*LocalServer)
-	if chk {
-		t.showError(ErrorLocalServer)
-		return
-	}
-
-	i, ok := t.findServer(name)
-	if ok {
-		t.comp.servers.RemoveItem(i)
-	}
-
-	t.servers.Remove(name)
-
-	addr := s.Source()
-	ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
-
-	db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
-	t.comp.servers.SetCurrentItem(0)
-	t.renderServer(localServer)
-}
-
-// REMOTE SERVER
+/* REMOTE SERVER */
 
 type RemoteServer struct {
 	ip   net.IP
@@ -225,7 +250,7 @@ func (s *RemoteServer) Source() net.Addr {
 	return ip
 }
 
-// LOCAL SERVER
+/* LOCAL SERVER */
 
 type LocalServer struct {
 	name string

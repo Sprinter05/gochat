@@ -73,17 +73,15 @@ const Help string = `
 `
 
 const (
-	selfSender     string = "You"
-	systemBuffer   string = "System"
-	localServer    string = "Local"
-	inputSize      int    = 4
-	errorMessage   uint   = 3    // seconds
-	asciiNumbers   int    = 0x30 // Start of ASCII for number 1
-	asciiLowercase int    = 0x61 // Start of ASCII for lowercase a
-	maxBuffers     uint   = 35
-	maxServers     uint   = 9
-	maxMsgs        uint   = 5
-	maxCmds        uint   = 10
+	selfSender     string = "You"    // Self sender of a message
+	systemBuffer   string = "System" // System buffer name
+	localServer    string = "Local"  // Local server name
+	inputSize      int    = 4        // size in the TUI of the input bar
+	errorMessage   uint   = 3        // seconds
+	asciiNumbers   int    = 0x30     // Start of ASCII for number 1
+	asciiLowercase int    = 0x61     // Start of ASCII for lowercase a
+	maxBuffers     uint   = 35       // Maximum amount of allowed buffers in one server
+	maxServers     uint   = 9        // Maximum amount of allowed servers
 )
 
 var (
@@ -103,23 +101,26 @@ var (
 	ErrorLoggedIn      = errors.New("you are already logged in")
 )
 
+// Identifies the areas where components are located.
 type areas struct {
-	main   *tview.Flex
-	bottom *tview.Flex
-	left   *tview.Flex
+	main   *tview.Flex // main area composed of every component
+	bottom *tview.Flex // bottom area composed of text, input and errors
+	left   *tview.Flex // left area composed of buffers and servers
 }
 
+// Identifies the individual components of the TUI.
 type components struct {
-	buffers *tview.List
-	servers *tview.List
+	buffers *tview.List // list of buffers
+	servers *tview.List // list of servers
 
-	text   *tview.TextView
-	errors *tview.TextView
-	input  *tview.TextArea
+	text   *tview.TextView // shows messages
+	errors *tview.TextView // shows TUI errors
+	input  *tview.TextArea // input area to type
 
-	users *tview.List
+	users *tview.List // list of users
 }
 
+// Creates all components and assigns them to each area.
 func setupLayout() (areas, components) {
 	comps := components{
 		buffers: tview.NewList(),
@@ -158,6 +159,7 @@ func setupLayout() (areas, components) {
 	return areas, comps
 }
 
+// Sets up the options for each individual component.
 func setupStyle(t *TUI) {
 	t.comp.text.
 		SetDynamicColors(true).
@@ -223,64 +225,74 @@ func setupStyle(t *TUI) {
 		SetBorder(false)
 }
 
+// Sets up the handling functions for each component.
 func setupHandlers(t *TUI) {
+	// Runs after selecting a buffer
 	t.comp.buffers.SetDoneFunc(func() {
 		t.app.SetFocus(t.comp.input)
 	})
 
+	// Runs after selecting a server
 	t.comp.servers.SetDoneFunc(func() {
 		t.app.SetFocus(t.comp.input)
 	})
 
+	// Runs when selecting a buffer
 	t.comp.buffers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.renderBuffer(s1)
 		t.app.SetFocus(t.comp.input)
 	})
 
+	// Runs when selecting a server
 	t.comp.servers.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
 		t.renderServer(s1)
 		t.app.SetFocus(t.comp.input)
 	})
 
+	// Keybinds for the buffer list
 	t.comp.buffers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlN:
+		case tcell.KeyCtrlN: // New buffer
 			if !t.status.blockCond() {
 				newbufPopup(t)
 			}
-		case tcell.KeyCtrlX:
+		case tcell.KeyCtrlX: // Hide buffer
 			if !t.status.blockCond() {
-				t.removeBuffer(t.Buffer())
+				t.hideBuffer(t.Buffer())
 				t.app.SetFocus(t.comp.input)
 			}
 		}
 		return event
 	})
 
+	// Keybinds for the server list
 	t.comp.servers.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlN:
+		case tcell.KeyCtrlN: // New server
 			if !t.status.blockCond() {
 				newServerPopup(t)
 			}
-		case tcell.KeyCtrlX:
+		case tcell.KeyCtrlX: // Remove server
 			if !t.status.blockCond() {
-				t.removeServer(t.focus)
+				t.hideServer(t.focus)
 				t.app.SetFocus(t.comp.input)
 			}
 		}
 		return event
 	})
 
+	// Forces a redraw when new text shows up
 	t.comp.text.SetChangedFunc(func() {
 		t.app.Draw()
 	})
 
+	// Forces a redraw when new text shows up
 	t.comp.errors.SetChangedFunc(func() {
 		t.app.Draw()
 	})
 }
 
+// Sets up main input capture (run command, send text, newline).
 func setupInput(t *TUI) {
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -322,14 +334,15 @@ func setupInput(t *TUI) {
 	})
 }
 
+// Sets up global keybinds.
 func setupKeybinds(t *TUI) {
 	t.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyCtrlQ:
+		case tcell.KeyCtrlQ: // Exit program
 			t.app.Stop()
-		case tcell.KeyCtrlC:
+		case tcell.KeyCtrlC: // Override to nothing
 			return nil
-		case tcell.KeyCtrlU:
+		case tcell.KeyCtrlU: // Show/Hide user list
 			if t.status.showingUsers {
 				t.area.main.ResizeItem(t.comp.users, 0, 0)
 				t.status.showingUsers = false
@@ -337,7 +350,7 @@ func setupKeybinds(t *TUI) {
 				t.area.main.ResizeItem(t.comp.users, 0, 1)
 				t.status.showingUsers = true
 			}
-		case tcell.KeyCtrlB:
+		case tcell.KeyCtrlB: // Show/Hide buffer list
 			if t.status.showingBufs {
 				t.area.main.ResizeItem(t.area.left, 0, 0)
 				t.status.showingBufs = false
@@ -345,7 +358,7 @@ func setupKeybinds(t *TUI) {
 				t.area.main.ResizeItem(t.area.left, 0, 2)
 				t.status.showingBufs = true
 			}
-		case tcell.KeyCtrlT:
+		case tcell.KeyCtrlT: // Changes input between messages and inpit
 			if t.status.blockCond() {
 				break
 			}
@@ -357,7 +370,7 @@ func setupKeybinds(t *TUI) {
 				t.app.SetFocus(t.comp.input)
 				return nil
 			}
-		case tcell.KeyCtrlS:
+		case tcell.KeyCtrlS: // Choose a server
 			if t.status.blockCond() {
 				break
 			}
@@ -366,7 +379,7 @@ func setupKeybinds(t *TUI) {
 				t.app.SetFocus(t.comp.servers)
 				return nil
 			}
-		case tcell.KeyCtrlH:
+		case tcell.KeyCtrlH: // Show help
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
 				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				t.app.SetFocus(t.comp.text)
@@ -375,7 +388,7 @@ func setupKeybinds(t *TUI) {
 					t.app.SetFocus(t.comp.input)
 				}
 			}
-		case tcell.KeyCtrlK:
+		case tcell.KeyCtrlK: // Choose a buffer
 			if t.status.blockCond() {
 				break
 			}
@@ -384,7 +397,7 @@ func setupKeybinds(t *TUI) {
 				t.app.SetFocus(t.comp.buffers)
 				return nil
 			}
-		case tcell.KeyDown:
+		case tcell.KeyDown: // Go one buffer down
 			if t.status.blockCond() {
 				break
 			}
@@ -393,7 +406,7 @@ func setupKeybinds(t *TUI) {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr + 1)
 			}
-		case tcell.KeyUp:
+		case tcell.KeyUp: // GO one buffer up
 			if t.status.blockCond() {
 				break
 			}
@@ -402,13 +415,15 @@ func setupKeybinds(t *TUI) {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr - 1)
 			}
-		case tcell.KeyCtrlR:
+		case tcell.KeyCtrlR: // Reload TUI
 			t.app.Sync()
 		}
 		return event
 	})
 }
 
+// Creates a new TUI and tview application by its given static data.
+// This is needed to run the program in TUI mode.
 func New(static cmds.StaticData) (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 	t := &TUI{
@@ -436,7 +451,7 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 	setupStyle(t)
 	setupInput(t)
 
-	// system server
+	// Local server that runs on the app
 	t.servers.Add(localServer, &LocalServer{
 		name: localServer,
 		bufs: Buffers{
@@ -448,14 +463,19 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 	l := t.servers.Len()
 	t.comp.servers.AddItem(localServer, "System Server", ascii(l), nil)
 
+	// Welcome messages
 	print := t.systemMessage()
 	print("Welcome to gochat!")
+	print("Press [green]Ctrl-Shift/Alt-H[-] to show help!")
 	print("Restoring previous session...")
+
 	t.restoreSession()
+	t.renderServer(localServer)
 
 	return t, app
 }
 
+// Restores all database entries that are relevant.
 func (t *TUI) restoreSession() {
 	// Restore servers
 	list := db.GetAllServers(t.data.DB)
@@ -464,6 +484,4 @@ func (t *TUI) restoreSession() {
 		addr, _ := net.ResolveTCPAddr("tcp4", str)
 		t.addServer(v.Name, addr)
 	}
-
-	t.renderServer(localServer)
 }
