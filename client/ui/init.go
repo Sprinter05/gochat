@@ -31,6 +31,7 @@ const (
 	systemBuffer   string  = "System" // System buffer name
 	localServer    string  = "Local"  // Local server name
 	inputSize      int     = 4        // size in the TUI of the input bar
+	textSize       int     = 30       // Size of the text window
 	errorMessage   uint    = 3        // seconds
 	asciiNumbers   int     = 0x30     // Start of ASCII for number 1
 	asciiLowercase int     = 0x61     // Start of ASCII for lowercase a
@@ -87,7 +88,7 @@ func setupLayout() (areas, components) {
 
 	bottom := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(comps.text, 0, 30, false).
+		AddItem(comps.text, 0, textSize, false).
 		AddItem(comps.errors, 0, 0, false).
 		AddItem(comps.input, inputSize, 0, true)
 	bottom.SetBackgroundColor(tcell.ColorDefault)

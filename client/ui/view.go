@@ -77,11 +77,13 @@ func createPopup(t *TUI, cond *bool, title string) (*tview.InputField, func()) {
 	t.area.bottom.ResizeItem(t.comp.input, 0, 0)
 	t.area.bottom.AddItem(input, 2, 0, true)
 	t.app.SetFocus(input)
+	t.app.EnableMouse(false)
 
 	exit := func() {
 		t.area.bottom.RemoveItem(input)
 		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
 		t.app.SetFocus(t.comp.input)
+		t.app.EnableMouse(true)
 		*cond = false
 	}
 
@@ -226,16 +228,17 @@ func createConfirmWindow(t *TUI, cond *bool, title string) (*tview.Modal, func()
 		SetText(title).
 		AddButtons([]string{"Yes", "No"})
 	window.SetBackgroundColor(tcell.ColorDefault).
+		SetBorderStyle(tcell.StyleDefault).
 		SetBorder(true)
 
-	t.area.bottom.ResizeItem(t.comp.input, 0, 0)
-	t.area.bottom.AddItem(window, 2, 0, true)
+	t.area.main.AddItem(window, 0, 0, true)
 	t.app.SetFocus(window)
+	t.app.EnableMouse(false)
 
 	exit := func() {
-		t.area.bottom.RemoveItem(window)
-		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
+		t.area.main.RemoveItem(window)
 		t.app.SetFocus(t.comp.input)
+		t.app.EnableMouse(true)
 		*cond = false
 	}
 
@@ -247,7 +250,7 @@ func createConfirmWindow(t *TUI, cond *bool, title string) (*tview.Modal, func()
 func deleteServWindow(t *TUI) {
 	window, exit := createConfirmWindow(t,
 		&t.status.deletingServer,
-		"Do you want to permanently delete this server?",
+		"Do you want to permanently\ndelete this server?",
 	)
 
 	window.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
@@ -265,7 +268,7 @@ func deleteServWindow(t *TUI) {
 func deleteBufWindow(t *TUI) {
 	window, exit := createConfirmWindow(t,
 		&t.status.deletingBuffer,
-		"Do you want to permanently delete this buffer?",
+		"Do you want to permanently\ndelete this buffer?",
 	)
 
 	window.SetDoneFunc(func(buttonIndex int, buttonLabel string) {

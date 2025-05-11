@@ -62,7 +62,7 @@ const CommandHelp string = `
 
 [yellow::b]/version[-::-]: Displays the current version of the client and protocol
 
-[yellow::b]/buflist[-::-]: Displays a list of all buffers in the current server
+[yellow::b]/buffers[-::-]: Displays a list of all buffers in the current server
 	- Those that have been hidden will also be displayed
 	
 [yellow::b]/connect[-::-]: Connects to the currently active server using its address

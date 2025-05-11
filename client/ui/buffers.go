@@ -107,6 +107,11 @@ func (b *Buffers) Hide(name string) error {
 		return ErrorSystemBuf
 	}
 
+	// Already hidden
+	if t.index == -1 {
+		return nil
+	}
+
 	b.open -= 1
 	b.indexes = append(b.indexes, t.index)
 	t.index = -1

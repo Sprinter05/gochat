@@ -24,10 +24,10 @@ type operation struct {
 }
 
 var commands map[string]operation = map[string]operation{
-	"buflist": {
+	"buffers": {
 		fun:    listBuffers,
 		nArgs:  0,
-		format: "/buflist",
+		format: "/buffers",
 	},
 	"connect": {
 		fun:    connectServer,
@@ -287,7 +287,7 @@ func listBuffers(t *TUI, cmd Command) {
 		}
 
 		str := fmt.Sprintf(
-			"[green]%d:[-::-] %s%s\n",
+			"\n[green]%d:[-::-] %s%s",
 			i+1, v.name, hidden,
 		)
 
@@ -296,5 +296,5 @@ func listBuffers(t *TUI, cmd Command) {
 
 	content := list.String()
 
-	cmd.print(content[:len(content)-1])
+	cmd.print(content)
 }
