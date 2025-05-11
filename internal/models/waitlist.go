@@ -11,7 +11,6 @@ import (
 // wait for a specific piece of data under
 // certain conditions.
 type Waitlist[T any] struct {
-	mut  *sync.RWMutex
 	data []T
 	cond *sync.Cond
 	sort func(T, T) int
@@ -21,20 +20,18 @@ type Waitlist[T any] struct {
 // capacity and also sets the function that will sort elements
 // according to [slices.SortFunc].
 func NewWaitlist[T any](cap uint, sort func(T, T) int) Waitlist[T] {
-	var mut *sync.RWMutex
 	return Waitlist[T]{
 		data: make([]T, 0, cap),
-		cond: sync.NewCond(mut),
+		cond: sync.NewCond(new(sync.Mutex)),
 		sort: sort,
-		mut:  mut,
 	}
 }
 
 // Inserts an element into the waitlist, sorts
 // the list and notifies all waiting goroutines.
 func (w *Waitlist[T]) Insert(v T) {
-	w.mut.Lock()
-	defer w.mut.Unlock()
+	w.cond.L.Lock()
+	defer w.cond.L.Unlock()
 
 	w.data = append(w.data, v)
 	slices.SortFunc(w.data, w.sort)
@@ -44,8 +41,8 @@ func (w *Waitlist[T]) Insert(v T) {
 
 // Clears all elements from the waitlist.
 func (w *Waitlist[T]) Clear() {
-	w.mut.Lock()
-	defer w.mut.Unlock()
+	w.cond.L.Lock()
+	defer w.cond.L.Unlock()
 	clear(w.data)
 }
 
@@ -53,8 +50,8 @@ func (w *Waitlist[T]) Clear() {
 // fulfills the given function and returns true/false
 // depending on if the element was or not found.
 func (w *Waitlist[T]) TryGet(find func(T) bool) (T, bool) {
-	w.mut.RLock()
-	defer w.mut.RUnlock()
+	w.cond.L.Lock()
+	defer w.cond.L.Unlock()
 
 	for i, v := range w.data {
 		if find(v) {
@@ -73,8 +70,8 @@ func (w *Waitlist[T]) TryGet(find func(T) bool) (T, bool) {
 // when a new element is inserted, repeating
 // this process forever until the element is found.
 func (w *Waitlist[T]) Get(find func(T) bool) T {
-	w.mut.RLock()
-	defer w.mut.RUnlock()
+	w.cond.L.Lock()
+	defer w.cond.L.Unlock()
 
 	for {
 		for i, v := range w.data {
