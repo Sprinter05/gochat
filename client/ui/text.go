@@ -106,7 +106,7 @@ func welcomeMessage(t *TUI) {
 
 	text := "You are currently in the default channel for this server.\n" +
 		"Use [yellow]/connect[-] to establish connection to the server.\n" +
-		"You may then use [yellow]/register[-] or [yellow]/login[-] to use an account.\n"
+		"You may then use [yellow]/register[-] or [yellow]/login[-] to use an account."
 
 	t.SendMessage(Message{
 		Buffer:    "Default",
