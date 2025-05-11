@@ -213,6 +213,19 @@ func (t *TUI) hideBuffer(name string) {
 	}
 }
 
+// Deletes a buffer with all related messages from the database.
+// This assumes the buffer has already been deleted from the TUI.
+func (t *TUI) removeBuffer(name string) error {
+	err := t.Active().Buffers().Remove(name)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Database deletion goes here
+
+	return nil
+}
+
 // Shows all messages in a buffer and changes the color of the
 // TUI component for system buffers. It assumes the buffer has
 // already been changed in the TUI component. It also sets the

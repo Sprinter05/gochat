@@ -124,24 +124,36 @@ func getMaxID(db *gorm.DB, table string) uint {
 
 // Adds a socket pair to the database if the socket is not on it already. Then,
 // returns it.
-func SaveServer(db *gorm.DB, address string, port uint16, name string) Server {
+func SaveServer(db *gorm.DB, address string, port uint16, name string) (Server, error) {
 	// Adds the server to the database only if it is not in it already
 	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port, Name: name}
+
 	if !ServerExists(db, address, port) {
-		db.Create(&server)
+		_, err := AddServer(db, address, port, name)
+		if err != nil {
+			return server, err
+		}
 	} else {
 		server.ServerID = GetServer(db, address, port).ServerID
+		server.Name = name
+		db.Save(&server)
 	}
-	return server
+
+	return server, nil
 }
 
 // Creates a server, then returns it.
 func AddServer(db *gorm.DB, address string, port uint16, name string) (Server, error) {
 	server := Server{Address: address, Port: port, Name: name}
 	result := db.Create(&server)
+
 	if result.RowsAffected != 1 {
 		return Server{}, ErrorUnexpectedRows
 	}
+	if result.Error != nil {
+		return Server{}, result.Error
+	}
+
 	return server, nil
 }
 

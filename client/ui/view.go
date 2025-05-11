@@ -25,6 +25,9 @@ type state struct {
 	typingPassword bool // Inputting a password
 	showingHelp    bool // Showing the help window
 
+	deletingServer bool // Currently choosing to delete server
+	deletingBuffer bool // Currently choosing to delete buffer
+
 	lastDate time.Time // Last rendered date in the current buffer
 }
 
@@ -45,7 +48,12 @@ type TUI struct {
 // Condition that prevents another operation from being performed
 // depending on the state of the TUI.
 func (s *state) blockCond() bool {
-	return s.creatingBuf || s.creatingServer || s.showingHelp || s.typingPassword
+	return s.creatingBuf ||
+		s.creatingServer ||
+		s.showingHelp ||
+		s.typingPassword ||
+		s.deletingServer ||
+		s.deletingBuffer
 }
 
 /* POPUPS */
@@ -205,4 +213,72 @@ func newLoginPopup(t *TUI) (pswd string, err error) {
 
 	cond.Wait()
 	return pswd, err
+}
+
+/* CONFIRMATION WINDOWS */
+
+// Creates a basic confirmation window with "Yes" or "No" choices for a
+// given operation. Returns the window and the function to exit it.
+func createConfirmWindow(t *TUI, cond *bool, title string) (*tview.Modal, func()) {
+	*cond = true
+
+	window := tview.NewModal().
+		SetText(title).
+		AddButtons([]string{"Yes", "No"})
+	window.SetBackgroundColor(tcell.ColorDefault).
+		SetBorder(true)
+
+	t.area.bottom.ResizeItem(t.comp.input, 0, 0)
+	t.area.bottom.AddItem(window, 2, 0, true)
+	t.app.SetFocus(window)
+
+	exit := func() {
+		t.area.bottom.RemoveItem(window)
+		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
+		t.app.SetFocus(t.comp.input)
+		*cond = false
+	}
+
+	return window, exit
+}
+
+// Confirmation window to delete a server from the TUI
+// and also from the database.
+func deleteServWindow(t *TUI) {
+	window, exit := createConfirmWindow(t,
+		&t.status.deletingServer,
+		"Do you want to permanently delete this server?",
+	)
+
+	window.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if buttonLabel == "Yes" {
+			t.removeServer(t.Active())
+			t.hideServer(t.focus)
+		}
+
+		exit()
+	})
+}
+
+// Confirmation window to delete a buffer from the TUI
+// and also all related messages from the database.
+func deleteBufWindow(t *TUI) {
+	window, exit := createConfirmWindow(t,
+		&t.status.deletingBuffer,
+		"Do you want to permanently delete this buffer?",
+	)
+
+	window.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if buttonLabel == "Yes" {
+			buf := t.Buffer()
+			t.hideBuffer(buf)
+
+			err := t.removeBuffer(buf)
+			if err != nil {
+				t.showError(err)
+			}
+		}
+
+		exit()
+	})
 }

@@ -210,10 +210,14 @@ func setupHandlers(t *TUI) {
 			if !t.status.blockCond() {
 				newbufPopup(t)
 			}
-		case tcell.KeyCtrlX: // Hide buffer
+		case tcell.KeyCtrlW: // Hide buffer
 			if !t.status.blockCond() {
 				t.hideBuffer(t.Buffer())
 				t.app.SetFocus(t.comp.input)
+			}
+		case tcell.KeyCtrlX: // Remove buffer
+			if !t.status.blockCond() {
+				deleteBufWindow(t)
 			}
 		}
 		return event
@@ -226,10 +230,14 @@ func setupHandlers(t *TUI) {
 			if !t.status.blockCond() {
 				newServerPopup(t)
 			}
+		case tcell.KeyCtrlW: // Hide server
+			if !t.status.blockCond() {
+				t.hideServer(t.focus)
+				t.app.SetFocus(t.comp.input)
+			}
 		case tcell.KeyCtrlX: // Remove server
 			if !t.status.blockCond() {
-				t.removeServer(t.focus)
-				t.app.SetFocus(t.comp.input)
+				deleteServWindow(t)
 			}
 		}
 		return event
@@ -390,6 +398,8 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 			showingHelp:    false,
 			creatingBuf:    false,
 			creatingServer: false,
+			deletingServer: false,
+			deletingBuffer: false,
 			lastDate:       time.Now(),
 		},
 		data: static,

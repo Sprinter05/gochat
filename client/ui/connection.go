@@ -77,12 +77,18 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 		data: new(cmds.Data),
 	}
 
-	s.data.Server = db.SaveServer(
+	var dbErr error
+	s.data.Server, dbErr = db.SaveServer(
 		t.data.DB,
 		ip.IP.String(),
 		uint16(ip.Port),
 		name,
 	)
+
+	if dbErr != nil {
+		t.showError(dbErr)
+		return
+	}
 
 	t.servers.Add(name, s)
 	l := t.servers.Len()
@@ -103,10 +109,10 @@ func (t *TUI) findServer(name string) (int, bool) {
 	return -1, false
 }
 
-// Deletes a server and all its contents (including the database).
+// Deletes a server and all its contents (except in the database).
 // It then changes to the "Local" server by default. This also
 // implies the "Local" server cannot be hidden.
-func (t *TUI) removeServer(name string) {
+func (t *TUI) hideServer(name string) {
 	s, ok := t.servers.Get(name)
 	if !ok {
 		return
@@ -125,11 +131,21 @@ func (t *TUI) removeServer(name string) {
 
 	t.servers.Remove(name)
 
+	t.renderServer(localServer)
+}
+
+// Removes a server from the database. This assumes
+// the server has already been removed from the TUI.
+func (t *TUI) removeServer(s Server) {
+	_, chk := s.(*LocalServer)
+	if chk {
+		t.showError(ErrorLocalServer)
+		return
+	}
+
 	addr := s.Source()
 	ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
 	db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
-
-	t.renderServer(localServer)
 }
 
 // Changes to a server specified by its name and updates all
