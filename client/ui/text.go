@@ -53,6 +53,8 @@ const KeybindHelp string = `
 const CommandHelp string = `
 [-::u]Commands Manual:[-::-]
 
+[yellow::b]/version[-::-]: Displays the current version of the client and protocol
+
 [yellow::b]/buflist[-::-]: Displays a list of all buffers in the current server
 	- Those that have been hidden will also be displayed
 	

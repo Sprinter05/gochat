@@ -26,15 +26,16 @@ const Logo string = `
 `
 
 const (
-	selfSender     string = "You"    // Self sender of a message
-	systemBuffer   string = "System" // System buffer name
-	localServer    string = "Local"  // Local server name
-	inputSize      int    = 4        // size in the TUI of the input bar
-	errorMessage   uint   = 3        // seconds
-	asciiNumbers   int    = 0x30     // Start of ASCII for number 1
-	asciiLowercase int    = 0x61     // Start of ASCII for lowercase a
-	maxBuffers     uint   = 35       // Maximum amount of allowed buffers in one server
-	maxServers     uint   = 9        // Maximum amount of allowed servers
+	tuiVersion     float32 = 0.1      // Current client TUI version
+	selfSender     string  = "You"    // Self sender of a message
+	systemBuffer   string  = "System" // System buffer name
+	localServer    string  = "Local"  // Local server name
+	inputSize      int     = 4        // size in the TUI of the input bar
+	errorMessage   uint    = 3        // seconds
+	asciiNumbers   int     = 0x30     // Start of ASCII for number 1
+	asciiLowercase int     = 0x61     // Start of ASCII for lowercase a
+	maxBuffers     uint    = 35       // Maximum amount of allowed buffers in one server
+	maxServers     uint    = 9        // Maximum amount of allowed servers
 )
 
 var (

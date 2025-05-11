@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -57,6 +58,11 @@ var commands map[string]operation = map[string]operation{
 		fun:    disconnectServer,
 		nArgs:  0,
 		format: "/disconnect",
+	},
+	"version": {
+		fun:    showVersion,
+		nArgs:  0,
+		format: "/version",
 	},
 }
 
@@ -114,6 +120,15 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 }
 
 // COMMANDS
+
+func showVersion(t *TUI, cmd Command) {
+	str := fmt.Sprintf(
+		"\n* Client TUI version: [orange::i]v%.1f[-::-]\n* Protocol version: [orange::i]v%d[-::-]",
+		tuiVersion,
+		spec.ProtocolVersion,
+	)
+	cmd.print(str)
+}
 
 func disconnectServer(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
