@@ -280,6 +280,7 @@ func listBuffers(t *TUI, cmd Command) {
 	bufs := cmd.serv.Buffers()
 	l := bufs.tabs.GetAll()
 
+	list.WriteString("Showing active server buffers: ")
 	for i, v := range l {
 		hidden := ""
 		if v.index == -1 {
