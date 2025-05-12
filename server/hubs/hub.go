@@ -102,26 +102,30 @@ func (hub *Hub) Cleanup(cl net.Conn) {
 func (hub *Hub) Session(r Request) (*User, error) {
 	op := r.Command.HD.Op
 
-	// Can NOT BE REG LOGIN or VERIF if checking in the cache
-	if op != spec.REG && op != spec.LOGIN && op != spec.VERIF {
-		cached, err := hub.cachedLogin(r)
-		if err == nil {
-			// Valid user found in cache, serve request
-			return cached, nil
-		} else if err != spec.ErrorNotFound {
-			// We do not search in the DB if its a different error
-			return nil, err
-		}
+	// Check for users online in any situation
+	cached, err := hub.cachedLogin(r)
+	if err == nil {
+		// Valid user found in cache, serve request
+		return cached, nil
+	} else if err != spec.ErrorNotFound {
+		// We do not continue checking if its a different error
+		return nil, err
 	}
 
-	// Can ONLY be LOGIN or VERIF if checking in the database
+	// Check for users in the database
+	// only if we are either in LOGIN or VERIF
 	if op == spec.LOGIN || op == spec.VERIF {
 		user, e := hub.dbLogin(r)
 		if e == nil {
 			// User found in database so we serve request
 			return user, nil
-		} else if e != spec.ErrorNotFound {
-			// We do not create a new user if its a different error
+		} else {
+			if e == spec.ErrorNotFound {
+				// User did not exist when trying to search previously
+				SendErrorPacket(r.Command.HD.ID, spec.ErrorNotFound, r.Conn)
+			}
+
+			// We do not create a new user if there was an error
 			return nil, e
 		}
 	}
@@ -129,13 +133,8 @@ func (hub *Hub) Session(r Request) (*User, error) {
 	// Can only be REG if no user was found
 	// So if its not REG we error
 	if op != spec.REG {
-		if op == spec.LOGIN {
-			// User did not exist when trying to search previously
-			SendErrorPacket(r.Command.HD.ID, spec.ErrorNotFound, r.Conn)
-		} else {
-			// Cannot do anything without an account
-			SendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
-		}
+		// Cannot do anything without an account
+		SendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
 		return nil, spec.ErrorNoSession
 	}
 
@@ -173,6 +172,12 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 	v, ok := hub.users.Get(r.Conn)
 	if ok {
+		// Cannot perform these operations if already online
+		if id == spec.REG || id == spec.LOGIN || id == spec.VERIF {
+			SendErrorPacket(r.Command.HD.ID, spec.ErrorInvalid, r.Conn)
+			return nil, spec.ErrorInvalid
+		}
+
 		// User is cached and the session can be returned
 		return v, nil
 	}
