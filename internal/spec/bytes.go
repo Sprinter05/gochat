@@ -48,7 +48,7 @@ type Command struct {
 /* COMMAND FUNCTIONS */
 
 // Prints to standard output all information about a packet.
-func (cmd *Command) Print() string {
+func (cmd *Command) Contents() string {
 	var output strings.Builder
 	fmt.Fprintln(&output, "-------- HEADER --------")
 	fmt.Fprintf(&output, "* Version: %d\n", cmd.HD.Ver)

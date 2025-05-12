@@ -659,7 +659,7 @@ func printLocalUsers(cmd Command) [][]byte {
 func packetPrint(pct []byte, args Command) {
 	args.Output("the following packet is about to be sent:")
 	cmd := spec.ParsePacket(pct)
-	args.Output(cmd.Print())
+	args.Output(cmd.Contents())
 }
 
 // Prints text if the verbose mode is on.
