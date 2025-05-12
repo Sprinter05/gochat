@@ -18,6 +18,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -47,25 +48,27 @@ type Command struct {
 /* COMMAND FUNCTIONS */
 
 // Prints to standard output all information about a packet.
-func (cmd *Command) Print() {
-	fmt.Println("-------- HEADER --------")
-	fmt.Printf("* Version: %d\n", cmd.HD.Ver)
-	fmt.Printf("* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
-	fmt.Printf("* Info: %d\n", cmd.HD.Info)
+func (cmd *Command) Print() string {
+	var output *strings.Builder
+	fmt.Fprintln(output, "-------- HEADER --------")
+	fmt.Fprintf(output, "* Version: %d\n", cmd.HD.Ver)
+	fmt.Fprintf(output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
+	fmt.Fprintf(output, "* Info: %d\n", cmd.HD.Info)
 	if cmd.HD.Op == ERR {
-		fmt.Printf("* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
+		fmt.Fprintf(output, "* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
 	}
 	if cmd.HD.Op == ADMIN {
-		fmt.Printf("* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
+		fmt.Fprintf(output, "* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
 	}
-	fmt.Printf("* Args: %d\n", cmd.HD.Args)
-	fmt.Printf("* Length: %d\n", cmd.HD.Len)
-	fmt.Printf("* ID: %d\n", cmd.HD.ID)
-	fmt.Println("-------- PAYLOAD --------")
+	fmt.Fprintf(output, "* Args: %d\n", cmd.HD.Args)
+	fmt.Fprintf(output, "* Length: %d\n", cmd.HD.Len)
+	fmt.Fprintf(output, "* ID: %d\n", cmd.HD.ID)
+	fmt.Fprintln(output, "-------- PAYLOAD --------")
 	for i, v := range cmd.Args {
-		fmt.Printf("[%d] %s\n", i, v)
+		fmt.Fprintf(output, "[%d] %s\n", i, v)
 	}
-	fmt.Println()
+	fmt.Fprintln(output)
+	return output.String()
 }
 
 /* HEADER FUNCTIONS */

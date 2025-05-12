@@ -238,5 +238,5 @@ func Request(ip string, cmd spec.Command) {
 		"[-] New packet from %s:\n",
 		ip,
 	)
-	cmd.Print()
+	log.Print(cmd.Print())
 }
