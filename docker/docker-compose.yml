@@ -4,9 +4,9 @@ services:
     image: mariadb:latest
     container_name: mariadb
     environment:
-      MYSQL_ROOT_PASSWORD: trolleado
-      MYSQL_USER: troller
-      MYSQL_PASSWORD: trolleado
+      MYSQL_ROOT_PASSWORD: gochatpass
+      MYSQL_USER: gochatuser
+      MYSQL_PASSWORD: gochatpass
       MYSQL_DATABASE: gochat
     ports:
       - "3306:3306"

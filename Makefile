@@ -20,7 +20,11 @@ else
 endif
 
 $(BUILD)/gcclient: $(BUILD)
-	echo TBD
+ifeq ($(OS),Windows_NT)
+	$(CC) build -o $(BUILD)/gcclient.exe ./client
+else 
+	$(CC) build -o $(BUILD)/gcclient ./client
+endif
 
 # Clean build folder
 clean: $(BUILD)
