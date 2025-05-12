@@ -49,25 +49,25 @@ type Command struct {
 
 // Prints to standard output all information about a packet.
 func (cmd *Command) Print() string {
-	var output *strings.Builder
-	fmt.Fprintln(output, "-------- HEADER --------")
-	fmt.Fprintf(output, "* Version: %d\n", cmd.HD.Ver)
-	fmt.Fprintf(output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
-	fmt.Fprintf(output, "* Info: %d\n", cmd.HD.Info)
+	var output strings.Builder
+	fmt.Fprintln(&output, "-------- HEADER --------")
+	fmt.Fprintf(&output, "* Version: %d\n", cmd.HD.Ver)
+	fmt.Fprintf(&output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
+	fmt.Fprintf(&output, "* Info: %d\n", cmd.HD.Info)
 	if cmd.HD.Op == ERR {
-		fmt.Fprintf(output, "* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
+		fmt.Fprintf(&output, "* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
 	}
 	if cmd.HD.Op == ADMIN {
-		fmt.Fprintf(output, "* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
+		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
 	}
-	fmt.Fprintf(output, "* Args: %d\n", cmd.HD.Args)
-	fmt.Fprintf(output, "* Length: %d\n", cmd.HD.Len)
-	fmt.Fprintf(output, "* ID: %d\n", cmd.HD.ID)
-	fmt.Fprintln(output, "-------- PAYLOAD --------")
+	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)
+	fmt.Fprintf(&output, "* Length: %d\n", cmd.HD.Len)
+	fmt.Fprintf(&output, "* ID: %d\n", cmd.HD.ID)
+	fmt.Fprintln(&output, "-------- PAYLOAD --------")
 	for i, v := range cmd.Args {
-		fmt.Fprintf(output, "[%d] %s\n", i, v)
+		fmt.Fprintf(&output, "[%d] %s\n", i, v)
 	}
-	fmt.Fprintln(output)
+	fmt.Fprintln(&output)
 	return output.String()
 }
 
