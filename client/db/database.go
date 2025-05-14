@@ -129,7 +129,7 @@ func SaveServer(db *gorm.DB, address string, port uint16, name string) (Server, 
 	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port, Name: name}
 
 	if !ServerExists(db, address, port) {
-		_, err := AddServer(db, address, port, name)
+		_, err := AddServer(db, server)
 		if err != nil {
 			return server, err
 		}
@@ -143,8 +143,7 @@ func SaveServer(db *gorm.DB, address string, port uint16, name string) (Server, 
 }
 
 // Creates a server, then returns it.
-func AddServer(db *gorm.DB, address string, port uint16, name string) (Server, error) {
-	server := Server{Address: address, Port: port, Name: name}
+func AddServer(db *gorm.DB, server Server) (Server, error) {
 	result := db.Create(&server)
 
 	if result.RowsAffected != 1 {
