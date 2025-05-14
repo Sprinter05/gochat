@@ -70,6 +70,7 @@ const (
 	PROMPT                         // Prompt message when input is asked
 	RESULT                         // Messages that show the result of a command
 	ERROR                          // Error messages that may be printed additionaly in error cases
+	INFO                           // Message that representes generic info not asocciated to a command
 )
 
 // Possible command errors.
@@ -324,7 +325,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: hashErr}
 	}
 
-	verbosePrint("sending REG packet...", cmd)
+	verbosePrint("performing registration...", cmd)
 	// Assembles the REG packet
 	pctArgs := [][]byte{[]byte(username), pubKeyPEM}
 	pct, pctErr := spec.NewPacket(spec.REG, 1, spec.EmptyInfo, pctArgs...)
@@ -415,7 +416,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorWrongCredentials}
 	}
 
-	verbosePrint("password correct\nsending LOGIN packet...", cmd)
+	verbosePrint("password correct, performing login...", cmd)
 	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
 	loginPct, loginPctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
@@ -455,6 +456,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: decryptErr}
 	}
 
+	verbosePrint("performing verification...", cmd)
 	// Sends a reply to the VERIF packet
 	verifPct, verifPctErr := spec.NewPacket(spec.VERIF, 1, spec.EmptyInfo, []byte(username), decrypted)
 	if verifPctErr != nil {
@@ -595,7 +597,8 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	return ReplyData{Arguments: reply.Args}
+	split := bytes.Split(reply.Args[0], []byte("\n"))
+	return ReplyData{Arguments: split}
 }
 
 // Sends a message to a user with the current time stamp and stores it in the database.
@@ -699,9 +702,12 @@ func printLocalUsers(cmd Command) ([][]byte, error) {
 // Prints a packet.
 func packetPrint(pct []byte, cmd Command) {
 	// TODO: remove the Print and print the string obtained
-	cmd.Output("the following packet is about to be sent:", PACKET)
 	pctCmd := spec.ParsePacket(pct)
-	cmd.Output(pctCmd.Contents(), PACKET)
+	str := fmt.Sprintf(
+		"Client packet to be sent:\n%s",
+		pctCmd.Contents(),
+	)
+	cmd.Output(str, PACKET)
 }
 
 // Prints text if the verbose mode is on.

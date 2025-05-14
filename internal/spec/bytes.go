@@ -63,9 +63,11 @@ func (cmd *Command) Contents() string {
 	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)
 	fmt.Fprintf(&output, "* Length: %d\n", cmd.HD.Len)
 	fmt.Fprintf(&output, "* ID: %d\n", cmd.HD.ID)
-	fmt.Fprintln(&output, "-------- PAYLOAD --------")
-	for i, v := range cmd.Args {
-		fmt.Fprintf(&output, "[%d] %s\n", i, v)
+	if len(cmd.Args) != 0 {
+		fmt.Fprintln(&output, "-------- PAYLOAD --------")
+		for i, v := range cmd.Args {
+			fmt.Fprintf(&output, "[%d] %s\n", i, v)
+		}
 	}
 	fmt.Fprintln(&output)
 	return output.String()

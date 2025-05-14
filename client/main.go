@@ -16,15 +16,18 @@ import (
 
 // Stores the json attributes of the client configuration file
 type Config struct {
-	Server struct {
+	ShellServer struct {
 		Address string `json:"address"`
 		Port    uint16 `json:"port"`
-	} `json:"server"`
+	} `json:"shell_server"`
 	Database struct {
 		Path     string `json:"path"`
 		LogPath  string `json:"log_path"`
 		LogLevel uint8  `json:"log_level"`
 	} `json:"database"`
+	UIConfig struct {
+		DebugBuffer bool `json:"debug_buffer"`
+	} `json:"ui_config"`
 }
 
 var (
@@ -52,7 +55,7 @@ func main() {
 	if useShell {
 		setupShell(config, clientDB)
 	} else {
-		setupTUI(clientDB)
+		setupTUI(config, clientDB)
 	}
 }
 
@@ -72,11 +75,11 @@ func getConfig() Config {
 	return config
 }
 
-func setupTUI(dbconn *gorm.DB) {
+func setupTUI(config Config, dbconn *gorm.DB) {
 	_, app := ui.New(commands.StaticData{
 		Verbose: verbosePrint,
 		DB:      dbconn,
-	})
+	}, config.UIConfig.DebugBuffer)
 
 	if err := app.Run(); err != nil {
 		panic(err)
@@ -84,8 +87,8 @@ func setupTUI(dbconn *gorm.DB) {
 }
 
 func setupShell(config Config, dbconn *gorm.DB) {
-	address := config.Server.Address
-	port := config.Server.Port
+	address := config.ShellServer.Address
+	port := config.ShellServer.Port
 
 	var cl spec.Connection
 	var con net.Conn

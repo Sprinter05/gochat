@@ -5,6 +5,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	cmds "github.com/Sprinter05/gochat/client/commands"
 )
 
 /* TEXT */
@@ -117,29 +119,48 @@ func welcomeMessage(t *TUI) {
 	})
 }
 
+// Sends a packet to the debug channel
+func (t *TUI) debugPacket(content string) {
+	l := len(content)
+	t.SendMessage(Message{
+		Buffer:    debugBuffer,
+		Sender:    "System",
+		Content:   content[:l-1],
+		Timestamp: time.Now(),
+		Source:    nil, // Local server
+	})
+}
+
 // Binds a function that sends System message to the server
 // and buffer that are active in the moment the function was ran.
 // An optional prompt for the messages can be given.
-func (t *TUI) systemMessage(command ...string) func(string) {
+func (t *TUI) systemMessage(command ...string) func(string, cmds.OutputType) {
 	buffer := t.Buffer()
 	server := t.Active().Source()
 
 	var prompt string
 	if len(command) != 0 {
 		prompt = fmt.Sprintf(
-			"Running [lighrgray::b]%s[-::-]: ",
+			"Running [lightgray::b]%s[-::-]: ",
 			command[0],
 		)
 	}
 
-	fun := func(s string) {
-		t.SendMessage(Message{
-			Buffer:    buffer,
-			Sender:    "System",
-			Content:   prompt + s,
-			Timestamp: time.Now(),
-			Source:    server,
-		})
+	fun := func(s string, out cmds.OutputType) {
+		switch out {
+		case cmds.PROMPT:
+			return
+		case cmds.PACKET:
+			t.debugPacket(s)
+		default:
+			t.SendMessage(Message{
+				Buffer:    buffer,
+				Sender:    "System",
+				Content:   prompt + s,
+				Timestamp: time.Now(),
+				Source:    server,
+			})
+		}
 	}
 
 	return fun
@@ -161,10 +182,8 @@ func (t *TUI) SendMessage(msg Message) {
 
 		// If the server received it and we are
 		// in the destionation buffer we render it
-		if ok {
-			if v.Buffers().current == msg.Buffer {
-				t.renderMsg(msg)
-			}
+		if ok && t.Buffer() == msg.Buffer {
+			t.renderMsg(msg)
 			break
 		}
 	}

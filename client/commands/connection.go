@@ -78,7 +78,11 @@ func ConnectionStart(data Command) error {
 	chErr := cmd.HD.ClientCheck()
 	if chErr != nil {
 		if data.Static.Verbose {
-			data.Output(cmd.Contents(), ERROR)
+			str := fmt.Sprintf(
+				"Incorrect header from server:\n%s",
+				cmd.Contents(),
+			)
+			data.Output(str, PACKET)
 		}
 		return chErr
 	}
@@ -117,7 +121,11 @@ func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command,
 		chErr := cmd.HD.ClientCheck()
 		if chErr != nil {
 			if data.Static.Verbose {
-				data.Output(cmd.Contents(), ERROR)
+				str := fmt.Sprintf(
+					"Incorrect header from server:\n%s",
+					cmd.Contents(),
+				)
+				data.Output(str, PACKET)
 			}
 			return cmd, chErr
 		}
@@ -130,8 +138,11 @@ func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command,
 	}
 
 	if data.Static.Verbose {
-		fmt.Println("Packet received from server:")
-		data.Output(cmd.Contents(), ERROR)
+		str := fmt.Sprintf(
+			"Packet received from server:\n%s",
+			cmd.Contents(),
+		)
+		data.Output(str, PACKET)
 	}
 
 	if cmd.HD.ID != id {

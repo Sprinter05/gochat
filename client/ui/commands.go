@@ -14,7 +14,7 @@ type Command struct {
 	Arguments []string
 
 	serv  Server
-	print func(string)
+	print func(string, cmds.OutputType)
 }
 
 type operation struct {
@@ -67,19 +67,19 @@ var commands map[string]operation = map[string]operation{
 }
 
 func (t *TUI) parseCommand(text string) {
-	parts := strings.Split(text, " ")
+	lower := strings.ToLower(text)
+	parts := strings.Split(lower, " ")
 
-	operation := strings.ToLower(parts[0])
-	if operation == "" {
+	if parts[0] == "" {
 		t.showError(ErrorEmptyCmd)
 		return
 	}
 
 	cmd := Command{
-		Operation: operation,
+		Operation: parts[0],
 		Arguments: parts[1:],
 		serv:      t.Active(),
-		print:     t.systemMessage(operation),
+		print:     t.systemMessage(parts[0]),
 	}
 
 	op, ok := commands[cmd.Operation]
@@ -97,7 +97,7 @@ func (t *TUI) parseCommand(text string) {
 		}
 
 		str := fmt.Sprintf("%s: %s", ErrorArguments, builder.String())
-		cmd.print(str)
+		cmd.print(str, cmds.RESULT)
 		return
 	}
 
@@ -127,13 +127,13 @@ func showVersion(t *TUI, cmd Command) {
 		tuiVersion,
 		spec.ProtocolVersion,
 	)
-	cmd.print(str)
+	cmd.print(str, cmds.RESULT)
 }
 
 func disconnectServer(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error())
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
 
@@ -141,7 +141,7 @@ func disconnectServer(t *TUI, cmd Command) {
 	r := cmds.Discn(c, args...)
 
 	if r.Error != nil {
-		cmd.print(r.Error.Error())
+		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 
@@ -151,7 +151,7 @@ func disconnectServer(t *TUI, cmd Command) {
 func logoutUser(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error())
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
 
@@ -159,7 +159,7 @@ func logoutUser(t *TUI, cmd Command) {
 	r := cmds.Logout(c, args...)
 
 	if r.Error != nil {
-		cmd.print(r.Error.Error())
+		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -167,23 +167,23 @@ func logoutUser(t *TUI, cmd Command) {
 func loginUser(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error())
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
 
 	if data.IsUserLoggedIn() {
-		cmd.print(ErrorLoggedIn.Error())
+		cmd.print(ErrorLoggedIn.Error(), cmds.ERROR)
 		return
 	}
 
 	if !ok {
-		cmd.print(ErrorOffline.Error())
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
 		return
 	}
 
 	pswd, err := newLoginPopup(t)
 	if err != nil {
-		cmd.print(err.Error())
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -191,7 +191,7 @@ func loginUser(t *TUI, cmd Command) {
 	r := cmds.Login(c, args[0], []byte(pswd))
 
 	if r.Error != nil {
-		cmd.print(r.Error.Error())
+		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -199,7 +199,7 @@ func loginUser(t *TUI, cmd Command) {
 func listUsers(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error())
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
 
@@ -207,35 +207,39 @@ func listUsers(t *TUI, cmd Command) {
 	r := cmds.Usrs(c, args...)
 
 	if r.Error != nil {
-		cmd.print(r.Error.Error())
+		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 
 	var list strings.Builder
 	list.WriteString("Showing " + cmd.Arguments[0] + " users:\n")
+	if len(r.Arguments) == 0 {
+		list.WriteString("No users to be shown.\n")
+	}
+
 	for _, v := range r.Arguments {
 		list.WriteString("- [pink::i]" + string(v) + "[-::-]\n")
 	}
 
 	l := list.Len()
-	cmd.print(list.String()[:l-1])
+	cmd.print(list.String()[:l-1], cmds.RESULT)
 }
 
 func registerUser(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error())
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
 
 	if !ok {
-		cmd.print(ErrorOffline.Error())
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
 		return
 	}
 
 	pswd, err := newLoginPopup(t)
 	if err != nil {
-		cmd.print(err.Error())
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -243,7 +247,7 @@ func registerUser(t *TUI, cmd Command) {
 	r := cmds.Reg(c, args[0], []byte(pswd))
 
 	if r.Error != nil {
-		cmd.print(r.Error.Error())
+		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -252,23 +256,23 @@ func registerUser(t *TUI, cmd Command) {
 func connectServer(t *TUI, cmd Command) {
 	addr := cmd.serv.Source()
 	if addr == nil {
-		cmd.print(ErrorLocalServer.Error())
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
 
 	parts := strings.Split(addr.String(), ":")
 	data, ok := cmd.serv.Online()
 	if ok {
-		cmd.print(ErrorAlreadyOnline.Error())
+		cmd.print(ErrorAlreadyOnline.Error(), cmds.ERROR)
 		return
 	}
 
-	cmd.print("attempting to connect...")
+	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
 	c, _ := cmd.createCmd(t, data)
 	r := cmds.Conn(c, []byte(parts[0]), []byte(parts[1]))
 
 	if r.Error != nil {
-		cmd.print(r.Error.Error())
+		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 
@@ -297,5 +301,5 @@ func listBuffers(t *TUI, cmd Command) {
 
 	content := list.String()
 
-	cmd.print(content)
+	cmd.print(content, cmds.RESULT)
 }

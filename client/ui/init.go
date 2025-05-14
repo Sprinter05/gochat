@@ -29,6 +29,7 @@ const (
 	tuiVersion     float32 = 0.1      // Current client TUI version
 	selfSender     string  = "You"    // Self sender of a message
 	systemBuffer   string  = "System" // System buffer name
+	debugBuffer    string  = "Debug"  // Buffer where packets will be shown
 	localServer    string  = "Local"  // Local server name
 	inputSize      int     = 4        // size in the TUI of the input bar
 	textSize       int     = 30       // Size of the text window
@@ -387,7 +388,7 @@ func setupKeybinds(t *TUI) {
 
 // Creates a new TUI and tview application by its given static data.
 // This is needed to run the program in TUI mode.
-func New(static cmds.StaticData) (*TUI, *tview.Application) {
+func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 	t := &TUI{
 		servers: models.NewTable[string, Server](0),
@@ -430,10 +431,18 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 
 	// Welcome messages
 	print := t.systemMessage()
-	print("Welcome to gochat!")
-	print("Press [green]Ctrl-Shift/Alt-H[-] to show help!")
-	print("Restoring previous session...")
+	print("Welcome to gochat!", cmds.INFO)
+	print("Press [green]Ctrl-Shift/Alt-H[-] to show help!", cmds.INFO)
+	print("Restoring previous session...", cmds.INFO)
 
+	// Debug buffer if necessary
+	if debug {
+		t.addBuffer(debugBuffer, true)
+		print := t.systemMessage()
+		print("Packets between client and server will be shown here.", cmds.INFO)
+	}
+
+	t.changeBuffer(0) // System buffer
 	t.restoreSession()
 	t.renderServer(localServer)
 
@@ -443,7 +452,11 @@ func New(static cmds.StaticData) (*TUI, *tview.Application) {
 // Restores all database entries that are relevant.
 func (t *TUI) restoreSession() {
 	// Restore servers
-	list := db.GetAllServers(t.data.DB)
+	list, err := db.GetAllServers(t.data.DB)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to restore session! %s", err))
+	}
+
 	for _, v := range list {
 		str := fmt.Sprintf("%s:%d", v.Address, v.Port)
 		addr, _ := net.ResolveTCPAddr("tcp4", str)

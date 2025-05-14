@@ -304,6 +304,7 @@ func (l *LocalServer) Messages(name string) []Message {
 
 // Does not return an error if the server is not the destionation remote
 func (l *LocalServer) Receive(msg Message) (bool, error) {
+	// Only local server should be nil
 	if msg.Source != nil {
 		// Not for this server
 		return false, nil
