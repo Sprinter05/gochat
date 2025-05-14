@@ -31,13 +31,14 @@ const (
 	systemBuffer   string  = "System" // System buffer name
 	debugBuffer    string  = "Debug"  // Buffer where packets will be shown
 	localServer    string  = "Local"  // Local server name
-	inputSize      int     = 4        // size in the TUI of the input bar
-	textSize       int     = 30       // Size of the text window
-	errorMessage   uint    = 3        // seconds
-	asciiNumbers   int     = 0x30     // Start of ASCII for number 1
-	asciiLowercase int     = 0x61     // Start of ASCII for lowercase a
-	maxBuffers     uint    = 35       // Maximum amount of allowed buffers in one server
-	maxServers     uint    = 9        // Maximum amount of allowed servers
+	defaultLabel   string  = " > "
+	inputSize      int     = 4    // size in the TUI of the input bar
+	textSize       int     = 30   // Size of the text window
+	errorMessage   uint    = 3    // seconds
+	asciiNumbers   int     = 0x30 // Start of ASCII for number 1
+	asciiLowercase int     = 0x61 // Start of ASCII for lowercase a
+	maxBuffers     uint    = 35   // Maximum amount of allowed buffers in one server
+	maxServers     uint    = 9    // Maximum amount of allowed servers
 )
 
 var (
@@ -161,7 +162,7 @@ func setupStyle(t *TUI) {
 		SetBackgroundColor(tcell.ColorDefault)
 
 	t.comp.input.
-		SetLabel(" > ").
+		SetLabel(defaultLabel).
 		SetTextStyle(tcell.StyleDefault.
 			Background(tcell.ColorDefault)).
 		SetPlaceholderStyle(tcell.StyleDefault.

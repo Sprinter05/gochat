@@ -164,11 +164,14 @@ func (t *TUI) renderServer(name string) {
 		t.comp.servers.SetCurrentItem(index)
 	}
 
-	_, online := s.Online()
+	data, online := s.Online()
 	if online {
 		t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
+		uname := data.User.User.Username
+		t.comp.input.SetLabel(unameLabel(uname))
 	} else {
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+		t.comp.input.SetLabel(defaultLabel)
 	}
 
 	t.comp.buffers.Clear()

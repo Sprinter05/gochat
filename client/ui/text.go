@@ -191,6 +191,14 @@ func (t *TUI) SendMessage(msg Message) {
 
 /* RENDERING */
 
+func unameLabel(uname string) string {
+	if uname == "" {
+		return defaultLabel
+	}
+
+	return fmt.Sprintf(" (%s)%s", uname, defaultLabel)
+}
+
 // Renders a date in screen if the last displayed
 // date is on a different day.
 func (t *TUI) renderDate(date time.Time) {

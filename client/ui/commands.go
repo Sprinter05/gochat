@@ -145,6 +145,7 @@ func disconnectServer(t *TUI, cmd Command) {
 		return
 	}
 
+	t.comp.input.SetLabel(defaultLabel)
 	t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 }
 
@@ -162,6 +163,8 @@ func logoutUser(t *TUI, cmd Command) {
 		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
+
+	t.comp.input.SetLabel(defaultLabel)
 }
 
 func loginUser(t *TUI, cmd Command) {
@@ -194,6 +197,9 @@ func loginUser(t *TUI, cmd Command) {
 		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
+
+	uname := data.User.User.Username
+	t.comp.input.SetLabel(unameLabel(uname))
 }
 
 func listUsers(t *TUI, cmd Command) {
