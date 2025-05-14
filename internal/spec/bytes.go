@@ -47,7 +47,7 @@ type Command struct {
 
 /* COMMAND FUNCTIONS */
 
-// Prints to standard output all information about a packet.
+// Returns a string that contains full information about a command
 func (cmd *Command) Contents() string {
 	var output strings.Builder
 	fmt.Fprintln(&output, "-------- HEADER --------")
