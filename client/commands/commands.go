@@ -230,7 +230,7 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	dbErr := db.AddExternalUser(cmd.Static.DB, string(reply.Args[0]), string(reply.Args[1]), cmd.Data.Server.ServerID)
+	_, dbErr := db.AddExternalUser(cmd.Static.DB, string(reply.Args[0]), string(reply.Args[1]), cmd.Data.Server.ServerID)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
@@ -271,7 +271,10 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 			return ReplyData{Error: ErrorUsernameEmpty}
 		}
 
-		exists := db.LocalUserExists(cmd.Static.DB, string(username))
+		exists, existsErr := db.LocalUserExists(cmd.Static.DB, string(username))
+		if existsErr != nil {
+			return ReplyData{Error: existsErr}
+		}
 		if exists {
 			return ReplyData{Error: ErrorUserExists}
 		}
@@ -351,7 +354,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Creates the user
-	insertErr := db.AddLocalUser(cmd.Static.DB, string(username), string(hashPass), string(prvKeyPEM), cmd.Data.Server.ServerID)
+	_, insertErr := db.AddLocalUser(cmd.Static.DB, string(username), string(hashPass), string(prvKeyPEM), cmd.Data.Server.ServerID)
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
@@ -377,7 +380,10 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorAlreadyLoggedIn}
 	}
 	username := string(args[0])
-	found := db.LocalUserExists(cmd.Static.DB, username)
+	found, existsErr := db.LocalUserExists(cmd.Static.DB, username)
+	if existsErr != nil {
+		return ReplyData{Error: existsErr}
+	}
 	if !found {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
@@ -399,7 +405,10 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Verifies password
-	localUser := db.GetLocalUser(cmd.Static.DB, username, cmd.Data.Server.ServerID)
+	localUser, localUserErr := db.GetLocalUser(cmd.Static.DB, username, cmd.Data.Server.ServerID)
+	if localUserErr != nil {
+		return ReplyData{Error: localUserErr}
+	}
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
 	if cmpErr != nil {
@@ -551,7 +560,10 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 	case "all":
 		option = 0x00
 	case "local":
-		users := printLocalUsers(cmd)
+		users, err := printLocalUsers(cmd)
+		if err != nil {
+			return ReplyData{Error: err}
+		}
 		return ReplyData{Arguments: users}
 	default:
 		return ReplyData{Error: ErrorUnknownUSRSOption}
@@ -605,13 +617,19 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 	plainMessage := make([]byte, len(args[1]))
 	copy(plainMessage, args[1])
 
-	found := db.ExternalUserExists(cmd.Static.DB, string(args[0]))
+	found, existsErr := db.ExternalUserExists(cmd.Static.DB, string(args[0]))
+	if existsErr != nil {
+		return ReplyData{Error: existsErr}
+	}
 	if !found {
 		return ReplyData{Error: ErrorUserNotFound}
 	}
 	// Retrieves the public key in PEM format to encrypt the message
-	pubKeyPEM := db.GetExternalUser(cmd.Static.DB, string(args[0]), cmd.Data.Server.ServerID).PubKey
-	pubKey, pemErr := spec.PEMToPubkey([]byte(pubKeyPEM))
+	externalUser, externalUserErr := db.GetExternalUser(cmd.Static.DB, string(args[0]), cmd.Data.Server.ServerID)
+	if externalUserErr != nil {
+		return ReplyData{Error: externalUserErr}
+	}
+	pubKey, pemErr := spec.PEMToPubkey([]byte(externalUser.PubKey))
 	if pemErr != nil {
 		return ReplyData{Error: pemErr}
 	}
@@ -650,23 +668,32 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	cmd.Output("message sent correctly", RESULT)
-	src := db.GetUser(cmd.Static.DB, cmd.Data.User.User.Username, cmd.Data.Server.ServerID)
-	dst := db.GetUser(cmd.Static.DB, string(args[0]), cmd.Data.Server.ServerID)
-	dbErr := db.StoreMessage(cmd.Static.DB, src, dst, string(plainMessage), stamp)
-	if dbErr != nil {
-		return ReplyData{Error: dbErr}
+	src, srcErr := db.GetUser(cmd.Static.DB, cmd.Data.User.User.Username, cmd.Data.Server.ServerID)
+	if srcErr != nil {
+		return ReplyData{Error: srcErr}
+	}
+	dst, dstErr := db.GetUser(cmd.Static.DB, string(args[0]), cmd.Data.Server.ServerID)
+	if dstErr != nil {
+		return ReplyData{Error: dstErr}
+	}
+	_, storeErr := db.StoreMessage(cmd.Static.DB, src, dst, string(plainMessage), stamp)
+	if storeErr != nil {
+		return ReplyData{Error: storeErr}
 	}
 	return ReplyData{}
 }
 
 // Prints out all local users and returns an array with its usernames.
-func printLocalUsers(cmd Command) [][]byte {
-	localUsers := db.GetAllLocalUsernames(cmd.Static.DB)
+func printLocalUsers(cmd Command) ([][]byte, error) {
+	localUsers, err := db.GetAllLocalUsernames(cmd.Static.DB)
+	if err != nil {
+		return [][]byte{}, err
+	}
 	users := make([][]byte, 0, len(localUsers))
 	for _, v := range localUsers {
 		users = append(users, []byte(v))
 	}
-	return users
+	return users, nil
 }
 
 // Prints a packet.

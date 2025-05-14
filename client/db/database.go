@@ -127,19 +127,30 @@ func getMaxID(db *gorm.DB, table string) uint {
 func SaveServer(db *gorm.DB, address string, port uint16, name string) (Server, error) {
 	// Adds the server to the database only if it is not in it already
 	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port, Name: name}
+	var saveError error
 
-	if !ServerExists(db, address, port) {
+	svExists, existsErr := ServerExists(db, address, port)
+	if existsErr != nil {
+		return Server{}, existsErr
+	}
+
+	if !svExists {
 		_, err := AddServer(db, server)
 		if err != nil {
 			return server, err
 		}
 	} else {
-		server.ServerID = GetServer(db, address, port).ServerID
+		newServer, getErr := GetServer(db, address, port)
+		if getErr != nil {
+			return Server{}, getErr
+		}
+		server.ServerID = newServer.ServerID
 		server.Name = name
-		db.Save(&server)
+		result := db.Save(&server)
+		saveError = result.Error
 	}
+	return server, saveError
 
-	return server, nil
 }
 
 // Creates a server, then returns it.
@@ -149,11 +160,7 @@ func AddServer(db *gorm.DB, server Server) (Server, error) {
 	if result.RowsAffected != 1 {
 		return Server{}, ErrorUnexpectedRows
 	}
-	if result.Error != nil {
-		return Server{}, result.Error
-	}
-
-	return server, nil
+	return server, result.Error
 }
 
 // Deletes a server from the database.
@@ -163,57 +170,61 @@ func RemoveServer(db *gorm.DB, address string, port uint16) error {
 	if result.RowsAffected != 1 {
 		return ErrorUnexpectedRows
 	}
-	return nil
+	return result.Error
 }
 
 // Returns the server that with the specified socket.
-func GetServer(db *gorm.DB, address string, port uint16) Server {
+func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 	var server Server
-	db.Where("address = ? AND port = ?", address, port).First(&server)
-	return server
+	result := db.Where("address = ? AND port = ?", address, port).First(&server)
+	return server, result.Error
 }
 
 // Returns all servers
-func GetAllServers(db *gorm.DB) []Server {
+func GetAllServers(db *gorm.DB) ([]Server, error) {
 	var servers []Server
-	db.Raw("SELECT * FROM servers").Scan(&servers)
-	return servers
+	result := db.Raw("SELECT * FROM servers").Scan(&servers)
+	return servers, result.Error
 }
 
 // Returns true if the specified socket exists in the database.
-func ServerExists(db *gorm.DB, address string, port uint16) bool {
+func ServerExists(db *gorm.DB, address string, port uint16) (bool, error) {
 	var found bool = false
-	db.Raw("SELECT EXISTS(SELECT * FROM servers WHERE address = ? AND port = ?) AS found", address, port).Scan(&found)
-	return found
+	result := db.Raw("SELECT EXISTS(SELECT * FROM servers WHERE address = ? AND port = ?) AS found", address, port).Scan(&found)
+	return found, result.Error
 }
 
 // Returns true if the specified username and server defines a local user in the database.
-func LocalUserExists(db *gorm.DB, username string) bool {
+func LocalUserExists(db *gorm.DB, username string) (bool, error) {
 	var found bool = false
-	db.Raw("SELECT EXISTS(SELECT * FROM users, local_users WHERE users.user_id = local_users.user_id AND username = ?) AS found", username).Scan(&found)
-	return found
+	result := db.Raw("SELECT EXISTS(SELECT * FROM users, local_users WHERE users.user_id = local_users.user_id AND username = ?) AS found", username).Scan(&found)
+	return found, result.Error
 }
 
 // Returns the user that is defined by the username and server.
-func GetUser(db *gorm.DB, username string, serverID uint) User {
+func GetUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	user := User{Username: username, ServerID: serverID}
-	db.First(&user)
-	return user
+	result := db.First(&user)
+	return user, result.Error
 }
 
 // Returns the local user that is defined by the specified username and server.
-func GetLocalUser(db *gorm.DB, username string, serverID uint) LocalUser {
-	localUser := LocalUser{User: User{Username: username}, UserID: GetUser(db, username, serverID).UserID}
-	db.First(&localUser)
-	return localUser
+func GetLocalUser(db *gorm.DB, username string, serverID uint) (LocalUser, error) {
+	user, err := GetUser(db, username, serverID)
+	if err != nil {
+		return LocalUser{}, err
+	}
+
+	localUser := LocalUser{User: User{Username: username}, UserID: user.UserID}
+	result := db.First(&localUser)
+	return localUser, result.Error
 }
 
 // Gets all the local usernames (used in USRS to print local usernames).
-func GetAllLocalUsernames(db *gorm.DB) []string {
+func GetAllLocalUsernames(db *gorm.DB) ([]string, error) {
 	var usernames []string
-	db.Raw("SELECT username FROM users, local_users WHERE local_users.user_id = users.user_id").Scan(&usernames)
-	return usernames
-
+	result := db.Raw("SELECT username FROM users, local_users WHERE local_users.user_id = users.user_id").Scan(&usernames)
+	return usernames, result.Error
 }
 
 // Adds a user autoincrementally in the database and then returns it.
@@ -223,63 +234,67 @@ func addUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	if result.RowsAffected != 1 {
 		return User{}, ErrorUnexpectedRows
 	}
-	return user, nil
+	return user, result.Error
 }
 
 // Adds a local user autoincrementally in the database and then returns it.
-func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, serverID uint) error {
+func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM string, serverID uint) (LocalUser, error) {
 	// Attempts to create the user. If there's a user with that username and server already
 	// the local user will not be created
 	user, userErr := addUser(db, username, serverID)
 	if userErr != nil {
-		return userErr
+		return LocalUser{}, userErr
 	}
 	localUser := LocalUser{User: user, UserID: user.UserID, Password: hashPass, PrvKey: prvKeyPEM}
 
 	result := db.Create(&localUser)
 	if result.RowsAffected != 1 {
-		return ErrorUnexpectedRows
+		return localUser, ErrorUnexpectedRows
 	}
-	return nil
+	return localUser, result.Error
 }
 
 // Adds a local user autoincrementally in the database and then returns it.
-func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID uint) error {
+func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID uint) (ExternalUser, error) {
 	// Attempts to create the user. If there's a user with that username and server already
 	// the local user will not be created
 	user, userErr := addUser(db, username, serverID)
 	if userErr != nil {
-		return userErr
+		return ExternalUser{}, userErr
 	}
 	externalUser := ExternalUser{User: user, UserID: user.UserID, PubKey: pubKeyPEM}
 	result := db.Create(&externalUser)
 	if result.RowsAffected != 1 {
-		return ErrorUnexpectedRows
+		return ExternalUser{}, ErrorUnexpectedRows
 	}
-	return nil
+	return externalUser, result.Error
 }
 
 // Returns the external user that is defined by the specified username and server.
-func GetExternalUser(db *gorm.DB, username string, serverID uint) ExternalUser {
-	externalUser := ExternalUser{User: User{Username: username}, UserID: GetUser(db, username, serverID).UserID}
-	db.First(&externalUser)
-	return externalUser
+func GetExternalUser(db *gorm.DB, username string, serverID uint) (ExternalUser, error) {
+	user, err := GetUser(db, username, serverID)
+	if err != nil {
+		return ExternalUser{}, err
+	}
+	externalUser := ExternalUser{User: User{Username: username}, UserID: user.UserID}
+	result := db.First(&externalUser)
+	return externalUser, result.Error
 }
 
 // Returns true if the specified username and server defines an external user in the database.
-func ExternalUserExists(db *gorm.DB, username string) bool {
+func ExternalUserExists(db *gorm.DB, username string) (bool, error) {
 	var found bool = false
-	db.Raw("SELECT EXISTS(SELECT * FROM users, external_users WHERE users.user_id = external_users.user_id AND username = ?) AS found", username).Scan(&found)
-	return found
+	result := db.Raw("SELECT EXISTS(SELECT * FROM users, external_users WHERE users.user_id = external_users.user_id AND username = ?) AS found", username).Scan(&found)
+	return found, result.Error
 }
 
-// Creates a message.
-func StoreMessage(db *gorm.DB, src User, dst User, text string, stamp time.Time) error {
+// Adds a message to the database and returns it.
+func StoreMessage(db *gorm.DB, src User, dst User, text string, stamp time.Time) (Message, error) {
 	msg := Message{SourceID: src.UserID, DestinationID: dst.UserID, Text: text, Stamp: stamp}
 	result := db.Create(&msg)
 
 	if result.RowsAffected != 1 {
-		return ErrorUnexpectedRows
+		return Message{}, ErrorUnexpectedRows
 	}
-	return nil
+	return msg, result.Error
 }
