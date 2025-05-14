@@ -22,6 +22,8 @@ import (
 // TODO: cache requested users in memory
 // TODO: USERINFO command
 // TODO: HELP
+// TODO: "/" for commands. If no "/" send message instead
+// TODO: More advanced verbose options
 
 // Struct that contains all the data required for the shell to function.
 // Commands may alter the data if necessary.
@@ -39,7 +41,7 @@ type StaticData struct {
 }
 
 type Command struct {
-	Output func(text string)
+	Output func(text string, outputType OutputType) // Custom output-printing function
 	Static StaticData
 	Data   *Data
 }
@@ -58,6 +60,19 @@ type ReplyData struct {
 	Error     error
 }
 
+// Represents the type of a command output.
+// This eases specific output printing actions.
+type OutputType uint
+
+const (
+	INTERMEDIATE OutputType = iota // Intermediate status messages
+	PACKET                         // Packet information messages
+	PROMPT                         // Prompt message when input is asked
+	RESULT                         // Messages that show the result of a command
+	ERROR                          // Error messages that may be printed additionaly in error cases
+)
+
+// Possible command errors.
 var (
 	ErrorInsuficientArgs   error = fmt.Errorf("not enough arguments")
 	ErrorNotConnected      error = fmt.Errorf("not connected to a server")
@@ -90,7 +105,7 @@ var clientCmds = map[string]func(cmd Command, args ...[]byte) ReplyData{
 func FetchClientCmd(op string, cmd Command) func(cmd Command, args ...[]byte) ReplyData {
 	v, ok := clientCmds[strings.ToUpper(op)]
 	if !ok {
-		cmd.Output(fmt.Sprintf("%s: command not found", op))
+		cmd.Output(fmt.Sprintf("%s: command not found", op), ERROR)
 		return nil
 	}
 	return v
@@ -149,13 +164,13 @@ func Discn(cmd Command, args ...[]byte) ReplyData {
 	cmd.Data.ClientCon.Conn = nil
 	// Closes the shell client session
 	cmd.Data.User = db.LocalUser{}
-	cmd.Output("sucessfully disconnected from the server")
+	cmd.Output("sucessfully disconnected from the server", RESULT)
 	return ReplyData{}
 }
 
 // Prints the gochat version used by the client
 func Ver(data Command, args ...[]byte) ReplyData {
-	data.Output(fmt.Sprintf("gochat version %d", spec.ProtocolVersion))
+	data.Output(fmt.Sprintf("gochat version %d", spec.ProtocolVersion), RESULT)
 	return ReplyData{}
 }
 
@@ -167,9 +182,9 @@ func Ver(data Command, args ...[]byte) ReplyData {
 func Verbose(cmd Command, args ...[]byte) ReplyData {
 	cmd.Static.Verbose = !cmd.Static.Verbose
 	if cmd.Static.Verbose {
-		cmd.Output("verbose mode on")
+		cmd.Output("verbose mode on", RESULT)
 	} else {
-		cmd.Output("verbose mode off")
+		cmd.Output("verbose mode off", RESULT)
 	}
 	return ReplyData{}
 }
@@ -205,7 +220,7 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Awaits a response
-	verbosePrint("[...] awaiting response...", cmd)
+	verbosePrint("awaiting response...", cmd)
 	reply, regErr := ListenResponse(cmd, 1, spec.REQ, spec.ERR)
 	if regErr != nil {
 		return ReplyData{Error: regErr}
@@ -219,7 +234,7 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
 	}
-	cmd.Output(fmt.Sprintf("user %s successfully added to the database", args[0]))
+	cmd.Output(fmt.Sprintf("user %s successfully added to the database", args[0]), RESULT)
 	return ReplyData{Arguments: reply.Args}
 }
 
@@ -243,7 +258,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 		rd := bufio.NewReader(os.Stdin)
 
 		// Gets the username
-		cmd.Output("username: ")
+		cmd.Output("username: ", PROMPT)
 		var readErr error
 		username, readErr = rd.ReadBytes('\n')
 		if readErr != nil {
@@ -262,22 +277,22 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 		}
 
 		// Gets the password
-		cmd.Output("password: ")
+		cmd.Output("password: ", PROMPT)
 		var pass1Err error
 		pass1, pass1Err = term.ReadPassword(0)
 		if pass1Err != nil {
-			cmd.Output("")
+			cmd.Output("", PROMPT)
 			return ReplyData{Error: pass1Err}
 		}
-		cmd.Output("")
+		cmd.Output("\n", PROMPT)
 
-		cmd.Output("repeat password: ")
+		cmd.Output("repeat password: ", PROMPT)
 		pass2, pass2Err := term.ReadPassword(0)
 		if pass2Err != nil {
-			cmd.Output("")
+			cmd.Output("\n", PROMPT)
 			return ReplyData{Error: pass2Err}
 		}
-		cmd.Output("")
+		cmd.Output("", PROMPT)
 
 		if string(pass1) != string(pass2) {
 			return ReplyData{Error: ErrorPasswordsNotMatch}
@@ -288,7 +303,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Generates the PEM arrays of both the private and public key of the pair
-	verbosePrint("[...] generating RSA key pair...", cmd)
+	verbosePrint("generating RSA key pair...", cmd)
 	pair, rsaErr := rsa.GenerateKey(rand.Reader, spec.RSABitSize)
 	if rsaErr != nil {
 		return ReplyData{Error: rsaErr}
@@ -300,13 +315,13 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Hashes the provided password
-	verbosePrint("[...] hashing password...", cmd)
+	verbosePrint("hashing password...", cmd)
 	hashPass, hashErr := bcrypt.GenerateFromPassword(pass1, 12)
 	if hashErr != nil {
 		return ReplyData{Error: hashErr}
 	}
 
-	verbosePrint("[...] sending REG packet...", cmd)
+	verbosePrint("sending REG packet...", cmd)
 	// Assembles the REG packet
 	pctArgs := [][]byte{[]byte(username), pubKeyPEM}
 	pct, pctErr := spec.NewPacket(spec.REG, 1, spec.EmptyInfo, pctArgs...)
@@ -325,7 +340,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Awaits a response
-	verbosePrint("[...] awaiting response...", cmd)
+	verbosePrint("awaiting response...", cmd)
 	reply, regErr := ListenResponse(cmd, 1, spec.OK, spec.ERR)
 	if regErr != nil {
 		return ReplyData{Error: regErr}
@@ -340,7 +355,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
-	cmd.Output(fmt.Sprintf("user %s successfully added to the database", username))
+	cmd.Output(fmt.Sprintf("user %s successfully added to the database", username), RESULT)
 	return ReplyData{}
 }
 
@@ -372,13 +387,13 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 
 	if len(args) == 1 {
 		// Asks for password
-		cmd.Output(fmt.Sprintf("%s's password: ", username))
+		cmd.Output(fmt.Sprintf("%s's password: ", username), PROMPT)
 		pass, passErr = term.ReadPassword(0)
 		if passErr != nil {
-			cmd.Output("")
+			cmd.Output("\n", PROMPT)
 			return ReplyData{Error: passErr}
 		}
-		cmd.Output("")
+		cmd.Output("\n", PROMPT)
 	} else {
 		pass = args[1]
 	}
@@ -391,7 +406,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorWrongCredentials}
 	}
 
-	verbosePrint("password correct\n[...] sending LOGIN packet...", cmd)
+	verbosePrint("password correct\nsending LOGIN packet...", cmd)
 	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
 	loginPct, loginPctErr := spec.NewPacket(spec.LOGIN, 1, spec.EmptyInfo, args[0])
@@ -409,7 +424,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: loginWErr}
 	}
 
-	verbosePrint("[...] awaiting response...", cmd)
+	verbosePrint("awaiting response...", cmd)
 	loginReply, loginReplyErr := ListenResponse(cmd, 1, spec.ERR, spec.VERIF)
 	if loginReplyErr != nil {
 		return ReplyData{Error: loginReplyErr}
@@ -448,7 +463,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...", cmd)
+	verbosePrint("awaiting response...", cmd)
 	verifReply, verifReplyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
 	if verifReplyErr != nil {
 		return ReplyData{Error: verifReplyErr}
@@ -461,7 +476,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 	// Assigns the logged in user to Data
 	cmd.Data.User = localUser
 
-	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username))
+	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username), RESULT)
 	return ReplyData{Arguments: verifReply.Args}
 }
 
@@ -494,7 +509,7 @@ func Logout(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...", cmd)
+	verbosePrint("awaiting response...", cmd)
 	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
@@ -507,7 +522,7 @@ func Logout(cmd Command, args ...[]byte) ReplyData {
 	// Empties the user value in Data
 	cmd.Data.User = db.LocalUser{}
 
-	cmd.Output("logged out")
+	cmd.Output("logged out", RESULT)
 	return ReplyData{}
 }
 
@@ -558,7 +573,7 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...", cmd)
+	verbosePrint("awaiting response...", cmd)
 	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.USRS)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
@@ -568,8 +583,7 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	split := bytes.Split(reply.Args[0], []byte("\n"))
-	return ReplyData{Arguments: split}
+	return ReplyData{Arguments: reply.Args}
 }
 
 // Sends a message to a user with the current time stamp and stores it in the database.
@@ -625,7 +639,7 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Listens for response
-	verbosePrint("[...] awaiting response...", cmd)
+	verbosePrint("awaiting response...", cmd)
 	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
 	if replyErr != nil {
 		return ReplyData{Error: replyErr}
@@ -635,7 +649,7 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
-	cmd.Output("message sent correctly")
+	cmd.Output("message sent correctly", RESULT)
 	src := db.GetUser(cmd.Static.DB, cmd.Data.User.User.Username, cmd.Data.Server.ServerID)
 	dst := db.GetUser(cmd.Static.DB, string(args[0]), cmd.Data.Server.ServerID)
 	dbErr := db.StoreMessage(cmd.Static.DB, src, dst, string(plainMessage), stamp)
@@ -645,7 +659,7 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 	return ReplyData{}
 }
 
-// Prints out all local users.
+// Prints out all local users and returns an array with its usernames.
 func printLocalUsers(cmd Command) [][]byte {
 	localUsers := db.GetAllLocalUsernames(cmd.Static.DB)
 	users := make([][]byte, 0, len(localUsers))
@@ -656,15 +670,16 @@ func printLocalUsers(cmd Command) [][]byte {
 }
 
 // Prints a packet.
-func packetPrint(pct []byte, args Command) {
-	args.Output("the following packet is about to be sent:")
-	cmd := spec.ParsePacket(pct)
-	args.Output(cmd.Contents())
+func packetPrint(pct []byte, cmd Command) {
+	// TODO: remove the Print and print the string obtained
+	cmd.Output("the following packet is about to be sent:", PACKET)
+	pctCmd := spec.ParsePacket(pct)
+	cmd.Output(pctCmd.Contents(), PACKET)
 }
 
 // Prints text if the verbose mode is on.
 func verbosePrint(text string, args Command) {
 	if args.Static.Verbose {
-		args.Output(text)
+		args.Output(text, INTERMEDIATE)
 	}
 }

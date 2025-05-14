@@ -65,6 +65,7 @@ func PrintPrompt(data commands.Data) {
 	fmt.Printf("\033[36m%sgochat(%s) > \033[0m", connected, username)
 }
 
-func ShellPrint(text string) {
+func ShellPrint(text string, outputType commands.OutputType) {
+	// TODO: complete implementation
 	fmt.Print(text + "\n")
 }

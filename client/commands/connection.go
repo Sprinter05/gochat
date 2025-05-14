@@ -78,7 +78,7 @@ func ConnectionStart(data Command) error {
 	chErr := cmd.HD.ClientCheck()
 	if chErr != nil {
 		if data.Static.Verbose {
-			data.Output(cmd.Contents())
+			data.Output(cmd.Contents(), ERROR)
 		}
 		return chErr
 	}
@@ -90,7 +90,7 @@ func ConnectionStart(data Command) error {
 	}
 
 	if cmd.HD.Op == 1 {
-		data.Output("successfully connected to the server")
+		data.Output("successfully connected to the server", RESULT)
 	} else {
 		return spec.ErrorUndefined
 	}
@@ -117,7 +117,7 @@ func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command,
 		chErr := cmd.HD.ClientCheck()
 		if chErr != nil {
 			if data.Static.Verbose {
-				data.Output(cmd.Contents())
+				data.Output(cmd.Contents(), ERROR)
 			}
 			return cmd, chErr
 		}
@@ -131,7 +131,7 @@ func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command,
 
 	if data.Static.Verbose {
 		fmt.Println("Packet received from server:")
-		data.Output(cmd.Contents())
+		data.Output(cmd.Contents(), ERROR)
 	}
 
 	if cmd.HD.ID != id {
