@@ -173,7 +173,7 @@ func RemoveServer(db *gorm.DB, address string, port uint16) error {
 	return result.Error
 }
 
-// Returns the server that with the specified socket.
+// Returns the server with the specified socket.
 func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 	var server Server
 	result := db.Where("address = ? AND port = ?", address, port).First(&server)
