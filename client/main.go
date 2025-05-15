@@ -92,16 +92,17 @@ func setupShell(config Config, dbconn *gorm.DB) {
 
 	var cl spec.Connection
 	var con net.Conn
+	var server db.Server
 	if address != "" {
 		var conErr error
 		con, conErr = commands.Connect(address, port)
 		if conErr != nil {
 			log.Fatal(conErr)
 		}
+		server, _ = db.SaveServer(dbconn, address, port, "Default")
 	}
 	cl = spec.Connection{Conn: con}
 
-	server, _ := db.SaveServer(dbconn, address, port, "Default")
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
 	data := commands.Data{ClientCon: cl, Server: server}
