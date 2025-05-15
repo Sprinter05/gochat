@@ -27,28 +27,70 @@ func setup(t *testing.T) *gorm.DB {
 
 func TestServer(t *testing.T) {
 	testDB := setup(t)
+	// Insert test
 	_, saveErr := db.SaveServer(testDB, "127.0.0.1", 9037, "testserver")
 	if saveErr != nil {
 		t.Error(saveErr)
 	}
 
-	server, getErr := db.GetServer(testDB, "127.0.0.1", 9037)
+	// Select test
+	actual, getErr := db.GetServer(testDB, "127.0.0.1", 9037)
 	if getErr != nil {
 		t.Error(getErr)
 	}
 
-	expServer := db.Server{ServerID: 1, Address: "127.0.0.1", Port: 9037, Name: "testserver"}
-	if server != expServer {
+	expected := db.Server{ServerID: 1, Address: "127.0.0.1", Port: 9037, Name: "testserver"}
+	if actual != expected {
 		t.Fail()
 	}
 
-	removeErr := db.RemoveServer(testDB, server.Address, server.Port)
+	// Deletion test
+	removeErr := db.RemoveServer(testDB, actual.Address, actual.Port)
 	if removeErr != nil {
 		t.Error(removeErr)
 	}
 
-	server, getErr = db.GetServer(testDB, "127.0.0.1", 9037)
+	actual, getErr = db.GetServer(testDB, "127.0.0.1", 9037)
 	if getErr == nil {
+		t.Fail()
+	}
+}
+
+func TestUser(t *testing.T) {
+	testDB := setup(t)
+	sv, _ := db.SaveServer(testDB, "127.0.0.1", 9037, "testserver")
+
+	// Local user test
+	_, addErr := db.AddLocalUser(testDB, "Alice", "test", "test", sv.ServerID)
+	if addErr != nil {
+		t.Error(addErr)
+	}
+
+	actualLocal, getErr := db.GetLocalUser(testDB, "Alice", sv.ServerID)
+	if getErr != nil {
+		t.Error(getErr)
+	}
+
+	expectedLocal := db.LocalUser{UserID: 1, Password: "test", PrvKey: "test", User: db.User{ServerID: sv.ServerID, Username: "Alice"}}
+
+	if expectedLocal == actualLocal {
+		t.Fail()
+	}
+
+	// External user test
+	_, addErr = db.AddExternalUser(testDB, "Bob", "test", sv.ServerID)
+	if addErr != nil {
+		t.Error(addErr)
+	}
+
+	actualExternal, externalGetErr := db.GetExternalUser(testDB, "Bob", sv.ServerID)
+	if externalGetErr != nil {
+		t.Error(getErr)
+	}
+
+	expectedExternal := db.ExternalUser{UserID: 2, PubKey: "test", User: db.User{UserID: 2, ServerID: sv.ServerID, Username: "Bob"}}
+
+	if expectedExternal == actualExternal {
 		t.Fail()
 	}
 }
