@@ -66,6 +66,22 @@ func PrintPrompt(data commands.Data) {
 }
 
 func ShellPrint(text string, outputType commands.OutputType) {
-	// TODO: complete implementation
-	fmt.Print(text + "\n")
+	prefix := ""
+	jump := "\n"
+	switch outputType {
+	case commands.INTERMEDIATE:
+		prefix = "[...] "
+	case commands.PACKET:
+		prefix = "[PACKET] "
+	case commands.PROMPT:
+		jump = ""
+	case commands.ERROR:
+		prefix = "[ERROR]: "
+	case commands.INFO:
+		prefix = "[INFO] "
+	case commands.RESULT:
+		prefix = "[OK] "
+	}
+
+	fmt.Printf("%s%s%s", prefix, text, jump)
 }
