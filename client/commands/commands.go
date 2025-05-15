@@ -24,6 +24,7 @@ import (
 // TODO: HELP
 // TODO: "/" for commands. If no "/" send message instead
 // TODO: More advanced verbose options
+// TODO: GETSERVER command
 
 // Struct that contains all the data required for the shell to function.
 // Commands may alter the data if necessary.
@@ -127,19 +128,24 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 
+	address := string(args[0])
 	port, parseErr := strconv.ParseUint(string(args[1]), 10, 16)
 	if parseErr != nil {
 		return ReplyData{Error: parseErr}
 	}
 
-	con, conErr := Connect(string(args[0]), uint16(port))
+	con, conErr := Connect(address, uint16(port))
 	if conErr != nil {
 		return ReplyData{Error: conErr}
 	}
 
+	server, dbErr := db.SaveServer(cmd.Static.DB, address, uint16(port), "Default")
+	if dbErr != nil {
+		return ReplyData{Error: dbErr}
+	}
+
 	cmd.Data.ClientCon.Conn = con
-	cmd.Data.Server.Address = string(args[0])
-	cmd.Data.Server.Port = uint16(port)
+	cmd.Data.Server = server
 	err := ConnectionStart(cmd)
 	if err != nil {
 		return ReplyData{Error: err}
