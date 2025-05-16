@@ -298,3 +298,9 @@ func StoreMessage(db *gorm.DB, src User, dst User, text string, stamp time.Time)
 	}
 	return msg, result.Error
 }
+
+func GetUsersMessages(db *gorm.DB, src User, dst User, init time.Time, end time.Time) ([]Message, error) {
+	var messages []Message
+	db.Where("stamp BETWEEN ? AND ?", init, end).Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Find(&messages)
+	return messages, nil
+}
