@@ -1,7 +1,9 @@
 package test
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
 	"gorm.io/driver/sqlite"
@@ -92,5 +94,45 @@ func TestUser(t *testing.T) {
 
 	if expectedExternal == actualExternal {
 		t.Fail()
+	}
+}
+
+func TestMessage(t *testing.T) {
+	testDB := setup(t)
+	sv, _ := db.AddServer(testDB, db.Server{Address: "127.0.0.0", Port: 9037, ServerID: 1, Name: "Default"})
+	src, _ := db.AddLocalUser(testDB, "Alice", "test", "test", sv.ServerID)
+	dst, _ := db.AddExternalUser(testDB, "Bob", "test", sv.ServerID)
+
+	_, err := db.StoreMessage(testDB, src.User, dst.User, "hello world", time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+
+	m1 := db.Message{SourceUser: src.User, DestinationUser: dst.User, Stamp: time.Date(2025, 5, 16, 12, 0, 0, 0, time.UTC), Text: "hello world"}
+	m2 := db.Message{SourceUser: dst.User, DestinationUser: src.User, Stamp: time.Date(2025, 5, 15, 12, 0, 0, 0, time.UTC), Text: "bye"}
+	m3 := db.Message{SourceUser: dst.User, DestinationUser: src.User, Stamp: time.Date(2025, 5, 19, 12, 0, 0, 0, time.UTC), Text: "bye 2"}
+
+	_, err = db.StoreMessage(testDB, m1.SourceUser, m1.DestinationUser, m1.Text, m1.Stamp)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = db.StoreMessage(testDB, m2.SourceUser, m2.DestinationUser, m2.Text, m2.Stamp)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = db.StoreMessage(testDB, m3.SourceUser, m3.DestinationUser, m3.Text, m3.Stamp)
+	if err != nil {
+		t.Error(err)
+	}
+
+	messages, err := db.GetUsersMessages(testDB, src.User, dst.User, time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+
+	for _, v := range messages {
+		fmt.Println(v.Text)
 	}
 }
