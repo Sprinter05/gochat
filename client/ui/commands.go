@@ -75,6 +75,8 @@ func (t *TUI) parseCommand(text string) {
 		return
 	}
 
+	t.history.Add(lower)
+
 	cmd := Command{
 		Operation: parts[0],
 		Arguments: parts[1:],

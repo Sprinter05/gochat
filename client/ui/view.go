@@ -41,6 +41,9 @@ type TUI struct {
 	status state           // Identifies rendering states
 	data   cmds.StaticData // Identifies command data
 
+	history models.Slice[string] // Stores previously ran commands
+	next    uint                 // Last history
+
 	servers models.Table[string, Server] // Table storing servers
 	focus   string                       // Currently active server
 }

@@ -259,9 +259,39 @@ func setupHandlers(t *TUI) {
 
 // Sets up main input capture (run command, send text, newline).
 func setupInput(t *TUI) {
+	t.comp.input.SetChangedFunc(func() {
+		text := t.comp.input.GetText()
+		if text == "" {
+			t.next = 0
+		}
+	})
+
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyEscape:
+			t.comp.input.SetText("", false)
+			t.next = 0
+			return nil
+		case tcell.KeyUp:
+			text := t.comp.input.GetText()
+			if text != "" && t.next == 0 {
+				return event
+			}
+
+			l := t.history.Len() - 1
+			cmd, ok := t.history.Get(uint(l) - t.next)
+			if !ok {
+				return event
+			}
+			t.next += 1
+
+			t.comp.input.SetText("/"+cmd, true)
+			return nil
 		case tcell.KeyEnter:
+			defer func() {
+				t.next = 0
+			}()
+
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
 				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				return event
@@ -405,7 +435,8 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 			deletingBuffer: false,
 			lastDate:       time.Now(),
 		},
-		data: static,
+		data:    static,
+		history: models.NewSlice[string](0),
 	}
 	app := tview.NewApplication().
 		EnableMouse(true).

@@ -20,7 +20,9 @@ const KeybindHelp string = `
 
 [yellow::b]Ctrl-T[-::-]: Focus chat/input window
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
+	- In the [-::b]input window[-::-] use [green]Escape[-::-] to clear the text
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
+	- In the [-::b]input window[-::-] use [green]Up[-::-] to browse through the history of commands ran.
 
 [yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
 	- [green]Esc[-::-] to cancel
