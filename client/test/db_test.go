@@ -127,12 +127,21 @@ func TestMessage(t *testing.T) {
 		t.Error(err)
 	}
 
-	messages, err := db.GetUsersMessages(testDB, src.User, dst.User, time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC), time.Now())
+	messages, err := db.GetUsersMessagesRange(testDB, src.User, dst.User, time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
 
 	for _, v := range messages {
+		fmt.Println(v.Text)
+	}
+
+	allMessages, err := db.GetAllUsersMessages(testDB, src.User, dst.User)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for _, v := range allMessages {
 		fmt.Println(v.Text)
 	}
 }
