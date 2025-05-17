@@ -169,7 +169,8 @@ func newServerPopup(t *TUI) {
 				return
 			}
 
-			t.addServer(name, addr)
+			// We enable TLS by default
+			t.addServer(name, addr, true)
 			t.addBuffer("Default", false)
 			welcomeMessage(t)
 

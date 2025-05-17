@@ -34,6 +34,9 @@ type Server interface {
 	// Returns the command asocciated data and whether
 	// they are connected to the endpoint or not
 	Online() (*cmds.Data, bool)
+
+	// Returns the name of the server
+	Name() string
 }
 
 // Returns the currently active server.
@@ -49,7 +52,7 @@ func (t *TUI) Active() Server {
 
 // Adds a server connected to a remote endpoint, stores it in
 // the database, adds it to the TUI and changes to it.
-func (t *TUI) addServer(name string, addr net.Addr) {
+func (t *TUI) addServer(name string, addr net.Addr, tls bool) {
 	if t.servers.Len() >= int(maxServers) {
 		t.showError(ErrorMaxServers)
 		return
@@ -83,6 +86,7 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 		ip.IP.String(),
 		uint16(ip.Port),
 		name,
+		tls,
 	)
 
 	if dbErr != nil {
@@ -92,7 +96,12 @@ func (t *TUI) addServer(name string, addr net.Addr) {
 
 	t.servers.Add(name, s)
 	l := t.servers.Len()
-	t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
+
+	if tls {
+		t.comp.servers.AddItem(name, addr.String()+" (TLS)", ascii(l), nil)
+	} else {
+		t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
+	}
 
 	t.renderServer(name)
 }
@@ -279,6 +288,10 @@ func (s *RemoteServer) Source() net.Addr {
 	return ip
 }
 
+func (s *RemoteServer) Name() string {
+	return s.name
+}
+
 /* LOCAL SERVER */
 
 type LocalServer struct {
@@ -337,4 +350,8 @@ func (l *LocalServer) Source() net.Addr {
 
 func (l *LocalServer) Online() (*cmds.Data, bool) {
 	return nil, false
+}
+
+func (l *LocalServer) Name() string {
+	return l.name
 }

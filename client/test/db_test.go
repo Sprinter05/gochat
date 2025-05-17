@@ -27,7 +27,7 @@ func setup(t *testing.T) *gorm.DB {
 
 func TestServer(t *testing.T) {
 	testDB := setup(t)
-	_, saveErr := db.SaveServer(testDB, "127.0.0.1", 9037, "testserver")
+	_, saveErr := db.SaveServer(testDB, "127.0.0.1", 9037, "testserver", false)
 	if saveErr != nil {
 		t.Error(saveErr)
 	}

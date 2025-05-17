@@ -64,6 +64,11 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/version",
 	},
+	"tls": {
+		fun:    toggleTLS,
+		nArgs:  1,
+		format: "/tls <on/off>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -122,6 +127,38 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 }
 
 // COMMANDS
+
+func toggleTLS(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	r := cmds.TLS(c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+
+	i := t.comp.servers.GetCurrentItem()
+	addr := cmd.serv.Source()
+	if cmd.Arguments[0] == "on" {
+		t.comp.servers.SetItemText(
+			i, cmd.serv.Name(),
+			addr.String()+" (TLS)",
+		)
+		cmd.print("TLS is now enabled", cmds.RESULT)
+	} else { // off
+		t.comp.servers.SetItemText(
+			i, cmd.serv.Name(),
+			addr.String(),
+		)
+		cmd.print("TLS is now disabled", cmds.RESULT)
+	}
+}
 
 func showVersion(t *TUI, cmd Command) {
 	str := fmt.Sprintf(

@@ -86,6 +86,8 @@ var (
 	ErrorUserExists        error = fmt.Errorf("user exists")
 	ErrorPasswordsNotMatch error = fmt.Errorf("passwords do not match")
 	ErrorUserNotFound      error = fmt.Errorf("user not found")
+	ErrorUnknownTLSOption  error = fmt.Errorf("unknown option; valid options are on or off")
+	ErrorOfflineRequired   error = fmt.Errorf("you must be offline")
 )
 
 // Map that contains every shell command with its respective execution functions.
@@ -113,6 +115,38 @@ func FetchClientCmd(op string, cmd Command) func(cmd Command, args ...[]byte) Re
 }
 
 // CLIENT COMMANDS
+
+// Changes the state of a TLS server
+//
+// Arguments: <on/off>
+//
+// Returns a zero value ReplyData if the argument is correct
+func TLS(cmd Command, args ...[]byte) ReplyData {
+	if cmd.Data.IsConnected() {
+		return ReplyData{Error: ErrorOfflineRequired}
+	}
+	if len(args) < 1 {
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+
+	if string(args[0]) == "on" {
+		cmd.Data.Server.TLS = true
+		err := db.UpdateServer(cmd.Static.DB, cmd.Data.Server)
+		if err != nil {
+			return ReplyData{Error: err}
+		}
+		return ReplyData{}
+	} else if string(args[0]) == "off" {
+		cmd.Data.Server.TLS = false
+		err := db.UpdateServer(cmd.Static.DB, cmd.Data.Server)
+		if err != nil {
+			return ReplyData{Error: err}
+		}
+		return ReplyData{}
+	}
+
+	return ReplyData{Error: ErrorUnknownTLSOption}
+}
 
 // Starts a connection with a server.
 //

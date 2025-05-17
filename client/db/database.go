@@ -70,6 +70,7 @@ type Message struct {
 type Server struct {
 	Address  string `gorm:"primaryKey;autoIncrement:false;not null"`
 	Port     uint16 `gorm:"primaryKey;autoIncrement:false;not null"`
+	TLS      bool   `gorm:"not null"`
 	ServerID uint   `gorm:"autoIncrement:false;not null"`
 	Name     string `gorm:"unique;not null"`
 }
@@ -124,9 +125,9 @@ func getMaxID(db *gorm.DB, table string) uint {
 
 // Adds a socket pair to the database if the socket is not on it already. Then,
 // returns it.
-func SaveServer(db *gorm.DB, address string, port uint16, name string) (Server, error) {
+func SaveServer(db *gorm.DB, address string, port uint16, name string, tls bool) (Server, error) {
 	// Adds the server to the database only if it is not in it already
-	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port, Name: name}
+	server := Server{ServerID: getMaxID(db, "servers") + 1, Address: address, Port: port, Name: name, TLS: tls}
 	var saveError error
 
 	svExists, existsErr := ServerExists(db, address, port)
@@ -146,6 +147,7 @@ func SaveServer(db *gorm.DB, address string, port uint16, name string) (Server, 
 		}
 		server.ServerID = newServer.ServerID
 		server.Name = name
+		server.TLS = tls
 		result := db.Save(&server)
 		saveError = result.Error
 	}
@@ -161,6 +163,12 @@ func AddServer(db *gorm.DB, server Server) (Server, error) {
 		return Server{}, ErrorUnexpectedRows
 	}
 	return server, result.Error
+}
+
+// Updates data about a server
+func UpdateServer(db *gorm.DB, server Server) error {
+	result := db.Save(&server)
+	return result.Error
 }
 
 // Deletes a server from the database.

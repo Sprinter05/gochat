@@ -101,7 +101,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 	cl = spec.Connection{Conn: con}
 
-	server, _ := db.SaveServer(dbconn, address, port, "Default")
+	server, _ := db.SaveServer(dbconn, address, port, "Default", false)
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
 	data := commands.Data{ClientCon: cl, Server: server}
