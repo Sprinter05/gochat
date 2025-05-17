@@ -52,22 +52,23 @@ func (t *TUI) Active() Server {
 
 // Adds a server connected to a remote endpoint, stores it in
 // the database, adds it to the TUI and changes to it.
-func (t *TUI) addServer(name string, addr net.Addr, tls bool) {
+func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 	if t.servers.Len() >= int(maxServers) {
-		t.showError(ErrorMaxServers)
-		return
+		return ErrorMaxServers
 	}
 
 	_, ok := t.servers.Get(name)
 	if ok {
-		t.showError(ErrorExists)
-		return
+		return ErrorExists
 	}
 
 	ip, err := net.ResolveTCPAddr("tcp4", addr.String())
 	if err != nil {
-		t.showError(err)
-		return
+		return err
+	}
+
+	if t.existsServer(*ip) {
+		return ErrorExists
 	}
 
 	s := &RemoteServer{
@@ -90,8 +91,7 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) {
 	)
 
 	if dbErr != nil {
-		t.showError(dbErr)
-		return
+		return dbErr
 	}
 
 	t.servers.Add(name, s)
@@ -104,6 +104,25 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) {
 	}
 
 	t.renderServer(name)
+	return nil
+}
+
+// Finds a server by a given address
+func (t *TUI) existsServer(addr net.TCPAddr) bool {
+	list := t.servers.GetAll()
+	for _, v := range list {
+		source := v.Source()
+		if source == nil {
+			continue
+		}
+
+		tcp, _ := net.ResolveTCPAddr("tcp4", source.String())
+		if slices.Equal(tcp.IP, addr.IP) && tcp.Port == addr.Port {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Finds a server by a given name and returns its internal

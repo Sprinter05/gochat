@@ -492,7 +492,10 @@ func (t *TUI) restoreSession() {
 	for _, v := range list {
 		str := fmt.Sprintf("%s:%d", v.Address, v.Port)
 		addr, _ := net.ResolveTCPAddr("tcp4", str)
-		t.addServer(v.Name, addr, v.TLS)
+		err := t.addServer(v.Name, addr, v.TLS)
+		if err != nil {
+			panic(err)
+		}
 		t.addBuffer("Default", false)
 		welcomeMessage(t)
 	}
