@@ -114,7 +114,7 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 
 	return cmds.Command{
 		Data:   d,
-		Static: t.data,
+		Static: &t.data,
 		Output: c.print,
 	}, array
 }

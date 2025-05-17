@@ -43,7 +43,7 @@ type StaticData struct {
 
 type Command struct {
 	Output func(text string, outputType OutputType) // Custom output-printing function
-	Static StaticData
+	Static *StaticData
 	Data   *Data
 }
 
