@@ -102,7 +102,7 @@ func setupLayout() (areas, components) {
 	left.SetBackgroundColor(tcell.ColorDefault)
 
 	main := tview.NewFlex().
-		AddItem(left, 0, 1, false).
+		AddItem(left, 0, 2, false).
 		AddItem(bottom, 0, 6, true).
 		AddItem(comps.users, 0, 0, false)
 	main.SetBackgroundColor(tcell.ColorDefault)
