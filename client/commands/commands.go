@@ -88,6 +88,7 @@ var (
 	ErrorUserNotFound      error = fmt.Errorf("user not found")
 	ErrorUnknownTLSOption  error = fmt.Errorf("unknown option; valid options are on or off")
 	ErrorOfflineRequired   error = fmt.Errorf("you must be offline")
+	ErrorInvalidSkipVerify error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
 )
 
 // Map that contains every shell command with its respective execution functions.
@@ -167,13 +168,18 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: parseErr}
 	}
 
+	useTLS := cmd.Data.Server.TLS
 	skipVerify := false
 	if len(args) >= 3 && string(args[2]) == "-noverify" {
+		if !useTLS {
+			return ReplyData{Error: ErrorInvalidSkipVerify}
+		}
+
 		skipVerify = true
 		verbosePrint("WARNING: certificate verification is going to be skipped!!", cmd)
 	}
 
-	con, conErr := Connect(string(args[0]), uint16(port), cmd.Data.Server.TLS, skipVerify)
+	con, conErr := Connect(string(args[0]), uint16(port), useTLS, skipVerify)
 	if conErr != nil {
 		return ReplyData{Error: conErr}
 	}
