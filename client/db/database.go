@@ -318,3 +318,21 @@ func GetAllUsersMessages(db *gorm.DB, src User, dst User) ([]Message, error) {
 	}
 	return messages, nil
 }
+
+// Removes a message from the database
+func RemoveMessage(db *gorm.DB, msg Message) (int64, error) {
+	result := db.Delete(msg)
+	if result.Error != nil {
+		return result.RowsAffected, result.Error
+	}
+	return result.RowsAffected, result.Error
+}
+
+// Removes the messages between two users in a time range
+func RemoveMessagesRange(db *gorm.DB, src User, dst User, init time.Time, end time.Time) (int64, error) {
+	result := db.Where("stamp BETWEEN ? AND ?", init, end).Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Delete(&Message{})
+	if result.Error != nil {
+		return result.RowsAffected, result.Error
+	}
+	return result.RowsAffected, nil
+}
