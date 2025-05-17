@@ -148,9 +148,10 @@ func TLS(cmd Command, args ...[]byte) ReplyData {
 	return ReplyData{Error: ErrorUnknownTLSOption}
 }
 
-// Starts a connection with a server.
+// Starts a connection with a server. If noverify is set,
+// in case of TLS connections, certificate origins wont be checked
 //
-// Arguments: <server address> <server port>
+// Arguments: <server address> <server port> [-noverify]
 //
 // Returns a zero value ReplyData if the connection was successful.
 func Conn(cmd Command, args ...[]byte) ReplyData {
@@ -166,7 +167,13 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: parseErr}
 	}
 
-	con, conErr := Connect(string(args[0]), uint16(port))
+	skipVerify := false
+	if len(args) >= 3 && string(args[2]) == "-noverify" {
+		skipVerify = true
+		verbosePrint("WARNING: certificate verification is going to be skipped!!", cmd)
+	}
+
+	con, conErr := Connect(string(args[0]), uint16(port), cmd.Data.Server.TLS, skipVerify)
 	if conErr != nil {
 		return ReplyData{Error: conErr}
 	}

@@ -32,7 +32,7 @@ var commands map[string]operation = map[string]operation{
 	"connect": {
 		fun:    connectServer,
 		nArgs:  0,
-		format: "/connect",
+		format: "/connect (-noverify)",
 	},
 	"register": {
 		fun:    registerUser,
@@ -312,9 +312,17 @@ func connectServer(t *TUI, cmd Command) {
 		return
 	}
 
+	args := make([][]byte, 0)
+	args = append(args, []byte(parts[0]))
+	args = append(args, []byte(parts[1]))
+
+	if len(cmd.Arguments) >= 1 {
+		args = append(args, []byte(cmd.Arguments[0]))
+	}
+
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
 	c, _ := cmd.createCmd(t, data)
-	r := cmds.Conn(c, []byte(parts[0]), []byte(parts[1]))
+	r := cmds.Conn(c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)

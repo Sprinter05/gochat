@@ -17,8 +17,10 @@ import (
 // Stores the json attributes of the client configuration file
 type Config struct {
 	ShellServer struct {
-		Address string `json:"address"`
-		Port    uint16 `json:"port"`
+		Address    string `json:"address"`
+		Port       uint16 `json:"port"`
+		TLS        bool   `json:"use_tls"`
+		VerifyCert bool   `json:"verify_tls"`
 	} `json:"shell_server"`
 	Database struct {
 		Path     string `json:"path"`
@@ -94,7 +96,11 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	var con net.Conn
 	if address != "" {
 		var conErr error
-		con, conErr = commands.Connect(address, port)
+		con, conErr = commands.Connect(
+			address, port,
+			config.ShellServer.TLS,
+			config.ShellServer.VerifyCert,
+		)
 		if conErr != nil {
 			log.Fatal(conErr)
 		}

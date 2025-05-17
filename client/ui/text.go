@@ -69,8 +69,11 @@ const CommandHelp string = `
 [yellow::b]/buffers[-::-]: Displays a list of all buffers in the current server
 	- Those that have been hidden will also be displayed
 	
-[yellow::b]/connect[-::-]: Connects to the currently active server using its address
+[yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
+
+[yellow::b]/connect[-::-] [green](-noverify)[-]: Connects to the currently active server using its address
 	- This will fail if the server is local
+	- If the connection is TLS and noverify is used, certificates will not be checked
 
 [yellow::b]/register[-::-] [green]<username>[-]: Creates a new account in the currently active server
 	- A popup asking for a password to register will show up when creating a new account

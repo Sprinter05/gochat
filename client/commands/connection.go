@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"slices"
@@ -10,13 +11,27 @@ import (
 )
 
 // Connects to the gochat server given its address and port
-func Connect(address string, port uint16) (net.Conn, error) {
+func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.Conn, err error) {
 	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
-	con, conErr := net.Dial("tcp4", socket)
-	if conErr != nil {
-		return nil, conErr
+
+	if useTLS {
+		con, err = tls.Dial("tcp4", socket, &tls.Config{
+			InsecureSkipVerify: noVerify,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return con, nil
 	}
-	return con, conErr
+
+	// Default to non-TLS
+	con, err = net.Dial("tcp4", socket)
+	if err != nil {
+		return nil, err
+	}
+
+	return con, nil
 }
 
 /*
