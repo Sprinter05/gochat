@@ -302,7 +302,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 			cmd.Output("\n", PROMPT)
 			return ReplyData{Error: pass2Err}
 		}
-		cmd.Output("", PROMPT)
+		cmd.Output("\n", PROMPT)
 
 		if string(pass1) != string(pass2) {
 			return ReplyData{Error: ErrorPasswordsNotMatch}
