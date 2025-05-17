@@ -16,7 +16,7 @@ const (
 	UsernameSize     int    = 32        // Max size of a username in bytes
 	LoginTimeout     int    = 2         // Timeout for a handshake process in minutes
 	ReadTimeout      int    = 10        // Timeout for a TCP read block in minutes
-	HandshakeTimeout int    = 1         // Timeout for a connection handshake block in minutes
+	HandshakeTimeout int    = 20        // Timeout for a connection handshake block in seconds
 	TokenExpiration  int    = 30        // Deadline for a reusable token expiration in minutes
 )
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -8,6 +9,33 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/Sprinter05/gochat/server/hubs"
 )
+
+/* INITIAL CONNECTION */
+
+// Waits for a possible TLS handshake and sends an initial welcome OK
+func welcomeConn(cl *spec.Connection) {
+	// Set timeout for the initial write to prevent blocking forever
+	deadline := time.Now().Add(time.Duration(spec.HandshakeTimeout) * time.Second)
+	cl.Conn.SetDeadline(deadline)
+
+	// Notify the user they are connected to the server
+	pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
+	if e != nil {
+		log.Packet(spec.OK, e)
+	} else {
+		_, err := cl.Conn.Write(pak)
+		if err != nil {
+			log.Error("handshake with new connection", err)
+		}
+	}
+
+	// Disable timeout as it is only for the first write
+	cl.Conn.SetDeadline(time.Time{})
+
+	// Check if its a TLS connection
+	_, ok := cl.Conn.(*tls.Conn)
+	cl.TLS = ok
+}
 
 /* COMMAND FUNCTIONS */
 
@@ -58,6 +86,9 @@ func ListenConnection(cl spec.Connection, c *models.Counter, req chan<- hubs.Req
 			true,
 		)
 	}()
+
+	// Perform initial welcome handshake
+	welcomeConn(&cl)
 
 	// Set timeout and log connection
 	ip := cl.Conn.RemoteAddr().String()
