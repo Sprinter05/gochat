@@ -10,7 +10,8 @@
             "request": "launch",
             "mode": "debug",
             "args": [
-                ".env"
+                "--config",
+                "config\\server.json"
             ],
             "program": "${workspaceFolder}/server",
             "cwd": "${workspaceFolder}",

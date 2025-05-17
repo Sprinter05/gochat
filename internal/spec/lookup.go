@@ -4,7 +4,6 @@ package spec
 
 const (
 	ProtocolVersion  uint8  = 1         // Current version of the protocol
-	MaxClients       uint   = 20        // Max amount of clients the server allows at the same time
 	NullOp           Action = 0         // Invalid operation code
 	NullID           ID     = 0         // Only valid for specific documented cases
 	MaxID            ID     = 1<<10 - 1 // Maximum value according to the bit field
