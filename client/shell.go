@@ -76,7 +76,7 @@ func ShellPrint(text string, outputType commands.OutputType) {
 	case commands.PROMPT:
 		jump = ""
 	case commands.ERROR:
-		prefix = "[ERROR]: "
+		prefix = "[ERROR] "
 	case commands.INFO:
 		prefix = "[INFO] "
 	case commands.RESULT:
