@@ -72,6 +72,7 @@ const (
 	RESULT                         // Messages that show the result of a command
 	ERROR                          // Error messages that may be printed additionaly in error cases
 	INFO                           // Message that representes generic info not asocciated to a command
+	USRS                           // Specific for user printing
 )
 
 // Possible command errors.
@@ -603,6 +604,7 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
+	cmd.Output(string(reply.Args[0]), USRS)
 	split := bytes.Split(reply.Args[0], []byte("\n"))
 	return ReplyData{Arguments: split}
 }
@@ -701,6 +703,7 @@ func printLocalUsers(cmd Command) ([][]byte, error) {
 	users := make([][]byte, 0, len(localUsers))
 	for _, v := range localUsers {
 		users = append(users, []byte(v))
+		cmd.Output(v, USRS)
 	}
 	return users, nil
 }
