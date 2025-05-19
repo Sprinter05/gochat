@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
@@ -33,6 +34,7 @@ type Data struct {
 	ClientCon spec.Connection
 	Server    db.Server
 	User      db.LocalUser
+	Waitlist  models.Waitlist[spec.Command]
 }
 
 // Separated struct that eases interaction with the terminal UI
