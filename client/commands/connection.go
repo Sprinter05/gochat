@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"net"
-	"slices"
 	"strconv"
 
 	"github.com/Sprinter05/gochat/internal/spec"
@@ -98,6 +97,7 @@ func ConnectionStart(data Command) error {
 	return nil
 }
 
+/*
 // Receives a slice of command operations to listen to, then starts
 // listening until a received packet fits one of the actions provided
 // and returns it
@@ -146,3 +146,4 @@ func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command,
 	}
 	return cmd, nil
 }
+*/

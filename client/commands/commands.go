@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -154,6 +155,8 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: err}
 	}
 
+	cmd.Output("listening for incoming packets...", INFO)
+	go Listen(&cmd)
 	return ReplyData{}
 }
 
@@ -231,10 +234,7 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
-	reply, regErr := ListenResponse(cmd, 1, spec.REQ, spec.ERR)
-	if regErr != nil {
-		return ReplyData{Error: regErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.REQ, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -354,10 +354,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
-	reply, regErr := ListenResponse(cmd, 1, spec.OK, spec.ERR)
-	if regErr != nil {
-		return ReplyData{Error: regErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -444,10 +441,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	verbosePrint("awaiting response...", cmd)
-	loginReply, loginReplyErr := ListenResponse(cmd, 1, spec.ERR, spec.VERIF)
-	if loginReplyErr != nil {
-		return ReplyData{Error: loginReplyErr}
-	}
+	loginReply := cmd.Data.Waitlist.Get(Find(1, spec.VERIF, spec.ERR))
 
 	if loginReply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(loginReply.HD.Info)}
@@ -484,10 +478,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	verifReply, verifReplyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
-	if verifReplyErr != nil {
-		return ReplyData{Error: verifReplyErr}
-	}
+	verifReply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if verifReply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(verifReply.HD.Info)}
@@ -530,10 +521,7 @@ func Logout(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
-	if replyErr != nil {
-		return ReplyData{Error: replyErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -597,15 +585,13 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.USRS)
-	if replyErr != nil {
-		return ReplyData{Error: replyErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.USRS, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
+	cmd.Output(fmt.Sprintf("%s users:", args[0]), USRS)
 	cmd.Output(string(reply.Args[0]), USRS)
 	split := bytes.Split(reply.Args[0], []byte("\n"))
 	return ReplyData{Arguments: split}
@@ -671,10 +657,7 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
-	if replyErr != nil {
-		return ReplyData{Error: replyErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -703,6 +686,7 @@ func printLocalUsers(cmd Command) ([][]byte, error) {
 		return [][]byte{}, err
 	}
 	users := make([][]byte, 0, len(localUsers))
+	cmd.Output("local users:", USRS)
 	for _, v := range localUsers {
 		users = append(users, []byte(v))
 		cmd.Output(v, USRS)
@@ -726,4 +710,20 @@ func verbosePrint(text string, args Command) {
 	if args.Static.Verbose {
 		args.Output(text, INTERMEDIATE)
 	}
+}
+
+// Returns a function that returns true if the received command fulfills
+// the given conditions in the arguments (ID and operations).
+// This is used to dinamically create functions that retrieve commands
+// from the waitlist with waitlist.Get()
+func Find(id spec.ID, ops ...spec.Action) func(cmd spec.Command) bool {
+	findFunc := func(cmd spec.Command) bool {
+		if cmd.HD.ID == id {
+			if slices.Contains(ops, cmd.HD.Op) {
+				return true
+			}
+		}
+		return false
+	}
+	return findFunc
 }
