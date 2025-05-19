@@ -19,48 +19,44 @@ func Connect(address string, port uint16) (net.Conn, error) {
 	return con, conErr
 }
 
-/*
-// Listens for incoming server packets. It also executes
-// the appropiate client actions depending on the packet received
-func Listen(data *Data) {
-	defer data.ClientCon.Conn.Close()
-
+// Listens for incoming server packets. When a packet
+// is received, it is stored in the packet waitlist
+func Listen(cmd *Command) {
 	for {
-		cmd := spec.Command{}
+		if cmd.Data.ClientCon.Conn == nil {
+			cmd.Output("no longer listening for packets", INFO)
+			return
+		}
+		pct := spec.Command{}
 
 		// Header listen
-		hdErr := cmd.ListenHeader(data.ClientCon)
+		hdErr := pct.ListenHeader(cmd.Data.ClientCon)
 		if hdErr != nil {
-			continue
+			cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
 		}
 
 		// Header check
-		chErr := cmd.HD.ClientCheck()
+		chErr := pct.HD.ClientCheck()
 		if chErr != nil {
-			fmt.Print("\r\033[K")
-			fmt.Println("invalid header received from server:")
-			if data.Verbose {
-				cmd.Print(ShellPrint)
+			if cmd.Static.Verbose {
+				cmd.Output("incorrect header from server", ERROR)
+				cmd.Output(pct.Contents(), PACKET)
 			}
-			fmt.Print("gochat() > ")
-			continue
 		}
 
 		// Payload listen
-		pldErr := cmd.ListenPayload(data.ClientCon)
+		pldErr := pct.ListenPayload(cmd.Data.ClientCon)
 		if pldErr != nil {
-			continue
+			cmd.Output(fmt.Sprintf("error in payload listen: %s", hdErr), ERROR)
 		}
 
-		fmt.Print("\r\033[K")
-		fmt.Println("Packet received from server:")
-		if data.Verbose {
-			cmd.Print(ShellPrint)
+		if cmd.Static.Verbose {
+			cmd.Output(fmt.Sprintf("\r\033[KThe following packet has been received:\n%s", pct.Contents()), PACKET)
 		}
-		PrintPrompt(*data)
+
+		cmd.Data.Waitlist.Insert(pct)
 	}
 }
-*/
 
 // TODO: Change to return error
 // Listens for an OK packet from the server when starting the connection,
