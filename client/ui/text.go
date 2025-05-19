@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 /* TEXT */
@@ -169,6 +170,67 @@ func (t *TUI) systemMessage(command ...string) func(string, cmds.OutputType) {
 	}
 
 	return fun
+}
+
+// Sends a message to the remote connection if possible
+func (t *TUI) remoteMessage(content string) {
+	print := t.systemMessage("message")
+
+	s := t.Active()
+	tab := s.Buffers().Current(t.Buffer())
+
+	data, ok := s.Online()
+
+	if tab == nil || !ok {
+		return
+	}
+
+	cmd := cmds.Command{
+		Output: func(text string, outputType cmds.OutputType) {},
+		Static: &t.data,
+		Data:   data,
+	}
+
+	r := cmds.Msg(cmd, []byte(tab.name), []byte(content))
+	if r.Error != nil {
+		print("failed to send message: "+r.Error.Error(), cmds.ERROR)
+	}
+}
+
+// Waits for new messages to be sent to that user
+func (t *TUI) receiveMessages(s Server) {
+	data, _ := s.Online()
+	print := t.systemMessage()
+
+	for {
+		if !data.IsUserLoggedIn() {
+			// Stop listening
+			return
+		}
+
+		cmd := data.Waitlist.Get(
+			cmds.Find(spec.NullID, spec.RECIV),
+		)
+
+		msg, err := cmds.StoreReciv(cmd, cmds.Command{
+			Output: func(text string, outputType cmds.OutputType) {},
+			Static: &t.data,
+			Data:   data,
+		})
+
+		if err != nil {
+			print("failed to receive a message: "+err.Error(), cmds.ERROR)
+		}
+
+		t.SendMessage(Message{
+			Buffer:    msg.Sender,
+			Sender:    msg.Sender,
+			Content:   msg.Content,
+			Timestamp: msg.Timestamp,
+			Source:    s.Source(),
+		})
+	}
+
 }
 
 // Wrapper function for sending messages to the TUI.

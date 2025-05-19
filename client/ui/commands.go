@@ -239,6 +239,8 @@ func loginUser(t *TUI, cmd Command) {
 
 	uname := data.User.User.Username
 	t.comp.input.SetLabel(unameLabel(uname))
+
+	go t.receiveMessages(cmd.serv)
 }
 
 func listUsers(t *TUI, cmd Command) {

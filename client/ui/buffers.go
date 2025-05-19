@@ -71,6 +71,16 @@ func (b *Buffers) New(name string, system bool) error {
 	return nil
 }
 
+// Assigns the buffer as online and returns whether it failed or not
+func (b *Buffers) Current(name string) *tab {
+	t, ok := b.tabs.Get(name)
+	if !ok {
+		return nil
+	}
+
+	return t
+}
+
 // Assigns an index to a hidden buffer (unless it was not hidden)
 // and returns the index and asocciated rune. If any index
 // was left by another buffer it will be grabbed first.

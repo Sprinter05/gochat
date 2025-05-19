@@ -5,9 +5,16 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/Sprinter05/gochat/internal/spec"
 )
+
+type Message struct {
+	Sender    string
+	Content   string
+	Timestamp time.Time
+}
 
 // Connects to the gochat server given its address and port
 func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.Conn, err error) {

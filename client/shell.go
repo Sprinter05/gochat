@@ -104,7 +104,7 @@ func RECIVHandler(cmd *commands.Command) {
 			fmt.Println(storeErr)
 			continue
 		}
-		PrintMessage(reciv, decrypted, *cmd)
+		PrintMessage(reciv, decrypted.Content, *cmd)
 	}
 }
 

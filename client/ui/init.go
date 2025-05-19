@@ -25,6 +25,8 @@ const Logo string = `
 
 `
 
+// TODO: notification system
+
 const (
 	tuiVersion     float32 = 0.1      // Current client TUI version
 	selfSender     string  = "You"    // Self sender of a message
@@ -321,6 +323,8 @@ func setupInput(t *TUI) {
 				Timestamp: time.Now(),
 				Source:    s.Source(),
 			})
+
+			go t.remoteMessage(text)
 
 			t.comp.input.SetText("", false)
 			return nil

@@ -3,6 +3,7 @@ package commands
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -39,6 +40,7 @@ type Data struct {
 	User      db.LocalUser
 	Waitlist  models.Waitlist[spec.Command]
 	Next      spec.ID
+	Wait      context.Context
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -236,6 +238,7 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	cmd.Output("listening for incoming packets...", INFO)
+
 	go Listen(&cmd) // end cond
 
 	return ReplyData{}
@@ -882,29 +885,29 @@ func Reciv(cmd Command, args ...[]byte) ReplyData {
 // Performs the necessary operations to store a RECIV
 // packet in the database (decryption, REQ (if necessary)
 // insert...), then returns the decrypted message
-func StoreReciv(reciv spec.Command, cmd Command) (string, error) {
+func StoreReciv(reciv spec.Command, cmd Command) (Message, error) {
 	src, err := db.GetUser(cmd.Static.DB, string(reciv.Args[0]), cmd.Data.Server.ServerID)
 	if err != nil {
 		// The user most likely has not been found, so a REQ is required
 		reply := Req(cmd, reciv.Args[0])
 		if reply.Error != nil {
-			return "", reply.Error
+			return Message{}, reply.Error
 		}
 	}
 
 	prvKey, pemErr := spec.PEMToPrivkey([]byte(cmd.Data.User.PrvKey))
 	if pemErr != nil {
-		return "", pemErr
+		return Message{}, pemErr
 	}
 
 	decrypted, decryptErr := spec.DecryptText(reciv.Args[2], prvKey)
 	if decryptErr != nil {
-		return "", decryptErr
+		return Message{}, decryptErr
 	}
 
 	stamp, parseErr := spec.BytesToUnixStamp(reciv.Args[1])
 	if parseErr != nil {
-		return "", parseErr
+		return Message{}, parseErr
 	}
 
 	_, insertErr := db.StoreMessage(
@@ -914,7 +917,15 @@ func StoreReciv(reciv spec.Command, cmd Command) (string, error) {
 		stamp,
 	)
 
-	return string(decrypted), insertErr
+	if insertErr != nil {
+		return Message{}, insertErr
+	}
+
+	return Message{
+		Sender:    string(reciv.Args[0]),
+		Content:   string(decrypted),
+		Timestamp: stamp,
+	}, nil
 }
 
 // Prints out all local users and returns an array with its usernames.
