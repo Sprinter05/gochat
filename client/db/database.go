@@ -181,7 +181,7 @@ func RemoveServer(db *gorm.DB, address string, port uint16) error {
 	return result.Error
 }
 
-// Returns the server that with the specified socket.
+// Returns the server with the specified socket.
 func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 	var server Server
 	result := db.Where("address = ? AND port = ?", address, port).First(&server)
@@ -305,4 +305,42 @@ func StoreMessage(db *gorm.DB, src User, dst User, text string, stamp time.Time)
 		return Message{}, ErrorUnexpectedRows
 	}
 	return msg, result.Error
+}
+
+// Returns a slice with every message between two users in a range of time
+func GetUsersMessagesRange(db *gorm.DB, src User, dst User, init time.Time, end time.Time) ([]Message, error) {
+	var messages []Message
+	result := db.Where("stamp BETWEEN ? AND ?", init, end).Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Find(&messages)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return messages, nil
+}
+
+// Returns a slice with all messages between two users
+func GetAllUsersMessages(db *gorm.DB, src User, dst User) ([]Message, error) {
+	var messages []Message
+	result := db.Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Find(&messages)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return messages, nil
+}
+
+// Removes a message from the database
+func RemoveMessage(db *gorm.DB, msg Message) (int64, error) {
+	result := db.Delete(msg)
+	if result.Error != nil {
+		return result.RowsAffected, result.Error
+	}
+	return result.RowsAffected, result.Error
+}
+
+// Removes the messages between two users in a time range
+func RemoveMessagesRange(db *gorm.DB, src User, dst User, init time.Time, end time.Time) (int64, error) {
+	result := db.Where("stamp BETWEEN ? AND ?", init, end).Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Delete(&Message{})
+	if result.Error != nil {
+		return result.RowsAffected, result.Error
+	}
+	return result.RowsAffected, nil
 }

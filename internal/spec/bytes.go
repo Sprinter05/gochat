@@ -69,7 +69,6 @@ func (cmd *Command) Contents() string {
 			fmt.Fprintf(&output, "[%d] %s\n", i, v)
 		}
 	}
-	fmt.Fprintln(&output)
 	return output.String()
 }
 

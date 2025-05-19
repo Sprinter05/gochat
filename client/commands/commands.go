@@ -7,11 +7,13 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
@@ -24,6 +26,7 @@ import (
 // TODO: HELP
 // TODO: "/" for commands. If no "/" send message instead
 // TODO: More advanced verbose options
+// TODO: GETSERVER command
 
 // Struct that contains all the data required for the shell to function.
 // Commands may alter the data if necessary.
@@ -32,6 +35,7 @@ type Data struct {
 	ClientCon spec.Connection
 	Server    db.Server
 	User      db.LocalUser
+	Waitlist  models.Waitlist[spec.Command]
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -42,7 +46,7 @@ type StaticData struct {
 
 type Command struct {
 	Output func(text string, outputType OutputType) // Custom output-printing function
-	Static StaticData
+	Static *StaticData
 	Data   *Data
 }
 
@@ -71,6 +75,7 @@ const (
 	RESULT                         // Messages that show the result of a command
 	ERROR                          // Error messages that may be printed additionaly in error cases
 	INFO                           // Message that representes generic info not asocciated to a command
+	USRS                           // Specific for user printing
 )
 
 // Possible command errors.
@@ -103,6 +108,7 @@ var clientCmds = map[string]func(cmd Command, args ...[]byte) ReplyData{
 	"LOGOUT":  Logout,
 	"USRS":    Usrs,
 	"MSG":     Msg,
+	"RECIV":   Reciv,
 }
 
 // Given a string containing a command name, returns its execution function.
@@ -184,14 +190,20 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: conErr}
 	}
 
+	server, dbErr := db.GetServer(cmd.Static.DB, string(args[0]), uint16(port))
+	if dbErr != nil {
+		return ReplyData{Error: dbErr}
+	}
+
 	cmd.Data.ClientCon.Conn = con
-	cmd.Data.Server.Address = string(args[0])
-	cmd.Data.Server.Port = uint16(port)
+	cmd.Data.Server = server
 	err := ConnectionStart(cmd)
 	if err != nil {
 		return ReplyData{Error: err}
 	}
 
+	cmd.Output("listening for incoming packets...", INFO)
+	go Listen(&cmd)
 	return ReplyData{}
 }
 
@@ -269,10 +281,7 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
-	reply, regErr := ListenResponse(cmd, 1, spec.REQ, spec.ERR)
-	if regErr != nil {
-		return ReplyData{Error: regErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.REQ, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -343,7 +352,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 			cmd.Output("\n", PROMPT)
 			return ReplyData{Error: pass2Err}
 		}
-		cmd.Output("", PROMPT)
+		cmd.Output("\n", PROMPT)
 
 		if string(pass1) != string(pass2) {
 			return ReplyData{Error: ErrorPasswordsNotMatch}
@@ -392,10 +401,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
-	reply, regErr := ListenResponse(cmd, 1, spec.OK, spec.ERR)
-	if regErr != nil {
-		return ReplyData{Error: regErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -482,10 +488,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	verbosePrint("awaiting response...", cmd)
-	loginReply, loginReplyErr := ListenResponse(cmd, 1, spec.ERR, spec.VERIF)
-	if loginReplyErr != nil {
-		return ReplyData{Error: loginReplyErr}
-	}
+	loginReply := cmd.Data.Waitlist.Get(Find(1, spec.VERIF, spec.ERR))
 
 	if loginReply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(loginReply.HD.Info)}
@@ -522,10 +525,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	verifReply, verifReplyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
-	if verifReplyErr != nil {
-		return ReplyData{Error: verifReplyErr}
-	}
+	verifReply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if verifReply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(verifReply.HD.Info)}
@@ -568,10 +568,7 @@ func Logout(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
-	if replyErr != nil {
-		return ReplyData{Error: replyErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -635,15 +632,14 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.USRS)
-	if replyErr != nil {
-		return ReplyData{Error: replyErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.USRS, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
+	cmd.Output(fmt.Sprintf("%s users:", args[0]), USRS)
+	cmd.Output(string(reply.Args[0]), USRS)
 	split := bytes.Split(reply.Args[0], []byte("\n"))
 	return ReplyData{Arguments: split}
 }
@@ -708,10 +704,7 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := ListenResponse(cmd, 1, spec.ERR, spec.OK)
-	if replyErr != nil {
-		return ReplyData{Error: replyErr}
-	}
+	reply := cmd.Data.Waitlist.Get(Find(1, spec.OK, spec.ERR))
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -733,6 +726,55 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 	return ReplyData{}
 }
 
+// Sends a RECIV packet to the server. This command does not require to wait for the
+// packet since the packet listen is performed in a different goroutine.
+//
+// Arguments: none
+//
+// Returns a zero value ReplyData if the packet is sent successfully
+func Reciv(cmd Command, args ...[]byte) ReplyData {
+	pct, pctErr := spec.NewPacket(spec.RECIV, 1, spec.EmptyInfo)
+	if pctErr != nil {
+		return ReplyData{Error: pctErr}
+	}
+
+	_, writeErr := cmd.Data.ClientCon.Conn.Write(pct)
+	if writeErr != nil {
+		return ReplyData{Error: writeErr}
+	}
+	return ReplyData{}
+}
+
+// Performs the necessary operations to store a RECIV
+// packet in the database (decryption, REQ (if necessary)
+// insert...), then returns the decrypted message
+func StoreReciv(reciv spec.Command, cmd Command) (string, error) {
+	src, err := db.GetUser(cmd.Static.DB, string(reciv.Args[0]), cmd.Data.Server.ServerID)
+	if err != nil {
+		// The user most likely has not been found, so a REQ is required
+		reply := Req(cmd, reciv.Args[0])
+		if reply.Error != nil {
+			return "", reply.Error
+		}
+	}
+
+	prvKey, pemErr := spec.PEMToPrivkey([]byte(cmd.Data.User.PrvKey))
+	if pemErr != nil {
+		return "", pemErr
+	}
+
+	decrypted, decryptErr := spec.DecryptText(reciv.Args[2], prvKey)
+	if decryptErr != nil {
+		return "", decryptErr
+	}
+	stamp, parseErr := spec.BytesToUnixStamp(reciv.Args[1])
+	if parseErr != nil {
+		return "", parseErr
+	}
+	_, insertErr := db.StoreMessage(cmd.Static.DB, src, cmd.Data.User.User, string(decrypted), stamp)
+	return string(decrypted), insertErr
+}
+
 // Prints out all local users and returns an array with its usernames.
 func printLocalUsers(cmd Command) ([][]byte, error) {
 	localUsers, err := db.GetAllLocalUsernames(cmd.Static.DB)
@@ -740,8 +782,10 @@ func printLocalUsers(cmd Command) ([][]byte, error) {
 		return [][]byte{}, err
 	}
 	users := make([][]byte, 0, len(localUsers))
+	cmd.Output("local users:", USRS)
 	for _, v := range localUsers {
 		users = append(users, []byte(v))
+		cmd.Output(v, USRS)
 	}
 	return users, nil
 }
@@ -762,4 +806,20 @@ func verbosePrint(text string, args Command) {
 	if args.Static.Verbose {
 		args.Output(text, INTERMEDIATE)
 	}
+}
+
+// Returns a function that returns true if the received command fulfills
+// the given conditions in the arguments (ID and operations).
+// This is used to dinamically create functions that retrieve commands
+// from the waitlist with waitlist.Get()
+func Find(id spec.ID, ops ...spec.Action) func(cmd spec.Command) bool {
+	findFunc := func(cmd spec.Command) bool {
+		if cmd.HD.ID == id {
+			if slices.Contains(ops, cmd.HD.Op) {
+				return true
+			}
+		}
+		return false
+	}
+	return findFunc
 }

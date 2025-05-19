@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 // Starts a shell that allows the client to send packets
@@ -48,7 +49,7 @@ func NewShell(data commands.Command) {
 
 		cmdReply := f(data, args...)
 		if cmdReply.Error != nil {
-			fmt.Printf("%s: %s\n", op, cmdReply.Error)
+			fmt.Printf("[ERROR] %s: %s\n", op, cmdReply.Error)
 		}
 	}
 }
@@ -65,7 +66,53 @@ func PrintPrompt(data commands.Data) {
 	fmt.Printf("\033[36m%sgochat(%s) > \033[0m", connected, username)
 }
 
+// Shell-specific output function that handles different
+// input types accordingly.
+// TODO: remove "Shell" from "ShellPrint" once shell package has been created
 func ShellPrint(text string, outputType commands.OutputType) {
-	// TODO: complete implementation
-	fmt.Print(text + "\n")
+	prefix := ""
+	jump := "\n"
+	switch outputType {
+	case commands.INTERMEDIATE:
+		prefix = "[...] "
+	case commands.PACKET:
+		prefix = "[PACKET] "
+	case commands.PROMPT:
+		jump = ""
+	case commands.ERROR:
+		prefix = "[ERROR] "
+	case commands.INFO:
+		prefix = "[INFO] "
+	case commands.RESULT:
+		prefix = "[OK] "
+	}
+
+	fmt.Printf("%s%s%s", prefix, text, jump)
+}
+
+// Shell-specific RECIV handler. Listens
+// constantly for incoming RECIV packets
+// and performs the necessary shell
+// operations.
+func RECIVHandler(cmd *commands.Command) {
+	for {
+		reciv := cmd.Data.Waitlist.Get(commands.Find(0, spec.RECIV))
+		decrypted, storeErr := commands.StoreReciv(reciv, *cmd)
+		if storeErr != nil {
+			// Removes prompt line
+			fmt.Print("\r\033[K")
+			fmt.Println(storeErr)
+			continue
+		}
+		PrintMessage(reciv, decrypted, *cmd)
+	}
+}
+
+// Prints a received message in the shell
+func PrintMessage(reciv spec.Command, decryptedText string, cmd commands.Command) {
+	stamp, _ := spec.BytesToUnixStamp(reciv.Args[1])
+	// Removes prompt line and rings bell
+	fmt.Print("\r\033[K\a")
+	fmt.Printf("\033[36m[%s] \033[32m%s\033[0m: %s\n", stamp.String(), reciv.Args[0], decryptedText)
+	PrintPrompt(*cmd.Data)
 }
