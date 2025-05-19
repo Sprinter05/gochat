@@ -105,6 +105,7 @@ var clientCmds = map[string]func(cmd Command, args ...[]byte) ReplyData{
 	"LOGOUT":  Logout,
 	"USRS":    Usrs,
 	"MSG":     Msg,
+	"RECIV":   Reciv,
 }
 
 // Given a string containing a command name, returns its execution function.
@@ -677,6 +678,55 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: storeErr}
 	}
 	return ReplyData{}
+}
+
+// Sends a RECIV packet to the server. This command does not require to wait for the
+// packet since the packet listen is performed in a different goroutine.
+//
+// Arguments: none
+//
+// Returns a zero value ReplyData if the packet is sent successfully
+func Reciv(cmd Command, args ...[]byte) ReplyData {
+	pct, pctErr := spec.NewPacket(spec.RECIV, 1, spec.EmptyInfo)
+	if pctErr != nil {
+		return ReplyData{Error: pctErr}
+	}
+
+	_, writeErr := cmd.Data.ClientCon.Conn.Write(pct)
+	if writeErr != nil {
+		return ReplyData{Error: writeErr}
+	}
+	return ReplyData{}
+}
+
+// Performs the necessary operations to store a RECIV
+// packet in the database (decryption, REQ (if necessary)
+// insert...), then returns the decrypted message
+func StoreReciv(reciv spec.Command, cmd Command) (string, error) {
+	src, err := db.GetUser(cmd.Static.DB, string(reciv.Args[0]), cmd.Data.Server.ServerID)
+	if err != nil {
+		// The user most likely has not been found, so a REQ is required
+		reply := Req(cmd, reciv.Args[0])
+		if reply.Error != nil {
+			return "", reply.Error
+		}
+	}
+
+	prvKey, pemErr := spec.PEMToPrivkey([]byte(cmd.Data.User.PrvKey))
+	if pemErr != nil {
+		return "", pemErr
+	}
+
+	decrypted, decryptErr := spec.DecryptText(reciv.Args[2], prvKey)
+	if decryptErr != nil {
+		return "", decryptErr
+	}
+	stamp, parseErr := spec.BytesToUnixStamp(reciv.Args[1])
+	if parseErr != nil {
+		return "", parseErr
+	}
+	_, insertErr := db.StoreMessage(cmd.Static.DB, src, cmd.Data.User.User, string(decrypted), stamp)
+	return string(decrypted), insertErr
 }
 
 // Prints out all local users and returns an array with its usernames.
