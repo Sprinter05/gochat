@@ -174,7 +174,7 @@ func newServerPopup(t *TUI) {
 			if ret != nil {
 				t.showError(ret)
 			} else {
-				t.addBuffer("Default", false)
+				t.addBuffer(defaultBuffer, true)
 				welcomeMessage(t)
 			}
 

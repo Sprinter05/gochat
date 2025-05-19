@@ -117,7 +117,7 @@ func welcomeMessage(t *TUI) {
 		"You may then use [yellow]/register[-] or [yellow]/login[-] to use an account."
 
 	t.SendMessage(Message{
-		Buffer:    "Default",
+		Buffer:    defaultBuffer,
 		Sender:    "System",
 		Content:   text,
 		Timestamp: time.Now(),
@@ -177,11 +177,11 @@ func (t *TUI) remoteMessage(content string) {
 	print := t.systemMessage("message")
 
 	s := t.Active()
-	tab := s.Buffers().Current(t.Buffer())
+	tab := s.Buffers().Current()
 
 	data, ok := s.Online()
 
-	if tab == nil || !ok {
+	if tab == nil || !ok || !tab.connected {
 		return
 	}
 
@@ -220,6 +220,7 @@ func (t *TUI) receiveMessages(s Server) {
 
 		if err != nil {
 			print("failed to receive a message: "+err.Error(), cmds.ERROR)
+			continue
 		}
 
 		t.SendMessage(Message{

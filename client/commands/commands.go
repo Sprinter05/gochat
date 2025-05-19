@@ -3,7 +3,6 @@ package commands
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -40,7 +39,6 @@ type Data struct {
 	User      db.LocalUser
 	Waitlist  models.Waitlist[spec.Command]
 	Next      spec.ID
-	Wait      context.Context
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -239,6 +237,18 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 
 	cmd.Output("listening for incoming packets...", INFO)
 
+	waitlist := models.NewWaitlist(0, func(a spec.Command, b spec.Command) int {
+		switch {
+		case a.HD.ID > b.HD.ID:
+			return 1
+		case a.HD.ID < b.HD.ID:
+			return -1
+		default:
+			return 0
+		}
+	})
+	cmd.Data.Waitlist = waitlist
+
 	go Listen(&cmd) // end cond
 
 	return ReplyData{}
@@ -264,6 +274,7 @@ func Discn(cmd Command, args ...[]byte) ReplyData {
 	// Closes the shell client session
 	cmd.Data.User = db.LocalUser{}
 	cmd.Output("sucessfully disconnected from the server", RESULT)
+	cmd.Data.Waitlist.Clear()
 
 	return ReplyData{}
 }

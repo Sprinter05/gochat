@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"fmt"
+
+	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 )
@@ -49,6 +52,43 @@ func (t *TUI) Buffer() string {
 	return t.Active().Buffers().current
 }
 
+// Requests a user's key on buffer connection
+func (t *TUI) requestUser(s Server, name string) {
+	print := t.systemMessage("user request")
+	print("attemption to get user...", cmds.INTERMEDIATE)
+
+	tab, exists := s.Buffers().tabs.Get(name)
+	data, ok := s.Online()
+
+	if exists && tab.system {
+		return
+	}
+
+	if !ok || !exists {
+		print("to start messaging a user, please connect and login first!", cmds.INFO)
+		return
+	}
+
+	cmd := cmds.Command{
+		Output: print,
+		Static: &t.data,
+		Data:   data,
+	}
+
+	r := cmds.Req(cmd, []byte(tab.name))
+	if r.Error != nil {
+		str := fmt.Sprintf(
+			"failed to request user due to %s!",
+			r.Error,
+		)
+		print(str, cmds.ERROR)
+		return
+	}
+
+	tab.connected = true
+	print("you may now start messaging this user!", cmds.RESULT)
+}
+
 /* BUFFERS */
 
 // Creates a new buffer (initially hidden).
@@ -72,8 +112,8 @@ func (b *Buffers) New(name string, system bool) error {
 }
 
 // Assigns the buffer as online and returns whether it failed or not
-func (b *Buffers) Current(name string) *tab {
-	t, ok := b.tabs.Get(name)
+func (b *Buffers) Current() *tab {
+	t, ok := b.tabs.Get(b.current)
 	if !ok {
 		return nil
 	}
@@ -122,6 +162,7 @@ func (b *Buffers) Hide(name string) error {
 		return nil
 	}
 
+	t.connected = false
 	b.open -= 1
 	b.indexes = append(b.indexes, t.index)
 	t.index = -1
@@ -170,6 +211,7 @@ func (t *TUI) addBuffer(name string, system bool) {
 
 	t.comp.buffers.AddItem(name, "", r, nil)
 	t.changeBuffer(i)
+	t.requestUser(s, name)
 }
 
 // Changes the TUI component according to the internal

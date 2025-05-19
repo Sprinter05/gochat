@@ -272,8 +272,8 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, serverID ui
 	}
 	externalUser := ExternalUser{User: user, UserID: user.UserID, PubKey: pubKeyPEM}
 	result := db.Create(&externalUser)
-	if result.RowsAffected != 1 {
-		return ExternalUser{}, ErrorUnexpectedRows
+	if result.Error != nil {
+		return ExternalUser{}, result.Error
 	}
 	return externalUser, result.Error
 }
