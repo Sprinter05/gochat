@@ -48,7 +48,7 @@ func NewShell(data commands.Command) {
 
 		cmdReply := f(data, args...)
 		if cmdReply.Error != nil {
-			fmt.Printf("%s: %s\n", op, cmdReply.Error)
+			fmt.Printf("[ERROR] %s: %s\n", op, cmdReply.Error)
 		}
 	}
 }
