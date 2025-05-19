@@ -10,6 +10,7 @@ import (
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/client/ui"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"gorm.io/gorm"
 )
@@ -103,18 +104,34 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 	cl = spec.Connection{Conn: con}
 
+	sortID := func(a spec.Command, b spec.Command) int {
+		switch {
+		case a.HD.ID > b.HD.ID:
+			return 1
+		case a.HD.ID < b.HD.ID:
+			return -1
+		default:
+			return 0
+		}
+	}
+	waitlist := models.NewWaitlist(128, sortID)
+
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
-	data := commands.Data{ClientCon: cl, Server: server}
+	data := commands.Data{ClientCon: cl, Server: server, Waitlist: waitlist}
 	args := commands.Command{Data: &data, Static: &static, Output: ShellPrint}
 
 	if address != "" {
 		commands.ConnectionStart(args)
+		args.Output("listening for incoming packets...", commands.INFO)
+		go commands.Listen(&args)
 	}
 
-	// go Listen(&data)
 	NewShell(args)
-	if data.ClientCon.Conn != nil {
-		data.ClientCon.Conn.Close()
-	}
+	// TODO: check that the connection closes correctly even without this
+	/*
+		if data.ClientCon.Conn != nil {
+			data.ClientCon.Conn.Close()
+		}
+	*/
 }
