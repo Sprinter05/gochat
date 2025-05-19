@@ -72,7 +72,6 @@ func Listen(cmd *Command) {
 	}
 }
 
-// TODO: Change to return error
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
 func ConnectionStart(data Command) error {

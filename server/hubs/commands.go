@@ -411,12 +411,8 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	chk := catchUp(u.conn, cmd.HD.ID, msgs...) // send RECIV(s)
-	if chk != nil {
-		// We do not delete messages in this case
-		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
-		return
-	}
+	SendOKPacket(cmd.HD.ID, u.conn) // confirm query
+	catchUp(u.conn, msgs...)        // send RECIV(s)
 
 	// Get the timestamp of the newest message as threshold for deletion
 	size := len(msgs)
