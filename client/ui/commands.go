@@ -371,7 +371,8 @@ func connectServer(t *TUI, cmd Command) {
 	go func() {
 		<-data.Disconnect.Done()
 		discn := t.systemMessage()
-		discn("you are no longer connected to the server!", cmds.INFO)
+		discn("You are no longer connected to this server!", cmds.INFO)
+		cmd.serv.Buffers().Offline()
 		t.comp.input.SetLabel(defaultLabel)
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 	}()

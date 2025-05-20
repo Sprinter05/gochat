@@ -136,6 +136,15 @@ func (b *Buffers) Current() *tab {
 	return t
 }
 
+// Turns all tabs to offline
+func (b *Buffers) Offline() {
+	list := b.tabs.GetAll()
+
+	for _, v := range list {
+		v.connected = false
+	}
+}
+
 // Assigns an index to a hidden buffer (unless it was not hidden)
 // and returns the index and asocciated rune. If any index
 // was left by another buffer it will be grabbed first.
@@ -319,6 +328,11 @@ func (t *TUI) renderBuffer(buf string) {
 
 	if t.status.showingHelp {
 		return
+	}
+
+	if b.connected {
+		print := t.systemMessage()
+		print("This is the beggining of your conversation with "+buf, cmds.INFO)
 	}
 
 	t.comp.text.Clear()
