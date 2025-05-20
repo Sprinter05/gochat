@@ -114,17 +114,18 @@ var (
 
 // Map that contains every shell command with its respective execution functions.
 var clientCmds = map[string]func(cmd Command, args ...[]byte) ReplyData{
-	"CONN":    Conn,
-	"DISCN":   Discn,
-	"VER":     Ver,
-	"VERBOSE": Verbose,
-	"REQ":     Req,
-	"REG":     Reg,
-	"LOGIN":   Login,
-	"LOGOUT":  Logout,
-	"USRS":    Usrs,
-	"MSG":     Msg,
-	"RECIV":   Reciv,
+	"CONN":      Conn,
+	"DISCN":     Discn,
+	"VER":       Ver,
+	"VERBOSE":   Verbose,
+	"REQ":       Req,
+	"REG":       Reg,
+	"LOGIN":     Login,
+	"LOGOUT":    Logout,
+	"USRS":      Usrs,
+	"MSG":       Msg,
+	"RECIV":     Reciv,
+	"ADDSERVER": AddServer,
 }
 
 // Given a string containing a command name, returns its execution function.
@@ -178,6 +179,37 @@ func TLS(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	return ReplyData{Error: ErrorUnknownTLSOption}
+}
+
+// Stores a server in the database, and it does not connect
+// to it. If no name is specified, its name will be "Default"
+//
+// Arguments: <server address> <server port> [name]
+//
+// Returns a zero value ReplyData if the connection was successful.
+func AddServer(cmd Command, args ...[]byte) ReplyData {
+	if len(args) < 2 {
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+
+	name := "Default"
+	if len(args) > 2 {
+		name = string(args[2])
+	}
+
+	address := string(args[0])
+	port, parseErr := strconv.ParseUint(string(args[1]), 10, 16)
+	if parseErr != nil {
+		return ReplyData{Error: parseErr}
+	}
+
+	server := db.Server{Address: address, Port: uint16(port), Name: name}
+	_, dbErr := db.AddServer(cmd.Static.DB, server)
+	if dbErr != nil {
+		return ReplyData{Error: dbErr}
+	}
+	cmd.Output(fmt.Sprintf("server '%s' added sucessfully", name), RESULT)
+	return ReplyData{}
 }
 
 // Starts a connection with a server. If noverify is set,
