@@ -44,10 +44,19 @@ func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.C
 // Listens for incoming server packets. When a packet
 // is received, it is stored in the packet waitlist
 func Listen(cmd *Command, cancel context.CancelFunc) {
+	defer func() {
+		if cmd.Data.ClientCon.Conn != nil {
+			cmd.Data.ClientCon.Conn.Close()
+		}
+
+		cmd.Data.ClientCon.Conn = nil
+		cmd.Data.Disconnect = nil
+		cmd.Output("no longer listening for packets", INFO)
+		cancel()
+	}()
+
 	for {
 		if cmd.Data.ClientCon.Conn == nil {
-			cmd.Output("no longer listening for packets", INFO)
-			cancel()
 			return
 		}
 		pct := spec.Command{}
@@ -56,6 +65,7 @@ func Listen(cmd *Command, cancel context.CancelFunc) {
 		hdErr := pct.ListenHeader(cmd.Data.ClientCon)
 		if hdErr != nil {
 			cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
+			return
 		}
 
 		// Header check
@@ -65,12 +75,14 @@ func Listen(cmd *Command, cancel context.CancelFunc) {
 				cmd.Output("incorrect header from server", ERROR)
 				cmd.Output(pct.Contents(), PACKET)
 			}
+			return
 		}
 
 		// Payload listen
 		pldErr := pct.ListenPayload(cmd.Data.ClientCon)
 		if pldErr != nil {
 			cmd.Output(fmt.Sprintf("error in payload listen: %s", hdErr), ERROR)
+			return
 		}
 
 		if cmd.Static.Verbose {
