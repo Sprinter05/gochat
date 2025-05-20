@@ -188,6 +188,13 @@ func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 	return server, result.Error
 }
 
+// Returns the server with the specified socket.
+func GetServerName(db *gorm.DB, name string) (Server, error) {
+	var server Server
+	result := db.Where("name = ?", name).First(&server)
+	return server, result.Error
+}
+
 // Returns all servers
 func GetAllServers(db *gorm.DB) ([]Server, error) {
 	var servers []Server
