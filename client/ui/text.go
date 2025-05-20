@@ -142,17 +142,21 @@ func (t *TUI) debugPacket(content string) {
 
 // Binds a function that sends System message to the server
 // and buffer that are active in the moment the function was ran.
-// An optional prompt for the messages can be given.
-func (t *TUI) systemMessage(command ...string) func(string, cmds.OutputType) {
+// An optional prompt params[0] and buffer params[1] can be given
+func (t *TUI) systemMessage(params ...string) func(string, cmds.OutputType) {
 	buffer := t.Buffer()
 	server := t.Active().Source()
 
 	var prompt string
-	if len(command) != 0 {
+	if len(params) > 0 {
 		prompt = fmt.Sprintf(
 			"Running [lightgray::b]%s[-::-]: ",
-			command[0],
+			params[0],
 		)
+	}
+
+	if len(params) > 1 {
+		buffer = params[1]
 	}
 
 	fun := func(s string, out cmds.OutputType) {
@@ -193,7 +197,7 @@ func (t *TUI) remoteMessage(content string) {
 	}
 
 	if tab == nil || !ok || !tab.connected {
-		t.showError(ErrorNoRemoteUser)
+		print("failed to send message: "+ErrorNoRemoteUser.Error(), cmds.ERROR)
 		return
 	}
 
@@ -210,13 +214,13 @@ func (t *TUI) remoteMessage(content string) {
 }
 
 // Waits for new messages to be sent to that user
-// todo: log to default buffer?
 func (t *TUI) receiveMessages(s Server) {
 	defer s.Buffers().Offline()
 	data, _ := s.Online()
+	print := t.systemMessage("reciv", defaultBuffer)
 
 	for {
-		if !data.IsUserLoggedIn() {
+		if !data.IsUserLoggedIn() || !data.IsConnected() {
 			// Stop listening
 			return
 		}
@@ -232,7 +236,7 @@ func (t *TUI) receiveMessages(s Server) {
 		})
 
 		if err != nil {
-			// print("failed to receive a message: "+err.Error(), cmds.ERROR)
+			print(err.Error(), cmds.ERROR)
 			continue
 		}
 

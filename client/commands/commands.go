@@ -113,6 +113,7 @@ var (
 	ErrorUnknownTLSOption  error = fmt.Errorf("unknown option; valid options are on or off")
 	ErrorOfflineRequired   error = fmt.Errorf("you must be offline")
 	ErrorInvalidSkipVerify error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
+	ErrorRequestToSelf     error = fmt.Errorf("cannot request yourself")
 )
 
 /* LOOKUP TABLE */
@@ -332,6 +333,10 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 
 	if !cmd.Data.IsUserLoggedIn() {
 		return ReplyData{Error: ErrorNotLoggedIn}
+	}
+
+	if string(args[0]) == cmd.Data.User.User.Username {
+		return ReplyData{Error: ErrorRequestToSelf}
 	}
 
 	id := cmd.Data.NextID()

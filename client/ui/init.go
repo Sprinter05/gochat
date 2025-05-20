@@ -27,7 +27,6 @@ const Logo string = `
 
 // TODO: notification system
 // TODO: load old messages
-// TODO: handle weird names when creating buffers ("System", "Default", username...)
 
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version

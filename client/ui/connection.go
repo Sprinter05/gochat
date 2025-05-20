@@ -157,6 +157,7 @@ func (t *TUI) hideServer(name string) {
 		t.comp.servers.RemoveItem(i)
 	}
 
+	//! leaking goroutine and data?
 	t.servers.Remove(name)
 
 	t.renderServer(localServer)
