@@ -21,7 +21,6 @@ import (
 // by all client connections. It is safe to use concurrently.
 type Hub struct {
 	db     *gorm.DB                                         // Database with all relevant information
-	shtdwn context.Context                                  // Used to wait for a shutdown
 	close  context.CancelFunc                               // Used to trigger a shutdown
 	users  models.Table[net.Conn, *User]                    // Stores all online users
 	verifs models.Table[string, *Verif]                     // Stores all verifications and/or reusable tokens
@@ -201,10 +200,9 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 // Initialises all data structures the hub needs to function:
 // database, shutdown context and table sizes.
-func NewHub(database *gorm.DB, ctx context.Context, cancel context.CancelFunc, size uint) *Hub {
+func NewHub(database *gorm.DB, cancel context.CancelFunc, size uint) *Hub {
 	// Allocate fields
 	hub := &Hub{
-		shtdwn: ctx,
 		close:  cancel,
 		users:  models.NewTable[net.Conn, *User](size),
 		verifs: models.NewTable[string, *Verif](size),
@@ -224,9 +222,9 @@ func NewHub(database *gorm.DB, ctx context.Context, cancel context.CancelFunc, s
 // Blocking function that waits until a shutdown is triggered,
 // cleaning up all necessary resources and sockets, allowing for
 // the caling function to safely exit the program.
-func (hub *Hub) Wait(socks ...net.Listener) {
+func (hub *Hub) Wait(ctx context.Context, socks ...net.Listener) {
 	// Wait until the shutdown happens
-	<-hub.shtdwn.Done()
+	<-ctx.Done()
 
 	// Disconnect all users
 	list := hub.users.GetAll()

@@ -239,14 +239,13 @@ func setupTLSConn(config Config) net.Listener {
 // listening sockets, so that they can process
 // events all at the same time.
 type Server struct {
-	wg    sync.WaitGroup  // How many sockets are running
-	count models.Counter  // How many clients are connected
-	ctx   context.Context // When to shut down the socket
+	wg    sync.WaitGroup // How many sockets are running
+	count models.Counter // How many clients are connected
 }
 
 // Runs a listener to accept connections until the
-// shutdown signal is received.
-func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
+// shutdown signal is received through the given context.
+func (sock *Server) Run(ctx context.Context, l net.Listener, hub *hubs.Hub) {
 	defer sock.wg.Done()
 
 	for {
@@ -254,7 +253,7 @@ func (sock *Server) Run(l net.Listener, hub *hubs.Hub) {
 		c, err := l.Accept()
 		if err != nil {
 			select {
-			case <-sock.ctx.Done():
+			case <-ctx.Done():
 				// Server is shutting down
 				return
 			default:
@@ -341,12 +340,12 @@ func main() {
 
 	// Setup hub and make it wait until a shutdown signal is sent
 	ctx, cancel := context.WithCancel(context.Background())
-	hub := hubs.NewHub(database, ctx, cancel, *config.Server.Clients)
+	hub := hubs.NewHub(database, cancel, *config.Server.Clients)
 
 	if config.Server.TLS.Enabled {
-		go hub.Wait(sock, tlssock)
+		go hub.Wait(ctx, sock, tlssock)
 	} else {
-		go hub.Wait(sock)
+		go hub.Wait(ctx, sock)
 	}
 
 	// Just in case a CTRL-C signal happens
@@ -357,15 +356,14 @@ func main() {
 
 	// Used for managing all possible sockets
 	server := Server{
-		ctx:   ctx,
 		count: models.NewCounter(int(*config.Server.Clients)),
 	}
 
 	// Endless loop to listen for connections
 	server.wg.Add(sockets)
-	go server.Run(sock, hub)
+	go server.Run(ctx, sock, hub)
 	if config.Server.TLS.Enabled {
-		go server.Run(tlssock, hub)
+		go server.Run(ctx, tlssock, hub)
 	}
 
 	// Condition to end program
