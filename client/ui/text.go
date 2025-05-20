@@ -212,6 +212,7 @@ func (t *TUI) remoteMessage(content string) {
 // Waits for new messages to be sent to that user
 // todo: log to default buffer?
 func (t *TUI) receiveMessages(s Server) {
+	defer s.Buffers().Offline()
 	data, _ := s.Online()
 
 	for {
