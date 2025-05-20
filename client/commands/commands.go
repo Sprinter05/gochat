@@ -69,6 +69,9 @@ type OutputType uint
 
 func (data *Data) NextID() spec.ID {
 	data.Next = (data.Next + 1) % spec.MaxID
+	if data.Next == spec.NullID {
+		data.Next += 1
+	}
 	return data.Next
 }
 

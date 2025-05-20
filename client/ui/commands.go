@@ -253,8 +253,12 @@ func loginUser(t *TUI, cmd Command) {
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
 	reciv := cmds.Reciv(c)
 	if reciv.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
-		return
+		if reciv.Error == spec.ErrorEmpty {
+			cmd.print("no new messages have been received", cmds.RESULT)
+		} else {
+			cmd.print(reciv.Error.Error(), cmds.ERROR)
+			return
+		}
 	}
 
 	go t.receiveMessages(cmd.serv)

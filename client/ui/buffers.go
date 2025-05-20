@@ -56,7 +56,6 @@ func (t *TUI) Buffer() string {
 // Requests a user's key on buffer connection
 func (t *TUI) requestUser(s Server, name string) {
 	print := t.systemMessage("request")
-	print("attemption to get user data...", cmds.INTERMEDIATE)
 
 	tab, exists := s.Buffers().tabs.Get(name)
 	data, ok := s.Online()
@@ -64,6 +63,8 @@ func (t *TUI) requestUser(s Server, name string) {
 	if exists && tab.system {
 		return
 	}
+
+	print("attempting to get user data...", cmds.INTERMEDIATE)
 
 	if !ok || !exists {
 		print("to start messaging a user, please connect and login first!", cmds.INFO)

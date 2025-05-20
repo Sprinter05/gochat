@@ -26,6 +26,8 @@ const Logo string = `
 `
 
 // TODO: notification system
+// TODO: load old messages
+// TODO: system msgs showing after reciv msgs
 
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version
