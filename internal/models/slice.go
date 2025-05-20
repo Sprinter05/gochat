@@ -11,8 +11,8 @@ import (
 // be accessed concurrently. Stored values
 // must be able to be compared together.
 type Slice[T comparable] struct {
-	mut  sync.RWMutex
-	data []T
+	mut  sync.RWMutex // mutex
+	data []T          // actual data
 }
 
 /* FUNCTIONS */

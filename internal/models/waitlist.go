@@ -11,9 +11,9 @@ import (
 // wait for a specific piece of data under
 // certain conditions.
 type Waitlist[T any] struct {
-	data []T
-	cond *sync.Cond
-	sort func(T, T) int
+	data []T            // actual data
+	cond *sync.Cond     // waiting condition
+	sort func(T, T) int // sorting for optimisation
 }
 
 // Returns a preallocated slice with 0 elements according to the given

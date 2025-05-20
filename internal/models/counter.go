@@ -11,10 +11,10 @@ import (
 // up to a certain maximum value. It is implemented
 // so that it is safe to use concurrently.
 type Counter struct {
-	cond *sync.Cond
-	val  int
-	last int
-	max  int
+	cond *sync.Cond // waiting condition
+	val  int        // current value of counter
+	max  int        // max allowed value of countter
+	last int        // amount of waiting goroutines
 }
 
 /* FUNCTIONS */
