@@ -182,6 +182,7 @@ func (t *TUI) remoteMessage(content string) {
 	data, ok := s.Online()
 
 	if tab == nil || !ok || !tab.connected {
+		t.showError(ErrorNoRemoteUser)
 		return
 	}
 
@@ -310,6 +311,9 @@ func (t *TUI) renderMsg(msg Message) {
 	color := "[blue::b]"
 	if msg.Sender == selfSender {
 		color = "[yellow::b]"
+	}
+	if msg.Sender == "System" {
+		color = "[purple::b]"
 	}
 
 	_, err := fmt.Fprintf(

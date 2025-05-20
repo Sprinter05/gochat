@@ -69,6 +69,11 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  1,
 		format: "/tls <on/off>",
 	},
+	"request": {
+		fun:    userRequest,
+		nArgs:  0,
+		format: "/request",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -127,6 +132,11 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 }
 
 // COMMANDS
+
+func userRequest(t *TUI, cmd Command) {
+	buf := cmd.serv.Buffers().current
+	t.requestUser(cmd.serv, buf)
+}
 
 func toggleTLS(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()

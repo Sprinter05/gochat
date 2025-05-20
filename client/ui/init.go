@@ -26,8 +26,6 @@ const Logo string = `
 `
 
 // TODO: notification system
-// TODO: auto req on buffer create
-// TODO: no sending messages if req failed
 // TODO: auto reciv on connect
 // TODO: detect disconection
 // TODO: detect user disconnection
@@ -64,6 +62,7 @@ var (
 	ErrorOffline       = errors.New("connection to the server is not established")
 	ErrorArguments     = errors.New("invalid number of arguments")
 	ErrorLoggedIn      = errors.New("you are already logged in")
+	ErrorNoRemoteUser  = errors.New("user is not requested")
 )
 
 // Identifies the areas where components are located.

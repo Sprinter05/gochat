@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 )
@@ -54,8 +55,8 @@ func (t *TUI) Buffer() string {
 
 // Requests a user's key on buffer connection
 func (t *TUI) requestUser(s Server, name string) {
-	print := t.systemMessage("user request")
-	print("attemption to get user...", cmds.INTERMEDIATE)
+	print := t.systemMessage("request")
+	print("attemption to get user data...", cmds.INTERMEDIATE)
 
 	tab, exists := s.Buffers().tabs.Get(name)
 	data, ok := s.Online()
@@ -69,6 +70,17 @@ func (t *TUI) requestUser(s Server, name string) {
 		return
 	}
 
+	ok, err := db.ExternalUserExists(t.data.DB, name)
+	if err != nil {
+		print(err.Error(), cmds.ERROR)
+	}
+
+	if ok {
+		tab.connected = true
+		print("you may now start messaging this user!", cmds.RESULT)
+		return
+	}
+
 	cmd := cmds.Command{
 		Output: print,
 		Static: &t.data,
@@ -78,7 +90,7 @@ func (t *TUI) requestUser(s Server, name string) {
 	r := cmds.Req(cmd, []byte(tab.name))
 	if r.Error != nil {
 		str := fmt.Sprintf(
-			"failed to request user due to %s!",
+			"failed to request user due to %s! You may try again using [yellow]/request[-]!",
 			r.Error,
 		)
 		print(str, cmds.ERROR)
