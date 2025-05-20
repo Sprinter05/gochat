@@ -20,7 +20,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO: PENDING and packet buffer
 // TODO: cache requested users in memory
 // TODO: USERINFO command
 // TODO: HELP
@@ -215,48 +214,72 @@ func AddServer(cmd Command, args ...[]byte) ReplyData {
 // Starts a connection with a server. If noverify is set,
 // in case of TLS connections, certificate origins wont be checked
 //
-// Arguments: <server address> <server port> [-noverify]
+// Arguments: <name> [-noverify] / <server address> <server port> [-noverify]
 //
 // Returns a zero value ReplyData if the connection was successful.
 func Conn(cmd Command, args ...[]byte) ReplyData {
+	// TODO: this function likely needs some rearrangement
 	if cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
 	}
 
-	if len(args) < 2 {
+	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 
-	port, parseErr := strconv.ParseUint(string(args[1]), 10, 16)
-	if parseErr != nil {
-		return ReplyData{Error: parseErr}
+	var port uint64
+	var address string
+	skipVerify := false
+	useTLS := cmd.Data.Server.TLS
+	var server db.Server
+	var dbErr error
+
+	for _, v := range args {
+		if string(v) == "-noverify" {
+			if !useTLS {
+				return ReplyData{Error: ErrorInvalidSkipVerify}
+			}
+
+			skipVerify = true
+			verbosePrint("certificate verification is going to be skipped!", cmd)
+			// Deletes the option
+			args = args[:len(args)-1]
+			break
+		}
 	}
 
-	useTLS := cmd.Data.Server.TLS
-	skipVerify := false
-
-	if len(args) >= 3 && string(args[2]) == "-noverify" {
-		if !useTLS {
-			return ReplyData{Error: ErrorInvalidSkipVerify}
+	if len(args) > 1 {
+		address = string(args[0])
+		var parseErr error
+		port, parseErr = strconv.ParseUint(string(args[1]), 10, 16)
+		if parseErr != nil {
+			return ReplyData{Error: parseErr}
 		}
 
-		skipVerify = true
-		verbosePrint("certificate verification is going to be skipped!!", cmd)
+		server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
+		if dbErr != nil {
+			return ReplyData{Error: dbErr}
+		}
+	} else {
+		name := string(args[0])
+		server, dbErr = db.GetServerName(cmd.Static.DB, name)
+		if dbErr != nil {
+			return ReplyData{Error: dbErr}
+		}
+
+		address = server.Address
+		port = uint64(server.Port)
 	}
 
 	con, conErr := Connect(
-		string(args[0]),
+		address,
 		uint16(port),
 		useTLS,
 		skipVerify,
 	)
+
 	if conErr != nil {
 		return ReplyData{Error: conErr}
-	}
-
-	server, dbErr := db.GetServer(cmd.Static.DB, string(args[0]), uint16(port))
-	if dbErr != nil {
-		return ReplyData{Error: dbErr}
 	}
 
 	cmd.Data.ClientCon.Conn = con
@@ -266,8 +289,6 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 	if err != nil {
 		return ReplyData{Error: err}
 	}
-
-	cmd.Output("listening for incoming packets...", INFO)
 
 	waitlist := models.NewWaitlist(0, func(a spec.Command, b spec.Command) int {
 		switch {
@@ -281,6 +302,7 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 	})
 	cmd.Data.Waitlist = waitlist
 
+	cmd.Output("listening for incoming packets...", INFO)
 	go Listen(&cmd) // end cond
 
 	return ReplyData{}
@@ -296,12 +318,18 @@ func Discn(cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 
-	err := cmd.Data.ClientCon.Conn.Close()
-	if err != nil {
-		return ReplyData{Error: err}
-	}
-
 	cmd.Data.ClientCon.Conn = nil
+
+	/*
+		// NOTE: this is commented out because it interferes
+		with the listener closing
+
+		con := cmd.Data.ClientCon.Conn
+		err := con.Close()
+		if err != nil {
+			return ReplyData{Error: err}
+		}
+	*/
 
 	// Closes the shell client session
 	cmd.Data.User = db.LocalUser{}
