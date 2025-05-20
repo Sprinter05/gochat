@@ -96,6 +96,9 @@ const CommandHelp string = `
 	- Online will display all connected accounts in the server
 	- All will display all accounts registered in the server
 	- You need an active connection to use this command unless you are displaying local users
+	
+[yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
+	- This process is already done automatically if connected and logged in
 `
 
 /* MESSAGES */
@@ -180,6 +183,14 @@ func (t *TUI) remoteMessage(content string) {
 	tab := s.Buffers().Current()
 
 	data, ok := s.Online()
+
+	if tab != nil && tab.system {
+		return
+	}
+
+	if data == nil {
+		return
+	}
 
 	if tab == nil || !ok || !tab.connected {
 		t.showError(ErrorNoRemoteUser)

@@ -135,7 +135,20 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 
 func userRequest(t *TUI, cmd Command) {
 	buf := cmd.serv.Buffers().current
-	t.requestUser(cmd.serv, buf)
+	data, _ := cmd.serv.Online()
+	tab, exists := cmd.serv.Buffers().tabs.Get(buf)
+
+	if data == nil {
+		cmd.print("cannot request on a local server!", cmds.ERROR)
+		return
+	}
+
+	if exists && tab.system {
+		cmd.print("cannot request on a system buffer!", cmds.ERROR)
+		return
+	}
+
+	t.requestUser(cmd.serv, buf, cmd.print)
 }
 
 func toggleTLS(t *TUI, cmd Command) {

@@ -54,9 +54,7 @@ func (t *TUI) Buffer() string {
 }
 
 // Requests a user's key on buffer connection
-func (t *TUI) requestUser(s Server, name string) {
-	print := t.systemMessage("request")
-
+func (t *TUI) requestUser(s Server, name string, output func(string, cmds.OutputType)) {
 	tab, exists := s.Buffers().tabs.Get(name)
 	data, ok := s.Online()
 
@@ -64,26 +62,30 @@ func (t *TUI) requestUser(s Server, name string) {
 		return
 	}
 
-	print("attempting to get user data...", cmds.INTERMEDIATE)
+	if data == nil {
+		return
+	}
 
 	if !ok || !exists {
-		print("to start messaging a user, please connect and login first!", cmds.INFO)
+		output("to start messaging a user, please connect and login first!", cmds.ERROR)
 		return
 	}
 
 	ok, err := db.ExternalUserExists(t.data.DB, name)
 	if err != nil {
-		print(err.Error(), cmds.ERROR)
+		output(err.Error(), cmds.ERROR)
+		return
 	}
 
 	if ok {
 		tab.connected = true
-		print("you may now start messaging this user!", cmds.RESULT)
 		return
 	}
 
+	output("attempting to get user data...", cmds.INTERMEDIATE)
+
 	cmd := cmds.Command{
-		Output: print,
+		Output: output,
 		Static: &t.data,
 		Data:   data,
 	}
@@ -94,12 +96,12 @@ func (t *TUI) requestUser(s Server, name string) {
 			"failed to request user due to %s! You may try again using [yellow]/request[-]!",
 			r.Error,
 		)
-		print(str, cmds.ERROR)
+		output(str, cmds.ERROR)
 		return
 	}
 
 	tab.connected = true
-	print("you may now start messaging this user!", cmds.RESULT)
+	output("you may now start messaging this user!", cmds.RESULT)
 }
 
 /* BUFFERS */
@@ -224,7 +226,8 @@ func (t *TUI) addBuffer(name string, system bool) {
 
 	t.comp.buffers.AddItem(name, "", r, nil)
 	t.changeBuffer(i)
-	t.requestUser(s, name)
+	print := t.systemMessage()
+	t.requestUser(s, name, print)
 }
 
 // Changes the TUI component according to the internal
