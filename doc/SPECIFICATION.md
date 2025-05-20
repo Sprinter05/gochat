@@ -13,7 +13,7 @@
 When connecting to the server it is important to know that **any malformed packet** will automatically close the connection. Moreover, the server has a **10 minutes** deadline for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be used to allow the connection to persist. Also, the server might be **unable to accept new clients** on the connection, in which case the connection **will await** until a spot is free. Once the client can be connected, an `OK` packet with a _Null ID_ will be sent to the client. It is important to note that the server can implement whatever method it wants for choosing which awaiting client should be connected next.
 
 ### Registering a user
-The client application must create an RSA key pair and then send **both** the public key and username to the server, which will only error if the username or key is already in use. The RSA key pair should be **4096 bits** and be sent in `PKIX, ASN.1 DER` format to the server.
+The client application must create an RSA key pair and then send **both** the public key and username to the server, which will only error if the username or key is already in use. The RSA key pair should be **4096 bits** and be sent in `PKIX, ASN.1 DER` format to the server. Usernames should always be lowercase, this is to allow client implementations to use uppercase for other purposes.
 
 `REG <username> <rsa_pub>` _Client_
 

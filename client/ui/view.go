@@ -2,6 +2,7 @@ package ui
 
 import (
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -114,7 +115,9 @@ func newbufPopup(t *TUI) {
 			return
 		}
 
-		t.addBuffer(text, false)
+		name := strings.ToLower(text)
+
+		t.addBuffer(name, false)
 
 		exit()
 	})

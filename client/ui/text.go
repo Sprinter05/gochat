@@ -29,7 +29,7 @@ const KeybindHelp string = `
 	- [green]Esc[-::-] to cancel
 	- [green]Enter[-::-] to confirm
 
-[yellow::b]Ctrl-K + Ctrl-W[-::-]: Hide currently focused buffer
+[yellow::b]Ctrl-K + Ctrl-W/Ctrl-H[-::-]: Hide currently focused buffer
 	- It can be shown again by creating a buffer with the same name
 	
 [yellow::b]Ctrl-K + Ctrl-X[-::-]: Delete currently focused buffer
@@ -42,7 +42,7 @@ const KeybindHelp string = `
 	- [green]Esc[-::-] to cancel
 	- [green]Enter[-::-] to confirm the different steps
 	
-[yellow::b]Ctrl-S + Ctrl-W[-::-]: Hide currently focused server
+[yellow::b]Ctrl-S + Ctrl-W/Ctrl-H[-::-]: Hide currently focused server
 	- It can be shown again under any name by typing the same address it was used at creation
 
 [yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server

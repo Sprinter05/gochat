@@ -5,6 +5,7 @@ import (
 	"context"
 	"net"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -73,7 +74,8 @@ func Process(h *Hub, r Request, u User) {
 //
 // Replies with OK or ERR
 func registerUser(h *Hub, u User, cmd spec.Command) {
-	uname := string(cmd.Args[0])
+	username := string(cmd.Args[0])
+	uname := strings.ToLower(username)
 
 	if len(uname) > spec.UsernameSize {
 		log.User(string(uname), "username registration", spec.ErrorMaxSize)

@@ -62,6 +62,7 @@ var (
 	ErrorArguments     = errors.New("invalid number of arguments")
 	ErrorLoggedIn      = errors.New("you are already logged in")
 	ErrorNoRemoteUser  = errors.New("user is not requested")
+	ErrorInvalidName   = errors.New("name provided is invalid")
 )
 
 // Identifies the areas where components are located.
@@ -219,7 +220,7 @@ func setupHandlers(t *TUI) {
 			if !t.status.blockCond() {
 				newbufPopup(t)
 			}
-		case tcell.KeyCtrlW: // Hide buffer
+		case tcell.KeyCtrlW, tcell.KeyCtrlH: // Hide buffer
 			if !t.status.blockCond() {
 				t.hideBuffer(t.Buffer())
 				t.app.SetFocus(t.comp.input)
@@ -239,7 +240,7 @@ func setupHandlers(t *TUI) {
 			if !t.status.blockCond() {
 				newServerPopup(t)
 			}
-		case tcell.KeyCtrlW: // Hide server
+		case tcell.KeyCtrlW, tcell.KeyCtrlH: // Hide server
 			if !t.status.blockCond() {
 				t.hideServer(t.focus)
 				t.app.SetFocus(t.comp.input)
