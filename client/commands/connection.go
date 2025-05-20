@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -42,10 +43,11 @@ func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.C
 
 // Listens for incoming server packets. When a packet
 // is received, it is stored in the packet waitlist
-func Listen(cmd *Command) {
+func Listen(cmd *Command, cancel context.CancelFunc) {
 	for {
 		if cmd.Data.ClientCon.Conn == nil {
 			cmd.Output("no longer listening for packets", INFO)
+			cancel()
 			return
 		}
 		pct := spec.Command{}

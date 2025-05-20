@@ -26,9 +26,6 @@ const Logo string = `
 `
 
 // TODO: notification system
-// TODO: auto reciv on connect
-// TODO: detect disconection
-// TODO: detect user disconnection
 
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version

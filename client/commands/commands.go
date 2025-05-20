@@ -3,6 +3,7 @@ package commands
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -34,11 +35,12 @@ import (
 // Commands may alter the data if necessary.
 type Data struct {
 	// TODO: Thread safe??
-	ClientCon spec.Connection
-	Server    db.Server
-	User      db.LocalUser
-	Waitlist  models.Waitlist[spec.Command]
-	Next      spec.ID
+	ClientCon  spec.Connection
+	Server     db.Server
+	User       db.LocalUser
+	Waitlist   models.Waitlist[spec.Command]
+	Next       spec.ID
+	Disconnect context.Context
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -249,7 +251,10 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 	})
 	cmd.Data.Waitlist = waitlist
 
-	go Listen(&cmd) // end cond
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd.Data.Disconnect = ctx
+
+	go Listen(&cmd, cancel) // end cond
 
 	return ReplyData{}
 }

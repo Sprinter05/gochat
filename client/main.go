@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"log"
@@ -127,9 +128,12 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	args := commands.Command{Data: &data, Static: &static, Output: ShellPrint}
 
 	if address != "" {
+		ctx, cancel := context.WithCancel(context.Background())
+		data.Disconnect = ctx
+
 		commands.ConnectionStart(args)
 		args.Output("listening for incoming packets...", commands.INFO)
-		go commands.Listen(&args)
+		go commands.Listen(&args, cancel)
 	}
 
 	go RECIVHandler(&args)

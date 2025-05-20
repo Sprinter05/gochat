@@ -199,9 +199,9 @@ func (t *TUI) remoteMessage(content string) {
 }
 
 // Waits for new messages to be sent to that user
+// todo: log to default buffer?
 func (t *TUI) receiveMessages(s Server) {
 	data, _ := s.Online()
-	print := t.systemMessage()
 
 	for {
 		if !data.IsUserLoggedIn() {
@@ -220,7 +220,7 @@ func (t *TUI) receiveMessages(s Server) {
 		})
 
 		if err != nil {
-			print("failed to receive a message: "+err.Error(), cmds.ERROR)
+			// print("failed to receive a message: "+err.Error(), cmds.ERROR)
 			continue
 		}
 

@@ -250,6 +250,13 @@ func loginUser(t *TUI, cmd Command) {
 	uname := data.User.User.Username
 	t.comp.input.SetLabel(unameLabel(uname))
 
+	cmd.print("recovering messages...", cmds.INTERMEDIATE)
+	reciv := cmds.Reciv(c)
+	if reciv.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+
 	go t.receiveMessages(cmd.serv)
 }
 
@@ -342,6 +349,14 @@ func connectServer(t *TUI, cmd Command) {
 	}
 
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
+
+	// Cleanup function
+	go func() {
+		<-data.Disconnect.Done()
+		discn := t.systemMessage()
+		discn("you are no longer connected to the server!", cmds.INFO)
+		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+	}()
 }
 
 func listBuffers(t *TUI, cmd Command) {
