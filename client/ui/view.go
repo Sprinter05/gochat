@@ -187,14 +187,14 @@ func newServerPopup(t *TUI) {
 // that until the popup exits the function itself will not exit.
 // Therefore this shouldn't run in the main thread as it will
 // block all other components.
-func newLoginPopup(t *TUI) (pswd string, err error) {
+func newLoginPopup(t *TUI, text string) (pswd string, err error) {
 	cond := sync.NewCond(new(sync.Mutex))
 	cond.L.Lock()
 	defer cond.L.Unlock()
 
 	input, exit := createPopup(t,
 		&t.status.typingPassword,
-		"Enter password...",
+		text,
 	)
 
 	input.SetMaskCharacter('*')

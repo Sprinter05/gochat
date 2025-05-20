@@ -246,7 +246,7 @@ func loginUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := newLoginPopup(t)
+	pswd, err := newLoginPopup(t, "Enter the account's password...")
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
@@ -318,9 +318,20 @@ func registerUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := newLoginPopup(t)
+	pswd, err := newLoginPopup(t, "Enter a password...")
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	check, err := newLoginPopup(t, "Repeat your password...")
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	if pswd != check {
+		cmd.print("passwords do not match!", cmds.ERROR)
 		return
 	}
 
