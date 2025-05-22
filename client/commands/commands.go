@@ -35,12 +35,11 @@ import (
 // Commands may alter the data if necessary.
 type Data struct {
 	// TODO: Thread safe??
-	ClientCon  spec.Connection
-	Server     db.Server
-	User       db.LocalUser
-	Waitlist   models.Waitlist[spec.Command]
-	Next       spec.ID
-	Disconnect context.Context
+	ClientCon spec.Connection
+	Server    db.Server
+	User      db.LocalUser
+	Waitlist  models.Waitlist[spec.Command]
+	Next      spec.ID
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -118,8 +117,10 @@ var (
 
 /* LOOKUP TABLE */
 
+type cmdFunc func(context.Context, Command, ...[]byte) ReplyData
+
 // Map that contains every shell command with its respective execution functions.
-var clientCmds = map[string]func(cmd Command, args ...[]byte) ReplyData{
+var clientCmds = map[string]cmdFunc{
 	"CONN":    Conn,
 	"DISCN":   Discn,
 	"VER":     Ver,
@@ -134,7 +135,7 @@ var clientCmds = map[string]func(cmd Command, args ...[]byte) ReplyData{
 }
 
 // Given a string containing a command name, returns its execution function.
-func FetchClientCmd(op string, cmd Command) func(cmd Command, args ...[]byte) ReplyData {
+func FetchClientCmd(op string, cmd Command) cmdFunc {
 	v, ok := clientCmds[strings.ToUpper(op)]
 	if !ok {
 		cmd.Output(
@@ -154,7 +155,7 @@ func FetchClientCmd(op string, cmd Command) func(cmd Command, args ...[]byte) Re
 // Arguments: <on/off>
 //
 // Returns a zero value ReplyData if the argument is correct
-func TLS(cmd Command, args ...[]byte) ReplyData {
+func TLS(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorOfflineRequired}
 	}
@@ -192,7 +193,8 @@ func TLS(cmd Command, args ...[]byte) ReplyData {
 // Arguments: <server address> <server port> [-noverify]
 //
 // Returns a zero value ReplyData if the connection was successful.
-func Conn(cmd Command, args ...[]byte) ReplyData {
+// This command does not spawn a listening thread.
+func Conn(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
 	}
@@ -255,11 +257,6 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 	})
 	cmd.Data.Waitlist = waitlist
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cmd.Data.Disconnect = ctx
-
-	go Listen(&cmd, cancel) // end cond
-
 	return ReplyData{}
 }
 
@@ -268,7 +265,7 @@ func Conn(cmd Command, args ...[]byte) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData if the disconnection was successful.
-func Discn(cmd Command, args ...[]byte) ReplyData {
+func Discn(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if !cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -289,7 +286,7 @@ func Discn(cmd Command, args ...[]byte) ReplyData {
 }
 
 // Prints the gochat version used by the client
-func Ver(data Command, args ...[]byte) ReplyData {
+func Ver(ctx context.Context, data Command, args ...[]byte) ReplyData {
 	data.Output(
 		fmt.Sprintf(
 			"gochat version %d",
@@ -305,7 +302,7 @@ func Ver(data Command, args ...[]byte) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData.
-func Verbose(cmd Command, args ...[]byte) ReplyData {
+func Verbose(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	cmd.Static.Verbose = !cmd.Static.Verbose
 
 	if cmd.Static.Verbose {
@@ -322,7 +319,7 @@ func Verbose(cmd Command, args ...[]byte) ReplyData {
 // Arguments: <username to be requested>
 //
 // Returns a ReplyData containing the reply REQ arguments.
-func Req(cmd Command, args ...[]byte) ReplyData {
+func Req(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if !cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -360,8 +357,11 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
 	reply := cmd.Data.Waitlist.Get(
-		Find(id, spec.REQ, spec.ERR),
+		ctx, Find(id, spec.REQ, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -387,7 +387,7 @@ func Req(cmd Command, args ...[]byte) ReplyData {
 // Arguments: [user] [password]
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent REG packet.
-func Reg(cmd Command, args ...[]byte) ReplyData {
+func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if !cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -495,8 +495,11 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
 	reply := cmd.Data.Waitlist.Get(
-		Find(id, spec.OK, spec.ERR),
+		ctx, Find(id, spec.OK, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -524,7 +527,7 @@ func Reg(cmd Command, args ...[]byte) ReplyData {
 //
 // Returns a zero value ReplyData if an OK packet
 // is received after the sent VERIF packet.
-func Login(cmd Command, args ...[]byte) ReplyData {
+func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if !cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -604,8 +607,11 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 
 	verbosePrint("awaiting response...", cmd)
 	loginReply := cmd.Data.Waitlist.Get(
-		Find(id1, spec.VERIF, spec.ERR),
+		ctx, Find(id1, spec.VERIF, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 
 	if loginReply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(loginReply.HD.Info)}
@@ -648,8 +654,11 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
 	verifReply := cmd.Data.Waitlist.Get(
-		Find(id2, spec.OK, spec.ERR),
+		ctx, Find(id2, spec.OK, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 
 	if verifReply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(verifReply.HD.Info)}
@@ -667,7 +676,7 @@ func Login(cmd Command, args ...[]byte) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent LOGOUT packet.
-func Logout(cmd Command, args ...[]byte) ReplyData {
+func Logout(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if !cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -694,8 +703,11 @@ func Logout(cmd Command, args ...[]byte) ReplyData {
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
 	reply := cmd.Data.Waitlist.Get(
-		Find(id, spec.OK, spec.ERR),
+		ctx, Find(id, spec.OK, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -715,7 +727,7 @@ func Logout(cmd Command, args ...[]byte) ReplyData {
 // Arguments: <online/all/local>
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent VERIF packet.
-func Usrs(cmd Command, args ...[]byte) ReplyData {
+func Usrs(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if len(args) < 1 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
@@ -763,8 +775,11 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
 	reply := cmd.Data.Waitlist.Get(
-		Find(id, spec.USRS, spec.ERR),
+		ctx, Find(id, spec.USRS, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -782,7 +797,7 @@ func Usrs(cmd Command, args ...[]byte) ReplyData {
 // Arguments: <dest. username> <unencyrpted text message>
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent MSG packet
-func Msg(cmd Command, args ...[]byte) ReplyData {
+func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if len(args) < 2 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
@@ -852,8 +867,11 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
 	reply := cmd.Data.Waitlist.Get(
-		Find(id, spec.OK, spec.ERR),
+		ctx, Find(id, spec.OK, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
@@ -883,7 +901,7 @@ func Msg(cmd Command, args ...[]byte) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData if the packet is sent successfully
-func Reciv(cmd Command, args ...[]byte) ReplyData {
+func Reciv(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	id := cmd.Data.NextID()
 	pct, pctErr := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo)
 	if pctErr != nil {
@@ -896,8 +914,11 @@ func Reciv(cmd Command, args ...[]byte) ReplyData {
 	}
 
 	reply := cmd.Data.Waitlist.Get(
-		Find(id, spec.OK, spec.ERR),
+		ctx, Find(id, spec.OK, spec.ERR),
 	)
+	if ctx.Err() != nil {
+		return ReplyData{Error: ctx.Err()}
+	}
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
@@ -906,14 +927,16 @@ func Reciv(cmd Command, args ...[]byte) ReplyData {
 	return ReplyData{}
 }
 
+/* AUX */
+
 // Performs the necessary operations to store a RECIV
 // packet in the database (decryption, REQ (if necessary)
 // insert...), then returns the decrypted message
-func StoreReciv(reciv spec.Command, cmd Command) (Message, error) {
+func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, error) {
 	src, err := db.GetUser(cmd.Static.DB, string(reciv.Args[0]), cmd.Data.Server.ServerID)
 	if err != nil {
 		// The user most likely has not been found, so a REQ is required
-		reply := Req(cmd, reciv.Args[0])
+		reply := Req(ctx, cmd, reciv.Args[0])
 		if reply.Error != nil {
 			return Message{}, reply.Error
 		}

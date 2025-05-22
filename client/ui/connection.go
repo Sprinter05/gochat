@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"slices"
 	"strings"
+	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -48,6 +50,13 @@ func (t *TUI) Active() Server {
 	}
 
 	return s
+}
+
+func timeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(
+		context.Background(),
+		time.Duration(cmdTimeout)*time.Second,
+	)
 }
 
 // Adds a server connected to a remote endpoint, stores it in

@@ -159,7 +159,9 @@ func toggleTLS(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.TLS(c, args...)
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.TLS(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -200,7 +202,9 @@ func disconnectServer(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Discn(c, args...)
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.Discn(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -219,7 +223,9 @@ func logoutUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Logout(c, args...)
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.Logout(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -253,7 +259,9 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Login(c, args[0], []byte(pswd))
+	lCtx, lCancel := timeout()
+	defer lCancel()
+	r := cmds.Login(lCtx, c, args[0], []byte(pswd))
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -264,7 +272,9 @@ func loginUser(t *TUI, cmd Command) {
 	t.comp.input.SetLabel(unameLabel(uname))
 
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
-	reciv := cmds.Reciv(c)
+	rCtx, rCancel := timeout()
+	rCancel()
+	reciv := cmds.Reciv(rCtx, c)
 	if reciv.Error != nil {
 		if reciv.Error == spec.ErrorEmpty {
 			cmd.print("no new messages have been received", cmds.RESULT)
@@ -285,7 +295,9 @@ func listUsers(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Usrs(c, args...)
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.Usrs(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -336,7 +348,9 @@ func registerUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Reg(c, args[0], []byte(pswd))
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.Reg(ctx, c, args[0], []byte(pswd))
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -369,7 +383,9 @@ func connectServer(t *TUI, cmd Command) {
 
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
 	c, _ := cmd.createCmd(t, data)
-	r := cmds.Conn(c, args...)
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.Conn(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -378,15 +394,13 @@ func connectServer(t *TUI, cmd Command) {
 
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 
-	// Cleanup function
-	go func() {
-		<-data.Disconnect.Done()
+	go cmds.Listen(c, func() {
 		discn := t.systemMessage()
 		discn("You are no longer connected to this server!", cmds.INFO)
 		cmd.serv.Buffers().Offline()
 		t.comp.input.SetLabel(defaultLabel)
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
-	}()
+	})
 }
 
 func listBuffers(t *TUI, cmd Command) {

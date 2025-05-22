@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -43,16 +42,16 @@ func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.C
 
 // Listens for incoming server packets. When a packet
 // is received, it is stored in the packet waitlist
-func Listen(cmd *Command, cancel context.CancelFunc) {
+// A cleanup function that cleans up resources can be passed
+func Listen(cmd Command, cleanup func()) {
 	defer func() {
 		if cmd.Data.ClientCon.Conn != nil {
 			cmd.Data.ClientCon.Conn.Close()
 		}
 
 		cmd.Data.ClientCon.Conn = nil
-		cmd.Data.Disconnect = nil
 		cmd.Output("no longer listening for packets", INFO)
-		cancel()
+		cleanup()
 	}()
 
 	for {

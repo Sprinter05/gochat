@@ -90,7 +90,9 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 		Data:   data,
 	}
 
-	r := cmds.Req(cmd, []byte(tab.name))
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.Req(ctx, cmd, []byte(tab.name))
 	if r.Error != nil {
 		str := fmt.Sprintf(
 			"failed to request user due to %s!",

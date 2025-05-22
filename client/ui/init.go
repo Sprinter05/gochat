@@ -43,6 +43,7 @@ const (
 	asciiLowercase int     = 0x61      // Start of ASCII for lowercase a
 	maxBuffers     uint    = 35        // Maximum amount of allowed buffers in one server
 	maxServers     uint    = 9         // Maximum amount of allowed servers
+	cmdTimeout     uint    = 30        // Max seconds to wait
 )
 
 var (

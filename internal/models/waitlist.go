@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"slices"
 	"sync"
 )
@@ -69,7 +70,9 @@ func (w *Waitlist[T]) TryGet(find func(T) bool) (T, bool) {
 // the caller goroutine will sleep and wake up
 // when a new element is inserted, repeating
 // this process forever until the element is found.
-func (w *Waitlist[T]) Get(find func(T) bool) T {
+// A context must be passed which will cancel the
+// waiting if said context ends.
+func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) T {
 	w.cond.L.Lock()
 	defer w.cond.L.Unlock()
 
@@ -82,5 +85,10 @@ func (w *Waitlist[T]) Get(find func(T) bool) T {
 		}
 
 		w.cond.Wait()
+
+		if ctx.Err() != nil {
+			var empty T
+			return empty
+		}
 	}
 }

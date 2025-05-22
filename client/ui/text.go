@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -207,7 +208,9 @@ func (t *TUI) remoteMessage(content string) {
 		Data:   data,
 	}
 
-	r := cmds.Msg(cmd, []byte(tab.name), []byte(content))
+	ctx, cancel := timeout()
+	defer cancel()
+	r := cmds.Msg(ctx, cmd, []byte(tab.name), []byte(content))
 	if r.Error != nil {
 		print("failed to send message: "+r.Error.Error(), cmds.ERROR)
 	}
@@ -226,14 +229,20 @@ func (t *TUI) receiveMessages(s Server) {
 		}
 
 		cmd := data.Waitlist.Get(
+			context.Background(), // TODO
 			cmds.Find(spec.NullID, spec.RECIV),
 		)
 
-		msg, err := cmds.StoreReciv(cmd, cmds.Command{
-			Output: func(text string, outputType cmds.OutputType) {},
-			Static: &t.data,
-			Data:   data,
-		})
+		ctx, cancel := timeout()
+		msg, err := cmds.StoreReciv(
+			ctx, cmd,
+			cmds.Command{
+				Output: func(text string, outputType cmds.OutputType) {},
+				Static: &t.data,
+				Data:   data,
+			},
+		)
+		cancel()
 
 		if err != nil {
 			print(err.Error(), cmds.ERROR)
