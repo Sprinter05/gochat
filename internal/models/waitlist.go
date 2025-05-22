@@ -40,6 +40,15 @@ func (w *Waitlist[T]) Insert(v T) {
 	w.cond.Broadcast()
 }
 
+// Wakes up all waiting threads and cancels the context.
+func (w *Waitlist[T]) Cancel(cancel context.CancelFunc) {
+	w.cond.L.Lock()
+	defer w.cond.L.Unlock()
+
+	cancel()
+	w.cond.Broadcast()
+}
+
 // Clears all elements from the waitlist.
 func (w *Waitlist[T]) Clear() {
 	w.cond.L.Lock()
@@ -70,8 +79,8 @@ func (w *Waitlist[T]) TryGet(find func(T) bool) (T, bool) {
 // the caller goroutine will sleep and wake up
 // when a new element is inserted, repeating
 // this process forever until the element is found.
-// A context must be passed which will cancel the
-// waiting if said context ends.
+// A context must be passed which will be checked
+// whenever the goroutine wakes up
 func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) T {
 	w.cond.L.Lock()
 	defer w.cond.L.Unlock()

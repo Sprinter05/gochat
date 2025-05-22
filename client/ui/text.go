@@ -208,8 +208,8 @@ func (t *TUI) remoteMessage(content string) {
 		Data:   data,
 	}
 
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(s)
+	defer cmd.Data.Waitlist.Cancel(cancel)
 	r := cmds.Msg(ctx, cmd, []byte(tab.name), []byte(content))
 	if r.Error != nil {
 		print("failed to send message: "+r.Error.Error(), cmds.ERROR)
@@ -217,32 +217,37 @@ func (t *TUI) remoteMessage(content string) {
 }
 
 // Waits for new messages to be sent to that user
-func (t *TUI) receiveMessages(s Server) {
+func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 	defer s.Buffers().Offline()
 	data, _ := s.Online()
 	print := t.systemMessage("reciv", defaultBuffer)
 
 	for {
-		if !data.IsUserLoggedIn() || !data.IsConnected() {
-			// Stop listening
-			return
-		}
-
 		cmd := data.Waitlist.Get(
-			context.Background(), // TODO
+			ctx,
 			cmds.Find(spec.NullID, spec.RECIV),
 		)
 
-		ctx, cancel := timeout()
+		if !data.IsUserLoggedIn() {
+			print("not logged in, ignoring incoming reciv", cmds.ERROR)
+			continue
+		}
+
+		if ctx.Err() != nil {
+			print(ctx.Err().Error(), cmds.ERROR)
+			return
+		}
+
+		rCtx, cancel := timeout(s)
 		msg, err := cmds.StoreReciv(
-			ctx, cmd,
+			rCtx, cmd,
 			cmds.Command{
 				Output: func(text string, outputType cmds.OutputType) {},
 				Static: &t.data,
 				Data:   data,
 			},
 		)
-		cancel()
+		data.Waitlist.Cancel(cancel)
 
 		if err != nil {
 			print(err.Error(), cmds.ERROR)

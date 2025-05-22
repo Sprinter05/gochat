@@ -90,8 +90,8 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 		Data:   data,
 	}
 
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(s)
+	defer data.Waitlist.Cancel(cancel)
 	r := cmds.Req(ctx, cmd, []byte(tab.name))
 	if r.Error != nil {
 		str := fmt.Sprintf(

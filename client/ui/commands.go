@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -159,8 +160,8 @@ func toggleTLS(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
 	r := cmds.TLS(ctx, c, args...)
 
 	if r.Error != nil {
@@ -202,8 +203,8 @@ func disconnectServer(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
 	r := cmds.Discn(ctx, c, args...)
 
 	if r.Error != nil {
@@ -223,8 +224,8 @@ func logoutUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
 	r := cmds.Logout(ctx, c, args...)
 
 	if r.Error != nil {
@@ -259,8 +260,8 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	lCtx, lCancel := timeout()
-	defer lCancel()
+	lCtx, lCancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(lCancel)
 	r := cmds.Login(lCtx, c, args[0], []byte(pswd))
 
 	if r.Error != nil {
@@ -272,8 +273,8 @@ func loginUser(t *TUI, cmd Command) {
 	t.comp.input.SetLabel(unameLabel(uname))
 
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
-	rCtx, rCancel := timeout()
-	rCancel()
+	rCtx, rCancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(rCancel)
 	reciv := cmds.Reciv(rCtx, c)
 	if reciv.Error != nil {
 		if reciv.Error == spec.ErrorEmpty {
@@ -283,8 +284,6 @@ func loginUser(t *TUI, cmd Command) {
 			return
 		}
 	}
-
-	go t.receiveMessages(cmd.serv)
 }
 
 func listUsers(t *TUI, cmd Command) {
@@ -295,8 +294,8 @@ func listUsers(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
 	r := cmds.Usrs(ctx, c, args...)
 
 	if r.Error != nil {
@@ -348,8 +347,8 @@ func registerUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
 	r := cmds.Reg(ctx, c, args[0], []byte(pswd))
 
 	if r.Error != nil {
@@ -383,8 +382,8 @@ func connectServer(t *TUI, cmd Command) {
 
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
 	c, _ := cmd.createCmd(t, data)
-	ctx, cancel := timeout()
-	defer cancel()
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
 	r := cmds.Conn(ctx, c, args...)
 
 	if r.Error != nil {
@@ -392,6 +391,7 @@ func connectServer(t *TUI, cmd Command) {
 		return
 	}
 
+	cmd.serv.Connection().Set(context.Background())
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 
 	go cmds.Listen(c, func() {
@@ -400,7 +400,11 @@ func connectServer(t *TUI, cmd Command) {
 		cmd.serv.Buffers().Offline()
 		t.comp.input.SetLabel(defaultLabel)
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+		cmd.serv.Connection().Cancel()
 	})
+
+	recivContext := cmd.serv.Connection().Get()
+	go t.receiveMessages(recivContext, cmd.serv)
 }
 
 func listBuffers(t *TUI, cmd Command) {

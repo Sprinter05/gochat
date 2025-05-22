@@ -14,6 +14,27 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+/* CONTEXTS */
+
+type Connection struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+func (c *Connection) Set(background context.Context) {
+	ctx, cancel := context.WithCancel(background)
+	c.ctx = ctx
+	c.cancel = cancel
+}
+
+func (c *Connection) Get() context.Context {
+	return c.ctx
+}
+
+func (c *Connection) Cancel() {
+	c.cancel()
+}
+
 /* INTERFACE */
 
 // Identifies the operations a server
@@ -39,6 +60,9 @@ type Server interface {
 
 	// Returns the name of the server
 	Name() string
+
+	// Returns the context of the connection
+	Connection() *Connection
 }
 
 // Returns the currently active server.
@@ -52,9 +76,9 @@ func (t *TUI) Active() Server {
 	return s
 }
 
-func timeout() (context.Context, context.CancelFunc) {
+func timeout(s Server) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(
-		context.Background(),
+		s.Connection().Get(),
 		time.Duration(cmdTimeout)*time.Second,
 	)
 }
@@ -84,6 +108,10 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		ip:   ip.IP,
 		port: uint16(ip.Port),
 		name: name,
+		conn: &Connection{
+			ctx:    context.Background(),
+			cancel: func() {},
+		},
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
 		},
@@ -250,6 +278,8 @@ type RemoteServer struct {
 	port uint16
 	name string
 
+	conn *Connection
+
 	bufs Buffers
 	data *cmds.Data
 }
@@ -321,6 +351,10 @@ func (s *RemoteServer) Name() string {
 	return s.name
 }
 
+func (s *RemoteServer) Connection() *Connection {
+	return s.conn
+}
+
 /* LOCAL SERVER */
 
 type LocalServer struct {
@@ -383,4 +417,8 @@ func (l *LocalServer) Online() (*cmds.Data, bool) {
 
 func (l *LocalServer) Name() string {
 	return l.name
+}
+
+func (l *LocalServer) Connection() *Connection {
+	return nil
 }
