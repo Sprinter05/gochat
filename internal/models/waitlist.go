@@ -80,8 +80,9 @@ func (w *Waitlist[T]) TryGet(find func(T) bool) (T, bool) {
 // when a new element is inserted, repeating
 // this process forever until the element is found.
 // A context must be passed which will be checked
-// whenever the goroutine wakes up
-func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) T {
+// whenever the goroutine wakes up and return its
+// error if its not nil.
+func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) (T, error) {
 	w.cond.L.Lock()
 	defer w.cond.L.Unlock()
 
@@ -89,7 +90,7 @@ func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) T {
 		for i, v := range w.data {
 			if find(v) {
 				w.data = slices.Delete(w.data, i, i+1)
-				return v
+				return v, nil
 			}
 		}
 
@@ -97,7 +98,7 @@ func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) T {
 
 		if ctx.Err() != nil {
 			var empty T
-			return empty
+			return empty, ctx.Err()
 		}
 	}
 }

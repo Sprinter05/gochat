@@ -10,7 +10,6 @@ import (
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/client/ui"
-	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"gorm.io/gorm"
 )
@@ -110,20 +109,9 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 	cl = spec.Connection{Conn: con}
 
-	waitlist := models.NewWaitlist(0, func(a spec.Command, b spec.Command) int {
-		switch {
-		case a.HD.ID > b.HD.ID:
-			return 1
-		case a.HD.ID < b.HD.ID:
-			return -1
-		default:
-			return 0
-		}
-	})
-
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
-	data := commands.Data{ClientCon: cl, Server: server, Waitlist: waitlist}
+	data := commands.Data{ClientCon: cl, Server: server, Waitlist: commands.DefaultWaitlist()}
 	args := commands.Command{Data: &data, Static: &static, Output: ShellPrint}
 
 	if address != "" {

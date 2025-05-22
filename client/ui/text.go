@@ -149,14 +149,14 @@ func (t *TUI) systemMessage(params ...string) func(string, cmds.OutputType) {
 	server := t.Active().Source()
 
 	var prompt string
-	if len(params) > 0 {
+	if len(params) > 0 && params[0] != "" {
 		prompt = fmt.Sprintf(
 			"Running [lightgray::b]%s[-::-]: ",
 			params[0],
 		)
 	}
 
-	if len(params) > 1 {
+	if len(params) > 1 && params[1] != "" {
 		buffer = params[1]
 	}
 
@@ -223,19 +223,18 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 	print := t.systemMessage("reciv", defaultBuffer)
 
 	for {
-		cmd := data.Waitlist.Get(
+		cmd, err := data.Waitlist.Get(
 			ctx,
 			cmds.Find(spec.NullID, spec.RECIV),
 		)
+		if err != nil {
+			print(err.Error(), cmds.ERROR)
+			return
+		}
 
 		if !data.IsUserLoggedIn() {
 			print("not logged in, ignoring incoming reciv", cmds.ERROR)
 			continue
-		}
-
-		if ctx.Err() != nil {
-			print(ctx.Err().Error(), cmds.ERROR)
-			return
 		}
 
 		rCtx, cancel := timeout(s)

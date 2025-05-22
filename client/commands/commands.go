@@ -193,7 +193,7 @@ func TLS(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 // Arguments: <server address> <server port> [-noverify]
 //
 // Returns a zero value ReplyData if the connection was successful.
-// This command does not spawn a listening thread.
+// This command does not spawn a listening thread nor allocates a waitlist.
 func Conn(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
@@ -244,18 +244,6 @@ func Conn(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	cmd.Output("listening for incoming packets...", INFO)
-
-	waitlist := models.NewWaitlist(0, func(a spec.Command, b spec.Command) int {
-		switch {
-		case a.HD.ID > b.HD.ID:
-			return 1
-		case a.HD.ID < b.HD.ID:
-			return -1
-		default:
-			return 0
-		}
-	})
-	cmd.Data.Waitlist = waitlist
 
 	return ReplyData{}
 }
@@ -356,11 +344,11 @@ func Req(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
-	reply := cmd.Data.Waitlist.Get(
+	reply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id, spec.REQ, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
 
 	if reply.HD.Op == spec.ERR {
@@ -494,11 +482,11 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 
 	// Awaits a response
 	verbosePrint("awaiting response...", cmd)
-	reply := cmd.Data.Waitlist.Get(
+	reply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id, spec.OK, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
 
 	if reply.HD.Op == spec.ERR {
@@ -606,11 +594,11 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	verbosePrint("awaiting response...", cmd)
-	loginReply := cmd.Data.Waitlist.Get(
+	loginReply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id1, spec.VERIF, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
 
 	if loginReply.HD.Op == spec.ERR {
@@ -653,11 +641,11 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	verifReply := cmd.Data.Waitlist.Get(
+	verifReply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id2, spec.OK, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
 
 	if verifReply.HD.Op == spec.ERR {
@@ -702,11 +690,11 @@ func Logout(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply := cmd.Data.Waitlist.Get(
+	reply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id, spec.OK, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
 
 	if reply.HD.Op == spec.ERR {
@@ -774,11 +762,11 @@ func Usrs(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply := cmd.Data.Waitlist.Get(
+	reply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id, spec.USRS, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
 
 	if reply.HD.Op == spec.ERR {
@@ -866,11 +854,11 @@ func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 
 	// Listens for response
 	verbosePrint("awaiting response...", cmd)
-	reply := cmd.Data.Waitlist.Get(
+	reply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id, spec.OK, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
 
 	if reply.HD.Op == spec.ERR {
@@ -913,12 +901,13 @@ func Reciv(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: writeErr}
 	}
 
-	reply := cmd.Data.Waitlist.Get(
+	reply, err := cmd.Data.Waitlist.Get(
 		ctx, Find(id, spec.OK, spec.ERR),
 	)
-	if ctx.Err() != nil {
-		return ReplyData{Error: ctx.Err()}
+	if err != nil {
+		return ReplyData{Error: err}
 	}
+
 	if reply.HD.Op == spec.ERR {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
@@ -1023,4 +1012,18 @@ func Find(id spec.ID, ops ...spec.Action) func(cmd spec.Command) bool {
 
 		return false
 	}
+}
+
+// Returns an appropiate waitlist
+func DefaultWaitlist() models.Waitlist[spec.Command] {
+	return models.NewWaitlist(0, func(a spec.Command, b spec.Command) int {
+		switch {
+		case a.HD.ID > b.HD.ID:
+			return 1
+		case a.HD.ID < b.HD.ID:
+			return -1
+		default:
+			return 0
+		}
+	})
 }

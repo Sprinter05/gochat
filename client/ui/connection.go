@@ -21,7 +21,9 @@ type Connection struct {
 	cancel context.CancelFunc
 }
 
+// Sets a new context by cancelling the previous one first
 func (c *Connection) Set(background context.Context) {
+	c.Cancel()
 	ctx, cancel := context.WithCancel(background)
 	c.ctx = ctx
 	c.cancel = cancel
@@ -117,6 +119,7 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		},
 		data: new(cmds.Data),
 	}
+	s.data.Waitlist = cmds.DefaultWaitlist()
 
 	var dbErr error
 	s.data.Server, dbErr = db.SaveServer(

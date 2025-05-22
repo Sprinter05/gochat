@@ -394,13 +394,16 @@ func connectServer(t *TUI, cmd Command) {
 	cmd.serv.Connection().Set(context.Background())
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 
+	c.Output = t.systemMessage("", defaultBuffer)
 	go cmds.Listen(c, func() {
-		discn := t.systemMessage()
-		discn("You are no longer connected to this server!", cmds.INFO)
 		cmd.serv.Buffers().Offline()
+		c.Data.Waitlist.Cancel(cmd.serv.Connection().Cancel)
+
 		t.comp.input.SetLabel(defaultLabel)
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
-		cmd.serv.Connection().Cancel()
+
+		discn := t.systemMessage()
+		discn("You are no longer connected to this server!", cmds.INFO)
 	})
 
 	recivContext := cmd.serv.Connection().Get()

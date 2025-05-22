@@ -98,7 +98,7 @@ func ShellPrint(text string, outputType commands.OutputType) {
 // operations.
 func RECIVHandler(cmd *commands.Command) {
 	for {
-		reciv := cmd.Data.Waitlist.Get(
+		reciv, _ := cmd.Data.Waitlist.Get(
 			context.Background(),
 			commands.Find(0, spec.RECIV),
 		)
