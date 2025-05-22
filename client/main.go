@@ -81,7 +81,7 @@ func setupTUI(config Config, dbconn *gorm.DB) {
 	_, app := ui.New(commands.StaticData{
 		Verbose: verbosePrint,
 		DB:      dbconn,
-	}, config.UIConfig.DebugBuffer)
+	}, config.UIConfig.DebugBuffer && verbosePrint)
 
 	if err := app.Run(); err != nil {
 		panic(err)

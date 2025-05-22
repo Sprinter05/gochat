@@ -357,7 +357,6 @@ func registerUser(t *TUI, cmd Command) {
 	}
 }
 
-// TODO: handle disconnection
 func connectServer(t *TUI, cmd Command) {
 	addr := cmd.serv.Source()
 	if addr == nil {

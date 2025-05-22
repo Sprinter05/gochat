@@ -19,6 +19,7 @@ import (
 type Connection struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+	cause  error
 }
 
 // Sets a new context by cancelling the previous one first
@@ -113,6 +114,7 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		conn: &Connection{
 			ctx:    context.Background(),
 			cancel: func() {},
+			cause:  ErrorDisconnection,
 		},
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
@@ -197,7 +199,18 @@ func (t *TUI) hideServer(name string) {
 		t.comp.servers.RemoveItem(i)
 	}
 
-	//! leaking goroutine and data?
+	// Cleanup resources and wait a bit
+	data, _ := s.Online()
+	_ = cmds.Discn(
+		s.Connection().Get(),
+		cmds.Command{
+			Output: t.systemMessage(),
+			Data:   data,
+			Static: &t.data,
+		},
+	)
+	<-time.After(100 * time.Millisecond)
+
 	t.servers.Remove(name)
 
 	t.renderServer(localServer)

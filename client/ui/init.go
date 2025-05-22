@@ -43,7 +43,7 @@ const (
 	asciiLowercase int     = 0x61      // Start of ASCII for lowercase a
 	maxBuffers     uint    = 35        // Maximum amount of allowed buffers in one server
 	maxServers     uint    = 9         // Maximum amount of allowed servers
-	cmdTimeout     uint    = 30        // Max seconds to wait
+	cmdTimeout     uint    = 30        // Max seconds to wait for a command to finish
 )
 
 var (
@@ -63,6 +63,7 @@ var (
 	ErrorLoggedIn      = errors.New("you are already logged in")
 	ErrorNoRemoteUser  = errors.New("user is not requested")
 	ErrorInvalidName   = errors.New("name provided is invalid")
+	ErrorDisconnection = errors.New("connection to the server has been lost")
 )
 
 // Identifies the areas where components are located.

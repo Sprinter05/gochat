@@ -71,7 +71,7 @@ func Listen(cmd Command, cleanup func()) {
 		chErr := pct.HD.ClientCheck()
 		if chErr != nil {
 			if cmd.Static.Verbose {
-				cmd.Output("incorrect header from server", ERROR)
+				cmd.Output(fmt.Sprintf("incorrect header from server: %s", chErr), ERROR)
 				cmd.Output(pct.Contents(), PACKET)
 			}
 			return
@@ -80,7 +80,7 @@ func Listen(cmd Command, cleanup func()) {
 		// Payload listen
 		pldErr := pct.ListenPayload(cmd.Data.ClientCon)
 		if pldErr != nil {
-			cmd.Output(fmt.Sprintf("error in payload listen: %s", hdErr), ERROR)
+			cmd.Output(fmt.Sprintf("error in payload listen: %s", pldErr), ERROR)
 			return
 		}
 
@@ -136,7 +136,7 @@ func ConnectionStart(data Command) error {
 // listening until a received packet fits one of the actions provided
 // and returns it
 func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command, error) {
-	// TODO: timeouts
+	//  timeouts
 	var cmd spec.Command
 
 	for !(slices.Contains(ops, cmd.HD.Op)) {
