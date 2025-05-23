@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
@@ -50,6 +51,7 @@ func Listen(cmd Command, cleanup func()) {
 		}
 
 		cmd.Data.ClientCon.Conn = nil
+		cmd.Data.User = db.LocalUser{}
 		cmd.Output("no longer listening for packets", INFO)
 		cleanup()
 	}()

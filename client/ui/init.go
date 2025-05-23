@@ -27,6 +27,7 @@ const Logo string = `
 
 // TODO: notification system
 // TODO: load old messages
+// TODO: emojis
 
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version
@@ -286,6 +287,10 @@ func setupInput(t *TUI) {
 				return event
 			}
 
+			if event.Modifiers()&tcell.ModNone != tcell.ModNone {
+				return event
+			}
+
 			l := t.history.Len() - 1
 			cmd, ok := t.history.Get(uint(l) - t.next)
 			if !ok {
@@ -484,7 +489,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	// Welcome messages
 	print := t.systemMessage()
 	print("Welcome to gochat!", cmds.INFO)
-	print("Press [green]Ctrl-Shift/Alt-H[-] to show help!", cmds.INFO)
+	print("Press [green]Ctrl-Alt-H/Ctrl-Shift-H[-] to show help!", cmds.INFO)
 	print("Restoring previous session...", cmds.INFO)
 
 	// Debug buffer if necessary

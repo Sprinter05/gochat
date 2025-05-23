@@ -75,7 +75,7 @@ func (data *Data) NextID() spec.ID {
 }
 
 func (data *Data) IsUserLoggedIn() bool {
-	return data.User.User.Username != ""
+	return data.User.User.Username != "" && data.IsConnected()
 }
 
 func (data *Data) IsConnected() bool {

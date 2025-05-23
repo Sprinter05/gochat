@@ -334,6 +334,7 @@ func (t *TUI) renderBuffer(buf string) {
 
 	if b.connected {
 		print := t.systemMessage()
+		// todo prints spam
 		print("This is the beggining of your conversation with "+buf, cmds.INFO)
 	}
 
