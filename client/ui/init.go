@@ -26,8 +26,8 @@ const Logo string = `
 `
 
 // TODO: notification system
-// TODO: load old messages
 // TODO: emojis
+// TODO: alt up loads history
 
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version
@@ -63,8 +63,9 @@ var (
 	ErrorArguments     = errors.New("invalid number of arguments")
 	ErrorLoggedIn      = errors.New("you are already logged in")
 	ErrorNoRemoteUser  = errors.New("user is not requested")
-	ErrorInvalidName   = errors.New("name provided is invalid")
 	ErrorDisconnection = errors.New("connection to the server has been lost")
+	ErrorNotLoggedIn   = errors.New("you are not logged in")
+	ErrorMessageSelf   = errors.New("cannot request to message yourself")
 )
 
 // Identifies the areas where components are located.
@@ -287,7 +288,8 @@ func setupInput(t *TUI) {
 				return event
 			}
 
-			if event.Modifiers()&tcell.ModNone != tcell.ModNone {
+			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt ||
+				event.Modifiers()&tcell.ModShift == tcell.ModShift {
 				return event
 			}
 

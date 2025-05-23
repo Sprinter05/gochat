@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
@@ -262,6 +263,40 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 		})
 	}
 
+}
+
+func getOldMessages(t *TUI, s Server, username string) {
+	print := t.systemMessage()
+
+	data, _ := s.Online()
+	user, err := db.GetExternalUser(t.data.DB, username, data.Server.ServerID)
+	if err != nil {
+		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
+	}
+
+	msgs, err := db.GetAllUsersMessages(t.data.DB, data.User.User, user.User)
+	if err != nil {
+		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
+	}
+
+	uname := data.User.User.Username
+	sID := data.Server.ServerID
+	for _, v := range msgs {
+		src, _ := db.GetUserByID(t.data.DB, v.SourceID, sID)
+
+		sender := src.Username
+		if sender == uname {
+			sender = selfSender
+		}
+
+		t.SendMessage(Message{
+			Buffer:    username,
+			Sender:    sender,
+			Content:   v.Text,
+			Timestamp: v.Stamp,
+			Source:    s.Source(),
+		})
+	}
 }
 
 // Wrapper function for sending messages to the TUI.

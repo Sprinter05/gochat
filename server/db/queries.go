@@ -51,7 +51,10 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 		"JOIN users u ON messages.src_user = u.user_id",
 	).Where(
 		"messages.dst_user = ?", user.UserID,
+	).Order(
+		"stamp ASC",
 	).WithContext(context.Background())
+	// todo order
 
 	var size int64
 	pre := res.Count(&size)

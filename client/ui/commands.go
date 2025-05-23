@@ -234,6 +234,7 @@ func logoutUser(t *TUI, cmd Command) {
 	}
 
 	t.comp.input.SetLabel(defaultLabel)
+	cleanupSession(t, cmd.serv)
 }
 
 func loginUser(t *TUI, cmd Command) {
@@ -401,6 +402,8 @@ func connectServer(t *TUI, cmd Command) {
 		t.comp.input.SetLabel(defaultLabel)
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 
+		cleanupSession(t, cmd.serv)
+
 		discn := t.systemMessage()
 		discn("You are no longer connected to this server!", cmds.INFO)
 	})
@@ -414,7 +417,7 @@ func listBuffers(t *TUI, cmd Command) {
 	bufs := cmd.serv.Buffers()
 	l := bufs.tabs.GetAll()
 
-	list.WriteString("Showing active server buffers: ")
+	list.WriteString("showing active server buffers: ")
 	for i, v := range l {
 		hidden := ""
 		if v.index == -1 {

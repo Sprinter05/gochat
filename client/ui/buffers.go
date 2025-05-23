@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -53,10 +54,39 @@ func (t *TUI) Buffer() string {
 	return t.Active().Buffers().current
 }
 
+// Returns to default buffer and delets all others
+func cleanupSession(t *TUI, s Server) {
+	i, _ := t.findBuffer(defaultBuffer)
+	t.changeBuffer(i)
+
+	bufs := s.Buffers()
+
+	for _, v := range bufs.GetAll() {
+		if v == defaultBuffer {
+			continue
+		}
+
+		i, ok := t.findBuffer(v)
+		t.removeBuffer(v)
+		if ok {
+			t.comp.buffers.RemoveItem(i)
+		}
+	}
+}
+
 // Requests a user's key on buffer connection
 func (t *TUI) requestUser(s Server, name string, output func(string, cmds.OutputType)) {
+
 	tab, exists := s.Buffers().tabs.Get(name)
 	data, ok := s.Online()
+
+	connected := func() {
+		tab.connected = true
+		if tab.messages.Len() == 0 {
+			getOldMessages(t, s, name)
+			print("This is the start of this conversation with "+name, cmds.INFO)
+		}
+	}
 
 	if exists && tab.system {
 		return
@@ -77,12 +107,12 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 		return
 	}
 
-	if ok {
-		tab.connected = true
+	if ok && !tab.connected {
+		connected()
 		return
 	}
 
-	output("attempting to get user data...", cmds.INTERMEDIATE)
+	// output("attempting to get user data...", cmds.INTERMEDIATE)
 
 	cmd := cmds.Command{
 		Output: output,
@@ -95,15 +125,14 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 	r := cmds.Req(ctx, cmd, []byte(tab.name))
 	if r.Error != nil {
 		str := fmt.Sprintf(
-			"failed to request user due to %s!",
+			"failed to request user data due to %s!",
 			r.Error,
 		)
 		output(str, cmds.ERROR)
 		return
 	}
 
-	tab.connected = true
-	output("you may now start messaging this user!", cmds.RESULT)
+	connected()
 }
 
 /* BUFFERS */
@@ -126,6 +155,18 @@ func (b *Buffers) New(name string, system bool) error {
 
 	b.tabs.Add(name, tab)
 	return nil
+}
+
+// Gets all the buffer names
+func (b *Buffers) GetAll() []string {
+	list := make([]string, 0, b.tabs.Len())
+
+	copy := b.tabs.GetAll()
+	for _, v := range copy {
+		list = append(list, v.name)
+	}
+
+	return list
 }
 
 // Assigns the buffer as online and returns whether it failed or not
@@ -223,6 +264,19 @@ func (t *TUI) addBuffer(name string, system bool) {
 		return
 	}
 
+	data, online := s.Online()
+	if data != nil && name != defaultBuffer {
+		if !online || !data.IsUserLoggedIn() {
+			t.showError(ErrorNotLoggedIn)
+			return
+		}
+
+		if name == data.User.User.Username {
+			t.showError(ErrorMessageSelf)
+			return
+		}
+	}
+
 	err := s.Buffers().New(name, system)
 	_, ok := t.findBuffer(name)
 	if err != nil && ok {
@@ -237,7 +291,7 @@ func (t *TUI) addBuffer(name string, system bool) {
 
 	t.comp.buffers.AddItem(name, "", r, nil)
 	t.changeBuffer(i)
-	print := t.systemMessage()
+	print := t.systemMessage("request")
 	t.requestUser(s, name, print)
 }
 
@@ -297,15 +351,13 @@ func (t *TUI) hideBuffer(name string) {
 	}
 }
 
-// Deletes a buffer with all related messages from the database.
+// Deletes a buffer instead of hiding it
 // This assumes the buffer has already been deleted from the TUI.
 func (t *TUI) removeBuffer(name string) error {
 	err := t.Active().Buffers().Remove(name)
 	if err != nil {
 		return err
 	}
-
-	// TODO: Database deletion goes here
 
 	return nil
 }
@@ -332,12 +384,13 @@ func (t *TUI) renderBuffer(buf string) {
 		return
 	}
 
-	if b.connected {
-		print := t.systemMessage()
-		// todo prints spam
-		print("This is the beggining of your conversation with "+buf, cmds.INFO)
-	}
+	/* 	if b.connected && b.messages.Len() == 0 {
+	   		print := t.systemMessage()
+	   		print("This is the beggining of your conversation with "+buf, cmds.INFO)
+	   	}
+	*/
 
+	t.status.lastDate = time.Now()
 	t.comp.text.Clear()
 	msgs := t.Active().Messages(buf)
 	for _, v := range msgs {

@@ -216,6 +216,13 @@ func GetUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	return user, result.Error
 }
 
+// Returns the user by a given ID
+func GetUserByID(db *gorm.DB, userID uint, serverID uint) (User, error) {
+	user := User{}
+	result := db.Where("user_id = ? AND server_id = ?", userID, serverID).First(&user)
+	return user, result.Error
+}
+
 // Returns the local user that is defined by the specified username and server.
 func GetLocalUser(db *gorm.DB, username string, serverID uint) (LocalUser, error) {
 	user, err := GetUser(db, username, serverID)
@@ -223,7 +230,7 @@ func GetLocalUser(db *gorm.DB, username string, serverID uint) (LocalUser, error
 		return LocalUser{}, err
 	}
 
-	localUser := LocalUser{User: User{Username: username}, UserID: user.UserID}
+	localUser := LocalUser{User: user}
 	result := db.First(&localUser)
 	return localUser, result.Error
 }
@@ -284,7 +291,7 @@ func GetExternalUser(db *gorm.DB, username string, serverID uint) (ExternalUser,
 	if err != nil {
 		return ExternalUser{}, err
 	}
-	externalUser := ExternalUser{User: User{Username: username}, UserID: user.UserID}
+	externalUser := ExternalUser{User: user}
 	result := db.First(&externalUser)
 	return externalUser, result.Error
 }
@@ -320,7 +327,7 @@ func GetUsersMessagesRange(db *gorm.DB, src User, dst User, init time.Time, end 
 // Returns a slice with all messages between two users
 func GetAllUsersMessages(db *gorm.DB, src User, dst User) ([]Message, error) {
 	var messages []Message
-	result := db.Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Find(&messages)
+	result := db.Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Order("stamp ASC").Find(&messages)
 	if result.Error != nil {
 		return nil, result.Error
 	}

@@ -829,7 +829,7 @@ func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Generates the packet, using the current UNIX timestamp
-	stamp := time.Now()
+	stamp := time.Now().Round(time.Second)
 	id := cmd.Data.NextID()
 	pct, pctErr := spec.NewPacket(
 		spec.MSG, id,
