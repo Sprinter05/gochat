@@ -2,16 +2,22 @@
 services:
   mariadb:
     image: mariadb:latest
-    container_name: mariadb
+    container_name: database
     environment:
       MYSQL_ROOT_PASSWORD: gochatpass
       MYSQL_USER: gochatuser
       MYSQL_PASSWORD: gochatpass
       MYSQL_DATABASE: gochat
-    ports:
-      - "3306:3306"
     volumes:
       - "gochat_db:/var/lib/mysql"
+  gochat:
+    image: Sprinter05/gochat:latest
+    container_name: gochat
+    ports:
+      - "8037:8037"
+      - "9037:9037"
+    depends_on:
+      - mariadb
 volumes:
   gochat_db:
 
