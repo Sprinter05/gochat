@@ -54,7 +54,6 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 	).Order(
 		"stamp ASC",
 	).WithContext(context.Background())
-	// todo order
 
 	var size int64
 	pre := res.Count(&size)

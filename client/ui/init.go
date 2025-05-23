@@ -27,7 +27,6 @@ const Logo string = `
 
 // TODO: notification system
 // TODO: emojis
-// TODO: alt up loads history
 
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version
