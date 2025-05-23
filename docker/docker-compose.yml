@@ -20,4 +20,3 @@ services:
       - mariadb
 volumes:
   gochat_db:
-
