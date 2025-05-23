@@ -54,7 +54,7 @@ const KeybindHelp string = `
 	
 [yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
 
-[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
+[yellow::b]Shift-Up/Down[-::-]: Go to next/previous server
 
 [yellow::b]Ctrl-B[-::-]: Show/Hide buffer list
 

@@ -167,6 +167,18 @@ func (t *TUI) existsServer(addr net.TCPAddr) bool {
 	return false
 }
 
+// Changes the TUI component according to its
+// internal index and renders the server
+func (t *TUI) changeServer(i int) {
+	if i < 0 || i >= t.comp.servers.GetItemCount() {
+		return
+	}
+
+	t.comp.servers.SetCurrentItem(i)
+	text, _ := t.comp.servers.GetItemText(i)
+	t.renderServer(text)
+}
+
 // Finds a server by a given name and returns its internal
 // index and whether it was found or not.
 func (t *TUI) findServer(name string) (int, bool) {

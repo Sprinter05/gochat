@@ -411,6 +411,11 @@ func setupKeybinds(t *TUI) {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr + 1)
 			}
+
+			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				curr := t.comp.servers.GetCurrentItem()
+				t.changeServer(curr + 1)
+			}
 		case tcell.KeyUp: // Go one buffer up
 			if t.status.blockCond() {
 				break
@@ -419,6 +424,11 @@ func setupKeybinds(t *TUI) {
 			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr - 1)
+			}
+
+			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				curr := t.comp.servers.GetCurrentItem()
+				t.changeServer(curr - 1)
 			}
 		case tcell.KeyCtrlR: // Reload TUI
 			t.app.Sync()
