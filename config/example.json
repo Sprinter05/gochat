@@ -19,7 +19,7 @@
         },
         "logs": {
             "level": "ERROR",
-            "log_file": "logs/server.log"
+            "log_file": ""
         }
     }
 }
