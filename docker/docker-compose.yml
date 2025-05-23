@@ -10,6 +10,12 @@ services:
       MYSQL_DATABASE: gochat
     volumes:
       - "gochat_db:/var/lib/mysql"
+    healthcheck:
+        test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+        start_period: 10s
+        interval: 20s
+        timeout: 5s
+        retries: 3
   gochat:
     image: Sprinter05/gochat:latest
     container_name: gochat
@@ -17,6 +23,7 @@ services:
       - "8037:8037"
       - "9037:9037"
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
 volumes:
   gochat_db:
