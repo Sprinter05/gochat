@@ -168,6 +168,10 @@ func (t *TUI) systemMessage(params ...string) func(string, cmds.OutputType) {
 		case cmds.PACKET:
 			t.debugPacket(s)
 		default:
+			if out == cmds.INTERMEDIATE && !t.data.Verbose {
+				return
+			}
+
 			t.SendMessage(Message{
 				Buffer:    buffer,
 				Sender:    "System",
@@ -221,7 +225,14 @@ func (t *TUI) remoteMessage(content string) {
 func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 	defer s.Buffers().Offline()
 	data, _ := s.Online()
-	print := t.systemMessage("reciv", defaultBuffer)
+	output := t.systemMessage("reciv", defaultBuffer)
+
+	print := func(msg string) {
+		if t.data.Verbose {
+			<-time.After(50 * time.Millisecond)
+			output(msg, cmds.ERROR)
+		}
+	}
 
 	for {
 		cmd, err := data.Waitlist.Get(
@@ -229,12 +240,12 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			cmds.Find(spec.NullID, spec.RECIV),
 		)
 		if err != nil {
-			print(err.Error(), cmds.ERROR)
+			print(err.Error())
 			return
 		}
 
 		if !data.IsUserLoggedIn() {
-			print("not logged in, ignoring incoming reciv", cmds.ERROR)
+			print("not logged in, ignoring incoming reciv")
 			continue
 		}
 
@@ -250,7 +261,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 		data.Waitlist.Cancel(cancel)
 
 		if err != nil {
-			print(err.Error(), cmds.ERROR)
+			print(err.Error())
 			continue
 		}
 

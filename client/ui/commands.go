@@ -233,6 +233,7 @@ func logoutUser(t *TUI, cmd Command) {
 		return
 	}
 
+	data.Waitlist.Cancel(data.Logout)
 	t.comp.input.SetLabel(defaultLabel)
 	cleanupSession(t, cmd.serv)
 }
@@ -272,6 +273,10 @@ func loginUser(t *TUI, cmd Command) {
 
 	uname := data.User.User.Username
 	t.comp.input.SetLabel(unameLabel(uname))
+
+	ctx, cancel := context.WithCancel(cmd.serv.Connection().Get())
+	data.Logout = cancel
+	go t.receiveMessages(ctx, cmd.serv)
 
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
 	rCtx, rCancel := timeout(cmd.serv)
@@ -397,6 +402,7 @@ func connectServer(t *TUI, cmd Command) {
 	c.Output = t.systemMessage("", defaultBuffer)
 	go cmds.Listen(c, func() {
 		cmd.serv.Buffers().Offline()
+		c.Data.Waitlist.Cancel(data.Logout)
 		c.Data.Waitlist.Cancel(cmd.serv.Connection().Cancel)
 
 		t.comp.input.SetLabel(defaultLabel)
@@ -407,9 +413,6 @@ func connectServer(t *TUI, cmd Command) {
 		discn := t.systemMessage()
 		discn("You are no longer connected to this server!", cmds.INFO)
 	})
-
-	recivContext := cmd.serv.Connection().Get()
-	go t.receiveMessages(recivContext, cmd.serv)
 }
 
 func listBuffers(t *TUI, cmd Command) {

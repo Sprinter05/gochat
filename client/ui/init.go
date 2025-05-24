@@ -83,7 +83,7 @@ type components struct {
 	errors *tview.TextView // shows TUI errors
 	input  *tview.TextArea // input area to type
 
-	users *tview.List // list of users
+	users *tview.TextArea // list of users
 }
 
 // Creates all components and assigns them to each area.
@@ -94,7 +94,7 @@ func setupLayout() (areas, components) {
 		text:    tview.NewTextView(),
 		errors:  tview.NewTextView(),
 		input:   tview.NewTextArea(),
-		users:   tview.NewList(),
+		users:   tview.NewTextArea(),
 	}
 
 	bottom := tview.NewFlex().
@@ -262,6 +262,11 @@ func setupHandlers(t *TUI) {
 
 	// Forces a redraw when new text shows up
 	t.comp.errors.SetChangedFunc(func() {
+		t.app.Draw()
+	})
+
+	// Forces a redraw when new text shows up
+	t.comp.users.SetChangedFunc(func() {
 		t.app.Draw()
 	})
 }

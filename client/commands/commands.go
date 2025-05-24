@@ -40,6 +40,7 @@ type Data struct {
 	User      db.LocalUser
 	Waitlist  models.Waitlist[spec.Command]
 	Next      spec.ID
+	Logout    context.CancelFunc
 }
 
 // Separated struct that eases interaction with the terminal UI

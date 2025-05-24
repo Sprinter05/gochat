@@ -52,7 +52,9 @@ func Listen(cmd Command, cleanup func()) {
 
 		cmd.Data.ClientCon.Conn = nil
 		cmd.Data.User = db.LocalUser{}
-		cmd.Output("no longer listening for packets", INFO)
+
+		<-time.After(50 * time.Millisecond)
+		cmd.Output("No longer listening for packets", INFO)
 		cleanup()
 	}()
 
@@ -65,7 +67,9 @@ func Listen(cmd Command, cleanup func()) {
 		// Header listen
 		hdErr := pct.ListenHeader(cmd.Data.ClientCon)
 		if hdErr != nil {
-			cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
+			if cmd.Static.Verbose {
+				cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
+			}
 			return
 		}
 
@@ -82,7 +86,9 @@ func Listen(cmd Command, cleanup func()) {
 		// Payload listen
 		pldErr := pct.ListenPayload(cmd.Data.ClientCon)
 		if pldErr != nil {
-			cmd.Output(fmt.Sprintf("error in payload listen: %s", pldErr), ERROR)
+			if cmd.Static.Verbose {
+				cmd.Output(fmt.Sprintf("error in payload listen: %s", pldErr), ERROR)
+			}
 			return
 		}
 
