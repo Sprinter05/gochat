@@ -496,7 +496,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	print := t.systemMessage()
 	print("Welcome to gochat!", cmds.INFO)
 	print("Press [green]Ctrl-Alt-H/Ctrl-Shift-H[-] to show help!", cmds.INFO)
-	print("Restoring previous session...", cmds.INFO)
+	// print("Restoring previous session...", cmds.INFO)
 
 	// Debug buffer if necessary
 	if debug {

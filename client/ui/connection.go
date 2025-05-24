@@ -16,10 +16,11 @@ import (
 
 /* CONTEXTS */
 
+// Defines the parent context used for any event
+// to be cancelled throughout a connection.
 type Connection struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	cause  error
 }
 
 // Sets a new context by cancelling the previous one first
@@ -30,12 +31,23 @@ func (c *Connection) Set(background context.Context) {
 	c.cancel = cancel
 }
 
+// Gets the current context
 func (c *Connection) Get() context.Context {
 	return c.ctx
 }
 
+// Cancels the current context and sets it to the default one
 func (c *Connection) Cancel() {
 	c.cancel()
+	c.ctx = context.Background()
+}
+
+// Returns a new timeout using the parent context
+func timeout(s Server) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(
+		s.Connection().Get(),
+		time.Duration(cmdTimeout)*time.Second,
+	)
 }
 
 /* INTERFACE */
@@ -79,12 +91,7 @@ func (t *TUI) Active() Server {
 	return s
 }
 
-func timeout(s Server) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(
-		s.Connection().Get(),
-		time.Duration(cmdTimeout)*time.Second,
-	)
-}
+/* RENDERING */
 
 // Adds a server connected to a remote endpoint, stores it in
 // the database, adds it to the TUI and changes to it.
@@ -114,7 +121,6 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		conn: &Connection{
 			ctx:    context.Background(),
 			cancel: func() {},
-			cause:  ErrorDisconnection,
 		},
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
@@ -321,7 +327,6 @@ func (s *RemoteServer) Messages(name string) []Message {
 	return t.messages.Copy(0)
 }
 
-// Returns true if received
 func (s *RemoteServer) Receive(msg Message) (bool, error) {
 	if msg.Source == nil {
 		// Not this destination
@@ -409,7 +414,6 @@ func (l *LocalServer) Messages(name string) []Message {
 	return ret
 }
 
-// Does not return an error if the server is not the destionation remote
 func (l *LocalServer) Receive(msg Message) (bool, error) {
 	// Only local server should be nil
 	if msg.Source != nil {

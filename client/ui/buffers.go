@@ -1,11 +1,8 @@
 package ui
 
 import (
-	"fmt"
 	"time"
 
-	cmds "github.com/Sprinter05/gochat/client/commands"
-	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 )
@@ -52,87 +49,6 @@ func ascii(num int) int32 {
 // the name and not the actual data.
 func (t *TUI) Buffer() string {
 	return t.Active().Buffers().current
-}
-
-// Returns to default buffer and delets all others
-func cleanupSession(t *TUI, s Server) {
-	i, _ := t.findBuffer(defaultBuffer)
-	t.changeBuffer(i)
-
-	bufs := s.Buffers()
-
-	for _, v := range bufs.GetAll() {
-		if v == defaultBuffer {
-			continue
-		}
-
-		i, ok := t.findBuffer(v)
-		t.removeBuffer(v)
-		if ok {
-			t.comp.buffers.RemoveItem(i)
-		}
-	}
-}
-
-// Requests a user's key on buffer connection
-func (t *TUI) requestUser(s Server, name string, output func(string, cmds.OutputType)) {
-
-	tab, exists := s.Buffers().tabs.Get(name)
-	data, ok := s.Online()
-
-	connected := func() {
-		tab.connected = true
-		if tab.messages.Len() == 0 {
-			getOldMessages(t, s, name)
-			print("This is the start of this conversation with "+name, cmds.INFO)
-		}
-	}
-
-	if exists && tab.system {
-		return
-	}
-
-	if data == nil {
-		return
-	}
-
-	if !ok || !exists {
-		output("to start messaging a user, please connect and login first!", cmds.ERROR)
-		return
-	}
-
-	ok, err := db.ExternalUserExists(t.data.DB, name)
-	if err != nil {
-		output(err.Error(), cmds.ERROR)
-		return
-	}
-
-	if ok && !tab.connected {
-		connected()
-		return
-	}
-
-	// output("attempting to get user data...", cmds.INTERMEDIATE)
-
-	cmd := cmds.Command{
-		Output: output,
-		Static: &t.data,
-		Data:   data,
-	}
-
-	ctx, cancel := timeout(s)
-	defer data.Waitlist.Cancel(cancel)
-	r := cmds.Req(ctx, cmd, []byte(tab.name))
-	if r.Error != nil {
-		str := fmt.Sprintf(
-			"failed to request user data due to %s!",
-			r.Error,
-		)
-		output(str, cmds.ERROR)
-		return
-	}
-
-	connected()
 }
 
 /* BUFFERS */
