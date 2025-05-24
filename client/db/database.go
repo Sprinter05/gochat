@@ -315,9 +315,9 @@ func StoreMessage(db *gorm.DB, src User, dst User, text string, stamp time.Time)
 }
 
 // Returns a slice with every message between two users in a range of time
-func GetUsersMessagesRange(db *gorm.DB, src User, dst User, init time.Time, end time.Time) ([]Message, error) {
+func GetUsersMessagesRange(db *gorm.DB, src User, dst User, limit time.Time) ([]Message, error) {
 	var messages []Message
-	result := db.Where("stamp BETWEEN ? AND ?", init, end).Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Find(&messages)
+	result := db.Where("(source_id = ? AND destination_id = ?) OR (source_id = ? AND destination_id = ?)", src.UserID, dst.UserID, dst.UserID, src.UserID).Where("stamp <= ?", limit).Find(&messages)
 	if result.Error != nil {
 		return nil, result.Error
 	}

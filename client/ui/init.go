@@ -37,6 +37,8 @@ const (
 	localServer    string  = "Local"   // Local server name
 	defaultLabel   string  = " > "     // Default prompt
 	inputSize      int     = 4         // size in the TUI of the input bar
+	errorSize      int     = 1         // size of the erro bar
+	notifSize      int     = 2         // size of the notif bar
 	textSize       int     = 30        // Size of the text window
 	errorMessage   uint    = 3         // seconds
 	asciiNumbers   int     = 0x30      // Start of ASCII for number 1
@@ -79,6 +81,7 @@ type components struct {
 	buffers *tview.List // list of buffers
 	servers *tview.List // list of servers
 
+	notifs *tview.TextView // shows notifications
 	text   *tview.TextView // shows messages
 	errors *tview.TextView // shows TUI errors
 	input  *tview.TextArea // input area to type
@@ -91,6 +94,7 @@ func setupLayout() (areas, components) {
 	comps := components{
 		buffers: tview.NewList(),
 		servers: tview.NewList(),
+		notifs:  tview.NewTextView(),
 		text:    tview.NewTextView(),
 		errors:  tview.NewTextView(),
 		input:   tview.NewTextArea(),
@@ -99,6 +103,7 @@ func setupLayout() (areas, components) {
 
 	bottom := tview.NewFlex().
 		SetDirection(tview.FlexRow).
+		AddItem(comps.notifs, 0, 0, false).
 		AddItem(comps.text, 0, textSize, false).
 		AddItem(comps.errors, 0, 0, false).
 		AddItem(comps.input, inputSize, 0, true)
@@ -189,6 +194,13 @@ func setupStyle(t *TUI) {
 		SetWordWrap(true).
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(false)
+
+	t.comp.notifs.
+		SetDynamicColors(true).
+		SetWrap(true).
+		SetWordWrap(true).
+		SetBackgroundColor(tcell.ColorDefault).
+		SetBorder(false)
 }
 
 // Sets up the handling functions for each component.
@@ -267,6 +279,11 @@ func setupHandlers(t *TUI) {
 
 	// Forces a redraw when new text shows up
 	t.comp.users.SetChangedFunc(func() {
+		t.app.Draw()
+	})
+
+	// Forces a redraw when new text shows up
+	t.comp.notifs.SetChangedFunc(func() {
 		t.app.Draw()
 	})
 }

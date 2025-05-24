@@ -252,6 +252,8 @@ func (t *TUI) removeServer(s Server) {
 // TUI components accordingly. It also renders the last
 // buffer that was in use.
 func (t *TUI) renderServer(name string) {
+	defer t.updateNotifications()
+
 	s, ok := t.servers.Get(name)
 	if !ok {
 		return
@@ -324,7 +326,18 @@ func (s *RemoteServer) Messages(name string) []Message {
 		return nil
 	}
 
-	return t.messages.Copy(0)
+	msgs := t.messages.Copy(0)
+	slices.SortFunc(msgs, func(a, b Message) int {
+		if a.Timestamp.Before(b.Timestamp) {
+			return -1
+		} else if a.Timestamp.After(b.Timestamp) {
+			return 1
+		}
+
+		return 0
+	})
+
+	return msgs
 }
 
 func (s *RemoteServer) Receive(msg Message) (bool, error) {

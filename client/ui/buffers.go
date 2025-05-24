@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/models"
@@ -17,6 +18,7 @@ type tab struct {
 	creation int    // Identifies the internal buffer list order
 
 	messages models.Slice[Message] // Messages stored in the buffer
+	unread   uint
 
 	connected bool // Whether its asocciated to a server endpoint or not
 	system    bool // Whether it was created by the system
@@ -145,7 +147,6 @@ func (b *Buffers) Hide(name string) error {
 		return nil
 	}
 
-	t.connected = false
 	b.open -= 1
 	b.indexes = append(b.indexes, t.index)
 	t.index = -1
@@ -206,9 +207,8 @@ func (t *TUI) addBuffer(name string, system bool) {
 	}
 
 	t.comp.buffers.AddItem(name, "", r, nil)
+	t.requestUser(s, name, t.systemMessage())
 	t.changeBuffer(i)
-	print := t.systemMessage("request")
-	t.requestUser(s, name, print)
 }
 
 // Changes the TUI component according to the internal
@@ -283,12 +283,13 @@ func (t *TUI) removeBuffer(name string) error {
 // already been changed in the TUI component. It also sets the
 // variable controlling the currently rendered buffer.
 func (t *TUI) renderBuffer(buf string) {
-	b, ok := t.Active().Buffers().tabs.Get(buf)
+	s := t.Active()
+	b, ok := s.Buffers().tabs.Get(buf)
 	if !ok {
 		return
 	}
 
-	t.Active().Buffers().current = buf
+	s.Buffers().current = buf
 
 	if b.system {
 		t.comp.buffers.SetSelectedTextColor(tcell.ColorPlum)
@@ -308,8 +309,21 @@ func (t *TUI) renderBuffer(buf string) {
 
 	t.status.lastDate = time.Now()
 	t.comp.text.Clear()
-	msgs := t.Active().Messages(buf)
-	for _, v := range msgs {
+	msgs := s.Messages(buf)
+
+	l := len(msgs)
+	unread := l - int(b.unread)
+
+	for i, v := range msgs {
 		t.renderMsg(v)
+
+		if (unread-1) == i && b.unread > 0 {
+			fmt.Fprintf(
+				t.comp.text,
+				"--- [orange]UNREAD[-] ---\n",
+			)
+		}
 	}
+	b.unread = 0
+	t.updateNotifications()
 }

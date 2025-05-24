@@ -185,17 +185,26 @@ func (t *TUI) systemMessage(params ...string) func(string, cmds.OutputType) {
 }
 
 // Gets all the old messages that are stored in the database and
-// prints them to the buffer.
+// prints them to the buffer. Uses the login time as a threshold.
 func getOldMessages(t *TUI, s Server, username string) {
 	print := t.systemMessage()
 
 	data, _ := s.Online()
-	user, err := db.GetExternalUser(t.data.DB, username, data.Server.ServerID)
+	user, err := db.GetExternalUser(
+		t.data.DB,
+		username,
+		data.Server.ServerID,
+	)
 	if err != nil {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
 	}
 
-	msgs, err := db.GetAllUsersMessages(t.data.DB, data.User.User, user.User)
+	msgs, err := db.GetUsersMessagesRange(
+		t.data.DB,
+		data.User.User,
+		user.User,
+		data.LoginTime,
+	)
 	if err != nil {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
 	}
@@ -236,9 +245,19 @@ func (t *TUI) SendMessage(msg Message) {
 
 		// If the server received it and we are
 		// in the destionation buffer we render it
-		if ok && t.Buffer() == msg.Buffer {
-			t.renderMsg(msg)
-			break
+		if ok {
+			if t.Buffer() == msg.Buffer {
+				t.renderMsg(msg)
+				break
+			} else {
+				tab, ok := v.Buffers().tabs.Get(msg.Buffer)
+				if !ok {
+					panic("cannot find buffer that should exist")
+				}
+
+				tab.unread += 1
+				t.updateNotifications()
+			}
 		}
 	}
 }
@@ -342,7 +361,7 @@ func (t *TUI) toggleHelp() {
 // Displays an error in the error bar temporarily.
 func (t *TUI) showError(err error) {
 	t.comp.errors.Clear()
-	t.area.bottom.ResizeItem(t.comp.errors, 0, 1)
+	t.area.bottom.ResizeItem(t.comp.errors, 0, errorSize)
 	fmt.Fprintf(t.comp.errors, " [red]Error: %s![-:-]", err)
 
 	go func() {

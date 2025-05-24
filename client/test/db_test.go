@@ -126,7 +126,7 @@ func TestMessage(t *testing.T) {
 		t.Error(err)
 	}
 
-	messages, err := db.GetUsersMessagesRange(testDB, src.User, dst.User, time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC), time.Now())
+	messages, err := db.GetUsersMessagesRange(testDB, src.User, dst.User, time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Error(err)
 	}
