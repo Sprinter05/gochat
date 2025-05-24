@@ -149,7 +149,10 @@ func userRequest(t *TUI, cmd Command) {
 		return
 	}
 
-	t.requestUser(cmd.serv, buf, cmd.print)
+	err := t.requestUser(cmd.serv, buf, cmd.print)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+	}
 }
 
 func toggleTLS(t *TUI, cmd Command) {

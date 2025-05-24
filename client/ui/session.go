@@ -39,7 +39,7 @@ func cleanupSession(t *TUI, s Server) {
 /* USERS */
 
 // Requests a user's key on buffer connection
-func (t *TUI) requestUser(s Server, name string, output func(string, cmds.OutputType)) {
+func (t *TUI) requestUser(s Server, name string, output func(string, cmds.OutputType)) error {
 	tab, exists := s.Buffers().tabs.Get(name)
 	data, ok := s.Online()
 
@@ -51,27 +51,25 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 	}
 
 	if exists && tab.system {
-		return
+		return nil
 	}
 
 	if data == nil {
-		return
+		return nil
 	}
 
 	if !ok || !exists {
-		output("to start messaging a user, please connect and login first!", cmds.ERROR)
-		return
+		return ErrorNotLoggedIn
 	}
 
 	ok, err := db.ExternalUserExists(t.data.DB, name)
 	if err != nil {
-		output(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	if ok && !tab.connected {
 		connected()
-		return
+		return nil
 	}
 
 	// output("attempting to get user data...", cmds.INTERMEDIATE)
@@ -86,15 +84,15 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 	defer data.Waitlist.Cancel(cancel)
 	r := cmds.Req(ctx, cmd, []byte(tab.name))
 	if r.Error != nil {
-		str := fmt.Sprintf(
-			"failed to request user data due to %s!",
+		ret := fmt.Errorf(
+			"failed to request user data due to %s",
 			r.Error,
 		)
-		output(str, cmds.ERROR)
-		return
+		return ret
 	}
 
 	connected()
+	return nil
 }
 
 /* MESSAGES */

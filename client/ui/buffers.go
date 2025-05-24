@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 )
@@ -207,8 +208,13 @@ func (t *TUI) addBuffer(name string, system bool) {
 	}
 
 	t.comp.buffers.AddItem(name, "", r, nil)
-	t.requestUser(s, name, t.systemMessage())
+	reqErr := t.requestUser(s, name, func(s string, ot cmds.OutputType) {})
 	t.changeBuffer(i)
+
+	if reqErr != nil {
+		print := t.systemMessage("request")
+		print(reqErr.Error(), cmds.ERROR)
+	}
 }
 
 // Changes the TUI component according to the internal
