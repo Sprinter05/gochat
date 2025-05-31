@@ -605,17 +605,17 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: localUserErr}
 	}
 
-	// In case the foreign key is not auto filled
-	user, userErr := db.GetUser(
-		cmd.Static.DB,
-		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
-	)
-	if userErr != nil {
-		return ReplyData{Error: userErr}
-	}
-	localUser.User = user
+	// // In case the foreign key is not auto filled
+	// user, userErr := db.GetUser(
+	// 	cmd.Static.DB,
+	// 	username,
+	// 	cmd.Data.Server.Address,
+	// 	cmd.Data.Server.Port,
+	// )
+	// if userErr != nil {
+	// 	return ReplyData{Error: userErr}
+	// }
+	// localUser.User = user
 
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
