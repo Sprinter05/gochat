@@ -494,12 +494,19 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
+	// Encrypts the private key
+	verbosePrint("encrypting private key...", cmd)
+	enc, err := db.EncryptData([]byte(pass1), prvKeyPEM)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
 	// Creates the user
 	_, insertErr := db.AddLocalUser(
 		cmd.Static.DB,
 		string(username),
 		string(hashPass),
-		string(prvKeyPEM),
+		string(enc),
 		cmd.Data.Server.ServerID,
 	)
 	if insertErr != nil {
@@ -572,9 +579,17 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorWrongCredentials}
 	}
 
+	// Get the decrypted private key
+	verbosePrint("decrypting private key...", cmd)
+	dec, err := db.DecryptData([]byte(pass), []byte(localUser.PrvKey))
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+	localUser.PrvKey = string(dec)
+
 	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
-	verbosePrint("password correct, performing login...", cmd)
+	verbosePrint("performing login...", cmd)
 	id1 := cmd.Data.NextID()
 	loginPct, loginPctErr := spec.NewPacket(
 		spec.LOGIN, id1,

@@ -223,7 +223,7 @@ func GetUserByID(db *gorm.DB, userID uint, serverID uint) (User, error) {
 	return user, result.Error
 }
 
-// Returns the local user that is defined by the specified username and server.
+// Returns the local user that is defined by the specified username and server.+
 func GetLocalUser(db *gorm.DB, username string, serverID uint) (LocalUser, error) {
 	user, err := GetUser(db, username, serverID)
 	if err != nil {
