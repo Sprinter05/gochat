@@ -25,9 +25,6 @@ const Logo string = `
 
 `
 
-// TODO: emojis
-// TODO: timeout on context not working bc goroutines dont wake up
-
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version
 	selfSender     string  = "You"     // Self sender of a message

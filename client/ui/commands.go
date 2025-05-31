@@ -412,6 +412,7 @@ func connectServer(t *TUI, cmd Command) {
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 
 		cleanupSession(t, cmd.serv)
+		t.notifs.Clear()
 
 		discn := t.systemMessage()
 		discn("You are no longer connected to this server!", cmds.INFO)

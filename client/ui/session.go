@@ -95,7 +95,7 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 	return nil
 }
 
-/* MESSAGES */
+/* NOTIFICATIONS */
 
 // Renders the notification text for the current server
 func (t *TUI) updateNotifications() {
@@ -139,6 +139,8 @@ func (t *TUI) updateNotifications() {
 	t.area.bottom.ResizeItem(t.comp.notifs, notifSize, 0)
 }
 
+/* MESSAGES */
+
 // Sends a message to the remote connection if possible
 func (t *TUI) remoteMessage(content string) {
 	print := t.systemMessage("message")
@@ -177,7 +179,11 @@ func (t *TUI) remoteMessage(content string) {
 
 // Waits for new messages to be sent to that user
 func (t *TUI) receiveMessages(ctx context.Context, s Server) {
-	defer s.Buffers().Offline()
+	defer func() {
+		s.Buffers().Offline()
+		t.notifs.Clear()
+	}()
+
 	data, _ := s.Online()
 	output := t.systemMessage("reciv", defaultBuffer)
 
