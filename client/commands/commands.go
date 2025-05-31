@@ -29,7 +29,7 @@ import (
 // TODO: More advanced verbose options
 // TODO: GETSERVER command
 
-/* STRUCT DEFINITIONS */
+/* STRUCTS */
 
 // Struct that contains all the data required for the shell to function.
 // Commands may alter the data if necessary.
@@ -66,6 +66,14 @@ type ReplyData struct {
 type OutputType uint
 
 /* DATA FUNCTIONS */
+
+func NewEmptyData() *Data {
+	return &Data{
+		Waitlist: DefaultWaitlist(),
+		Next:     spec.NullID + 1,
+		Logout:   func() {},
+	}
+}
 
 func (data *Data) NextID() spec.ID {
 	data.Next = (data.Next + 1) % spec.MaxID
@@ -167,7 +175,12 @@ func TLS(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 
 	if string(args[0]) == "on" {
 		cmd.Data.Server.TLS = true
-		err := db.UpdateServer(cmd.Static.DB, cmd.Data.Server)
+		err := db.ChangeServerTLS(
+			cmd.Static.DB,
+			cmd.Data.Server.Address,
+			cmd.Data.Server.Port,
+			true,
+		)
 
 		if err != nil {
 			return ReplyData{Error: err}
@@ -176,7 +189,12 @@ func TLS(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{}
 	} else if string(args[0]) == "off" {
 		cmd.Data.Server.TLS = false
-		err := db.UpdateServer(cmd.Static.DB, cmd.Data.Server)
+		err := db.ChangeServerTLS(
+			cmd.Static.DB,
+			cmd.Data.Server.Address,
+			cmd.Data.Server.Port,
+			false,
+		)
 
 		if err != nil {
 			return ReplyData{Error: err}
@@ -360,7 +378,8 @@ func Req(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		cmd.Static.DB,
 		string(reply.Args[0]),
 		string(reply.Args[1]),
-		cmd.Data.Server.ServerID,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 	if dbErr != nil {
 		return ReplyData{Error: dbErr}
@@ -405,7 +424,12 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 			return ReplyData{Error: ErrorUsernameEmpty}
 		}
 
-		exists, existsErr := db.LocalUserExists(cmd.Static.DB, string(username))
+		exists, existsErr := db.LocalUserExists(
+			cmd.Static.DB,
+			string(username),
+			cmd.Data.Server.Address,
+			cmd.Data.Server.Port,
+		)
 		if existsErr != nil {
 			return ReplyData{Error: existsErr}
 		}
@@ -507,7 +531,8 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		string(username),
 		string(hashPass),
 		string(enc),
-		cmd.Data.Server.ServerID,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
@@ -537,7 +562,12 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	username := string(args[0])
-	found, existsErr := db.LocalUserExists(cmd.Static.DB, username)
+	found, existsErr := db.LocalUserExists(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
 	if existsErr != nil {
 		return ReplyData{Error: existsErr}
 	}
@@ -567,7 +597,8 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	localUser, localUserErr := db.GetLocalUser(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.ServerID,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 	if localUserErr != nil {
 		return ReplyData{Error: localUserErr}
@@ -818,7 +849,12 @@ func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	plainMessage := make([]byte, len(args[1]))
 	copy(plainMessage, args[1])
 
-	found, existsErr := db.ExternalUserExists(cmd.Static.DB, string(args[0]))
+	found, existsErr := db.ExternalUserExists(
+		cmd.Static.DB,
+		string(args[0]),
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
 	if existsErr != nil {
 		return ReplyData{Error: existsErr}
 	}
@@ -829,7 +865,8 @@ func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	externalUser, externalUserErr := db.GetExternalUser(
 		cmd.Static.DB,
 		string(args[0]),
-		cmd.Data.Server.ServerID,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 	if externalUserErr != nil {
 		return ReplyData{Error: externalUserErr}
@@ -882,17 +919,35 @@ func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	cmd.Output("message sent correctly", RESULT)
-	src, srcErr := db.GetUser(cmd.Static.DB, cmd.Data.User.User.Username, cmd.Data.Server.ServerID)
+	src, srcErr := db.GetUser(
+		cmd.Static.DB,
+		cmd.Data.User.User.Username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
 	if srcErr != nil {
 		return ReplyData{Error: srcErr}
 	}
 
-	dst, dstErr := db.GetUser(cmd.Static.DB, string(args[0]), cmd.Data.Server.ServerID)
+	dst, dstErr := db.GetUser(
+		cmd.Static.DB,
+		string(args[0]),
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
 	if dstErr != nil {
 		return ReplyData{Error: dstErr}
 	}
 
-	_, storeErr := db.StoreMessage(cmd.Static.DB, src, dst, string(plainMessage), stamp)
+	_, storeErr := db.StoreMessage(
+		cmd.Static.DB,
+		src.Username,
+		dst.Username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+		string(plainMessage),
+		stamp,
+	)
 	if storeErr != nil {
 		return ReplyData{Error: storeErr}
 	}
@@ -938,7 +993,12 @@ func Reciv(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 // packet in the database (decryption, REQ (if necessary)
 // insert...), then returns the decrypted message
 func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, error) {
-	src, err := db.GetUser(cmd.Static.DB, string(reciv.Args[0]), cmd.Data.Server.ServerID)
+	src, err := db.GetUser(
+		cmd.Static.DB,
+		string(reciv.Args[0]),
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
 	if err != nil {
 		// The user most likely has not been found, so a REQ is required
 		reply := Req(ctx, cmd, reciv.Args[0])
@@ -963,8 +1023,11 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 	}
 
 	_, insertErr := db.StoreMessage(
-		cmd.Static.DB, src,
-		cmd.Data.User.User,
+		cmd.Static.DB,
+		src.Username,
+		cmd.Data.User.User.Username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 		string(decrypted),
 		stamp,
 	)
@@ -982,7 +1045,11 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 
 // Prints out all local users and returns an array with its usernames.
 func printLocalUsers(cmd Command) ([][]byte, error) {
-	localUsers, err := db.GetAllLocalUsernames(cmd.Static.DB)
+	localUsers, err := db.GetAllLocalUsernames(
+		cmd.Static.DB,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
 	if err != nil {
 		return [][]byte{}, err
 	}

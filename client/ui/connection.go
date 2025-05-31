@@ -125,7 +125,7 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
 		},
-		data: new(cmds.Data),
+		data: cmds.NewEmptyData(),
 	}
 	s.data.Waitlist = cmds.DefaultWaitlist()
 

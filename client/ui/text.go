@@ -193,7 +193,8 @@ func getOldMessages(t *TUI, s Server, username string) {
 	user, err := db.GetExternalUser(
 		t.data.DB,
 		username,
-		data.Server.ServerID,
+		data.Server.Address,
+		data.Server.Port,
 	)
 	if err != nil {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
@@ -201,8 +202,10 @@ func getOldMessages(t *TUI, s Server, username string) {
 
 	msgs, err := db.GetAllUsersMessages(
 		t.data.DB,
-		data.User.User,
-		user.User,
+		data.User.User.Username,
+		user.User.Username,
+		data.Server.Address,
+		data.Server.Port,
 	)
 	if err != nil {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)

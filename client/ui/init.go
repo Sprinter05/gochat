@@ -13,6 +13,8 @@ import (
 	"github.com/rivo/tview"
 )
 
+// todo panic on dc
+
 const Logo string = `
                    _           _   
                   | |         | |  

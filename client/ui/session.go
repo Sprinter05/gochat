@@ -62,7 +62,7 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 		return ErrorNotLoggedIn
 	}
 
-	ok, err := db.ExternalUserExists(t.data.DB, name)
+	ok, err := db.ExternalUserExists(t.data.DB, name, data.Server.Address, data.Server.Port)
 	if err != nil {
 		return err
 	}
