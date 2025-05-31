@@ -276,7 +276,6 @@ func loginUser(t *TUI, cmd Command) {
 
 	uname := data.User.User.Username
 	t.comp.input.SetLabel(unameLabel(uname))
-	t.updateNotifications()
 
 	ctx, cancel := context.WithCancel(cmd.serv.Connection().Get())
 	data.Logout = cancel

@@ -19,7 +19,6 @@ type tab struct {
 	creation int    // Identifies the internal buffer list order
 
 	messages models.Slice[Message] // Messages stored in the buffer
-	unread   uint
 
 	connected bool // Whether its asocciated to a server endpoint or not
 	system    bool // Whether it was created by the system
@@ -318,18 +317,18 @@ func (t *TUI) renderBuffer(buf string) {
 	msgs := s.Messages(buf)
 
 	l := len(msgs)
-	unread := l - int(b.unread)
+	pending, _ := t.notifs.Get(buf)
+	unread := l - int(pending)
 
 	for i, v := range msgs {
 		t.renderMsg(v)
 
-		if (unread-1) == i && b.unread > 0 {
+		if (unread-1) == i && pending > 0 {
 			fmt.Fprintf(
 				t.comp.text,
 				"--- [orange]UNREAD[-] ---\n",
 			)
 		}
 	}
-	b.unread = 0
 	t.updateNotifications()
 }

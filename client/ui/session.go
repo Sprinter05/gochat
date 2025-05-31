@@ -100,7 +100,8 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 // Renders the notification text for the current server
 func (t *TUI) updateNotifications() {
 	s := t.Active()
-	bufs := s.Buffers().tabs.GetAll()
+	curr := t.Buffer()
+	peding := t.notifs.Indexes()
 
 	_, ok := s.Online()
 	if !ok {
@@ -109,15 +110,20 @@ func (t *TUI) updateNotifications() {
 	}
 
 	var text strings.Builder
-	for _, v := range bufs {
-		if v.unread == 0 {
+	for _, v := range peding {
+		unread, _ := t.notifs.Get(v)
+		if unread == 0 {
+			continue
+		}
+
+		if curr == v {
+			t.notifs.Add(curr, 0)
 			continue
 		}
 
 		str := fmt.Sprintf(
 			"[cyan::b]%s[-:-:-]: [green]%d[-] | ",
-			v.name,
-			v.unread,
+			v, unread,
 		)
 		text.WriteString(str)
 	}
@@ -201,7 +207,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 		msg, err := cmds.StoreReciv(
 			rCtx, cmd,
 			cmds.Command{
-				Output: func(text string, outputType cmds.OutputType) {},
+				Output: func(string, cmds.OutputType) {},
 				Static: &t.data,
 				Data:   data,
 			},
@@ -213,6 +219,10 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			continue
 		}
 
+		v, _ := t.notifs.Get(msg.Sender)
+		t.notifs.Add(msg.Sender, v+1)
+		t.updateNotifications()
+
 		t.SendMessage(Message{
 			Buffer:    msg.Sender,
 			Sender:    msg.Sender,
@@ -221,5 +231,4 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			Source:    s.Source(),
 		})
 	}
-
 }

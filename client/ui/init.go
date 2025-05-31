@@ -25,8 +25,8 @@ const Logo string = `
 
 `
 
-// TODO: notification system
 // TODO: emojis
+// TODO: timeout on context not working bc goroutines dont wake up
 
 const (
 	tuiVersion     float32 = 0.1       // Current client TUI version
@@ -471,6 +471,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 	t := &TUI{
 		servers: models.NewTable[string, Server](0),
+		notifs:  models.NewTable[string, uint](0),
 		comp:    comps,
 		area:    areas,
 		status: state{

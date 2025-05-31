@@ -41,7 +41,6 @@ type Data struct {
 	Waitlist  models.Waitlist[spec.Command]
 	Next      spec.ID
 	Logout    context.CancelFunc
-	LoginTime time.Time
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -656,7 +655,6 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	verbosePrint("verification successful", cmd)
 	// Assigns the logged in user to Data
 	cmd.Data.User = localUser
-	cmd.Data.LoginTime = time.Now()
 
 	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username), RESULT)
 	return ReplyData{Arguments: verifReply.Args}

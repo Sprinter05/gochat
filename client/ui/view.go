@@ -45,6 +45,7 @@ type TUI struct {
 	history models.Slice[string] // Stores previously ran commands
 	next    uint                 // Last history
 
+	notifs  models.Table[string, uint]   // Unread messages
 	servers models.Table[string, Server] // Table storing servers
 	focus   string                       // Currently active server
 }

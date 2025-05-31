@@ -199,11 +199,10 @@ func getOldMessages(t *TUI, s Server, username string) {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
 	}
 
-	msgs, err := db.GetUsersMessagesRange(
+	msgs, err := db.GetAllUsersMessages(
 		t.data.DB,
 		data.User.User,
 		user.User,
-		data.LoginTime,
 	)
 	if err != nil {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
@@ -236,7 +235,7 @@ func getOldMessages(t *TUI, s Server, username string) {
 func (t *TUI) SendMessage(msg Message) {
 	list := t.servers.GetAll()
 	for _, v := range list {
-		// Each server will handle if its for them
+		// Send message to all servers
 		ok, err := v.Receive(msg)
 		if err != nil && msg.Sender == selfSender {
 			t.showError(err)
@@ -245,19 +244,9 @@ func (t *TUI) SendMessage(msg Message) {
 
 		// If the server received it and we are
 		// in the destionation buffer we render it
-		if ok {
-			if t.Buffer() == msg.Buffer {
-				t.renderMsg(msg)
-				break
-			} else {
-				tab, ok := v.Buffers().tabs.Get(msg.Buffer)
-				if !ok {
-					panic("cannot find buffer that should exist")
-				}
-
-				tab.unread += 1
-				t.updateNotifications()
-			}
+		if ok && t.Buffer() == msg.Buffer {
+			t.renderMsg(msg)
+			break
 		}
 	}
 }
