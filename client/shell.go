@@ -62,7 +62,7 @@ func PrintPrompt(data commands.Data) {
 	if !(data.User.User.Username == "") {
 		username = data.User.User.Username
 	}
-	if data.ClientCon.Conn == nil {
+	if data.Conn == nil {
 		connected = "(not connected) "
 	}
 	fmt.Printf("\033[36m%sgochat(%s) > \033[0m", connected, username)

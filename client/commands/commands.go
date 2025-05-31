@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"net"
 	"os"
 	"slices"
 	"strconv"
@@ -35,12 +36,12 @@ import (
 // Commands may alter the data if necessary.
 type Data struct {
 	// TODO: Thread safe??
-	ClientCon spec.Connection
-	Server    db.Server
-	User      db.LocalUser
-	Waitlist  models.Waitlist[spec.Command]
-	Next      spec.ID
-	Logout    context.CancelFunc
+	Conn     net.Conn
+	Server   *db.Server
+	User     *db.LocalUser
+	Waitlist models.Waitlist[spec.Command]
+	Next     spec.ID
+	Logout   context.CancelFunc
 }
 
 // Separated struct that eases interaction with the terminal UI
@@ -83,12 +84,12 @@ func (data *Data) NextID() spec.ID {
 	return data.Next
 }
 
-func (data *Data) IsUserLoggedIn() bool {
-	return data.User.User.Username != "" && data.IsConnected()
+func (data *Data) IsLoggedIn() bool {
+	return data.User != nil && data.User.User.Username != "" && data.IsConnected()
 }
 
 func (data *Data) IsConnected() bool {
-	return data.ClientCon.Conn != nil
+	return data.Conn != nil
 }
 
 /* OUTPUT TYPES */
@@ -236,7 +237,7 @@ func Conn(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		}
 
 		skipVerify = true
-		verbosePrint("certificate verification is going to be skipped!!", cmd)
+		verbosePrint("certificate verification is going to be skipped!", cmd)
 	}
 
 	con, conErr := Connect(
@@ -249,13 +250,12 @@ func Conn(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: conErr}
 	}
 
-	server, dbErr := db.GetServer(cmd.Static.DB, string(args[0]), uint16(port))
-	if dbErr != nil {
-		return ReplyData{Error: dbErr}
-	}
+	// server, dbErr := db.GetServer(cmd.Static.DB, string(args[0]), uint16(port))
+	// if dbErr != nil {
+	// 	return ReplyData{Error: dbErr}
+	// }
 
-	cmd.Data.ClientCon.Conn = con
-	cmd.Data.Server = server
+	cmd.Data.Conn = con
 	err := ConnectionStart(cmd)
 
 	if err != nil {
@@ -277,17 +277,16 @@ func Discn(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 
-	err := cmd.Data.ClientCon.Conn.Close()
+	err := cmd.Data.Conn.Close()
 	if err != nil {
 		return ReplyData{Error: err}
 	}
 
-	cmd.Data.ClientCon.Conn = nil
-
 	// Closes the shell client session
-	cmd.Data.User = db.LocalUser{}
-	cmd.Output("sucessfully disconnected from the server", RESULT)
+	cmd.Data.Conn = nil
+	cmd.Data.User = nil
 	cmd.Data.Waitlist.Clear()
+	cmd.Output("sucessfully disconnected from the server", RESULT)
 
 	return ReplyData{}
 }
@@ -335,7 +334,7 @@ func Req(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 
-	if !cmd.Data.IsUserLoggedIn() {
+	if !cmd.Data.IsLoggedIn() {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
@@ -356,7 +355,7 @@ func Req(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		packetPrint(pct, cmd)
 	}
 
-	_, wErr := cmd.Data.ClientCon.Conn.Write(pct)
+	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -385,7 +384,7 @@ func Req(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: dbErr}
 	}
 
-	cmd.Output(fmt.Sprintf("user %s successfully added to the database", args[0]), RESULT)
+	cmd.Output(fmt.Sprintf("external user %s successfully added to the database", args[0]), RESULT)
 	return ReplyData{Arguments: reply.Args}
 }
 
@@ -407,7 +406,8 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	var username []byte
 	var pass1 []byte
 
-	if len(args) == 0 {
+	if len(args) < 2 {
+		// todo move to shell package
 		rd := bufio.NewReader(os.Stdin)
 
 		// Gets the username
@@ -422,19 +422,6 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		username = bytes.TrimSpace(username)
 		if len(username) == 0 {
 			return ReplyData{Error: ErrorUsernameEmpty}
-		}
-
-		exists, existsErr := db.LocalUserExists(
-			cmd.Static.DB,
-			string(username),
-			cmd.Data.Server.Address,
-			cmd.Data.Server.Port,
-		)
-		if existsErr != nil {
-			return ReplyData{Error: existsErr}
-		}
-		if exists {
-			return ReplyData{Error: ErrorUserExists}
 		}
 
 		// Gets the password
@@ -461,6 +448,19 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	} else {
 		username = args[0]
 		pass1 = args[1]
+	}
+
+	exists, existsErr := db.LocalUserExists(
+		cmd.Static.DB,
+		string(username),
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if existsErr != nil {
+		return ReplyData{Error: existsErr}
+	}
+	if exists {
+		return ReplyData{Error: ErrorUserExists}
 	}
 
 	// Generates the PEM arrays of both the private and public key of the pair
@@ -500,7 +500,7 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, wErr := cmd.Data.ClientCon.Conn.Write(pct)
+	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -537,6 +537,7 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if insertErr != nil {
 		return ReplyData{Error: insertErr}
 	}
+
 	cmd.Output(fmt.Sprintf("user %s successfully added to the database", username), RESULT)
 	return ReplyData{}
 }
@@ -557,7 +558,7 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 
-	if cmd.Data.IsUserLoggedIn() {
+	if cmd.Data.IsLoggedIn() {
 		return ReplyData{Error: ErrorAlreadyLoggedIn}
 	}
 
@@ -578,7 +579,7 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	var pass []byte
 	var passErr error
 
-	if len(args) == 1 {
+	if len(args) < 2 {
 		// Asks for password
 		cmd.Output(fmt.Sprintf("%s's password: ", username), PROMPT)
 		pass, passErr = term.ReadPassword(0)
@@ -603,6 +604,18 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if localUserErr != nil {
 		return ReplyData{Error: localUserErr}
 	}
+
+	// In case the foreign key is not auto filled
+	user, userErr := db.GetUser(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if userErr != nil {
+		return ReplyData{Error: userErr}
+	}
+	localUser.User = user
 
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
@@ -635,7 +648,7 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, loginWErr := cmd.Data.ClientCon.Conn.Write(loginPct)
+	_, loginWErr := cmd.Data.Conn.Write(loginPct)
 	if loginWErr != nil {
 		return ReplyData{Error: loginWErr}
 	}
@@ -681,7 +694,7 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, verifWErr := cmd.Data.ClientCon.Conn.Write(verifPct)
+	_, verifWErr := cmd.Data.Conn.Write(verifPct)
 	if verifWErr != nil {
 		return ReplyData{Error: verifWErr}
 	}
@@ -700,7 +713,7 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 	verbosePrint("verification successful", cmd)
 	// Assigns the logged in user to Data
-	cmd.Data.User = localUser
+	cmd.Data.User = &localUser
 
 	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username), RESULT)
 	return ReplyData{Arguments: verifReply.Args}
@@ -715,7 +728,7 @@ func Logout(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	if !cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
-	if !cmd.Data.IsUserLoggedIn() {
+	if !cmd.Data.IsLoggedIn() {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
@@ -730,7 +743,7 @@ func Logout(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, pctWErr := cmd.Data.ClientCon.Conn.Write(pct)
+	_, pctWErr := cmd.Data.Conn.Write(pct)
 	if pctWErr != nil {
 		return ReplyData{Error: pctWErr}
 	}
@@ -749,7 +762,7 @@ func Logout(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Empties the user value in Data
-	cmd.Data.User = db.LocalUser{}
+	cmd.Data.User = nil
 
 	cmd.Output("logged out", RESULT)
 	return ReplyData{}
@@ -771,7 +784,7 @@ func Usrs(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 
-	if !cmd.Data.IsUserLoggedIn() && !(string(args[0]) == "local") {
+	if !cmd.Data.IsLoggedIn() && !(string(args[0]) == "local") {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
@@ -802,7 +815,7 @@ func Usrs(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, wErr := cmd.Data.ClientCon.Conn.Write(pct)
+	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -841,7 +854,7 @@ func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorNotConnected}
 	}
 
-	if !cmd.Data.IsUserLoggedIn() {
+	if !cmd.Data.IsLoggedIn() {
 		return ReplyData{Error: ErrorNotLoggedIn}
 	}
 
@@ -900,7 +913,7 @@ func Msg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	}
 
 	// Sends the packet
-	_, wErr := cmd.Data.ClientCon.Conn.Write(pct)
+	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
 		return ReplyData{Error: wErr}
 	}
@@ -967,7 +980,7 @@ func Reciv(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: pctErr}
 	}
 
-	_, writeErr := cmd.Data.ClientCon.Conn.Write(pct)
+	_, writeErr := cmd.Data.Conn.Write(pct)
 	if writeErr != nil {
 		return ReplyData{Error: writeErr}
 	}
@@ -1043,6 +1056,8 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 	}, nil
 }
 
+/* AUXILIARY FUNCTIONS */
+
 // Prints out all local users and returns an array with its usernames.
 func printLocalUsers(cmd Command) ([][]byte, error) {
 	localUsers, err := db.GetAllLocalUsernames(
@@ -1082,6 +1097,8 @@ func verbosePrint(text string, args Command) {
 		args.Output(text, INTERMEDIATE)
 	}
 }
+
+/* WAITLIST FUNCTIONS */
 
 // Returns a function that returns true if the received command fulfills
 // the given conditions in the arguments (ID and operations).

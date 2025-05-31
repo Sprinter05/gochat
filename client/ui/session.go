@@ -204,7 +204,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			return
 		}
 
-		if !data.IsUserLoggedIn() {
+		if !data.IsLoggedIn() {
 			print("not logged in, ignoring incoming reciv")
 			continue
 		}

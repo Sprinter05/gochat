@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
@@ -46,26 +45,31 @@ func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.C
 // A cleanup function that cleans up resources can be passed
 func Listen(cmd Command, cleanup func()) {
 	defer func() {
-		if cmd.Data.ClientCon.Conn != nil {
-			cmd.Data.ClientCon.Conn.Close()
+		if cmd.Data.Conn != nil {
+			cmd.Data.Conn.Close()
 		}
 
-		cmd.Data.ClientCon.Conn = nil
-		cmd.Data.User = db.LocalUser{}
+		cmd.Data.Conn = nil
+		cmd.Data.User = nil
 
 		<-time.After(50 * time.Millisecond)
 		cmd.Output("No longer listening for packets", INFO)
 		cleanup()
 	}()
 
+	conn := spec.Connection{
+		Conn: cmd.Data.Conn,
+		TLS:  cmd.Data.Server.TLS,
+	}
+
 	for {
-		if cmd.Data.ClientCon.Conn == nil {
+		if cmd.Data.Conn == nil {
 			return
 		}
 		pct := spec.Command{}
 
 		// Header listen
-		hdErr := pct.ListenHeader(cmd.Data.ClientCon)
+		hdErr := pct.ListenHeader(conn)
 		if hdErr != nil {
 			if cmd.Static.Verbose {
 				cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
@@ -84,7 +88,7 @@ func Listen(cmd Command, cleanup func()) {
 		}
 
 		// Payload listen
-		pldErr := pct.ListenPayload(cmd.Data.ClientCon)
+		pldErr := pct.ListenPayload(conn)
 		if pldErr != nil {
 			if cmd.Static.Verbose {
 				cmd.Output(fmt.Sprintf("error in payload listen: %s", pldErr), ERROR)
@@ -105,8 +109,13 @@ func Listen(cmd Command, cleanup func()) {
 func ConnectionStart(data Command) error {
 	cmd := new(spec.Command)
 
+	conn := spec.Connection{
+		Conn: data.Data.Conn,
+		TLS:  data.Data.Server.TLS,
+	}
+
 	// Header listen
-	hdErr := cmd.ListenHeader(data.Data.ClientCon)
+	hdErr := cmd.ListenHeader(conn)
 	if hdErr != nil {
 		return hdErr
 	}
@@ -125,7 +134,7 @@ func ConnectionStart(data Command) error {
 	}
 
 	// Payload listen
-	pldErr := cmd.ListenPayload(data.Data.ClientCon)
+	pldErr := cmd.ListenPayload(conn)
 	if pldErr != nil {
 		return pldErr
 	}

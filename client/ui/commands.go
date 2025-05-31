@@ -248,7 +248,7 @@ func loginUser(t *TUI, cmd Command) {
 		return
 	}
 
-	if data.IsUserLoggedIn() {
+	if data.IsLoggedIn() {
 		cmd.print(ErrorLoggedIn.Error(), cmds.ERROR)
 		return
 	}

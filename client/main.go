@@ -10,7 +10,6 @@ import (
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/client/ui"
-	"github.com/Sprinter05/gochat/internal/spec"
 	"gorm.io/gorm"
 )
 
@@ -92,7 +91,6 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	address := config.ShellServer.Address
 	port := config.ShellServer.Port
 
-	var cl spec.Connection
 	var con net.Conn
 	var server db.Server
 	if address != "" {
@@ -107,11 +105,10 @@ func setupShell(config Config, dbconn *gorm.DB) {
 		}
 		server, _ = db.SaveServer(dbconn, address, port, "Default", false)
 	}
-	cl = spec.Connection{Conn: con}
 
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
-	data := commands.Data{ClientCon: cl, Server: server, Waitlist: commands.DefaultWaitlist()}
+	data := commands.Data{Conn: con, Server: &server, Waitlist: commands.DefaultWaitlist()}
 	args := commands.Command{Data: &data, Static: &static, Output: ShellPrint}
 
 	if address != "" {

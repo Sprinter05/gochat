@@ -13,7 +13,8 @@ import (
 	"github.com/rivo/tview"
 )
 
-// todo panic on dc
+// todo clear command to delete system messages
+// todo cant send messages too fast
 
 const Logo string = `
                    _           _   

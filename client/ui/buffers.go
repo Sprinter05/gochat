@@ -183,7 +183,7 @@ func (t *TUI) addBuffer(name string, system bool) {
 
 	data, online := s.Online()
 	if data != nil && name != defaultBuffer {
-		if !online || !data.IsUserLoggedIn() {
+		if !online || !data.IsLoggedIn() {
 			t.showError(ErrorNotLoggedIn)
 			return
 		}
