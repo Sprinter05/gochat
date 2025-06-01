@@ -399,15 +399,32 @@ func StoreMessage(db *gorm.DB, src, dst string, address string, port uint16, tex
 		return Message{}, nil
 	}
 
+	ok, err := findMessage(
+		db,
+		source.UserID,
+		destination.UserID,
+		stamp,
+		text,
+	)
+	if err != nil {
+		return Message{}, err
+	}
+
 	msg := Message{
 		SourceID:      source.UserID,
 		DestinationID: destination.UserID,
 		Text:          text,
 		Stamp:         stamp,
 	}
-	result := db.Create(&msg)
 
-	return msg, result.Error
+	if !ok {
+		result := db.Create(&msg)
+		if result.Error != nil {
+			return Message{}, result.Error
+		}
+	}
+
+	return msg, nil
 }
 
 // Returns a slice with every message between two users in a range of time

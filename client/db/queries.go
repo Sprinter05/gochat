@@ -1,6 +1,10 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Returns the highest ID in the specified table.
 // This is used to simulate autincremental behaviour in row creation.
@@ -22,4 +26,23 @@ func addUser(db *gorm.DB, username string, serverID uint) (User, error) {
 
 	result := db.Create(&user)
 	return user, result.Error
+}
+
+// Finds a message in the db
+func findMessage(db *gorm.DB, srcID, dstID uint, stamp time.Time, text string) (bool, error) {
+	var found bool
+
+	result := db.Raw(
+		`SELECT EXISTS(
+			SELECT *
+			FROM messages m
+			WHERE m.source_id = ?
+				AND m.destination_id = ?
+				AND m.stamp = ?
+				AND m.text = ?
+		) AS found`,
+		srcID, dstID, stamp, text,
+	).Scan(&found)
+
+	return found, result.Error
 }

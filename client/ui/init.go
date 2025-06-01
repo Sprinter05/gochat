@@ -13,7 +13,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// todo sending messages between 2 local users creates duplicates
+// todo: dont do req when hidden buffer
 
 const Logo string = `
                    _           _   
