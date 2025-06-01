@@ -1044,7 +1044,6 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 		string(decrypted),
 		stamp,
 	)
-
 	if insertErr != nil {
 		return Message{}, insertErr
 	}

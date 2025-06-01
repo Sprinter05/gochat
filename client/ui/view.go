@@ -30,6 +30,7 @@ type state struct {
 	deletingBuffer bool // Currently choosing to delete buffer
 
 	lastDate time.Time // Last rendered date in the current buffer
+	lastMsg  time.Time // last message sent
 }
 
 // Identifies the main TUI with all its

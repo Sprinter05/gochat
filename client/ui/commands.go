@@ -75,6 +75,11 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/request",
 	},
+	"clear": {
+		fun:    clearSystem,
+		nArgs:  0,
+		format: "/clear",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -133,6 +138,31 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 }
 
 // COMMANDS
+
+func clearSystem(t *TUI, cmd Command) {
+	buf := cmd.serv.Buffers().current
+	tab, ok := cmd.serv.Buffers().tabs.Get(buf)
+	if !ok {
+		panic("missing current buffer")
+	}
+
+	count := 0
+	msgs := tab.messages.Copy(0)
+	for _, v := range msgs {
+		if v.Sender == "System" {
+			tab.messages.Remove(v)
+			count += 1
+		}
+	}
+
+	if count > 0 {
+		t.renderBuffer(buf)
+		cmd.print(fmt.Sprintf(
+			"cleared %d system messages!",
+			count,
+		), cmds.RESULT)
+	}
+}
 
 func userRequest(t *TUI, cmd Command) {
 	buf := cmd.serv.Buffers().current

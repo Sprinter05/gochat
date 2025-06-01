@@ -230,16 +230,16 @@ func GetUser(db *gorm.DB, username string, address string, port uint16) (User, e
 	return user, result.Error
 }
 
-// Returns the user by a given ID (only used for specific cases)
-func GetUserByID(db *gorm.DB, userID uint, serverID uint) (User, error) {
-	if userID == 0 || serverID == 0 {
-		return User{}, ErrorUnexpectedzero
-	}
+// // Returns the user by a given ID (only used for specific cases)
+// func GetUserByID(db *gorm.DB, userID uint, serverID uint) (User, error) {
+// 	if userID == 0 || serverID == 0 {
+// 		return User{}, ErrorUnexpectedzero
+// 	}
 
-	user := User{}
-	result := db.Where("user_id = ? AND server_id = ?", userID, serverID).First(&user)
-	return user, result.Error
-}
+// 	user := User{}
+// 	result := db.Where("user_id = ? AND server_id = ?", userID, serverID).First(&user)
+// 	return user, result.Error
+// }
 
 // Returns the local user that is defined by the specified username and server.+
 func GetLocalUser(db *gorm.DB, username string, address string, port uint16) (LocalUser, error) {
@@ -248,8 +248,9 @@ func GetLocalUser(db *gorm.DB, username string, address string, port uint16) (Lo
 		return LocalUser{}, err
 	}
 
-	localUser := LocalUser{User: user}
+	localUser := LocalUser{UserID: user.UserID}
 	result := db.First(&localUser)
+	localUser.User = user
 	return localUser, result.Error
 }
 
@@ -300,12 +301,17 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 		return LocalUser{}, err
 	}
 
-	// Attempts to create the user. If there's a user with that username and server already
-	// the local user will not be created
-	user, userErr := addUser(db, username, sv.ServerID)
-	if userErr != nil {
-		return LocalUser{}, userErr
+	user, err := GetUser(db, username, address, port)
+	if err != nil {
+		// Attempts to create the user. If there's a user with that username and server already
+		// the local user will not be created
+		new, userErr := addUser(db, username, sv.ServerID)
+		if userErr != nil {
+			return LocalUser{}, userErr
+		}
+		user = new
 	}
+
 	localUser := LocalUser{
 		User:     user,
 		UserID:   user.UserID,
@@ -324,11 +330,15 @@ func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, address str
 		return ExternalUser{}, err
 	}
 
-	// Attempts to create the user. If there's a user with that username and server already
-	// the local user will not be created
-	user, userErr := addUser(db, username, sv.ServerID)
-	if userErr != nil {
-		return ExternalUser{}, userErr
+	user, err := GetUser(db, username, address, port)
+	if err != nil {
+		// Attempts to create the user. If there's a user with that username and server already
+		// the local user will not be created
+		new, userErr := addUser(db, username, sv.ServerID)
+		if userErr != nil {
+			return ExternalUser{}, userErr
+		}
+		user = new
 	}
 
 	externalUser := ExternalUser{
@@ -348,7 +358,8 @@ func GetExternalUser(db *gorm.DB, username string, address string, port uint16) 
 		return ExternalUser{}, err
 	}
 
-	externalUser := ExternalUser{User: user}
+	externalUser := ExternalUser{UserID: user.UserID}
+	externalUser.User = user
 	result := db.First(&externalUser)
 	return externalUser, result.Error
 }
@@ -447,6 +458,16 @@ func GetAllUsersMessages(db *gorm.DB, src, dst string, address string, port uint
 		source.UserID, destination.UserID,
 		destination.UserID, source.UserID,
 	).Order("stamp ASC").Find(&messages)
+
+	for i, v := range messages {
+		if v.SourceID == source.UserID {
+			messages[i].SourceUser = source
+			messages[i].DestinationUser = destination
+		} else {
+			messages[i].SourceUser = destination
+			messages[i].DestinationUser = source
+		}
+	}
 
 	if result.Error != nil {
 		return nil, result.Error

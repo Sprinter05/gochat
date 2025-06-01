@@ -4,7 +4,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
 
 	"golang.org/x/crypto/scrypt"
 )
@@ -18,7 +17,7 @@ func passwordKey(pswd []byte, salt []byte) ([]byte, []byte, error) {
 		}
 	}
 
-	key, err := scrypt.Key(pswd, salt, 1048576, 8, 1, 32)
+	key, err := scrypt.Key(pswd, salt, 32768, 8, 1, 32)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,21 +48,21 @@ func EncryptData(key, data []byte) ([]byte, error) {
 
 	ciphertext := gcm.Seal(nonce, nonce, data, nil)
 	ciphertext = append(ciphertext, salt...)
-	str := hex.EncodeToString(ciphertext)
+	// str := hex.EncodeToString(ciphertext)
 
-	return []byte(str), nil
+	return ciphertext, nil
 }
 
 func DecryptData(key, data []byte) ([]byte, error) {
-	arr, err := hex.DecodeString(string(data))
-	if err != nil {
-		return nil, err
-	}
-	data = arr
+	// arr, err := hex.DecodeString(string(data))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// data = arr
 
 	salt, data := data[len(data)-32:], data[:len(data)-32]
 
-	key, _, err = passwordKey(key, salt)
+	key, _, err := passwordKey(key, salt)
 	if err != nil {
 		return nil, err
 	}

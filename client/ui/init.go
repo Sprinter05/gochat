@@ -13,8 +13,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// todo clear command to delete system messages
-// todo cant send messages too fast
+// todo sending messages between 2 local users creates duplicates
 
 const Logo string = `
                    _           _   
@@ -46,6 +45,7 @@ const (
 	maxBuffers     uint    = 35        // Maximum amount of allowed buffers in one server
 	maxServers     uint    = 9         // Maximum amount of allowed servers
 	cmdTimeout     uint    = 30        // Max seconds to wait for a command to finish
+	msgDelay       uint    = 500       // miliseconds between msgs
 )
 
 var (
@@ -67,6 +67,7 @@ var (
 	ErrorDisconnection = errors.New("connection to the server has been lost")
 	ErrorNotLoggedIn   = errors.New("you are not logged in")
 	ErrorMessageSelf   = errors.New("cannot request to message yourself")
+	ErrorTypingTooFast = errors.New("you are typing too fast")
 )
 
 // Identifies the areas where components are located.
@@ -349,6 +350,13 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
+			last := time.Since(t.status.lastMsg)
+			if last < time.Duration(msgDelay)*time.Millisecond {
+				t.showError(ErrorTypingTooFast)
+				t.comp.input.SetText("", false)
+				return nil
+			}
+
 			s := t.Active()
 			t.SendMessage(Message{
 				Sender:    selfSender,
@@ -360,6 +368,7 @@ func setupInput(t *TUI) {
 
 			go t.remoteMessage(text)
 
+			t.status.lastMsg = time.Now()
 			t.comp.input.SetText("", false)
 			return nil
 		}
@@ -483,6 +492,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 			deletingServer: false,
 			deletingBuffer: false,
 			lastDate:       time.Now(),
+			lastMsg:        time.Now(),
 		},
 		data:    static,
 		history: models.NewSlice[string](0),

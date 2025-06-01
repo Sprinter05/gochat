@@ -212,11 +212,8 @@ func getOldMessages(t *TUI, s Server, username string) {
 	}
 
 	uname := data.User.User.Username
-	sID := data.Server.ServerID
 	for _, v := range msgs {
-		src, _ := db.GetUserByID(t.data.DB, v.SourceID, sID)
-
-		sender := src.Username
+		sender := v.SourceUser.Username
 		if sender == uname {
 			sender = selfSender
 		}
