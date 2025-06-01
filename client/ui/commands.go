@@ -80,6 +80,16 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/clear",
 	},
+	"import": {
+		fun:    importKey,
+		nArgs:  2,
+		format: "/import <username> <path>",
+	},
+	"export": {
+		fun:    exportKey,
+		nArgs:  1,
+		format: "/export <username>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -137,7 +147,78 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 	}, array
 }
 
+func askForNewPassword(t *TUI) (string, error) {
+	pswd, err := newLoginPopup(t, "Enter a password...")
+	if err != nil {
+		return "", err
+	}
+
+	check, err := newLoginPopup(t, "Repeat your password...")
+	if err != nil {
+		return "", err
+	}
+
+	if pswd != check {
+		return "", ErrorPasswordNotMatch
+	}
+
+	return pswd, nil
+}
+
 // COMMANDS
+
+func exportKey(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	pswd, err := newLoginPopup(t, "Enter the account's password...")
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Export(ctx, c, args[0], []byte(pswd))
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
+
+func importKey(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
+		return
+	}
+
+	pswd, err := askForNewPassword(t)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Import(ctx, c, args[0], args[1], []byte(pswd))
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
 
 func clearSystem(t *TUI, cmd Command) {
 	buf := cmd.serv.Buffers().current
@@ -368,20 +449,9 @@ func registerUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := newLoginPopup(t, "Enter a password...")
+	pswd, err := askForNewPassword(t)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-
-	check, err := newLoginPopup(t, "Repeat your password...")
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-
-	if pswd != check {
-		cmd.print("passwords do not match!", cmds.ERROR)
 		return
 	}
 

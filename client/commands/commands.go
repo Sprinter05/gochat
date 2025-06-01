@@ -29,6 +29,8 @@ import (
 // TODO: "/" for commands. If no "/" send message instead
 // TODO: More advanced verbose options
 // TODO: GETSERVER command
+// TODO: turn duplicated code (import/reg) to aux functions
+// TODO: move ask password function to shell package
 
 /* STRUCTS */
 
@@ -142,6 +144,9 @@ var clientCmds = map[string]cmdFunc{
 	"USRS":    Usrs,
 	"MSG":     Msg,
 	"RECIV":   Reciv,
+	"TLS":     TLS,
+	"IMPORT":  Import,
+	"EXPORT":  Export,
 }
 
 // Given a string containing a command name, returns its execution function.
@@ -159,6 +164,192 @@ func FetchClientCmd(op string, cmd Command) cmdFunc {
 }
 
 /* CLIENT COMMANDS */
+
+// Imports a private RSA key for a new local user
+// from the specified directory using the spec PEM format
+// and then performs a registration on the server.
+//
+// Arguments: <username> <path> [password]
+//
+// Returns a zero value ReplyData if successful
+func Import(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
+	if !cmd.Data.IsConnected() {
+		return ReplyData{Error: ErrorNotConnected}
+	}
+
+	if len(args) < 2 {
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+
+	username := string(args[0])
+	path := string(args[1])
+
+	var pass []byte
+
+	if len(args) < 3 {
+		// todo shell ask for password
+	} else {
+		pass = args[2]
+	}
+
+	verbosePrint("reading private key...", cmd)
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
+	key, chk := spec.PEMToPrivkey(buf)
+	if chk != nil {
+		return ReplyData{Error: chk}
+	}
+
+	pub, err := spec.PubkeytoPEM(&key.PublicKey)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
+	verbosePrint("hashing password...", cmd)
+	hashPass, hashErr := bcrypt.GenerateFromPassword(pass, 12)
+	if hashErr != nil {
+		return ReplyData{Error: hashErr}
+	}
+
+	id := cmd.Data.NextID()
+	verbosePrint("performing registration...", cmd)
+	pctArgs := [][]byte{[]byte(username), pub}
+	pct, pctErr := spec.NewPacket(
+		spec.REG, id,
+		spec.EmptyInfo, pctArgs...,
+	)
+	if pctErr != nil {
+		return ReplyData{Error: pctErr}
+	}
+
+	if cmd.Static.Verbose {
+		packetPrint(pct, cmd)
+	}
+
+	// Sends the packet
+	_, wErr := cmd.Data.Conn.Write(pct)
+	if wErr != nil {
+		return ReplyData{Error: wErr}
+	}
+
+	// Awaits a response
+	verbosePrint("awaiting response...", cmd)
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
+	)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
+	}
+
+	// Encrypts the private key
+	verbosePrint("encrypting private key...", cmd)
+	enc, err := db.EncryptData([]byte(pass), buf)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
+	_, insertErr := db.AddLocalUser(
+		cmd.Static.DB,
+		string(username),
+		string(hashPass),
+		string(enc),
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if insertErr != nil {
+		return ReplyData{Error: insertErr}
+	}
+
+	cmd.Output(fmt.Sprintf(
+		"local user %s successfully added to the database",
+		username,
+	), RESULT)
+	return ReplyData{}
+}
+
+// Exports a local user as a private RSA key
+// in the current directory using the spec PEM format
+//
+// Arguments: <username> [password]
+//
+// Returns a zero value ReplyData if successful
+func Export(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
+	if len(args) < 1 {
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+
+	username := string(args[0])
+	found, existsErr := db.LocalUserExists(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if existsErr != nil {
+		return ReplyData{Error: existsErr}
+	}
+	if !found {
+		return ReplyData{Error: ErrorUserNotFound}
+	}
+
+	var pass []byte
+
+	if len(args) < 2 {
+		// todo shell ask for password
+	} else {
+		pass = args[1]
+	}
+
+	localUser, localUserErr := db.GetLocalUser(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if localUserErr != nil {
+		return ReplyData{Error: localUserErr}
+	}
+
+	verbosePrint("checking password...", cmd)
+	hash := []byte(localUser.Password)
+	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
+	if cmpErr != nil {
+		return ReplyData{Error: ErrorWrongCredentials}
+	}
+
+	// Get the decrypted private key
+	verbosePrint("decrypting private key...", cmd)
+	dec, err := db.DecryptData([]byte(pass), []byte(localUser.PrvKey))
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+	localUser.PrvKey = string(dec)
+
+	file := username + ".priv"
+	f, err := os.Create(file)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+	defer f.Close()
+
+	_, writeErr := f.Write([]byte(localUser.PrvKey))
+	if writeErr != nil {
+		return ReplyData{Error: writeErr}
+	}
+
+	str := fmt.Sprintf(
+		"file succesfully written to %s", f.Name(),
+	)
+	cmd.Output(str, RESULT)
+	return ReplyData{}
+}
 
 // Changes the state of a TLS server
 //
@@ -538,7 +729,10 @@ func Reg(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: insertErr}
 	}
 
-	cmd.Output(fmt.Sprintf("user %s successfully added to the database", username), RESULT)
+	cmd.Output(fmt.Sprintf(
+		"local user %s successfully added to the database",
+		username,
+	), RESULT)
 	return ReplyData{}
 }
 
@@ -617,6 +811,7 @@ func Login(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	// }
 	// localUser.User = user
 
+	verbosePrint("checking password...", cmd)
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, pass)
 	if cmpErr != nil {
