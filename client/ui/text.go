@@ -46,7 +46,7 @@ const KeybindHelp string = `
 	- It can be shown again under any name by typing the same address it was used at creation
 
 [yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server
-	- This will permanantely delete all asocciated data
+	- This will permanantely delete all asocciated data to the server
 
 [yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
 	- Press [green]Esc[-::-] to cancel the jump
@@ -69,6 +69,8 @@ const CommandHelp string = `
 
 [yellow::b]/buffers[-::-]: Displays a list of all buffers in the current server
 	- Those that have been hidden will also be displayed
+	
+[yellow::b]/clear[-::-]: Clears all system messages in the current buffer
 	
 [yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
 

@@ -13,7 +13,8 @@ import (
 	"github.com/rivo/tview"
 )
 
-// todo: dont do req when hidden buffer
+// TODO: remove messages when deleting buffer
+// TODO: hooks
 
 const Logo string = `
                    _           _   

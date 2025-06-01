@@ -67,8 +67,10 @@ func (t *TUI) requestUser(s Server, name string, output func(string, cmds.Output
 		return err
 	}
 
-	if ok && !tab.connected {
-		connected()
+	if ok {
+		if !tab.connected {
+			connected()
+		}
 		return nil
 	}
 
