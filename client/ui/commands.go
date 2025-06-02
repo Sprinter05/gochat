@@ -15,7 +15,7 @@ type Command struct {
 	Arguments []string
 
 	serv  Server
-	print func(string, cmds.OutputType)
+	print cmds.OutputFunc
 }
 
 type operation struct {
@@ -89,6 +89,16 @@ var commands map[string]operation = map[string]operation{
 		fun:    exportKey,
 		nArgs:  1,
 		format: "/export <username>",
+	},
+	"subscribe": {
+		fun:    subEvent,
+		nArgs:  1,
+		format: "/subscribe <hook>",
+	},
+	"unsubscribe": {
+		fun:    unsubEvent,
+		nArgs:  1,
+		format: "/unsubscribe <hook>",
 	},
 }
 
@@ -166,6 +176,52 @@ func askForNewPassword(t *TUI) (string, error) {
 }
 
 // COMMANDS
+
+func unsubEvent(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Unsub(ctx, c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
+
+func subEvent(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Sub(ctx, c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
 
 func exportKey(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
@@ -391,6 +447,7 @@ func loginUser(t *TUI, cmd Command) {
 	ctx, cancel := context.WithCancel(cmd.serv.Connection().Get())
 	data.Logout = cancel
 	go t.receiveMessages(ctx, cmd.serv)
+	go t.receiveHooks(ctx, cmd.serv)
 
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
 	rCtx, rCancel := timeout(cmd.serv)

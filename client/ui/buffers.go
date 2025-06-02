@@ -207,7 +207,7 @@ func (t *TUI) addBuffer(name string, system bool) {
 	}
 
 	t.comp.buffers.AddItem(name, "", r, nil)
-	reqErr := t.requestUser(s, name, func(s string, ot cmds.OutputType) {})
+	reqErr := t.requestUser(s, name, func(string, cmds.OutputType) {})
 	t.changeBuffer(i)
 
 	if reqErr != nil {

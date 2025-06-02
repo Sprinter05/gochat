@@ -39,7 +39,7 @@ func cleanupSession(t *TUI, s Server) {
 /* USERS */
 
 // Requests a user's key on buffer connection
-func (t *TUI) requestUser(s Server, name string, output func(string, cmds.OutputType)) error {
+func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 	tab, exists := s.Buffers().tabs.Get(name)
 	data, ok := s.Online()
 
@@ -238,5 +238,56 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			Timestamp: msg.Timestamp,
 			Source:    s.Source(),
 		})
+	}
+}
+
+// Waits for new notifications of hooks from the server
+func (t *TUI) receiveHooks(ctx context.Context, s Server) {
+	defer func() {
+		t.comp.users.SetText("", false)
+	}()
+
+	data, _ := s.Online()
+	output := t.systemMessage("hook", defaultBuffer)
+
+	print := func(msg string) {
+		if t.data.Verbose {
+			<-time.After(50 * time.Millisecond)
+			output(msg, cmds.ERROR)
+		}
+	}
+
+	updateOnlineUsers(t, s, output)
+	for {
+		cmd, err := data.Waitlist.Get(
+			ctx,
+			cmds.Find(spec.NullID, spec.HOOK),
+		)
+		if err != nil {
+			print(err.Error())
+			return
+		}
+
+		if !data.IsLoggedIn() {
+			print("not logged in, ignoring incoming hook")
+			continue
+		}
+
+		hook := spec.Hook(cmd.HD.Info)
+
+		switch hook {
+		case spec.HookPermsChange:
+			output(
+				"Your permission level in the server has changed!",
+				cmds.INFO,
+			)
+		case spec.HookDuplicateSession:
+			output(
+				"Someone has tried to log in with your account from a different endpoint!",
+				cmds.INFO,
+			)
+		case spec.HookNewLogin, spec.HookNewLogout:
+			updateOnlineUsers(t, s, output)
+		}
 	}
 }

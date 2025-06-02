@@ -52,8 +52,10 @@ type StaticData struct {
 	DB      *gorm.DB
 }
 
+type OutputFunc func(text string, outputType OutputType)
+
 type Command struct {
-	Output func(text string, outputType OutputType) // Custom output-printing function
+	Output OutputFunc // Custom output-printing function
 	Static *StaticData
 	Data   *Data
 }

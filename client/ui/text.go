@@ -83,6 +83,15 @@ const CommandHelp string = `
 	- No two accounts with the same name can exist in one single server
 	- You need an active connection to use this command
 	
+[yellow::b]/import[-::-] [green]<username>[-] [green]<path>[-]: Registers a new user from an existing key
+	- The path provided must be related to the directory from which the program was ran
+	- The provided private key must be RSA 4096 bits in PEM PKCS1 format
+	- A popup asking for a password for the imported account will show up
+
+[yellow::b]/export[-::-] [green]<username>[-]: Exports the private key of an existing local user
+	- The key will be put in a file in the directory from which the program was ran
+	- The fill will be called <username>.priv and will be in PEM PKCS1 format (RSA 4096 bits)
+
 [yellow::b]/login[-::-] [green]<username>[-]: Tries to login in the server with an account
 	- A popup asking for the password asocciated to the account will show up
 	- You need an active connection to use this command
@@ -101,6 +110,12 @@ const CommandHelp string = `
 	
 [yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
 	- This process is already done automatically if connected and logged in
+
+[yellow::b]/subscribe[-::-] [green]<hook>[-]: Subscribes to a specific event in the server
+	- Available options are <new_login/new_logout/duplicated_session/permissions_change/all>
+	
+[yellow::b]/unsubscribe[-::-] [green]<hook>[-]: Unsubscribes from a specific event in the server
+	- Available options are <new_login/new_logout/duplicated_session/permissions_change/all>
 `
 
 /* MESSAGES */
@@ -146,7 +161,7 @@ func (t *TUI) debugPacket(content string) {
 // Binds a function that sends System message to the server
 // and buffer that are active in the moment the function was ran.
 // An optional prompt params[0] and buffer params[1] can be given
-func (t *TUI) systemMessage(params ...string) func(string, cmds.OutputType) {
+func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 	buffer := t.Buffer()
 	server := t.Active().Source()
 

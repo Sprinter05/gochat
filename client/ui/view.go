@@ -298,3 +298,24 @@ func deleteBufWindow(t *TUI) {
 		exit()
 	})
 }
+
+/* USERS BAR */
+
+func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
+	data, _ := s.Online()
+
+	ctx, cancel := timeout(s)
+	defer data.Waitlist.Cancel(cancel)
+	reply := cmds.Usrs(ctx, cmds.Command{
+		Output: output,
+		Static: &t.data,
+		Data:   data,
+	}, []byte("online"))
+
+	if reply.Error != nil {
+		output(reply.Error.Error(), cmds.ERROR)
+		return
+	}
+
+	t.comp.users.SetText(string(reply.Arguments[0]), false)
+}
