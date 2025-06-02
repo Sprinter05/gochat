@@ -443,6 +443,9 @@ func loginUser(t *TUI, cmd Command) {
 
 	uname := data.User.User.Username
 	t.comp.input.SetLabel(unameLabel(uname))
+	if !t.status.showingUsers {
+		toggleUserlist(t)
+	}
 
 	ctx, cancel := context.WithCancel(cmd.serv.Connection().Get())
 	data.Logout = cancel
@@ -461,6 +464,9 @@ func loginUser(t *TUI, cmd Command) {
 			return
 		}
 	}
+
+	cmd.print("subscribing to relevant events...", cmds.INTERMEDIATE)
+	defaultSubscribe(t, cmd.serv, cmd.print)
 }
 
 func listUsers(t *TUI, cmd Command) {

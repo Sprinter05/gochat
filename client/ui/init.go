@@ -14,7 +14,7 @@ import (
 )
 
 // TODO: remove messages when deleting buffer
-// TODO: hooks
+// TODO: hide users bar on local server and clear on server change
 
 const Logo string = `
                    _           _   
@@ -387,21 +387,9 @@ func setupKeybinds(t *TUI) {
 		case tcell.KeyCtrlC: // Override to nothing
 			return nil
 		case tcell.KeyCtrlU: // Show/Hide user list
-			if t.status.showingUsers {
-				t.area.main.ResizeItem(t.comp.users, 0, 0)
-				t.status.showingUsers = false
-			} else {
-				t.area.main.ResizeItem(t.comp.users, 0, 1)
-				t.status.showingUsers = true
-			}
+			toggleUserlist(t)
 		case tcell.KeyCtrlB: // Show/Hide buffer list
-			if t.status.showingBufs {
-				t.area.main.ResizeItem(t.area.left, 0, 0)
-				t.status.showingBufs = false
-			} else {
-				t.area.main.ResizeItem(t.area.left, 0, 2)
-				t.status.showingBufs = true
-			}
+			toggleBufList(t)
 		case tcell.KeyCtrlT: // Changes input between messages and inpit
 			if t.status.blockCond() {
 				break

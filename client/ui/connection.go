@@ -94,7 +94,7 @@ func (t *TUI) Active() Server {
 /* RENDERING */
 
 // Adds a server connected to a remote endpoint, stores it in
-// the database, adds it to the TUI and changes to it.
+// the database, adds it to the TUI but does not changes to it.
 func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 	if t.servers.Len() >= int(maxServers) {
 		return ErrorMaxServers
@@ -272,6 +272,9 @@ func (t *TUI) renderServer(name string) {
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 		t.comp.input.SetLabel(defaultLabel)
 	}
+
+	empty := func(string, cmds.OutputType) {}
+	updateOnlineUsers(t, s, empty)
 
 	t.comp.buffers.Clear()
 	if s.Buffers().tabs.Len() == 0 {

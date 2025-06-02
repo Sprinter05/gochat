@@ -118,7 +118,7 @@ func (hd Header) ClientCheck() error {
 	}
 
 	// Only these operations can have a null ID
-	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK
+	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK || hd.Op == HOOK
 	if !check && hd.ID == NullID {
 		return ErrorHeader
 	}

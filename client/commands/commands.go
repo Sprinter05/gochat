@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	mrand "math/rand/v2"
 	"net"
 	"os"
 	"slices"
@@ -73,9 +74,11 @@ type OutputType uint
 /* DATA FUNCTIONS */
 
 func NewEmptyData() *Data {
+	initial := mrand.IntN(int(spec.MaxID))
+
 	return &Data{
 		Waitlist: DefaultWaitlist(),
-		Next:     spec.NullID + 1,
+		Next:     spec.ID(initial),
 		Logout:   func() {},
 	}
 }
@@ -197,12 +200,14 @@ func Sub(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 
-	hook, ok := hooksList[string(args[0])]
+	name := string(args[0])
+	hook, ok := hooksList[name]
 	if !ok {
 		return ReplyData{Error: ErrorUnknownHookOption}
 	}
 
-	verbosePrint("subscribing to event...", cmd)
+	str := fmt.Sprintf("subscribing to event %s...", name)
+	verbosePrint(str, cmd)
 	id := cmd.Data.NextID()
 	hookPct, hookPctErr := spec.NewPacket(
 		spec.SUB, id,
@@ -255,12 +260,14 @@ func Unsub(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
 
-	hook, ok := hooksList[string(args[0])]
+	name := string(args[0])
+	hook, ok := hooksList[name]
 	if !ok {
 		return ReplyData{Error: ErrorUnknownHookOption}
 	}
 
-	verbosePrint("unsubscribing to event...", cmd)
+	str := fmt.Sprintf("unsubscribing to event %s...", name)
+	verbosePrint(str, cmd)
 	id := cmd.Data.NextID()
 	hookPct, hookPctErr := spec.NewPacket(
 		spec.UNSUB, id,

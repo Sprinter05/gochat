@@ -128,23 +128,14 @@ func (hub *Hub) FindUser(uname string) (*User, bool) {
 // If no results are found, an empty string will be returned.
 func (hub *Hub) Userlist(online bool) (ret string) {
 	if online {
-		var str strings.Builder
 		list := hub.users.GetAll()
-
-		// Preallocate strings builder
-		for _, v := range list {
-			str.Grow(len(v.name))
-		}
+		users := make([]string, 0, len(list))
 
 		for _, v := range list {
-			str.WriteString(string(v.name) + "\n")
+			users = append(users, v.name)
 		}
 
-		l := str.Len()
-		ret = str.String()
-
-		// Remove the last newline
-		ret = ret[:l-1]
+		ret = strings.Join(users, "\n")
 	} else {
 		query, err := db.QueryUsernames(hub.db)
 		if err != nil {

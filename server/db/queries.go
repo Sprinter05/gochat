@@ -111,7 +111,9 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 	var users strings.Builder
 	var dbusers []User
 
-	res := db.Select("username").Find(&dbusers)
+	res := db.Select("username").
+		Find(&dbusers).
+		Order("username ASC")
 	if res.Error != nil {
 		log.DBError(res.Error)
 		return "", res.Error

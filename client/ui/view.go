@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"net"
 	"strings"
 	"sync"
@@ -299,10 +300,40 @@ func deleteBufWindow(t *TUI) {
 	})
 }
 
-/* USERS BAR */
+/* BARS */
+
+func toggleBufList(t *TUI) {
+	if t.status.showingBufs {
+		t.area.main.ResizeItem(t.area.left, 0, 0)
+		t.status.showingBufs = false
+	} else {
+		t.area.main.ResizeItem(t.area.left, 0, 2)
+		t.status.showingBufs = true
+	}
+}
+
+func toggleUserlist(t *TUI) {
+	if t.status.showingUsers {
+		t.area.main.ResizeItem(t.comp.users, 0, 0)
+		t.status.showingUsers = false
+	} else {
+		t.area.main.ResizeItem(t.comp.users, 0, 1)
+		t.status.showingUsers = true
+	}
+}
 
 func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
-	data, _ := s.Online()
+	data, ok := s.Online()
+
+	// Prevents TUI deadlock
+	show := func(text string) {
+		t.comp.users.SetText(text, false)
+	}
+
+	if data == nil || !ok {
+		go show("")
+		return
+	}
 
 	ctx, cancel := timeout(s)
 	defer data.Waitlist.Cancel(cancel)
@@ -317,5 +348,6 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 		return
 	}
 
-	t.comp.users.SetText(string(reply.Arguments[0]), false)
+	list := bytes.Join(reply.Arguments, []byte("\n"))
+	go show(string(list))
 }

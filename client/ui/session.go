@@ -13,6 +13,30 @@ import (
 
 /* SESSION */
 
+// Subscribes to the default hooks of the server
+// and updates the userlist once
+func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
+	hooks := []string{"new_login", "new_logout"}
+	data, _ := s.Online()
+
+	for _, v := range hooks {
+		ctx, cancel := timeout(s)
+		defer data.Waitlist.Cancel(cancel)
+		reply := cmds.Sub(ctx, cmds.Command{
+			Output: output,
+			Static: &t.data,
+			Data:   data,
+		}, []byte(v))
+		if reply.Error != nil {
+			output(reply.Error.Error(), cmds.ERROR)
+			continue
+		}
+	}
+
+	empty := func(string, cmds.OutputType) {}
+	updateOnlineUsers(t, s, empty)
+}
+
 // Returns to default buffer and delets all others.
 // Also hides notifications
 func cleanupSession(t *TUI, s Server) {
@@ -256,8 +280,8 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 			output(msg, cmds.ERROR)
 		}
 	}
+	empty := func(string, cmds.OutputType) {}
 
-	updateOnlineUsers(t, s, output)
 	for {
 		cmd, err := data.Waitlist.Get(
 			ctx,
@@ -287,7 +311,9 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 				cmds.INFO,
 			)
 		case spec.HookNewLogin, spec.HookNewLogout:
-			updateOnlineUsers(t, s, output)
+			if t.Active().Name() == s.Name() {
+				updateOnlineUsers(t, s, empty)
+			}
 		}
 	}
 }
