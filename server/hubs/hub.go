@@ -93,6 +93,9 @@ func (hub *Hub) Cleanup(cl net.Conn) {
 			hub.verifs.Add(v.name, v)
 		}
 	}
+
+	// Cleanup on the hooks table
+	removeFromHooks(hub, cl)
 }
 
 // Checks if a session is present in the hub (including the database)

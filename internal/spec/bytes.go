@@ -60,6 +60,9 @@ func (cmd *Command) Contents() string {
 	if cmd.HD.Op == ADMIN {
 		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
 	}
+	if cmd.HD.Op == SUB || cmd.HD.Op == UNSUB || cmd.HD.Op == HOOK {
+		fmt.Fprintf(&output, "* Hook: %s\n", HookString(Hook(cmd.HD.Info)))
+	}
 	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)
 	fmt.Fprintf(&output, "* Length: %d\n", cmd.HD.Len)
 	fmt.Fprintf(&output, "* ID: %d\n", cmd.HD.ID)

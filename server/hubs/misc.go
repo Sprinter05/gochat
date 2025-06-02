@@ -19,6 +19,21 @@ const randTextLength int = 128
 
 /* AUXILIARY FUNCTIONS */
 
+// Removes a use from all hooks that exist, mainly
+// for the purpose of cleaning up the connection.
+func removeFromHooks(h *Hub, cl net.Conn) {
+	hooks := h.subs.GetAll()
+
+	for _, hook := range hooks {
+		list := hook.Copy(0)
+		for _, v := range list {
+			if v == cl {
+				hook.Remove(v)
+			}
+		}
+	}
+}
+
 // Auxiliary function that sends all messages that were retrieved from
 // the database to the recently connected user. This function does not
 // touch the database, it just sends the messages.

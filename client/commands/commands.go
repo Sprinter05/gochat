@@ -125,6 +125,7 @@ var (
 	ErrorOfflineRequired   error = fmt.Errorf("you must be offline")
 	ErrorInvalidSkipVerify error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
 	ErrorRequestToSelf     error = fmt.Errorf("cannot request yourself")
+	ErrorUnknownHookOption error = fmt.Errorf("invalid hook provided")
 )
 
 /* LOOKUP TABLE */
@@ -147,6 +148,17 @@ var clientCmds = map[string]cmdFunc{
 	"TLS":     TLS,
 	"IMPORT":  Import,
 	"EXPORT":  Export,
+	"SUB":     Sub,
+	"UNSUB":   Unsub,
+}
+
+// List of hooks and their names.
+var hooksList = map[string]spec.Hook{
+	"all":                spec.HookAllHooks,
+	"new_login":          spec.HookNewLogin,
+	"new_logout":         spec.HookNewLogout,
+	"duplicated_session": spec.HookDuplicateSession,
+	"permissions_change": spec.HookPermsChange,
 }
 
 // Given a string containing a command name, returns its execution function.
@@ -164,6 +176,122 @@ func FetchClientCmd(op string, cmd Command) cmdFunc {
 }
 
 /* CLIENT COMMANDS */
+
+// Subscribes to a specific hook to the server
+//
+// Arguments: <hook>
+//
+// Returns a zero value ReplyData if successful
+func Sub(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
+	if !cmd.Data.IsConnected() {
+		return ReplyData{Error: ErrorNotConnected}
+	}
+
+	if !cmd.Data.IsLoggedIn() {
+		return ReplyData{Error: ErrorNotLoggedIn}
+	}
+
+	if len(args) < 1 {
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+
+	hook, ok := hooksList[string(args[0])]
+	if !ok {
+		return ReplyData{Error: ErrorUnknownHookOption}
+	}
+
+	verbosePrint("subscribing to event...", cmd)
+	id := cmd.Data.NextID()
+	hookPct, hookPctErr := spec.NewPacket(
+		spec.SUB, id,
+		byte(hook),
+	)
+	if hookPctErr != nil {
+		return ReplyData{Error: hookPctErr}
+	}
+
+	if cmd.Static.Verbose {
+		packetPrint(hookPct, cmd)
+	}
+
+	_, hookWErr := cmd.Data.Conn.Write(hookPct)
+	if hookWErr != nil {
+		return ReplyData{Error: hookWErr}
+	}
+
+	verbosePrint("awaiting response...", cmd)
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
+	)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
+	}
+
+	cmd.Output("succesfully subscribed!", RESULT)
+	return ReplyData{}
+}
+
+// Unsubscribes from a specific hook to the server
+//
+// Arguments: <hook>
+//
+// Returns a zero value ReplyData if successful
+func Unsub(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
+	if !cmd.Data.IsConnected() {
+		return ReplyData{Error: ErrorNotConnected}
+	}
+
+	if !cmd.Data.IsLoggedIn() {
+		return ReplyData{Error: ErrorNotLoggedIn}
+	}
+
+	if len(args) < 1 {
+		return ReplyData{Error: ErrorInsuficientArgs}
+	}
+
+	hook, ok := hooksList[string(args[0])]
+	if !ok {
+		return ReplyData{Error: ErrorUnknownHookOption}
+	}
+
+	verbosePrint("unsubscribing to event...", cmd)
+	id := cmd.Data.NextID()
+	hookPct, hookPctErr := spec.NewPacket(
+		spec.UNSUB, id,
+		byte(hook),
+	)
+	if hookPctErr != nil {
+		return ReplyData{Error: hookPctErr}
+	}
+
+	if cmd.Static.Verbose {
+		packetPrint(hookPct, cmd)
+	}
+
+	_, hookWErr := cmd.Data.Conn.Write(hookPct)
+	if hookWErr != nil {
+		return ReplyData{Error: hookWErr}
+	}
+
+	verbosePrint("awaiting response...", cmd)
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
+	)
+	if err != nil {
+		return ReplyData{Error: err}
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
+	}
+
+	cmd.Output("succesfully unsubscribed!", RESULT)
+	return ReplyData{}
+}
 
 // Imports a private RSA key for a new local user
 // from the specified directory using the spec PEM format
