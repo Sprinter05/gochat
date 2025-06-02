@@ -303,17 +303,12 @@ func Unsub(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 }
 
 // Imports a private RSA key for a new local user
-// from the specified directory using the spec PEM format
-// and then performs a registration on the server.
+// from the specified directory using the spec PEM format.
 //
 // Arguments: <username> <path> [password]
 //
 // Returns a zero value ReplyData if successful
 func Import(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
-	if !cmd.Data.IsConnected() {
-		return ReplyData{Error: ErrorNotConnected}
-	}
-
 	if len(args) < 2 {
 		return ReplyData{Error: ErrorInsuficientArgs}
 	}
@@ -335,54 +330,15 @@ func Import(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 		return ReplyData{Error: err}
 	}
 
-	key, chk := spec.PEMToPrivkey(buf)
+	_, chk := spec.PEMToPrivkey(buf)
 	if chk != nil {
 		return ReplyData{Error: chk}
-	}
-
-	pub, err := spec.PubkeytoPEM(&key.PublicKey)
-	if err != nil {
-		return ReplyData{Error: err}
 	}
 
 	verbosePrint("hashing password...", cmd)
 	hashPass, hashErr := bcrypt.GenerateFromPassword(pass, 12)
 	if hashErr != nil {
 		return ReplyData{Error: hashErr}
-	}
-
-	id := cmd.Data.NextID()
-	verbosePrint("performing registration...", cmd)
-	pctArgs := [][]byte{[]byte(username), pub}
-	pct, pctErr := spec.NewPacket(
-		spec.REG, id,
-		spec.EmptyInfo, pctArgs...,
-	)
-	if pctErr != nil {
-		return ReplyData{Error: pctErr}
-	}
-
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
-
-	// Sends the packet
-	_, wErr := cmd.Data.Conn.Write(pct)
-	if wErr != nil {
-		return ReplyData{Error: wErr}
-	}
-
-	// Awaits a response
-	verbosePrint("awaiting response...", cmd)
-	reply, err := cmd.Data.Waitlist.Get(
-		ctx, Find(id, spec.OK, spec.ERR),
-	)
-	if err != nil {
-		return ReplyData{Error: err}
-	}
-
-	if reply.HD.Op == spec.ERR {
-		return ReplyData{Error: spec.ErrorCodeToError(reply.HD.Info)}
 	}
 
 	// Encrypts the private key

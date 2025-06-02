@@ -248,14 +248,9 @@ func exportKey(t *TUI, cmd Command) {
 }
 
 func importKey(t *TUI, cmd Command) {
-	data, ok := cmd.serv.Online()
+	data, _ := cmd.serv.Online()
 	if data == nil {
 		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
-	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
 		return
 	}
 
