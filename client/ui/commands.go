@@ -466,7 +466,13 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	cmd.print("subscribing to relevant events...", cmds.INTERMEDIATE)
-	defaultSubscribe(t, cmd.serv, cmd.print)
+
+	output := cmd.print
+	if !t.data.Verbose {
+		output = func(string, cmds.OutputType) {}
+	}
+
+	defaultSubscribe(t, cmd.serv, output)
 }
 
 func listUsers(t *TUI, cmd Command) {
