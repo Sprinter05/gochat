@@ -55,13 +55,16 @@ func (cmd *Command) Contents() string {
 	fmt.Fprintf(&output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
 	fmt.Fprintf(&output, "* Info: %d\n", cmd.HD.Info)
 	if cmd.HD.Op == ERR {
-		fmt.Fprintf(&output, "* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
+		err := ErrorCodeToError(cmd.HD.Info)
+		fmt.Fprintf(&output, "* Error: %s\n", ErrorString(err))
 	}
 	if cmd.HD.Op == ADMIN {
-		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
+		admin := Admin(cmd.HD.Info)
+		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(admin))
 	}
 	if cmd.HD.Op == SUB || cmd.HD.Op == UNSUB || cmd.HD.Op == HOOK {
-		fmt.Fprintf(&output, "* Hook: %s\n", HookString(Hook(cmd.HD.Info)))
+		hook := Hook(cmd.HD.Info)
+		fmt.Fprintf(&output, "* Hook: %s\n", HookString(hook))
 	}
 	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)
 	fmt.Fprintf(&output, "* Length: %d\n", cmd.HD.Len)

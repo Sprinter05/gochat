@@ -83,7 +83,7 @@ func (hub *Hub) checkToken(u User, text []byte) error {
 	if !u.secure {
 		// We do not remove the verif
 		// This allows trying again with a secure connection
-		return spec.ErrorUnescure
+		return spec.ErrorUnsecure
 	}
 
 	v, ok := hub.verifs.Get(u.name)
