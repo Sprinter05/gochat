@@ -47,6 +47,7 @@ type Command struct {
 
 /* COMMAND FUNCTIONS */
 
+// TODO: improve arguments (hide encrypted, translate permissions...)
 // Returns a string that contains full information about a command
 func (cmd *Command) Contents() string {
 	var output strings.Builder
@@ -144,6 +145,21 @@ func NewHeader(hdr []byte) Header {
 		Len:  (uint16(h >> 26)) &^ 0xC000,     // 0b1100_0000_0000_0000
 		ID:   ID((uint16(h >> 16)) &^ 0xFC00), // 0b1111_1100_0000_0000
 	}
+}
+
+/* PERMISSION FUNCTIONS */
+
+// Reads a byte array corresponding to the permission
+// argument of a command and returns the unsigned integer
+// asocciated to said array or an error if the reading failed.
+func ParsePermissionBytes(perm []byte) (uint, error) {
+	buf := bytes.NewBuffer(perm)
+	permission, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return 0, ErrorArguments
+	}
+
+	return uint(permission), nil
 }
 
 /* UNIX STAMP FUNCTIONS */
