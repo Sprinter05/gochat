@@ -341,7 +341,7 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 		Output: output,
 		Static: &t.data,
 		Data:   data,
-	}, []byte("online"))
+	}, cmds.ONLINE)
 
 	if reply.Error != nil {
 		output(reply.Error.Error(), cmds.ERROR)

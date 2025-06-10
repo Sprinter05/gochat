@@ -113,9 +113,9 @@ const (
 
 /* USRS TYPES */
 const (
-	ALL    = 0
-	ONLINE = 1
-	LOCAL  = 2
+	ALL    USRSType = 0 // as spec
+	ONLINE USRSType = 1 // as spec
+	LOCAL  USRSType = 2
 )
 
 /* ERRORS */

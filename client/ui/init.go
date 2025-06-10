@@ -70,6 +70,7 @@ var (
 	ErrorMessageSelf      = errors.New("cannot request to message yourself")
 	ErrorTypingTooFast    = errors.New("you are typing too fast")
 	ErrorPasswordNotMatch = errors.New("passwords do not match")
+	ErrorInvalidArgument  = errors.New("provided argument is incorrect")
 )
 
 // Identifies the areas where components are located.

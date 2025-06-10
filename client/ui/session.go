@@ -26,7 +26,7 @@ func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
 			Output: output,
 			Static: &t.data,
 			Data:   data,
-		}, []byte(v))
+		}, v)
 		if reply.Error != nil {
 			output(reply.Error.Error(), cmds.ERROR)
 			continue
@@ -108,7 +108,7 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 
 	ctx, cancel := timeout(s)
 	defer data.Waitlist.Cancel(cancel)
-	r := cmds.Req(ctx, cmd, []byte(tab.name))
+	r := cmds.Req(ctx, cmd, tab.name)
 	if r.Error != nil {
 		ret := fmt.Errorf(
 			"failed to request user data due to %s",
@@ -197,7 +197,7 @@ func (t *TUI) remoteMessage(content string) {
 
 	ctx, cancel := timeout(s)
 	defer cmd.Data.Waitlist.Cancel(cancel)
-	r := cmds.Msg(ctx, cmd, []byte(tab.name), []byte(content))
+	r := cmds.Msg(ctx, cmd, tab.name, content)
 	if r.Error != nil {
 		print("failed to send message: "+r.Error.Error(), cmds.ERROR)
 	}
