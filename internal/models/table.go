@@ -71,6 +71,24 @@ func (t *Table[I, T]) Len() int {
 	return len(t.data)
 }
 
+// Returns all indexes of the table
+func (t *Table[I, T]) Indexes() []I {
+	l := len(t.data)
+	if l == 0 {
+		return nil
+	}
+
+	array := make([]I, 0, l)
+
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	for i := range t.data {
+		array = append(array, i)
+	}
+
+	return array
+}
+
 // Returns all value elements of the
 // table in an array
 func (t *Table[I, T]) GetAll() []T {

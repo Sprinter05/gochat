@@ -1,6 +1,10 @@
 package ui
 
 import (
+	"fmt"
+	"time"
+
+	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 )
@@ -69,6 +73,37 @@ func (b *Buffers) New(name string, system bool) error {
 
 	b.tabs.Add(name, tab)
 	return nil
+}
+
+// Gets all the buffer names
+func (b *Buffers) GetAll() []string {
+	list := make([]string, 0, b.tabs.Len())
+
+	copy := b.tabs.GetAll()
+	for _, v := range copy {
+		list = append(list, v.name)
+	}
+
+	return list
+}
+
+// Assigns the buffer as online and returns whether it failed or not
+func (b *Buffers) Current() *tab {
+	t, ok := b.tabs.Get(b.current)
+	if !ok {
+		return nil
+	}
+
+	return t
+}
+
+// Turns all tabs to offline
+func (b *Buffers) Offline() {
+	list := b.tabs.GetAll()
+
+	for _, v := range list {
+		v.connected = false
+	}
 }
 
 // Assigns an index to a hidden buffer (unless it was not hidden)
@@ -146,6 +181,19 @@ func (t *TUI) addBuffer(name string, system bool) {
 		return
 	}
 
+	data, online := s.Online()
+	if data != nil && name != defaultBuffer {
+		if !online || !data.IsLoggedIn() {
+			t.showError(ErrorNotLoggedIn)
+			return
+		}
+
+		if name == data.User.User.Username {
+			t.showError(ErrorMessageSelf)
+			return
+		}
+	}
+
 	err := s.Buffers().New(name, system)
 	_, ok := t.findBuffer(name)
 	if err != nil && ok {
@@ -159,7 +207,13 @@ func (t *TUI) addBuffer(name string, system bool) {
 	}
 
 	t.comp.buffers.AddItem(name, "", r, nil)
+	reqErr := t.requestUser(s, name, func(string, cmds.OutputType) {})
 	t.changeBuffer(i)
+
+	if reqErr != nil {
+		print := t.systemMessage("request")
+		print(reqErr.Error(), cmds.ERROR)
+	}
 }
 
 // Changes the TUI component according to the internal
@@ -218,15 +272,13 @@ func (t *TUI) hideBuffer(name string) {
 	}
 }
 
-// Deletes a buffer with all related messages from the database.
+// Deletes a buffer instead of hiding it
 // This assumes the buffer has already been deleted from the TUI.
 func (t *TUI) removeBuffer(name string) error {
 	err := t.Active().Buffers().Remove(name)
 	if err != nil {
 		return err
 	}
-
-	// TODO: Database deletion goes here
 
 	return nil
 }
@@ -236,12 +288,13 @@ func (t *TUI) removeBuffer(name string) error {
 // already been changed in the TUI component. It also sets the
 // variable controlling the currently rendered buffer.
 func (t *TUI) renderBuffer(buf string) {
-	b, ok := t.Active().Buffers().tabs.Get(buf)
+	s := t.Active()
+	b, ok := s.Buffers().tabs.Get(buf)
 	if !ok {
 		return
 	}
 
-	t.Active().Buffers().current = buf
+	s.Buffers().current = buf
 
 	if b.system {
 		t.comp.buffers.SetSelectedTextColor(tcell.ColorPlum)
@@ -253,9 +306,29 @@ func (t *TUI) renderBuffer(buf string) {
 		return
 	}
 
+	/* 	if b.connected && b.messages.Len() == 0 {
+	   		print := t.systemMessage()
+	   		print("This is the beggining of your conversation with "+buf, cmds.INFO)
+	   	}
+	*/
+
+	t.status.lastDate = time.Now()
 	t.comp.text.Clear()
-	msgs := t.Active().Messages(buf)
-	for _, v := range msgs {
+	msgs := s.Messages(buf)
+
+	l := len(msgs)
+	pending, _ := t.notifs.Get(buf)
+	unread := l - int(pending)
+
+	for i, v := range msgs {
 		t.renderMsg(v)
+
+		if (unread-1) == i && pending > 0 {
+			fmt.Fprintf(
+				t.comp.text,
+				"--- [orange]UNREAD[-] ---\n",
+			)
+		}
 	}
+	t.updateNotifications()
 }

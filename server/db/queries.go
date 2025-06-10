@@ -51,6 +51,8 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 		"JOIN users u ON messages.src_user = u.user_id",
 	).Where(
 		"messages.dst_user = ?", user.UserID,
+	).Order(
+		"stamp ASC",
 	).WithContext(context.Background())
 
 	var size int64
@@ -109,7 +111,9 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 	var users strings.Builder
 	var dbusers []User
 
-	res := db.Select("username").Find(&dbusers)
+	res := db.Select("username").
+		Find(&dbusers).
+		Order("username ASC")
 	if res.Error != nil {
 		log.DBError(res.Error)
 		return "", res.Error

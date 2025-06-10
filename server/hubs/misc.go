@@ -19,27 +19,41 @@ const randTextLength int = 128
 
 /* AUXILIARY FUNCTIONS */
 
+// Removes a use from all hooks that exist, mainly
+// for the purpose of cleaning up the connection.
+func removeFromHooks(h *Hub, cl net.Conn) {
+	hooks := h.subs.GetAll()
+
+	for _, hook := range hooks {
+		list := hook.Copy(0)
+		for _, v := range list {
+			if v == cl {
+				hook.Remove(v)
+			}
+		}
+	}
+}
+
 // Auxiliary function that sends all messages that were retrieved from
 // the database to the recently connected user. This function does not
 // touch the database, it just sends the messages.
-func catchUp(cl net.Conn, id spec.ID, msgs ...*spec.Message) error {
+func catchUp(cl net.Conn, msgs ...*spec.Message) {
 	for _, v := range msgs {
 		// Turn timestamp to byte array and create packet
 		stp := spec.UnixStampToBytes(v.Stamp)
 
-		pak, err := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo,
+		pak, err := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
 			[]byte(v.Sender),
 			stp,
 			v.Content,
 		)
+
 		if err != nil {
 			log.Packet(spec.RECIV, err)
-			return err
 		}
+
 		cl.Write(pak)
 	}
-
-	return nil
 }
 
 // Auxiliary function to reduce code when sending errors.

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"slices"
 	"sync"
 )
@@ -11,9 +12,9 @@ import (
 // wait for a specific piece of data under
 // certain conditions.
 type Waitlist[T any] struct {
-	data []T
-	cond *sync.Cond
-	sort func(T, T) int
+	data []T            // actual data
+	cond *sync.Cond     // waiting condition
+	sort func(T, T) int // sorting for optimisation
 }
 
 // Returns a preallocated slice with 0 elements according to the given
@@ -36,6 +37,15 @@ func (w *Waitlist[T]) Insert(v T) {
 	w.data = append(w.data, v)
 	slices.SortFunc(w.data, w.sort)
 
+	w.cond.Broadcast()
+}
+
+// Wakes up all waiting threads and cancels the context.
+func (w *Waitlist[T]) Cancel(cancel context.CancelFunc) {
+	w.cond.L.Lock()
+	defer w.cond.L.Unlock()
+
+	cancel()
 	w.cond.Broadcast()
 }
 
@@ -69,7 +79,10 @@ func (w *Waitlist[T]) TryGet(find func(T) bool) (T, bool) {
 // the caller goroutine will sleep and wake up
 // when a new element is inserted, repeating
 // this process forever until the element is found.
-func (w *Waitlist[T]) Get(find func(T) bool) T {
+// A context must be passed which will be checked
+// whenever the goroutine wakes up and return its
+// error if its not nil.
+func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) (T, error) {
 	w.cond.L.Lock()
 	defer w.cond.L.Unlock()
 
@@ -77,10 +90,15 @@ func (w *Waitlist[T]) Get(find func(T) bool) T {
 		for i, v := range w.data {
 			if find(v) {
 				w.data = slices.Delete(w.data, i, i+1)
-				return v
+				return v, nil
 			}
 		}
 
 		w.cond.Wait()
+
+		if ctx.Err() != nil {
+			var empty T
+			return empty, ctx.Err()
+		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 )
 
 /* TEXT */
@@ -20,13 +21,15 @@ const KeybindHelp string = `
 
 [yellow::b]Ctrl-T[-::-]: Focus chat/input window
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
+	- In the [-::b]input window[-::-] use [green]Escape[-::-] to clear the text
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
+	- In the [-::b]input window[-::-] use [green]Up[-::-] to browse through the history of commands ran.
 
 [yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
 	- [green]Esc[-::-] to cancel
 	- [green]Enter[-::-] to confirm
 
-[yellow::b]Ctrl-K + Ctrl-W[-::-]: Hide currently focused buffer
+[yellow::b]Ctrl-K + Ctrl-W/Ctrl-H[-::-]: Hide currently focused buffer
 	- It can be shown again by creating a buffer with the same name
 	
 [yellow::b]Ctrl-K + Ctrl-X[-::-]: Delete currently focused buffer
@@ -39,18 +42,18 @@ const KeybindHelp string = `
 	- [green]Esc[-::-] to cancel
 	- [green]Enter[-::-] to confirm the different steps
 	
-[yellow::b]Ctrl-S + Ctrl-W[-::-]: Hide currently focused server
+[yellow::b]Ctrl-S + Ctrl-W/Ctrl-H[-::-]: Hide currently focused server
 	- It can be shown again under any name by typing the same address it was used at creation
 
 [yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server
-	- This will permanantely delete all asocciated data
+	- This will permanantely delete all asocciated data to the server
 
 [yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
 	- Press [green]Esc[-::-] to cancel the jump
 	
 [yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
 
-[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
+[yellow::b]Shift-Up/Down[-::-]: Go to next/previous server
 
 [yellow::b]Ctrl-B[-::-]: Show/Hide buffer list
 
@@ -67,14 +70,28 @@ const CommandHelp string = `
 [yellow::b]/buffers[-::-]: Displays a list of all buffers in the current server
 	- Those that have been hidden will also be displayed
 	
-[yellow::b]/connect[-::-]: Connects to the currently active server using its address
+[yellow::b]/clear[-::-]: Clears all system messages in the current buffer
+	
+[yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
+
+[yellow::b]/connect[-::-] [green](-noverify)[-]: Connects to the currently active server using its address
 	- This will fail if the server is local
+	- If the connection is TLS and noverify is used, certificates will not be checked
 
 [yellow::b]/register[-::-] [green]<username>[-]: Creates a new account in the currently active server
 	- A popup asking for a password to register will show up when creating a new account
 	- No two accounts with the same name can exist in one single server
 	- You need an active connection to use this command
 	
+[yellow::b]/import[-::-] [green]<username>[-] [green]<path>[-]: Registers a new user from an existing key
+	- The path provided must be related to the directory from which the program was ran
+	- The provided private key must be RSA 4096 bits in PEM PKCS1 format
+	- A popup asking for a password for the imported account will show up
+
+[yellow::b]/export[-::-] [green]<username>[-]: Exports the private key of an existing local user
+	- The key will be put in a file in the directory from which the program was ran
+	- The fill will be called <username>.priv and will be in PEM PKCS1 format (RSA 4096 bits)
+
 [yellow::b]/login[-::-] [green]<username>[-]: Tries to login in the server with an account
 	- A popup asking for the password asocciated to the account will show up
 	- You need an active connection to use this command
@@ -90,6 +107,15 @@ const CommandHelp string = `
 	- Online will display all connected accounts in the server
 	- All will display all accounts registered in the server
 	- You need an active connection to use this command unless you are displaying local users
+	
+[yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
+	- This process is already done automatically if connected and logged in
+
+[yellow::b]/subscribe[-::-] [green]<hook>[-]: Subscribes to a specific event in the server
+	- Available options are <new_login/new_logout/duplicated_session/permissions_change/all>
+	
+[yellow::b]/unsubscribe[-::-] [green]<hook>[-]: Unsubscribes from a specific event in the server
+	- Available options are <new_login/new_logout/duplicated_session/permissions_change/all>
 `
 
 /* MESSAGES */
@@ -103,6 +129,7 @@ type Message struct {
 	Source    net.Addr  // Destination server
 }
 
+// Sends a predefines message on every new server
 func welcomeMessage(t *TUI) {
 	s := t.Active()
 
@@ -111,7 +138,7 @@ func welcomeMessage(t *TUI) {
 		"You may then use [yellow]/register[-] or [yellow]/login[-] to use an account."
 
 	t.SendMessage(Message{
-		Buffer:    "Default",
+		Buffer:    defaultBuffer,
 		Sender:    "System",
 		Content:   text,
 		Timestamp: time.Now(),
@@ -133,26 +160,38 @@ func (t *TUI) debugPacket(content string) {
 
 // Binds a function that sends System message to the server
 // and buffer that are active in the moment the function was ran.
-// An optional prompt for the messages can be given.
-func (t *TUI) systemMessage(command ...string) func(string, cmds.OutputType) {
+// An optional prompt params[0] and buffer params[1] can be given
+func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 	buffer := t.Buffer()
 	server := t.Active().Source()
 
 	var prompt string
-	if len(command) != 0 {
+	if len(params) > 0 && params[0] != "" {
 		prompt = fmt.Sprintf(
 			"Running [lightgray::b]%s[-::-]: ",
-			command[0],
+			params[0],
 		)
+	}
+
+	if len(params) > 1 && params[1] != "" {
+		buffer = params[1]
 	}
 
 	fun := func(s string, out cmds.OutputType) {
 		switch out {
-		case cmds.PROMPT:
+		case cmds.PROMPT, cmds.USRS:
 			return
 		case cmds.PACKET:
 			t.debugPacket(s)
 		default:
+			if out == cmds.INTERMEDIATE && !t.data.Verbose {
+				return
+			}
+
+			// if out == cmds.INFO {
+			// 	prompt = ""
+			// }
+
 			t.SendMessage(Message{
 				Buffer:    buffer,
 				Sender:    "System",
@@ -166,6 +205,50 @@ func (t *TUI) systemMessage(command ...string) func(string, cmds.OutputType) {
 	return fun
 }
 
+// Gets all the old messages that are stored in the database and
+// prints them to the buffer. Uses the login time as a threshold.
+func getOldMessages(t *TUI, s Server, username string) {
+	print := t.systemMessage()
+
+	data, _ := s.Online()
+	user, err := db.GetExternalUser(
+		t.data.DB,
+		username,
+		data.Server.Address,
+		data.Server.Port,
+	)
+	if err != nil {
+		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
+	}
+
+	msgs, err := db.GetAllUsersMessages(
+		t.data.DB,
+		data.User.User.Username,
+		user.User.Username,
+		data.Server.Address,
+		data.Server.Port,
+	)
+	if err != nil {
+		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
+	}
+
+	uname := data.User.User.Username
+	for _, v := range msgs {
+		sender := v.SourceUser.Username
+		if sender == uname {
+			sender = selfSender
+		}
+
+		t.SendMessage(Message{
+			Buffer:    username,
+			Sender:    sender,
+			Content:   v.Text,
+			Timestamp: v.Stamp,
+			Source:    s.Source(),
+		})
+	}
+}
+
 // Wrapper function for sending messages to the TUI.
 // It sends the message to all servers assuming only
 // the corresponding one will do something with it by
@@ -173,7 +256,7 @@ func (t *TUI) systemMessage(command ...string) func(string, cmds.OutputType) {
 func (t *TUI) SendMessage(msg Message) {
 	list := t.servers.GetAll()
 	for _, v := range list {
-		// Each server will handle if its for them
+		// Send message to all servers
 		ok, err := v.Receive(msg)
 		if err != nil && msg.Sender == selfSender {
 			t.showError(err)
@@ -243,6 +326,9 @@ func (t *TUI) renderMsg(msg Message) {
 	if msg.Sender == selfSender {
 		color = "[yellow::b]"
 	}
+	if msg.Sender == "System" {
+		color = "[purple::b]"
+	}
 
 	_, err := fmt.Fprintf(
 		t.comp.text,
@@ -285,7 +371,7 @@ func (t *TUI) toggleHelp() {
 // Displays an error in the error bar temporarily.
 func (t *TUI) showError(err error) {
 	t.comp.errors.Clear()
-	t.area.bottom.ResizeItem(t.comp.errors, 0, 1)
+	t.area.bottom.ResizeItem(t.comp.errors, 0, errorSize)
 	fmt.Fprintf(t.comp.errors, " [red]Error: %s![-:-]", err)
 
 	go func() {

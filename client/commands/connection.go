@@ -1,52 +1,99 @@
 package commands
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
+type Message struct {
+	Sender    string
+	Content   string
+	Timestamp time.Time
+}
+
 // Connects to the gochat server given its address and port
-func Connect(address string, port uint16) (net.Conn, error) {
+func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.Conn, err error) {
 	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
-	con, conErr := net.Dial("tcp4", socket)
-	if conErr != nil {
-		return nil, conErr
+
+	if useTLS {
+		con, err = tls.Dial("tcp4", socket, &tls.Config{
+			InsecureSkipVerify: noVerify,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return con, nil
 	}
-	return con, conErr
+
+	// Default to non-TLS
+	con, err = net.Dial("tcp4", socket)
+	if err != nil {
+		return nil, err
+	}
+
+	return con, nil
 }
 
 // Listens for incoming server packets. When a packet
 // is received, it is stored in the packet waitlist
-func Listen(cmd *Command) {
+// A cleanup function that cleans up resources can be passed
+func Listen(cmd Command, cleanup func()) {
+	defer func() {
+		if cmd.Data.Conn != nil {
+			cmd.Data.Conn.Close()
+		}
+
+		cmd.Data.Conn = nil
+		cmd.Data.User = nil
+
+		<-time.After(50 * time.Millisecond)
+		cmd.Output("No longer listening for packets", INFO)
+		cleanup()
+	}()
+
+	conn := spec.Connection{
+		Conn: cmd.Data.Conn,
+		TLS:  cmd.Data.Server.TLS,
+	}
+
 	for {
-		if cmd.Data.ClientCon.Conn == nil {
-			cmd.Output("no longer listening for packets", INFO)
+		if cmd.Data.Conn == nil {
 			return
 		}
 		pct := spec.Command{}
 
 		// Header listen
-		hdErr := pct.ListenHeader(cmd.Data.ClientCon)
+		hdErr := pct.ListenHeader(conn)
 		if hdErr != nil {
-			cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
+			if cmd.Static.Verbose {
+				cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
+			}
+			return
 		}
 
 		// Header check
 		chErr := pct.HD.ClientCheck()
 		if chErr != nil {
 			if cmd.Static.Verbose {
-				cmd.Output("incorrect header from server", ERROR)
+				cmd.Output(fmt.Sprintf("incorrect header from server: %s", chErr), ERROR)
 				cmd.Output(pct.Contents(), PACKET)
 			}
+			return
 		}
 
 		// Payload listen
-		pldErr := pct.ListenPayload(cmd.Data.ClientCon)
+		pldErr := pct.ListenPayload(conn)
 		if pldErr != nil {
-			cmd.Output(fmt.Sprintf("error in payload listen: %s", hdErr), ERROR)
+			if cmd.Static.Verbose {
+				cmd.Output(fmt.Sprintf("error in payload listen: %s", pldErr), ERROR)
+			}
+			return
 		}
 
 		if cmd.Static.Verbose {
@@ -57,14 +104,18 @@ func Listen(cmd *Command) {
 	}
 }
 
-// TODO: Change to return error
 // Listens for an OK packet from the server when starting the connection,
 // which determines that the client/server was started successfully
 func ConnectionStart(data Command) error {
 	cmd := new(spec.Command)
 
+	conn := spec.Connection{
+		Conn: data.Data.Conn,
+		TLS:  data.Data.Server.TLS,
+	}
+
 	// Header listen
-	hdErr := cmd.ListenHeader(data.Data.ClientCon)
+	hdErr := cmd.ListenHeader(conn)
 	if hdErr != nil {
 		return hdErr
 	}
@@ -83,7 +134,7 @@ func ConnectionStart(data Command) error {
 	}
 
 	// Payload listen
-	pldErr := cmd.ListenPayload(data.Data.ClientCon)
+	pldErr := cmd.ListenPayload(conn)
 	if pldErr != nil {
 		return pldErr
 	}
@@ -102,7 +153,7 @@ func ConnectionStart(data Command) error {
 // listening until a received packet fits one of the actions provided
 // and returns it
 func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command, error) {
-	// TODO: timeouts
+	//  timeouts
 	var cmd spec.Command
 
 	for !(slices.Contains(ops, cmd.HD.Op)) {

@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"bytes"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +31,7 @@ type state struct {
 	deletingBuffer bool // Currently choosing to delete buffer
 
 	lastDate time.Time // Last rendered date in the current buffer
+	lastMsg  time.Time // last message sent
 }
 
 // Identifies the main TUI with all its
@@ -41,6 +44,10 @@ type TUI struct {
 	status state           // Identifies rendering states
 	data   cmds.StaticData // Identifies command data
 
+	history models.Slice[string] // Stores previously ran commands
+	next    uint                 // Last history
+
+	notifs  models.Table[string, uint]   // Unread messages
 	servers models.Table[string, Server] // Table storing servers
 	focus   string                       // Currently active server
 }
@@ -111,7 +118,9 @@ func newbufPopup(t *TUI) {
 			return
 		}
 
-		t.addBuffer(text, false)
+		name := strings.ToLower(text)
+
+		t.addBuffer(name, false)
 
 		exit()
 	})
@@ -166,9 +175,14 @@ func newServerPopup(t *TUI) {
 				return
 			}
 
-			t.addServer(name, addr)
-			t.addBuffer("Default", false)
-			welcomeMessage(t)
+			// We enable TLS by default
+			ret := t.addServer(name, addr, true)
+			if ret != nil {
+				t.showError(ret)
+			} else {
+				t.addBuffer(defaultBuffer, true)
+				welcomeMessage(t)
+			}
 
 			pExit()
 		})
@@ -179,14 +193,14 @@ func newServerPopup(t *TUI) {
 // that until the popup exits the function itself will not exit.
 // Therefore this shouldn't run in the main thread as it will
 // block all other components.
-func newLoginPopup(t *TUI) (pswd string, err error) {
+func newLoginPopup(t *TUI, text string) (pswd string, err error) {
 	cond := sync.NewCond(new(sync.Mutex))
 	cond.L.Lock()
 	defer cond.L.Unlock()
 
 	input, exit := createPopup(t,
 		&t.status.typingPassword,
-		"Enter password...",
+		text,
 	)
 
 	input.SetMaskCharacter('*')
@@ -284,4 +298,56 @@ func deleteBufWindow(t *TUI) {
 
 		exit()
 	})
+}
+
+/* BARS */
+
+func toggleBufList(t *TUI) {
+	if t.status.showingBufs {
+		t.area.main.ResizeItem(t.area.left, 0, 0)
+		t.status.showingBufs = false
+	} else {
+		t.area.main.ResizeItem(t.area.left, 0, 2)
+		t.status.showingBufs = true
+	}
+}
+
+func toggleUserlist(t *TUI) {
+	if t.status.showingUsers {
+		t.area.main.ResizeItem(t.comp.users, 0, 0)
+		t.status.showingUsers = false
+	} else {
+		t.area.main.ResizeItem(t.comp.users, 0, 1)
+		t.status.showingUsers = true
+	}
+}
+
+func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
+	data, ok := s.Online()
+
+	// Prevents TUI deadlock
+	show := func(text string) {
+		t.comp.users.SetText(text, false)
+	}
+
+	if data == nil || !ok {
+		go show("")
+		return
+	}
+
+	ctx, cancel := timeout(s)
+	defer data.Waitlist.Cancel(cancel)
+	reply := cmds.Usrs(ctx, cmds.Command{
+		Output: output,
+		Static: &t.data,
+		Data:   data,
+	}, []byte("online"))
+
+	if reply.Error != nil {
+		output(reply.Error.Error(), cmds.ERROR)
+		return
+	}
+
+	list := bytes.Join(reply.Arguments, []byte("\n"))
+	go show(string(list))
 }

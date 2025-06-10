@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -47,7 +48,8 @@ func NewShell(data commands.Command) {
 			continue
 		}
 
-		cmdReply := f(data, args...)
+		//* Can be changed with context.WithTimeout
+		cmdReply := f(context.Background(), data, args...)
 		if cmdReply.Error != nil {
 			fmt.Printf("[ERROR] %s: %s\n", op, cmdReply.Error)
 		}
@@ -60,7 +62,7 @@ func PrintPrompt(data commands.Data) {
 	if !(data.User.User.Username == "") {
 		username = data.User.User.Username
 	}
-	if data.ClientCon.Conn == nil {
+	if data.Conn == nil {
 		connected = "(not connected) "
 	}
 	fmt.Printf("\033[36m%sgochat(%s) > \033[0m", connected, username)
@@ -96,15 +98,20 @@ func ShellPrint(text string, outputType commands.OutputType) {
 // operations.
 func RECIVHandler(cmd *commands.Command) {
 	for {
-		reciv := cmd.Data.Waitlist.Get(commands.Find(0, spec.RECIV))
-		decrypted, storeErr := commands.StoreReciv(reciv, *cmd)
+		reciv, _ := cmd.Data.Waitlist.Get(
+			context.Background(),
+			commands.Find(0, spec.RECIV),
+		)
+		decrypted, storeErr := commands.StoreReciv(
+			context.Background(), reciv, *cmd,
+		)
 		if storeErr != nil {
 			// Removes prompt line
 			fmt.Print("\r\033[K")
 			fmt.Println(storeErr)
 			continue
 		}
-		PrintMessage(reciv, decrypted, *cmd)
+		PrintMessage(reciv, decrypted.Content, *cmd)
 	}
 }
 

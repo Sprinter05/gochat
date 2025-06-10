@@ -13,6 +13,9 @@ import (
 	"github.com/rivo/tview"
 )
 
+// TODO: remove messages when deleting buffer
+// TODO: hide users bar on local server and clear on server change
+
 const Logo string = `
                    _           _   
                   | |         | |  
@@ -26,36 +29,47 @@ const Logo string = `
 `
 
 const (
-	tuiVersion     float32 = 0.1      // Current client TUI version
-	selfSender     string  = "You"    // Self sender of a message
-	systemBuffer   string  = "System" // System buffer name
-	debugBuffer    string  = "Debug"  // Buffer where packets will be shown
-	localServer    string  = "Local"  // Local server name
-	defaultLabel   string  = " > "
-	inputSize      int     = 4    // size in the TUI of the input bar
-	textSize       int     = 30   // Size of the text window
-	errorMessage   uint    = 3    // seconds
-	asciiNumbers   int     = 0x30 // Start of ASCII for number 1
-	asciiLowercase int     = 0x61 // Start of ASCII for lowercase a
-	maxBuffers     uint    = 35   // Maximum amount of allowed buffers in one server
-	maxServers     uint    = 9    // Maximum amount of allowed servers
+	tuiVersion     float32 = 0.1       // Current client TUI version
+	selfSender     string  = "You"     // Self sender of a message
+	systemBuffer   string  = "System"  // System buffer name
+	debugBuffer    string  = "Debug"   // Buffer where packets will be shown
+	defaultBuffer  string  = "Default" // Default server system buffer
+	localServer    string  = "Local"   // Local server name
+	defaultLabel   string  = " > "     // Default prompt
+	inputSize      int     = 4         // size in the TUI of the input bar
+	errorSize      int     = 1         // size of the erro bar
+	notifSize      int     = 2         // size of the notif bar
+	textSize       int     = 30        // Size of the text window
+	errorMessage   uint    = 3         // seconds
+	asciiNumbers   int     = 0x30      // Start of ASCII for number 1
+	asciiLowercase int     = 0x61      // Start of ASCII for lowercase a
+	maxBuffers     uint    = 35        // Maximum amount of allowed buffers in one server
+	maxServers     uint    = 9         // Maximum amount of allowed servers
+	cmdTimeout     uint    = 30        // Max seconds to wait for a command to finish
+	msgDelay       uint    = 500       // miliseconds between msgs
 )
 
 var (
-	ErrorSystemBuf     = errors.New("performing action on system buffer")
-	ErrorLocalServer   = errors.New("performing action on local server")
-	ErrorNoText        = errors.New("no text has been given")
-	ErrorExists        = errors.New("item already exists")
-	ErrorNotFound      = errors.New("item does not exist")
-	ErrorMaxBufs       = errors.New("maximum amount of buffers reached")
-	ErrorMaxServers    = errors.New("maximum amount of servers reached")
-	ErrorNoBuffers     = errors.New("no buffers in server")
-	ErrorEmptyCmd      = errors.New("empty command given")
-	ErrorInvalidCmd    = errors.New("invalid command given")
-	ErrorAlreadyOnline = errors.New("connection is already established")
-	ErrorOffline       = errors.New("connection to the server is not established")
-	ErrorArguments     = errors.New("invalid number of arguments")
-	ErrorLoggedIn      = errors.New("you are already logged in")
+	ErrorSystemBuf        = errors.New("performing action on system buffer")
+	ErrorLocalServer      = errors.New("performing action on local server")
+	ErrorNoText           = errors.New("no text has been given")
+	ErrorExists           = errors.New("item already exists")
+	ErrorNotFound         = errors.New("item does not exist")
+	ErrorMaxBufs          = errors.New("maximum amount of buffers reached")
+	ErrorMaxServers       = errors.New("maximum amount of servers reached")
+	ErrorNoBuffers        = errors.New("no buffers in server")
+	ErrorEmptyCmd         = errors.New("empty command given")
+	ErrorInvalidCmd       = errors.New("invalid command given")
+	ErrorAlreadyOnline    = errors.New("connection is already established")
+	ErrorOffline          = errors.New("connection to the server is not established")
+	ErrorArguments        = errors.New("invalid number of arguments")
+	ErrorLoggedIn         = errors.New("you are already logged in")
+	ErrorNoRemoteUser     = errors.New("user is not requested")
+	ErrorDisconnection    = errors.New("connection to the server has been lost")
+	ErrorNotLoggedIn      = errors.New("you are not logged in")
+	ErrorMessageSelf      = errors.New("cannot request to message yourself")
+	ErrorTypingTooFast    = errors.New("you are typing too fast")
+	ErrorPasswordNotMatch = errors.New("passwords do not match")
 )
 
 // Identifies the areas where components are located.
@@ -70,11 +84,12 @@ type components struct {
 	buffers *tview.List // list of buffers
 	servers *tview.List // list of servers
 
+	notifs *tview.TextView // shows notifications
 	text   *tview.TextView // shows messages
 	errors *tview.TextView // shows TUI errors
 	input  *tview.TextArea // input area to type
 
-	users *tview.List // list of users
+	users *tview.TextArea // list of users
 }
 
 // Creates all components and assigns them to each area.
@@ -82,14 +97,16 @@ func setupLayout() (areas, components) {
 	comps := components{
 		buffers: tview.NewList(),
 		servers: tview.NewList(),
+		notifs:  tview.NewTextView(),
 		text:    tview.NewTextView(),
 		errors:  tview.NewTextView(),
 		input:   tview.NewTextArea(),
-		users:   tview.NewList(),
+		users:   tview.NewTextArea(),
 	}
 
 	bottom := tview.NewFlex().
 		SetDirection(tview.FlexRow).
+		AddItem(comps.notifs, 0, 0, false).
 		AddItem(comps.text, 0, textSize, false).
 		AddItem(comps.errors, 0, 0, false).
 		AddItem(comps.input, inputSize, 0, true)
@@ -180,6 +197,13 @@ func setupStyle(t *TUI) {
 		SetWordWrap(true).
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(false)
+
+	t.comp.notifs.
+		SetDynamicColors(true).
+		SetWrap(true).
+		SetWordWrap(true).
+		SetBackgroundColor(tcell.ColorDefault).
+		SetBorder(false)
 }
 
 // Sets up the handling functions for each component.
@@ -213,7 +237,7 @@ func setupHandlers(t *TUI) {
 			if !t.status.blockCond() {
 				newbufPopup(t)
 			}
-		case tcell.KeyCtrlW: // Hide buffer
+		case tcell.KeyCtrlW, tcell.KeyCtrlH: // Hide buffer
 			if !t.status.blockCond() {
 				t.hideBuffer(t.Buffer())
 				t.app.SetFocus(t.comp.input)
@@ -233,7 +257,7 @@ func setupHandlers(t *TUI) {
 			if !t.status.blockCond() {
 				newServerPopup(t)
 			}
-		case tcell.KeyCtrlW: // Hide server
+		case tcell.KeyCtrlW, tcell.KeyCtrlH: // Hide server
 			if !t.status.blockCond() {
 				t.hideServer(t.focus)
 				t.app.SetFocus(t.comp.input)
@@ -255,13 +279,58 @@ func setupHandlers(t *TUI) {
 	t.comp.errors.SetChangedFunc(func() {
 		t.app.Draw()
 	})
+
+	// Forces a redraw when new text shows up
+	t.comp.users.SetChangedFunc(func() {
+		t.app.Draw()
+	})
+
+	// Forces a redraw when new text shows up
+	t.comp.notifs.SetChangedFunc(func() {
+		t.app.Draw()
+	})
 }
 
 // Sets up main input capture (run command, send text, newline).
 func setupInput(t *TUI) {
+	t.comp.input.SetChangedFunc(func() {
+		text := t.comp.input.GetText()
+		if text == "" {
+			t.next = 0
+		}
+	})
+
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyEscape:
+			t.comp.input.SetText("", false)
+			t.next = 0
+			return nil
+		case tcell.KeyUp:
+			text := t.comp.input.GetText()
+			if text != "" && t.next == 0 {
+				return event
+			}
+
+			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt ||
+				event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				return event
+			}
+
+			l := t.history.Len() - 1
+			cmd, ok := t.history.Get(uint(l) - t.next)
+			if !ok {
+				return event
+			}
+			t.next += 1
+
+			t.comp.input.SetText("/"+cmd, true)
+			return nil
 		case tcell.KeyEnter:
+			defer func() {
+				t.next = 0
+			}()
+
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
 				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				return event
@@ -283,6 +352,13 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
+			last := time.Since(t.status.lastMsg)
+			if last < time.Duration(msgDelay)*time.Millisecond {
+				t.showError(ErrorTypingTooFast)
+				t.comp.input.SetText("", false)
+				return nil
+			}
+
 			s := t.Active()
 			t.SendMessage(Message{
 				Sender:    selfSender,
@@ -292,6 +368,9 @@ func setupInput(t *TUI) {
 				Source:    s.Source(),
 			})
 
+			go t.remoteMessage(text)
+
+			t.status.lastMsg = time.Now()
 			t.comp.input.SetText("", false)
 			return nil
 		}
@@ -308,21 +387,9 @@ func setupKeybinds(t *TUI) {
 		case tcell.KeyCtrlC: // Override to nothing
 			return nil
 		case tcell.KeyCtrlU: // Show/Hide user list
-			if t.status.showingUsers {
-				t.area.main.ResizeItem(t.comp.users, 0, 0)
-				t.status.showingUsers = false
-			} else {
-				t.area.main.ResizeItem(t.comp.users, 0, 1)
-				t.status.showingUsers = true
-			}
+			toggleUserlist(t)
 		case tcell.KeyCtrlB: // Show/Hide buffer list
-			if t.status.showingBufs {
-				t.area.main.ResizeItem(t.area.left, 0, 0)
-				t.status.showingBufs = false
-			} else {
-				t.area.main.ResizeItem(t.area.left, 0, 2)
-				t.status.showingBufs = true
-			}
+			toggleBufList(t)
 		case tcell.KeyCtrlT: // Changes input between messages and inpit
 			if t.status.blockCond() {
 				break
@@ -371,7 +438,12 @@ func setupKeybinds(t *TUI) {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr + 1)
 			}
-		case tcell.KeyUp: // GO one buffer up
+
+			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				curr := t.comp.servers.GetCurrentItem()
+				t.changeServer(curr + 1)
+			}
+		case tcell.KeyUp: // Go one buffer up
 			if t.status.blockCond() {
 				break
 			}
@@ -379,6 +451,11 @@ func setupKeybinds(t *TUI) {
 			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr - 1)
+			}
+
+			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				curr := t.comp.servers.GetCurrentItem()
+				t.changeServer(curr - 1)
 			}
 		case tcell.KeyCtrlR: // Reload TUI
 			t.app.Sync()
@@ -393,6 +470,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 	t := &TUI{
 		servers: models.NewTable[string, Server](0),
+		notifs:  models.NewTable[string, uint](0),
 		comp:    comps,
 		area:    areas,
 		status: state{
@@ -404,8 +482,10 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 			deletingServer: false,
 			deletingBuffer: false,
 			lastDate:       time.Now(),
+			lastMsg:        time.Now(),
 		},
-		data: static,
+		data:    static,
+		history: models.NewSlice[string](0),
 	}
 	app := tview.NewApplication().
 		EnableMouse(true).
@@ -433,8 +513,8 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	// Welcome messages
 	print := t.systemMessage()
 	print("Welcome to gochat!", cmds.INFO)
-	print("Press [green]Ctrl-Shift/Alt-H[-] to show help!", cmds.INFO)
-	print("Restoring previous session...", cmds.INFO)
+	print("Press [green]Ctrl-Alt-H/Ctrl-Shift-H[-] to show help!", cmds.INFO)
+	// print("Restoring previous session...", cmds.INFO)
 
 	// Debug buffer if necessary
 	if debug {
@@ -461,8 +541,11 @@ func (t *TUI) restoreSession() {
 	for _, v := range list {
 		str := fmt.Sprintf("%s:%d", v.Address, v.Port)
 		addr, _ := net.ResolveTCPAddr("tcp4", str)
-		t.addServer(v.Name, addr)
-		t.addBuffer("Default", false)
+		err := t.addServer(v.Name, addr, v.TLS)
+		if err != nil {
+			panic(err)
+		}
+		t.addBuffer(defaultBuffer, true)
 		welcomeMessage(t)
 	}
 }

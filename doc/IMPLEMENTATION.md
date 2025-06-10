@@ -52,7 +52,7 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_VERSION` (0x03): Versions do not match.
 - `ERR_HANDSHAKE` (0x04): Handshake process has failed.
 - `ERR_ARGS` (0x05): Invalid arguments provided.
-- `ERR_MAXSIZ` (0x06): Payload is too big.
+- `ERR_MAXSIZE` (0x06): Payload is too big.
 - `ERR_HEADER` (0x07): Invalid header provided.
 - `ERR_NOSESS` (0x08): User is not in a session.
 - `ERR_LOGIN` (0x09): User can not be logged in.
@@ -65,6 +65,7 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_EXISTS` (0x10): Content already exists.
 - `ERR_DEREG` (0x11): User is no longer registered.
 - `ERR_DUPSESS` (0x12): Session already exists in another endpoint.
+- `ERR_NOSECURE` (0x13): Operation requires a secure connection.
 
 ### Argument for USRS
 - `OFFLINE` (0x0): Show all users.

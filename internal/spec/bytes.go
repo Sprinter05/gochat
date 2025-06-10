@@ -47,6 +47,7 @@ type Command struct {
 
 /* COMMAND FUNCTIONS */
 
+// TODO: improve arguments (hide encrypted, translate permissions...)
 // Returns a string that contains full information about a command
 func (cmd *Command) Contents() string {
 	var output strings.Builder
@@ -55,10 +56,16 @@ func (cmd *Command) Contents() string {
 	fmt.Fprintf(&output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
 	fmt.Fprintf(&output, "* Info: %d\n", cmd.HD.Info)
 	if cmd.HD.Op == ERR {
-		fmt.Fprintf(&output, "* Error: %s\n", ErrorCodeToError(cmd.HD.Info))
+		err := ErrorCodeToError(cmd.HD.Info)
+		fmt.Fprintf(&output, "* Error: %s\n", ErrorString(err))
 	}
 	if cmd.HD.Op == ADMIN {
-		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(Admin(cmd.HD.Info)))
+		admin := Admin(cmd.HD.Info)
+		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(admin))
+	}
+	if cmd.HD.Op == SUB || cmd.HD.Op == UNSUB || cmd.HD.Op == HOOK {
+		hook := Hook(cmd.HD.Info)
+		fmt.Fprintf(&output, "* Hook: %s\n", HookString(hook))
 	}
 	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)
 	fmt.Fprintf(&output, "* Length: %d\n", cmd.HD.Len)
@@ -115,7 +122,7 @@ func (hd Header) ClientCheck() error {
 	}
 
 	// Only these operations can have a null ID
-	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK
+	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK || hd.Op == HOOK
 	if !check && hd.ID == NullID {
 		return ErrorHeader
 	}
@@ -138,6 +145,21 @@ func NewHeader(hdr []byte) Header {
 		Len:  (uint16(h >> 26)) &^ 0xC000,     // 0b1100_0000_0000_0000
 		ID:   ID((uint16(h >> 16)) &^ 0xFC00), // 0b1111_1100_0000_0000
 	}
+}
+
+/* PERMISSION FUNCTIONS */
+
+// Reads a byte array corresponding to the permission
+// argument of a command and returns the unsigned integer
+// asocciated to said array or an error if the reading failed.
+func ParsePermissionBytes(perm []byte) (uint, error) {
+	buf := bytes.NewBuffer(perm)
+	permission, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return 0, ErrorArguments
+	}
+
+	return uint(permission), nil
 }
 
 /* UNIX STAMP FUNCTIONS */

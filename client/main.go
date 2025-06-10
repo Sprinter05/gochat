@@ -10,16 +10,16 @@ import (
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/client/ui"
-	"github.com/Sprinter05/gochat/internal/models"
-	"github.com/Sprinter05/gochat/internal/spec"
 	"gorm.io/gorm"
 )
 
 // Stores the json attributes of the client configuration file
 type Config struct {
 	ShellServer struct {
-		Address string `json:"address"`
-		Port    uint16 `json:"port"`
+		Address    string `json:"address"`
+		Port       uint16 `json:"port"`
+		TLS        bool   `json:"use_tls"`
+		VerifyCert bool   `json:"verify_tls"`
 	} `json:"shell_server"`
 	Database struct {
 		Path     string `json:"path"`
@@ -80,7 +80,7 @@ func setupTUI(config Config, dbconn *gorm.DB) {
 	_, app := ui.New(commands.StaticData{
 		Verbose: verbosePrint,
 		DB:      dbconn,
-	}, config.UIConfig.DebugBuffer)
+	}, config.UIConfig.DebugBuffer && verbosePrint)
 
 	if err := app.Run(); err != nil {
 		panic(err)
@@ -91,40 +91,30 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	address := config.ShellServer.Address
 	port := config.ShellServer.Port
 
-	var cl spec.Connection
 	var con net.Conn
 	var server db.Server
 	if address != "" {
 		var conErr error
-		con, conErr = commands.Connect(address, port)
+		con, conErr = commands.Connect(
+			address, port,
+			config.ShellServer.TLS,
+			config.ShellServer.VerifyCert,
+		)
 		if conErr != nil {
 			log.Fatal(conErr)
 		}
-		server, _ = db.SaveServer(dbconn, address, port, "Default")
+		server, _ = db.SaveServer(dbconn, address, port, "Default", false)
 	}
-	cl = spec.Connection{Conn: con}
-
-	sortID := func(a spec.Command, b spec.Command) int {
-		switch {
-		case a.HD.ID > b.HD.ID:
-			return 1
-		case a.HD.ID < b.HD.ID:
-			return -1
-		default:
-			return 0
-		}
-	}
-	waitlist := models.NewWaitlist(128, sortID)
 
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
-	data := commands.Data{ClientCon: cl, Server: server, Waitlist: waitlist}
+	data := commands.Data{Conn: con, Server: &server, Waitlist: commands.DefaultWaitlist()}
 	args := commands.Command{Data: &data, Static: &static, Output: ShellPrint}
 
 	if address != "" {
 		commands.ConnectionStart(args)
 		args.Output("listening for incoming packets...", commands.INFO)
-		go commands.Listen(&args)
+		go commands.Listen(args, func() {})
 	}
 
 	go RECIVHandler(&args)

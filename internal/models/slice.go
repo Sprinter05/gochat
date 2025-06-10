@@ -11,8 +11,8 @@ import (
 // be accessed concurrently. Stored values
 // must be able to be compared together.
 type Slice[T comparable] struct {
-	mut  sync.RWMutex
-	data []T
+	mut  sync.RWMutex // mutex
+	data []T          // actual data
 }
 
 /* FUNCTIONS */
@@ -23,6 +23,14 @@ func NewSlice[T comparable](cap uint) Slice[T] {
 	return Slice[T]{
 		data: make([]T, 0, cap),
 	}
+}
+
+// Returns the amount of elements present
+// in the slice.
+func (s *Slice[T]) Len() int {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	return len(s.data)
 }
 
 // Appends a new element to the slice,
@@ -57,6 +65,22 @@ func (s *Slice[T]) Remove(val T) {
 
 	// Reorder the array
 	s.data = slices.Delete(s.data, pos, pos+1)
+}
+
+// Returns the element located at a certain index and
+// a boolean indicating if it exists
+// (array indexing starts at 0).
+func (s *Slice[T]) Get(index uint) (T, bool) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	// Out of bounds
+	if index >= uint(len(s.data)) {
+		var empty T
+		return empty, false
+	}
+
+	return s.data[index], true
 }
 
 // Clears all elements from the slice.

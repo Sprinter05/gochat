@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -14,7 +15,7 @@ type Command struct {
 	Arguments []string
 
 	serv  Server
-	print func(string, cmds.OutputType)
+	print cmds.OutputFunc
 }
 
 type operation struct {
@@ -32,7 +33,7 @@ var commands map[string]operation = map[string]operation{
 	"connect": {
 		fun:    connectServer,
 		nArgs:  0,
-		format: "/connect",
+		format: "/connect (-noverify)",
 	},
 	"register": {
 		fun:    registerUser,
@@ -64,6 +65,41 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/version",
 	},
+	"tls": {
+		fun:    toggleTLS,
+		nArgs:  1,
+		format: "/tls <on/off>",
+	},
+	"request": {
+		fun:    userRequest,
+		nArgs:  0,
+		format: "/request",
+	},
+	"clear": {
+		fun:    clearSystem,
+		nArgs:  0,
+		format: "/clear",
+	},
+	"import": {
+		fun:    importKey,
+		nArgs:  2,
+		format: "/import <username> <path>",
+	},
+	"export": {
+		fun:    exportKey,
+		nArgs:  1,
+		format: "/export <username>",
+	},
+	"subscribe": {
+		fun:    subEvent,
+		nArgs:  1,
+		format: "/subscribe <hook>",
+	},
+	"unsubscribe": {
+		fun:    unsubEvent,
+		nArgs:  1,
+		format: "/unsubscribe <hook>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -74,6 +110,8 @@ func (t *TUI) parseCommand(text string) {
 		t.showError(ErrorEmptyCmd)
 		return
 	}
+
+	t.history.Add(lower)
 
 	cmd := Command{
 		Operation: parts[0],
@@ -119,7 +157,199 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
 	}, array
 }
 
+func askForNewPassword(t *TUI) (string, error) {
+	pswd, err := newLoginPopup(t, "Enter a password...")
+	if err != nil {
+		return "", err
+	}
+
+	check, err := newLoginPopup(t, "Repeat your password...")
+	if err != nil {
+		return "", err
+	}
+
+	if pswd != check {
+		return "", ErrorPasswordNotMatch
+	}
+
+	return pswd, nil
+}
+
 // COMMANDS
+
+func unsubEvent(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Unsub(ctx, c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
+
+func subEvent(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Sub(ctx, c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
+
+func exportKey(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	pswd, err := newLoginPopup(t, "Enter the account's password...")
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Export(ctx, c, args[0], []byte(pswd))
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
+
+func importKey(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	pswd, err := askForNewPassword(t)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Import(ctx, c, args[0], args[1], []byte(pswd))
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+}
+
+func clearSystem(t *TUI, cmd Command) {
+	buf := cmd.serv.Buffers().current
+	tab, ok := cmd.serv.Buffers().tabs.Get(buf)
+	if !ok {
+		panic("missing current buffer")
+	}
+
+	count := 0
+	msgs := tab.messages.Copy(0)
+	for _, v := range msgs {
+		if v.Sender == "System" {
+			tab.messages.Remove(v)
+			count += 1
+		}
+	}
+
+	if count > 0 {
+		t.renderBuffer(buf)
+		cmd.print(fmt.Sprintf(
+			"cleared %d system messages!",
+			count,
+		), cmds.RESULT)
+	}
+}
+
+func userRequest(t *TUI, cmd Command) {
+	buf := cmd.serv.Buffers().current
+	data, _ := cmd.serv.Online()
+	tab, exists := cmd.serv.Buffers().tabs.Get(buf)
+
+	if data == nil {
+		cmd.print("cannot request on a local server!", cmds.ERROR)
+		return
+	}
+
+	if exists && tab.system {
+		cmd.print("cannot request on a system buffer!", cmds.ERROR)
+		return
+	}
+
+	err := t.requestUser(cmd.serv, buf, cmd.print)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+	}
+}
+
+func toggleTLS(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.TLS(ctx, c, args...)
+
+	if r.Error != nil {
+		cmd.print(r.Error.Error(), cmds.ERROR)
+		return
+	}
+
+	i := t.comp.servers.GetCurrentItem()
+	addr := cmd.serv.Source()
+	if cmd.Arguments[0] == "on" {
+		t.comp.servers.SetItemText(
+			i, cmd.serv.Name(),
+			addr.String()+" (TLS)",
+		)
+		cmd.print("TLS is now enabled", cmds.RESULT)
+	} else { // off
+		t.comp.servers.SetItemText(
+			i, cmd.serv.Name(),
+			addr.String(),
+		)
+		cmd.print("TLS is now disabled", cmds.RESULT)
+	}
+}
 
 func showVersion(t *TUI, cmd Command) {
 	str := fmt.Sprintf(
@@ -138,7 +368,9 @@ func disconnectServer(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Discn(c, args...)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Discn(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -157,14 +389,18 @@ func logoutUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Logout(c, args...)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Logout(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 
+	data.Waitlist.Cancel(data.Logout)
 	t.comp.input.SetLabel(defaultLabel)
+	cleanupSession(t, cmd.serv)
 }
 
 func loginUser(t *TUI, cmd Command) {
@@ -174,7 +410,7 @@ func loginUser(t *TUI, cmd Command) {
 		return
 	}
 
-	if data.IsUserLoggedIn() {
+	if data.IsLoggedIn() {
 		cmd.print(ErrorLoggedIn.Error(), cmds.ERROR)
 		return
 	}
@@ -184,14 +420,16 @@ func loginUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := newLoginPopup(t)
+	pswd, err := newLoginPopup(t, "Enter the account's password...")
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Login(c, args[0], []byte(pswd))
+	lCtx, lCancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(lCancel)
+	r := cmds.Login(lCtx, c, args[0], []byte(pswd))
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -200,6 +438,36 @@ func loginUser(t *TUI, cmd Command) {
 
 	uname := data.User.User.Username
 	t.comp.input.SetLabel(unameLabel(uname))
+	if !t.status.showingUsers {
+		toggleUserlist(t)
+	}
+
+	ctx, cancel := context.WithCancel(cmd.serv.Connection().Get())
+	data.Logout = cancel
+	go t.receiveMessages(ctx, cmd.serv)
+	go t.receiveHooks(ctx, cmd.serv)
+
+	cmd.print("recovering messages...", cmds.INTERMEDIATE)
+	rCtx, rCancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(rCancel)
+	reciv := cmds.Reciv(rCtx, c)
+	if reciv.Error != nil {
+		if reciv.Error == spec.ErrorEmpty {
+			cmd.print("no new messages have been received", cmds.RESULT)
+		} else {
+			cmd.print(reciv.Error.Error(), cmds.ERROR)
+			return
+		}
+	}
+
+	cmd.print("subscribing to relevant events...", cmds.INTERMEDIATE)
+
+	output := cmd.print
+	if !t.data.Verbose {
+		output = func(string, cmds.OutputType) {}
+	}
+
+	defaultSubscribe(t, cmd.serv, output)
 }
 
 func listUsers(t *TUI, cmd Command) {
@@ -210,7 +478,9 @@ func listUsers(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Usrs(c, args...)
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Usrs(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -243,14 +513,16 @@ func registerUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := newLoginPopup(t)
+	pswd, err := askForNewPassword(t)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Reg(c, args[0], []byte(pswd))
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Reg(ctx, c, args[0], []byte(pswd))
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
@@ -258,7 +530,6 @@ func registerUser(t *TUI, cmd Command) {
 	}
 }
 
-// TODO: handle disconnection
 func connectServer(t *TUI, cmd Command) {
 	addr := cmd.serv.Source()
 	if addr == nil {
@@ -273,16 +544,43 @@ func connectServer(t *TUI, cmd Command) {
 		return
 	}
 
+	args := make([][]byte, 0)
+	args = append(args, []byte(parts[0]))
+	args = append(args, []byte(parts[1]))
+
+	if len(cmd.Arguments) >= 1 {
+		args = append(args, []byte(cmd.Arguments[0]))
+	}
+
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
 	c, _ := cmd.createCmd(t, data)
-	r := cmds.Conn(c, []byte(parts[0]), []byte(parts[1]))
+	ctx, cancel := timeout(cmd.serv)
+	defer c.Data.Waitlist.Cancel(cancel)
+	r := cmds.Conn(ctx, c, args...)
 
 	if r.Error != nil {
 		cmd.print(r.Error.Error(), cmds.ERROR)
 		return
 	}
 
+	cmd.serv.Connection().Set(context.Background())
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
+
+	c.Output = t.systemMessage("", defaultBuffer)
+	go cmds.Listen(c, func() {
+		cmd.serv.Buffers().Offline()
+		c.Data.Waitlist.Cancel(data.Logout)
+		c.Data.Waitlist.Cancel(cmd.serv.Connection().Cancel)
+
+		t.comp.input.SetLabel(defaultLabel)
+		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+
+		cleanupSession(t, cmd.serv)
+		t.notifs.Clear()
+
+		discn := t.systemMessage()
+		discn("You are no longer connected to this server!", cmds.INFO)
+	})
 }
 
 func listBuffers(t *TUI, cmd Command) {
@@ -290,7 +588,7 @@ func listBuffers(t *TUI, cmd Command) {
 	bufs := cmd.serv.Buffers()
 	l := bufs.tabs.GetAll()
 
-	list.WriteString("Showing active server buffers: ")
+	list.WriteString("showing active server buffers: ")
 	for i, v := range l {
 		hidden := ""
 		if v.index == -1 {

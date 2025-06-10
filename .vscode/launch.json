@@ -22,7 +22,6 @@
             "request": "launch",
             "mode": "debug",
             "args": [
-                "--verbose=false",
                 "--config",
                 "./config/client.json",
             ],

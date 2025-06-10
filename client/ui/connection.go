@@ -1,16 +1,54 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"slices"
 	"strings"
+	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 )
+
+/* CONTEXTS */
+
+// Defines the parent context used for any event
+// to be cancelled throughout a connection.
+type Connection struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+// Sets a new context by cancelling the previous one first
+func (c *Connection) Set(background context.Context) {
+	c.Cancel()
+	ctx, cancel := context.WithCancel(background)
+	c.ctx = ctx
+	c.cancel = cancel
+}
+
+// Gets the current context
+func (c *Connection) Get() context.Context {
+	return c.ctx
+}
+
+// Cancels the current context and sets it to the default one
+func (c *Connection) Cancel() {
+	c.cancel()
+	c.ctx = context.Background()
+}
+
+// Returns a new timeout using the parent context
+func timeout(s Server) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(
+		s.Connection().Get(),
+		time.Duration(cmdTimeout)*time.Second,
+	)
+}
 
 /* INTERFACE */
 
@@ -34,6 +72,12 @@ type Server interface {
 	// Returns the command asocciated data and whether
 	// they are connected to the endpoint or not
 	Online() (*cmds.Data, bool)
+
+	// Returns the name of the server
+	Name() string
+
+	// Returns the context of the connection
+	Connection() *Connection
 }
 
 // Returns the currently active server.
@@ -47,54 +91,97 @@ func (t *TUI) Active() Server {
 	return s
 }
 
+/* RENDERING */
+
 // Adds a server connected to a remote endpoint, stores it in
-// the database, adds it to the TUI and changes to it.
-func (t *TUI) addServer(name string, addr net.Addr) {
+// the database, adds it to the TUI but does not changes to it.
+func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 	if t.servers.Len() >= int(maxServers) {
-		t.showError(ErrorMaxServers)
-		return
+		return ErrorMaxServers
 	}
 
 	_, ok := t.servers.Get(name)
 	if ok {
-		t.showError(ErrorExists)
-		return
+		return ErrorExists
 	}
 
 	ip, err := net.ResolveTCPAddr("tcp4", addr.String())
 	if err != nil {
-		t.showError(err)
-		return
+		return err
+	}
+
+	if t.existsServer(*ip) {
+		return ErrorExists
 	}
 
 	s := &RemoteServer{
 		ip:   ip.IP,
 		port: uint16(ip.Port),
 		name: name,
+		conn: &Connection{
+			ctx:    context.Background(),
+			cancel: func() {},
+		},
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](maxBuffers),
 		},
-		data: new(cmds.Data),
+		data: cmds.NewEmptyData(),
 	}
+	s.data.Waitlist = cmds.DefaultWaitlist()
 
-	var dbErr error
-	s.data.Server, dbErr = db.SaveServer(
+	serv, err := db.SaveServer(
 		t.data.DB,
 		ip.IP.String(),
 		uint16(ip.Port),
 		name,
+		tls,
 	)
-
-	if dbErr != nil {
-		t.showError(dbErr)
-		return
+	if err != nil {
+		return err
 	}
+	s.data.Server = &serv
 
 	t.servers.Add(name, s)
 	l := t.servers.Len()
-	t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
+
+	if tls {
+		t.comp.servers.AddItem(name, addr.String()+" (TLS)", ascii(l), nil)
+	} else {
+		t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
+	}
 
 	t.renderServer(name)
+	return nil
+}
+
+// Finds a server by a given address
+func (t *TUI) existsServer(addr net.TCPAddr) bool {
+	list := t.servers.GetAll()
+	for _, v := range list {
+		source := v.Source()
+		if source == nil {
+			continue
+		}
+
+		tcp, _ := net.ResolveTCPAddr("tcp4", source.String())
+		if slices.Equal(tcp.IP, addr.IP) && tcp.Port == addr.Port {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Changes the TUI component according to its
+// internal index and renders the server
+func (t *TUI) changeServer(i int) {
+	if i < 0 || i >= t.comp.servers.GetItemCount() {
+		return
+	}
+
+	t.comp.servers.SetCurrentItem(i)
+	text, _ := t.comp.servers.GetItemText(i)
+	t.renderServer(text)
 }
 
 // Finds a server by a given name and returns its internal
@@ -128,6 +215,18 @@ func (t *TUI) hideServer(name string) {
 	if ok {
 		t.comp.servers.RemoveItem(i)
 	}
+
+	// Cleanup resources and wait a bit
+	data, _ := s.Online()
+	_ = cmds.Discn(
+		s.Connection().Get(),
+		cmds.Command{
+			Output: t.systemMessage(),
+			Data:   data,
+			Static: &t.data,
+		},
+	)
+	<-time.After(100 * time.Millisecond)
 
 	t.servers.Remove(name)
 
@@ -174,6 +273,9 @@ func (t *TUI) renderServer(name string) {
 		t.comp.input.SetLabel(defaultLabel)
 	}
 
+	empty := func(string, cmds.OutputType) {}
+	updateOnlineUsers(t, s, empty)
+
 	t.comp.buffers.Clear()
 	if s.Buffers().tabs.Len() == 0 {
 		t.comp.text.Clear()
@@ -212,6 +314,8 @@ type RemoteServer struct {
 	port uint16
 	name string
 
+	conn *Connection
+
 	bufs Buffers
 	data *cmds.Data
 }
@@ -222,10 +326,20 @@ func (s *RemoteServer) Messages(name string) []Message {
 		return nil
 	}
 
-	return t.messages.Copy(0)
+	msgs := t.messages.Copy(0)
+	slices.SortFunc(msgs, func(a, b Message) int {
+		if a.Timestamp.Before(b.Timestamp) {
+			return -1
+		} else if a.Timestamp.After(b.Timestamp) {
+			return 1
+		}
+
+		return 0
+	})
+
+	return msgs
 }
 
-// Returns true if received
 func (s *RemoteServer) Receive(msg Message) (bool, error) {
 	if msg.Source == nil {
 		// Not this destination
@@ -252,8 +366,9 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 
 	b, ok := s.bufs.tabs.Get(msg.Buffer)
 	if !ok {
-		s.bufs.New(msg.Buffer, false)
-		b, _ = s.bufs.tabs.Get(msg.Buffer)
+		// s.bufs.New(msg.Buffer, false)
+		// b, _ = s.bufs.tabs.Get(msg.Buffer)
+		return false, nil
 	}
 
 	b.messages.Add(msg)
@@ -277,6 +392,14 @@ func (s *RemoteServer) Source() net.Addr {
 	}
 
 	return ip
+}
+
+func (s *RemoteServer) Name() string {
+	return s.name
+}
+
+func (s *RemoteServer) Connection() *Connection {
+	return s.conn
 }
 
 /* LOCAL SERVER */
@@ -305,7 +428,6 @@ func (l *LocalServer) Messages(name string) []Message {
 	return ret
 }
 
-// Does not return an error if the server is not the destionation remote
 func (l *LocalServer) Receive(msg Message) (bool, error) {
 	// Only local server should be nil
 	if msg.Source != nil {
@@ -337,4 +459,12 @@ func (l *LocalServer) Source() net.Addr {
 
 func (l *LocalServer) Online() (*cmds.Data, bool) {
 	return nil, false
+}
+
+func (l *LocalServer) Name() string {
+	return l.name
+}
+
+func (l *LocalServer) Connection() *Connection {
+	return nil
 }

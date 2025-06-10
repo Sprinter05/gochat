@@ -188,36 +188,37 @@ func ClientArgs(a Action) int {
 // the [errors] package with specific information
 // that follows the protocol specification.
 type SpecError struct {
-	Code uint8
-	Text string
+	Code        uint8
+	Text        string
+	Description string
 }
 
 // Returns the text asocciated to the error.
 func (err SpecError) Error() string {
-	return err.Text
+	return err.Description
 }
 
 var (
-	ErrorUndefined    error = SpecError{0x00, "undefined problem occured"}               // undefined problem occured
-	ErrorInvalid      error = SpecError{0x01, "invalid operation performed"}             // invalid operation performed
-	ErrorNotFound     error = SpecError{0x02, "content can not be found"}                // content can not be found
-	ErrorVersion      error = SpecError{0x03, "server and client versions do not match"} // server and client versions do not match
-	ErrorHandshake    error = SpecError{0x04, "handshake process failed"}                // handshake process failed
-	ErrorArguments    error = SpecError{0x05, "invalid arguments given"}                 // invalid arguments given
-	ErrorMaxSize      error = SpecError{0x06, "data size is too big"}                    // data size is too big
-	ErrorHeader       error = SpecError{0x07, "invalid header provided"}                 // invalid header provided
-	ErrorNoSession    error = SpecError{0x08, "user is not connected"}                   // user is not connected
-	ErrorLogin        error = SpecError{0x09, "user can not be logged in"}               // user can not be logged in
-	ErrorConnection   error = SpecError{0x0A, "connection problem occured"}              // connection problem occured
-	ErrorEmpty        error = SpecError{0x0B, "queried data is empty"}                   // queried data is empty
-	ErrorPacket       error = SpecError{0x0C, "packet could not be delivered"}           // packet could not be delivered
-	ErrorPrivileges   error = SpecError{0x0D, "missing privileges to run"}               // missing privileges to run
-	ErrorServer       error = SpecError{0x0E, "server operation failed"}                 // server operation failed
-	ErrorIdle         error = SpecError{0x0F, "user has been idle for too long"}         // user has been idle for too long
-	ErrorExists       error = SpecError{0x10, "content already exists"}                  // content already exists
-	ErrorUnescure     error = SpecError{0x10, "connection is not secure"}                // connection is not secure
-	ErrorDeregistered error = SpecError{0x11, "user no longer exists"}                   // user no longer exists
-	ErrorDupSession   error = SpecError{0x12, "session exists in another endpoint"}      // session exists in another endpoint
+	ErrorUndefined    error = SpecError{0x00, "ERR_UNDEFINED", "undefined problem occured"}             // undefined problem occured
+	ErrorInvalid      error = SpecError{0x01, "ERR_INVALID", "invalid operation performed"}             // invalid operation performed
+	ErrorNotFound     error = SpecError{0x02, "ERR_NOTFOUND", "content can not be found"}               // content can not be found
+	ErrorVersion      error = SpecError{0x03, "ERR_VERSION", "server and client versions do not match"} // server and client versions do not match
+	ErrorHandshake    error = SpecError{0x04, "ERR_HANDSHAKE", "handshake process failed"}              // handshake process failed
+	ErrorArguments    error = SpecError{0x05, "ERR_ARGS", "invalid arguments given"}                    // invalid arguments given
+	ErrorMaxSize      error = SpecError{0x06, "ERR_MAXSIZE", "data size is too big"}                    // data size is too big
+	ErrorHeader       error = SpecError{0x07, "ERR_HEADER", "invalid header provided"}                  // invalid header provided
+	ErrorNoSession    error = SpecError{0x08, "ERR_NOSESS", "user is not connected"}                    // user is not connected
+	ErrorLogin        error = SpecError{0x09, "ERR_LOGIN", "user can not be logged in"}                 // user can not be logged in
+	ErrorConnection   error = SpecError{0x0A, "ERR_CONN", "connection problem occured"}                 // connection problem occured
+	ErrorEmpty        error = SpecError{0x0B, "ERR_EMPTY", "queried data is empty"}                     // queried data is empty
+	ErrorPacket       error = SpecError{0x0C, "ERR_PACKET", "packet could not be delivered"}            // packet could not be delivered
+	ErrorPrivileges   error = SpecError{0x0D, "ERR_PERMS", "missing privileges to run"}                 // missing privileges to run
+	ErrorServer       error = SpecError{0x0E, "ERR_SERVER", "server operation failed"}                  // server operation failed
+	ErrorIdle         error = SpecError{0x0F, "ERR_IDLE", "user has been idle for too long"}            // user has been idle for too long
+	ErrorExists       error = SpecError{0x10, "ERR_EXISTS", "content already exists"}                   // content already exists
+	ErrorDeregistered error = SpecError{0x11, "ERR_DEREG", "user no longer exists"}                     // user no longer exists
+	ErrorDupSession   error = SpecError{0x12, "ERR_DUPSESS", "session exists in another endpoint"}      // session exists in another endpoint
+	ErrorUnsecure     error = SpecError{0x13, "ERR_NOSECURE", "secured connection required"}            // secure connection required
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -240,6 +241,7 @@ var codeToError map[byte]error = map[byte]error{
 	0x10: ErrorExists,
 	0x11: ErrorDeregistered,
 	0x12: ErrorDupSession,
+	0x13: ErrorUnsecure,
 }
 
 // Returns the error asocciated to a hex byte.
@@ -250,6 +252,18 @@ func ErrorCode(err error) byte {
 		return v.Code
 	default:
 		return EmptyInfo
+	}
+}
+
+// Returns the formal error string as defined by the
+// implementation. If the provided error is not a spec
+// error an empty string is returned.
+func ErrorString(err error) string {
+	switch v := err.(type) {
+	case SpecError:
+		return v.Text
+	default:
+		return ""
 	}
 }
 
