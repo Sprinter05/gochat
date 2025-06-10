@@ -110,7 +110,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
 	data := commands.Data{Conn: con, Server: &server, Waitlist: commands.DefaultWaitlist()}
-	args := commands.Command{Data: &data, Static: &static, Output: shell.ShellPrint}
+	args := commands.Command{Data: &data, Static: &static, Output: shell.Print}
 
 	if address != "" {
 		commands.ConnectionStart(args)

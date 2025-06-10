@@ -71,8 +71,7 @@ func PrintPrompt(data commands.Data) {
 
 // Shell-specific output function that handles different
 // input types accordingly.
-// TODO: remove "Shell" from "ShellPrint" once shell package has been created
-func ShellPrint(text string, outputType commands.OutputType) {
+func Print(text string, outputType commands.OutputType) {
 	prefix := ""
 	jump := "\n"
 	switch outputType {
