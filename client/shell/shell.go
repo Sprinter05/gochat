@@ -1,4 +1,4 @@
-package main
+package shell
 
 // This package includes the core functionality of the gochat client shell
 
@@ -59,10 +59,11 @@ func NewShell(data commands.Command) {
 func PrintPrompt(data commands.Data) {
 	connected := ""
 	username := ""
-	if !(data.User.User.Username == "") {
+	if data.IsLoggedIn() {
 		username = data.User.User.Username
 	}
-	if data.Conn == nil {
+
+	if !data.IsConnected() {
 		connected = "(not connected) "
 	}
 	fmt.Printf("\033[36m%sgochat(%s) > \033[0m", connected, username)

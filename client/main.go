@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
+	"github.com/Sprinter05/gochat/client/shell"
 	"github.com/Sprinter05/gochat/client/ui"
 	"gorm.io/gorm"
 )
@@ -109,7 +110,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	// TODO: verbose to config
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
 	data := commands.Data{Conn: con, Server: &server, Waitlist: commands.DefaultWaitlist()}
-	args := commands.Command{Data: &data, Static: &static, Output: ShellPrint}
+	args := commands.Command{Data: &data, Static: &static, Output: shell.ShellPrint}
 
 	if address != "" {
 		commands.ConnectionStart(args)
@@ -117,8 +118,8 @@ func setupShell(config Config, dbconn *gorm.DB) {
 		go commands.Listen(args, func() {})
 	}
 
-	go RECIVHandler(&args)
-	NewShell(args)
+	go shell.RECIVHandler(&args)
+	shell.NewShell(args)
 	// TODO: check that the connection closes correctly even without this
 	/*
 		if data.ClientCon.Conn != nil {
