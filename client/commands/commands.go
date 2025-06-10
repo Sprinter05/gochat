@@ -383,17 +383,17 @@ func Export(cmd Command, username, pass string) ReplyData {
 // Arguments: <on/off>
 //
 // Returns a zero value ReplyData if the argument is correct
-func TLS(cmd Command, on bool) ReplyData {
+func TLS(cmd Command, server *db.Server, on bool) ReplyData {
 	if cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorOfflineRequired}
 	}
 
 	if on {
-		cmd.Data.Server.TLS = true
+		server.TLS = true
 		err := db.ChangeServerTLS(
 			cmd.Static.DB,
-			cmd.Data.Server.Address,
-			cmd.Data.Server.Port,
+			server.Address,
+			server.Port,
 			true,
 		)
 
@@ -406,8 +406,8 @@ func TLS(cmd Command, on bool) ReplyData {
 		cmd.Data.Server.TLS = false
 		err := db.ChangeServerTLS(
 			cmd.Static.DB,
-			cmd.Data.Server.Address,
-			cmd.Data.Server.Port,
+			server.Address,
+			server.Port,
 			false,
 		)
 
