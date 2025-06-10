@@ -109,6 +109,7 @@ const (
 	ERROR                          // Error messages that may be printed additionaly in error cases
 	INFO                           // Message that representes generic info not asocciated to a command
 	USRS                           // Specific for user printing
+	PLAIN                          // Output type that should be printed as-is, with no prefix
 )
 
 /* ERRORS */
@@ -581,7 +582,7 @@ func Ver(ctx context.Context, data Command, args ...[]byte) ReplyData {
 		fmt.Sprintf(
 			"gochat version %d",
 			spec.ProtocolVersion,
-		), RESULT,
+		), PLAIN,
 	)
 
 	return ReplyData{}
@@ -596,9 +597,9 @@ func Verbose(ctx context.Context, cmd Command, args ...[]byte) ReplyData {
 	cmd.Static.Verbose = !cmd.Static.Verbose
 
 	if cmd.Static.Verbose {
-		cmd.Output("verbose mode on", RESULT)
+		cmd.Output("verbose mode on", PLAIN)
 	} else {
-		cmd.Output("verbose mode off", RESULT)
+		cmd.Output("verbose mode off", PLAIN)
 	}
 
 	return ReplyData{}
