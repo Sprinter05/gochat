@@ -269,7 +269,7 @@ func Unsub(ctx context.Context, cmd Command, name string) ReplyData {
 // Arguments: <username> <path> [password]
 //
 // Returns a zero value ReplyData if successful
-func Import(ctx context.Context, cmd Command, username, pass, path string) ReplyData {
+func Import(cmd Command, username, pass, path string) ReplyData {
 
 	verbosePrint("reading private key...", cmd)
 	buf, err := os.ReadFile(path)
@@ -320,7 +320,7 @@ func Import(ctx context.Context, cmd Command, username, pass, path string) Reply
 // Arguments: <username> [password]
 //
 // Returns a zero value ReplyData if successful
-func Export(ctx context.Context, cmd Command, username, pass string) ReplyData {
+func Export(cmd Command, username, pass string) ReplyData {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		username,
@@ -383,7 +383,7 @@ func Export(ctx context.Context, cmd Command, username, pass string) ReplyData {
 // Arguments: <on/off>
 //
 // Returns a zero value ReplyData if the argument is correct
-func TLS(ctx context.Context, cmd Command, on bool) ReplyData {
+func TLS(cmd Command, on bool) ReplyData {
 	if cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorOfflineRequired}
 	}
@@ -426,7 +426,7 @@ func TLS(ctx context.Context, cmd Command, on bool) ReplyData {
 //
 // Returns a zero value ReplyData if the connection was successful.
 // This command does not spawn a listening thread nor allocates a waitlist.
-func Conn(ctx context.Context, cmd Command, server db.Server, noverify bool) ReplyData {
+func Conn(cmd Command, server db.Server, noverify bool) ReplyData {
 	if cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorAlreadyConnected}
 	}
@@ -469,7 +469,7 @@ func Conn(ctx context.Context, cmd Command, server db.Server, noverify bool) Rep
 // Arguments: none
 //
 // Returns a zero value ReplyData if the disconnection was successful.
-func Discn(ctx context.Context, cmd Command) ReplyData {
+func Discn(cmd Command) ReplyData {
 	if !cmd.Data.IsConnected() {
 		return ReplyData{Error: ErrorNotConnected}
 	}
@@ -489,7 +489,7 @@ func Discn(ctx context.Context, cmd Command) ReplyData {
 }
 
 // Prints the gochat version used by the client
-func Ver(ctx context.Context, data Command) ReplyData {
+func Ver(data Command) ReplyData {
 	data.Output(
 		fmt.Sprintf(
 			"gochat version %d",
@@ -505,7 +505,7 @@ func Ver(ctx context.Context, data Command) ReplyData {
 // Arguments: none
 //
 // Returns a zero value ReplyData.
-func Verbose(ctx context.Context, cmd Command) ReplyData {
+func Verbose(cmd Command) ReplyData {
 	cmd.Static.Verbose = !cmd.Static.Verbose
 
 	if cmd.Static.Verbose {
