@@ -223,6 +223,19 @@ func receiveMessages(ctx context.Context, cmd commands.Command, args ...[]byte) 
 	return recivErr
 }
 
+// Calls Sub to subscribe to a hook
+//
+// Arguments: <hook>
+func subscribe(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	hook := string(args[0])
+	_, subErr := commands.Sub(ctx, cmd, hook)
+	return subErr
+}
+
 /* SHELL-EXCLUSIVE COMMANDS */
 
 // Prints out the gochat version used by the client.
