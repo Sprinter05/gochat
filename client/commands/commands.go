@@ -455,7 +455,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 }
 
 // Disconnects a client from a gochat server.
-// Returns a zero value ReplyData if the disconnection was successful.
+// Returns nil values if the disconnection was successful.
 func Discn(cmd Command) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
@@ -476,10 +476,7 @@ func Discn(cmd Command) ([][]byte, error) {
 }
 
 // Requests the information of an external user to add it to the client database.
-//
-// Arguments: <username to be requested>
-//
-// Returns a ReplyData containing the reply REQ arguments.
+// Returns the reply REQ arguments.
 func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected

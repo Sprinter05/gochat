@@ -4,6 +4,7 @@ package shell
 // in the commands package. It also implements aditional, shell-exclusive commands.
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -15,7 +16,7 @@ import (
 // Sets up the CONN call depending on how the user specified the server.
 //
 // Arguments: <server address> <server port> [-noverify] || <server name> [-noverify]
-func connect(cmd commands.Command, args ...[]byte) error {
+func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	noverify := false
 	server := db.Server{}
 	var dbErr error
@@ -55,15 +56,28 @@ func connect(cmd commands.Command, args ...[]byte) error {
 // Calls Discn, no aditional sanitization needed.
 //
 // Arguments: none
-func disconnect(cmd commands.Command) error {
+func disconnect(ctx context.Context, cmd commands.Command) error {
 	_, discnErr := commands.Discn(cmd)
 	return discnErr
 }
 
+// Calls REQ to request a user
+// Arguments: <username to be requested> (args[0])
+func requestUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+	username := string(args[0])
+	_, reqErr := commands.Req(ctx, cmd, username)
+	return reqErr
+}
+
+/* SHELL-EXCLUSIVE COMMANDS */
+
 // Prints out the gochat version used by the client.
 //
 // Arguments: none
-func ver(cmd commands.Command, args ...[]byte) error {
+func ver(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	cmd.Output(
 		fmt.Sprintf(
 			"gochat version %d",
@@ -76,7 +90,7 @@ func ver(cmd commands.Command, args ...[]byte) error {
 // Switches on/off the verbose mode.
 //
 // Arguments: none
-func verbose(cmd commands.Command, args ...[]byte) error {
+func verbose(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	cmd.Static.Verbose = !cmd.Static.Verbose
 
 	if cmd.Static.Verbose {
