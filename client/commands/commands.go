@@ -847,9 +847,7 @@ func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 // is used as an argument, the local users will be printed insteads and no server requests
 // will be performed.
 //
-// Arguments: <online/all/local>
-//
-// Returns a zero value ReplyData if an OK packet is received after the sent VERIF packet.
+// Returns a the received usernames in an array if the request was correct
 func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
 
 	if usrsType == LOCAL {

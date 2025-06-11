@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -177,6 +178,49 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 func logoutUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	_, logoutErr := commands.Logout(ctx, cmd)
 	return logoutErr
+}
+
+// Sanitizes the USRS option received in the argument in order to call
+// the USRS command.
+//
+// Arguments: <online/all/local>
+func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	var option commands.USRSType
+	strOption := strings.ToUpper(string(args[0]))
+	switch strOption {
+	case "ONLINE":
+		option = commands.ONLINE
+	case "ALL":
+		option = commands.ALL
+	case "LOCAL":
+		option = commands.LOCAL
+	default:
+		return commands.ErrorUnknownUSRSOption
+	}
+
+	_, usrsErr := commands.Usrs(ctx, cmd, option)
+	return usrsErr
+}
+
+// Calls MSG, to send a message to a user.
+// TODO: in order to send more complex messages,
+// some sort of prompt should be used.
+//
+// Arguments: <dest. username> <unencyrpted text message>
+func sendMessage(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	dstUser := string(args[0])
+	plainText := string(args[1])
+
+	_, msgErr := commands.Msg(ctx, cmd, dstUser, plainText)
+	return msgErr
+}
+
+// Calls Reciv, no aditional sanitization needed.
+//
+// Arguments: none
+func receiveMessages(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	_, recivErr := commands.Reciv(ctx, cmd)
+	return recivErr
 }
 
 /* SHELL-EXCLUSIVE COMMANDS */
