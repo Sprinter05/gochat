@@ -77,10 +77,10 @@ func requestUser(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 	return reqErr
 }
 
-// Creates a few prompts for the user to provide the user data and then
-// registers said user by a REG call.
+// Opens a few prompts for the user to provide the user data and then
+// registers said user with a REG call.
 //
-// Arguments: <none>
+// Arguments: none
 func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if !cmd.Data.IsConnected() {
 		return commands.ErrorNotConnected
@@ -138,6 +138,37 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 
 	_, regErr := commands.Reg(ctx, cmd, string(username), string(pass1))
 	return regErr
+}
+
+// Opens a prompt to securely ask for a password in order to call the LOGIN
+// command.
+//
+// Arguments: <username>
+func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if !cmd.Data.IsConnected() {
+		return commands.ErrorNotConnected
+	}
+
+	if cmd.Data.IsLoggedIn() {
+		return commands.ErrorAlreadyLoggedIn
+	}
+
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	username := args[0]
+	// Asks for password
+	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
+	pass, passErr := term.ReadPassword(0)
+
+	if passErr != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return passErr
+	}
+	cmd.Output("\n", commands.PROMPT)
+	_, loginErr := commands.Login(ctx, cmd, string(username), string(pass))
+	return loginErr
 }
 
 /* SHELL-EXCLUSIVE COMMANDS */

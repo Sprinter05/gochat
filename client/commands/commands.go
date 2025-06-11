@@ -646,9 +646,7 @@ func Reg(ctx context.Context, cmd Command, username, pass string) ([][]byte, err
 // Logs a user to a server. If only the username
 // is given, the command will ask for the password.
 //
-// Arguments: <username> [password]
-//
-// Returns a zero value ReplyData if an OK packet
+// Returns nil values if an OK packet
 // is received after the sent VERIF packet.
 func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
@@ -683,7 +681,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 		return nil, localUserErr
 	}
 
-	// // In case the foreign key is not auto filled
+	// In case the foreign key is not auto filled
 	// user, userErr := db.GetUser(
 	// 	cmd.Static.DB,
 	// 	username,
