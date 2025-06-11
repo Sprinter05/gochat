@@ -171,6 +171,14 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	return loginErr
 }
 
+// Calls Discn, no aditional sanitization needed.
+//
+// Arguments: none
+func logoutUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	_, logoutErr := commands.Logout(ctx, cmd)
+	return logoutErr
+}
+
 /* SHELL-EXCLUSIVE COMMANDS */
 
 // Prints out the gochat version used by the client.

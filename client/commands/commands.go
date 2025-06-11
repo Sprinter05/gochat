@@ -798,8 +798,6 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 
 // Logs out a user from a server.
 //
-// Arguments: none
-//
 // Returns a zero value ReplyData if an OK packet is received after the sent LOGOUT packet.
 func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
