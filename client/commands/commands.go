@@ -414,10 +414,7 @@ func TLS(cmd Command, server *db.Server, on bool) ([][]byte, error) {
 
 // Starts a connection with a server. If noverify is set,
 // in case of TLS connections, certificate origins wont be checked
-//
-// Arguments: <server address> <server port> [-noverify]
-//
-// Returns a zero value ReplyData if the connection was successful.
+// Returns nil values if the connection was successful.
 // This command does not spawn a listening thread nor allocates a waitlist.
 func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 	if cmd.Data.IsConnected() {
@@ -458,9 +455,6 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 }
 
 // Disconnects a client from a gochat server.
-//
-// Arguments: none
-//
 // Returns a zero value ReplyData if the disconnection was successful.
 func Discn(cmd Command) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
