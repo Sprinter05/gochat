@@ -475,22 +475,6 @@ func Discn(cmd Command) ([][]byte, error) {
 	return nil, nil
 }
 
-// TODO: Move to shell
-// Switches on/off the verbose mode.
-//
-// Arguments: none
-//
-// Returns a zero value ReplyData.
-func Verbose(cmd Command) {
-	cmd.Static.Verbose = !cmd.Static.Verbose
-
-	if cmd.Static.Verbose {
-		cmd.Output("verbose mode on", PLAIN)
-	} else {
-		cmd.Output("verbose mode off", PLAIN)
-	}
-}
-
 // Requests the information of an external user to add it to the client database.
 //
 // Arguments: <username to be requested>

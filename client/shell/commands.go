@@ -72,3 +72,17 @@ func ver(cmd commands.Command, args ...[]byte) error {
 	)
 	return nil
 }
+
+// Switches on/off the verbose mode.
+//
+// Arguments: none
+func verbose(cmd commands.Command, args ...[]byte) error {
+	cmd.Static.Verbose = !cmd.Static.Verbose
+
+	if cmd.Static.Verbose {
+		cmd.Output("verbose mode on", commands.PLAIN)
+	} else {
+		cmd.Output("verbose mode off", commands.PLAIN)
+	}
+	return nil
+}
