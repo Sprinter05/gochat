@@ -4,13 +4,17 @@ package shell
 // in the commands package. It also implements aditional, shell-exclusive commands.
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
+	"golang.org/x/term"
 )
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -61,7 +65,8 @@ func disconnect(ctx context.Context, cmd commands.Command) error {
 	return discnErr
 }
 
-// Calls REQ to request a user
+// Calls REQ to request a user.
+//
 // Arguments: <username to be requested> (args[0])
 func requestUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
@@ -70,6 +75,69 @@ func requestUser(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 	username := string(args[0])
 	_, reqErr := commands.Req(ctx, cmd, username)
 	return reqErr
+}
+
+// Creates a few prompts for the user to provide the user data and then
+// registers said user by a REG call.
+//
+// Arguments: <none>
+func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if !cmd.Data.IsConnected() {
+		return commands.ErrorNotConnected
+	}
+
+	rd := bufio.NewReader(os.Stdin)
+
+	// Gets the username
+	cmd.Output("username: ", commands.PROMPT)
+	username, readErr := rd.ReadBytes('\n')
+	if readErr != nil {
+		return readErr
+	}
+
+	// Removes unecessary spaces and the line jump in the username
+	username = bytes.TrimSpace(username)
+	if len(username) == 0 {
+		return commands.ErrorUsernameEmpty
+	}
+
+	exists, existsErr := db.LocalUserExists(
+		cmd.Static.DB,
+		string(username),
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+
+	if existsErr != nil {
+		return existsErr
+	}
+	if exists {
+		return commands.ErrorUserExists
+	}
+
+	// Gets the password
+	cmd.Output("password: ", commands.PROMPT)
+	pass1, pass1Err := term.ReadPassword(0)
+	if pass1Err != nil {
+		cmd.Output("", commands.PROMPT)
+		return pass1Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	cmd.Output("repeat password: ", commands.PROMPT)
+	pass2, pass2Err := term.ReadPassword(0)
+	if pass2Err != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return pass2Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	if string(pass1) != string(pass2) {
+		return commands.ErrorPasswordsDontMatch
+	}
+
+	_, regErr := commands.Reg(ctx, cmd, string(username), string(pass1))
+	return regErr
 }
 
 /* SHELL-EXCLUSIVE COMMANDS */

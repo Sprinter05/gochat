@@ -116,22 +116,22 @@ const (
 
 // Possible command errors.
 var (
-	ErrorInsuficientArgs   error = fmt.Errorf("not enough arguments")
-	ErrorNotConnected      error = fmt.Errorf("not connected to a server")
-	ErrorAlreadyConnected  error = fmt.Errorf("already connected to a server")
-	ErrorNotLoggedIn       error = fmt.Errorf("you are not logged in")
-	ErrorAlreadyLoggedIn   error = fmt.Errorf("you are already logged in")
-	ErrorWrongCredentials  error = fmt.Errorf("wrong credentials")
-	ErrorUnknownUSRSOption error = fmt.Errorf("unknown option; valid options are online, all or local")
-	ErrorUsernameEmpty     error = fmt.Errorf("username cannot be empty")
-	ErrorUserExists        error = fmt.Errorf("local user exists")
-	ErrorPasswordsNotMatch error = fmt.Errorf("passwords do not match")
-	ErrorUserNotFound      error = fmt.Errorf("local user not found")
-	ErrorUnknownTLSOption  error = fmt.Errorf("unknown option; valid options are on or off")
-	ErrorOfflineRequired   error = fmt.Errorf("you must be offline")
-	ErrorInvalidSkipVerify error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
-	ErrorRequestToSelf     error = fmt.Errorf("cannot request yourself")
-	ErrorUnknownHookOption error = fmt.Errorf("invalid hook provided")
+	ErrorInsuficientArgs    error = fmt.Errorf("not enough arguments")
+	ErrorNotConnected       error = fmt.Errorf("not connected to a server")
+	ErrorAlreadyConnected   error = fmt.Errorf("already connected to a server")
+	ErrorNotLoggedIn        error = fmt.Errorf("you are not logged in")
+	ErrorAlreadyLoggedIn    error = fmt.Errorf("you are already logged in")
+	ErrorWrongCredentials   error = fmt.Errorf("wrong credentials")
+	ErrorUnknownUSRSOption  error = fmt.Errorf("unknown option; valid options are online, all or local")
+	ErrorUsernameEmpty      error = fmt.Errorf("username cannot be empty")
+	ErrorUserExists         error = fmt.Errorf("local user exists")
+	ErrorPasswordsDontMatch error = fmt.Errorf("passwords do not match")
+	ErrorUserNotFound       error = fmt.Errorf("local user not found")
+	ErrorUnknownTLSOption   error = fmt.Errorf("unknown option; valid options are on or off")
+	ErrorOfflineRequired    error = fmt.Errorf("you must be offline")
+	ErrorInvalidSkipVerify  error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
+	ErrorRequestToSelf      error = fmt.Errorf("cannot request yourself")
+	ErrorUnknownHookOption  error = fmt.Errorf("invalid hook provided")
 )
 
 /* LOOKUP TABLE */
@@ -413,9 +413,10 @@ func TLS(cmd Command, server *db.Server, on bool) ([][]byte, error) {
 }
 
 // Starts a connection with a server. If noverify is set,
-// in case of TLS connections, certificate origins wont be checked
-// Returns nil values if the connection was successful.
+// in case of TLS connections, certificate origins wont be checked.
 // This command does not spawn a listening thread nor allocates a waitlist.
+//
+// Returns nil values if the connection was successful.
 func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 	if cmd.Data.IsConnected() {
 		return nil, ErrorAlreadyConnected
@@ -455,6 +456,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 }
 
 // Disconnects a client from a gochat server.
+//
 // Returns nil values if the disconnection was successful.
 func Discn(cmd Command) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
@@ -476,6 +478,7 @@ func Discn(cmd Command) ([][]byte, error) {
 }
 
 // Requests the information of an external user to add it to the client database.
+//
 // Returns the reply REQ arguments.
 func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
@@ -539,9 +542,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 // Registers a user to a server and also adds it to the client database.
 // A prompt will get the user input if the user and password is not specified.
 //
-// Arguments: [user] [password]
-//
-// Returns a zero value ReplyData if an OK packet is received after the sent REG packet.
+// Returns nil values if an OK packet is received after the sent REG packet.
 func Reg(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
