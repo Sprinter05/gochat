@@ -847,7 +847,7 @@ func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 // is used as an argument, the local users will be printed insteads and no server requests
 // will be performed.
 //
-// Returns a the received usernames in an array if the request was correct
+// Returns a the received usernames in an array if the request was correct.
 func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
 
 	if usrsType == LOCAL {
@@ -909,9 +909,7 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 
 // Sends a message to a user with the current time stamp and stores it in the database.
 //
-// Arguments: <dest. username> <unencyrpted text message>
-//
-// Returns a zero value ReplyData if an OK packet is received after the sent MSG packet
+// Returns nil values if an OK packet is received after the sent MSG packet
 func Msg(ctx context.Context, cmd Command, username, message string) ([][]byte, error) {
 
 	if !cmd.Data.IsConnected() {
@@ -1032,11 +1030,9 @@ func Msg(ctx context.Context, cmd Command, username, message string) ([][]byte, 
 	return nil, nil
 }
 
-// Sends a RECIV packet to the server. This command listens for an initial ERR/OK
+// Sends a RECIV packet to the server. This command listens for an initial ERR/OK.
 //
-// Arguments: none
-//
-// Returns a zero value ReplyData if the packet is sent successfully
+// Returns nil values if the packet is sent successfully.
 func Reciv(ctx context.Context, cmd Command) ([][]byte, error) {
 	id := cmd.Data.NextID()
 	pct, pctErr := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo)
