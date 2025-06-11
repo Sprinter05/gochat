@@ -476,17 +476,6 @@ func Discn(cmd Command) ([][]byte, error) {
 }
 
 // TODO: Move to shell
-// Prints the gochat version used by the client
-func Ver(data Command) {
-	data.Output(
-		fmt.Sprintf(
-			"gochat version %d",
-			spec.ProtocolVersion,
-		), PLAIN,
-	)
-}
-
-// TODO: Move to shell
 // Switches on/off the verbose mode.
 //
 // Arguments: none

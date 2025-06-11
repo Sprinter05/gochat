@@ -4,10 +4,12 @@ package shell
 // in the commands package. It also implements aditional, shell-exclusive commands.
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
+	"github.com/Sprinter05/gochat/internal/spec"
 )
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -56,4 +58,17 @@ func connect(cmd commands.Command, args ...[]byte) error {
 func disconnect(cmd commands.Command) error {
 	_, discnErr := commands.Discn(cmd)
 	return discnErr
+}
+
+// Prints out the gochat version used by the client.
+//
+// Arguments: none
+func ver(cmd commands.Command, args ...[]byte) error {
+	cmd.Output(
+		fmt.Sprintf(
+			"gochat version %d",
+			spec.ProtocolVersion,
+		), commands.PLAIN,
+	)
+	return nil
 }
