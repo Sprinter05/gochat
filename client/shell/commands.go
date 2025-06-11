@@ -236,6 +236,19 @@ func subscribe(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	return subErr
 }
 
+// Calls Unsub to subscribe to a hook
+//
+// Arguments: <hook>
+func unsubscribe(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	hook := string(args[0])
+	_, unsubErr := commands.Unsub(ctx, cmd, hook)
+	return unsubErr
+}
+
 /* SHELL-EXCLUSIVE COMMANDS */
 
 // Prints out the gochat version used by the client.

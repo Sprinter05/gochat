@@ -202,8 +202,6 @@ func Sub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
 
 // Unsubscribes from a specific hook to the server
 //
-// Arguments: <hook>
-//
 // Returns a zero value ReplyData if successful
 func Unsub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
