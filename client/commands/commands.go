@@ -152,7 +152,7 @@ var hooksList = map[string]spec.Hook{
 // Arguments: <hook>
 //
 // Returns a zero value ReplyData if successful
-func Sub(ctx context.Context, cmd Command, name string) ([]string, error) {
+func Sub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -207,7 +207,7 @@ func Sub(ctx context.Context, cmd Command, name string) ([]string, error) {
 // Arguments: <hook>
 //
 // Returns a zero value ReplyData if successful
-func Unsub(ctx context.Context, cmd Command, name string) ([]string, error) {
+func Unsub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -263,7 +263,7 @@ func Unsub(ctx context.Context, cmd Command, name string) ([]string, error) {
 // Arguments: <username> <path> [password]
 //
 // Returns a zero value ReplyData if successful
-func Import(cmd Command, username, pass, path string) ([]string, error) {
+func Import(cmd Command, username, pass, path string) ([][]byte, error) {
 
 	verbosePrint("reading private key...", cmd)
 	buf, readErr := os.ReadFile(path)
@@ -314,7 +314,7 @@ func Import(cmd Command, username, pass, path string) ([]string, error) {
 // Arguments: <username> [password]
 //
 // Returns a zero value ReplyData if successful
-func Export(cmd Command, username, pass string) ([]string, error) {
+func Export(cmd Command, username, pass string) ([][]byte, error) {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		username,
@@ -377,7 +377,7 @@ func Export(cmd Command, username, pass string) ([]string, error) {
 // Arguments: <on/off>
 //
 // Returns a zero value ReplyData if the argument is correct
-func TLS(cmd Command, server *db.Server, on bool) ([]string, error) {
+func TLS(cmd Command, server *db.Server, on bool) ([][]byte, error) {
 	if cmd.Data.IsConnected() {
 		return nil, ErrorOfflineRequired
 	}
@@ -419,7 +419,7 @@ func TLS(cmd Command, server *db.Server, on bool) ([]string, error) {
 //
 // Returns a zero value ReplyData if the connection was successful.
 // This command does not spawn a listening thread nor allocates a waitlist.
-func Conn(cmd Command, server db.Server, noverify bool) ([]string, error) {
+func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 	if cmd.Data.IsConnected() {
 		return nil, ErrorAlreadyConnected
 	}
@@ -462,7 +462,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([]string, error) {
 // Arguments: none
 //
 // Returns a zero value ReplyData if the disconnection was successful.
-func Discn(cmd Command) ([]string, error) {
+func Discn(cmd Command) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -578,7 +578,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 // Arguments: [user] [password]
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent REG packet.
-func Reg(ctx context.Context, cmd Command, username, pass string) ([]string, error) {
+func Reg(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -838,7 +838,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 // Arguments: none
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent LOGOUT packet.
-func Logout(ctx context.Context, cmd Command) ([]string, error) {
+func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -953,7 +953,7 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 // Arguments: <dest. username> <unencyrpted text message>
 //
 // Returns a zero value ReplyData if an OK packet is received after the sent MSG packet
-func Msg(ctx context.Context, cmd Command, username, message string) ([]string, error) {
+func Msg(ctx context.Context, cmd Command, username, message string) ([][]byte, error) {
 
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
@@ -1078,7 +1078,7 @@ func Msg(ctx context.Context, cmd Command, username, message string) ([]string, 
 // Arguments: none
 //
 // Returns a zero value ReplyData if the packet is sent successfully
-func Reciv(ctx context.Context, cmd Command) ([]string, error) {
+func Reciv(ctx context.Context, cmd Command) ([][]byte, error) {
 	id := cmd.Data.NextID()
 	pct, pctErr := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo)
 	if pctErr != nil {
