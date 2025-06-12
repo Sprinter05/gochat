@@ -128,7 +128,7 @@ func OpenClientDatabase(path string, logger logger.Interface) *gorm.DB {
 
 // Adds a socket pair to the database if the socket is not on it already. Then,
 // returns it.
-func SaveServer(db *gorm.DB, address string, port uint16, name string, tls bool) (Server, error) {
+func AddServer(db *gorm.DB, address string, port uint16, name string, tls bool) (Server, error) {
 	// Adds the server to the database only if it is not in it already
 	server := Server{
 		ServerID: getMaxID(db, "servers") + 1,

@@ -104,7 +104,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 		if conErr != nil {
 			log.Fatal(conErr)
 		}
-		server, _ = db.SaveServer(dbconn, address, port, "Default", false)
+		server, _ = db.AddServer(dbconn, address, port, "Default", false)
 	}
 
 	// TODO: verbose to config

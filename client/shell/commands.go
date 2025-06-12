@@ -388,7 +388,7 @@ func registerServer(ctx context.Context, cmd commands.Command, args ...[]byte) e
 		return parseErr
 	}
 
-	server, dbErr := db.SaveServer(cmd.Static.DB, address, uint16(port), name, on)
+	server, dbErr := db.AddServer(cmd.Static.DB, address, uint16(port), name, on)
 	if dbErr != nil {
 		return dbErr
 	}
