@@ -19,22 +19,23 @@ import (
 )
 
 var shCommands = map[string]func(ctx context.Context, cmd commands.Command, args ...[]byte) error{
-	"CONN":    connect,
-	"DISCN":   disconnect,
-	"REQ":     requestUser,
-	"REG":     registerUser,
-	"LOGIN":   loginUser,
-	"LOGOUT":  logoutUser,
-	"USRS":    getUsers,
-	"MSG":     sendMessage,
-	"RECIV":   receiveMessages,
-	"TLS":     changeTLS,
-	"IMPORT":  importKey,
-	"EXPORT":  exportKey,
-	"SUB":     subscribe,
-	"UNSUB":   unsubscribe,
-	"VER":     ver,
-	"VERBOSE": verbose,
+	"CONN":      connect,
+	"DISCN":     disconnect,
+	"REQ":       requestUser,
+	"REG":       registerUser,
+	"LOGIN":     loginUser,
+	"LOGOUT":    logoutUser,
+	"USRS":      getUsers,
+	"MSG":       sendMessage,
+	"RECIV":     receiveMessages,
+	"TLS":       changeTLS,
+	"IMPORT":    importKey,
+	"EXPORT":    exportKey,
+	"SUB":       subscribe,
+	"UNSUB":     unsubscribe,
+	"VER":       ver,
+	"VERBOSE":   verbose,
+	"REGSERVER": registerServer,
 }
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -367,4 +368,36 @@ func verbose(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	return nil
 }
 
-// TODO: ADDSERVER
+// Adds a server to the database, with TLS off by default.
+//
+// Arguments: <name> <address> <port> [-tls]
+func registerServer(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 3 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	on := false
+	if len(args) == 4 && string(args[3]) == "-tls" {
+		on = true
+	}
+
+	name := string(args[0])
+	address := string(args[1])
+	port, parseErr := strconv.ParseUint(string(args[2]), 10, 16)
+	if parseErr != nil {
+		return parseErr
+	}
+
+	server, dbErr := db.SaveServer(cmd.Static.DB, address, uint16(port), name, on)
+	if dbErr != nil {
+		return dbErr
+	}
+	cmd.Output(fmt.Sprintf("Server %s (%s:%d) succesfully registered",
+		server.Name,
+		server.Address,
+		server.Port,
+	),
+		commands.RESULT,
+	)
+	return nil
+}
