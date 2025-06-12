@@ -38,7 +38,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 
 	// If only an argument is left, the server will be obtained by name
 	if len(args) == 1 {
-		server, dbErr = db.GetServerName(cmd.Static.DB, string(args[0]))
+		server, dbErr = db.GetServerByName(cmd.Static.DB, string(args[0]))
 		if dbErr != nil {
 			return dbErr
 		}
@@ -263,6 +263,57 @@ func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 
 	_, importErr := commands.Import(cmd, username, pass, path)
 	return importErr
+}
+
+// Calls Import to import a key.
+//
+// Arguments: <username> <path> <password>
+func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 2 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	username := string(args[0])
+	pass := string(args[1])
+
+	_, exportErr := commands.Export(cmd, username, pass)
+	return exportErr
+}
+
+// Calls TLS in order to switch on/off.
+// Arguments after <on/off> are used to select the server to switch its mode of
+//
+// Arguments: <on/off> <server name> || <on/off> <server address> <port>
+func changeTLS(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 2 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	on := false
+	if strings.ToUpper(string(args[0])) == "ON" {
+		on = true
+	}
+
+	var server db.Server
+	var dbErr error
+	if len(args) == 2 {
+		name := string(args[1])
+		server, dbErr = db.GetServerByName(cmd.Static.DB, name)
+		if dbErr != nil {
+			return dbErr
+		}
+	} else {
+		address := string(args[1])
+		port, parseErr := strconv.ParseUint(string(args[2]), 10, 16)
+		if parseErr != nil {
+			return parseErr
+		}
+
+		server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
+	}
+
+	_, tlsErr := commands.TLS(cmd, &server, on)
+	return tlsErr
 }
 
 /* SHELL-EXCLUSIVE COMMANDS */

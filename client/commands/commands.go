@@ -347,7 +347,7 @@ func Export(cmd Command, username, pass string) ([][]byte, error) {
 	}
 	localUser.PrvKey = string(dec)
 
-	file := username + ".priv"
+	file := "export/" + username + ".priv" // TODO: test this
 	f, createErr := os.Create(file)
 	if createErr != nil {
 		return nil, createErr
@@ -367,8 +367,6 @@ func Export(cmd Command, username, pass string) ([][]byte, error) {
 }
 
 // Changes the state of a TLS server
-//
-// Arguments: <on/off>
 //
 // Returns a zero value ReplyData if the argument is correct
 func TLS(cmd Command, server *db.Server, on bool) ([][]byte, error) {

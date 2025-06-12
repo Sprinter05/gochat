@@ -173,7 +173,7 @@ func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 }
 
 // Returns the server with the specified name.
-func GetServerName(db *gorm.DB, name string) (Server, error) {
+func GetServerByName(db *gorm.DB, name string) (Server, error) {
 	var server Server
 	result := db.Where("name = ?", name).First(&server)
 	return server, result.Error
