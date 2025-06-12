@@ -1106,7 +1106,7 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 
 // Prints out all local users and returns an array with its usernames.
 func printLocalUsers(cmd Command) ([][]byte, error) {
-	localUsers, err := db.GetAllLocalUsernames(
+	localUsers, err := db.GetServerLocalUsernames(
 		cmd.Static.DB,
 		cmd.Data.Server.Address,
 		cmd.Data.Server.Port,

@@ -261,8 +261,8 @@ func GetLocalUser(db *gorm.DB, username string, address string, port uint16) (Lo
 	return localUser, result.Error
 }
 
-// Gets all the local usernames (used in USRS to print local usernames).
-func GetAllLocalUsernames(db *gorm.DB, address string, port uint16) ([]string, error) {
+// Gets all the local usernames from a specific server (used in USRS to print local usernames).
+func GetServerLocalUsernames(db *gorm.DB, address string, port uint16) ([]string, error) {
 	var usernames []string
 
 	sv, err := GetServer(db, address, port)
