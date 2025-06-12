@@ -254,9 +254,7 @@ func Unsub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
 }
 
 // Imports a private RSA key for a new local user
-// from the specified directory using the spec PEM format.
-//
-// Arguments: <username> <path> [password]
+// from the specified directory using the specification PEM format.
 //
 // Returns a zero value ReplyData if successful
 func Import(cmd Command, username, pass, path string) ([][]byte, error) {

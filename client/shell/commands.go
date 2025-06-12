@@ -249,6 +249,22 @@ func unsubscribe(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 	return unsubErr
 }
 
+// Calls Import to import a key.
+//
+// Arguments: <username> <path> <password>
+func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 3 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	username := string(args[0])
+	pass := string(args[1])
+	path := string(args[2])
+
+	_, importErr := commands.Import(cmd, username, pass, path)
+	return importErr
+}
+
 /* SHELL-EXCLUSIVE COMMANDS */
 
 // Prints out the gochat version used by the client.
