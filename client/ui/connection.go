@@ -218,13 +218,18 @@ func (t *TUI) hideServer(name string) {
 
 	// Cleanup resources and wait a bit
 	data, _ := s.Online()
-	_ = cmds.Discn(
+	_, err := cmds.Discn(
 		cmds.Command{
 			Output: t.systemMessage(),
 			Data:   data,
 			Static: &t.data,
 		},
 	)
+	if err != nil {
+		t.showError(err)
+		return
+	}
+
 	<-time.After(100 * time.Millisecond)
 
 	t.servers.Remove(name)

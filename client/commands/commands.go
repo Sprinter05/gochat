@@ -98,6 +98,7 @@ const (
 	ERROR                          // Error messages that may be printed additionaly in error cases
 	INFO                           // Message that representes generic info not asocciated to a command
 	USRS                           // Specific for user printing
+	COLOR                          // Special output for shell colors
 	PLAIN                          // Output type that should be printed as-is, with no prefix
 )
 

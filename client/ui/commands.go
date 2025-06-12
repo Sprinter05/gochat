@@ -187,10 +187,10 @@ func unsubEvent(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Unsub(ctx, c, args[0])
+	_, err := cmds.Unsub(ctx, c, args[0])
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -210,10 +210,10 @@ func subEvent(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Sub(ctx, c, args[0])
+	_, err := cmds.Sub(ctx, c, args[0])
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -232,10 +232,10 @@ func exportKey(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Export(c, args[0], pswd)
+	_, err = cmds.Export(c, args[0], pswd)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -254,10 +254,10 @@ func importKey(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	r := cmds.Import(c, args[0], pswd, args[1])
+	_, err = cmds.Import(c, args[0], pswd, args[1])
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -327,10 +327,10 @@ func toggleTLS(t *TUI, cmd Command) {
 		return
 	}
 
-	r := cmds.TLS(c, useTLS)
+	_, err := cmds.TLS(c, c.Data.Server, useTLS)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -368,10 +368,10 @@ func disconnectServer(t *TUI, cmd Command) {
 	}
 
 	c, _ := cmd.createCmd(t, data)
-	r := cmds.Discn(c)
+	_, err := cmds.Discn(c)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -389,10 +389,10 @@ func logoutUser(t *TUI, cmd Command) {
 	c, _ := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Logout(ctx, c)
+	_, err := cmds.Logout(ctx, c)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -427,10 +427,10 @@ func loginUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	lCtx, lCancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(lCancel)
-	r := cmds.Login(lCtx, c, args[0], pswd)
+	_, err = cmds.Login(lCtx, c, args[0], pswd)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -448,12 +448,12 @@ func loginUser(t *TUI, cmd Command) {
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
 	rCtx, rCancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(rCancel)
-	reciv := cmds.Reciv(rCtx, c)
-	if reciv.Error != nil {
-		if reciv.Error == spec.ErrorEmpty {
+	_, err = cmds.Reciv(rCtx, c)
+	if err != nil {
+		if err == spec.ErrorEmpty {
 			cmd.print("no new messages have been received", cmds.RESULT)
 		} else {
-			cmd.print(reciv.Error.Error(), cmds.ERROR)
+			cmd.print(err.Error(), cmds.ERROR)
 			return
 		}
 	}
@@ -491,20 +491,20 @@ func listUsers(t *TUI, cmd Command) {
 
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Usrs(ctx, c, usrs)
+	reply, err := cmds.Usrs(ctx, c, usrs)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
 	var list strings.Builder
 	list.WriteString("Showing " + cmd.Arguments[0] + " users:\n")
-	if len(r.Arguments) == 0 {
+	if len(reply) == 0 {
 		list.WriteString("No users to be shown.\n")
 	}
 
-	for _, v := range r.Arguments {
+	for _, v := range reply {
 		list.WriteString("- [pink::i]" + string(v) + "[-::-]\n")
 	}
 
@@ -533,10 +533,10 @@ func registerUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Reg(ctx, c, args[0], pswd)
+	_, err = cmds.Reg(ctx, c, args[0], pswd)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -564,10 +564,10 @@ func connectServer(t *TUI, cmd Command) {
 	}
 
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
-	r := cmds.Conn(c, *c.Data.Server, noVerify)
+	_, err := cmds.Conn(c, *c.Data.Server, noVerify)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 

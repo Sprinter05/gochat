@@ -68,8 +68,8 @@ If the action to perform requires no additional information the "**Reply Info**"
 - `ERR_NOSECURE` (0x13): Operation requires a secure connection.
 
 ### Argument for USRS
-- `OFFLINE` (0x0): Show all users.
-- `ONLINE` (0x1): Show online users.
+- `USRS_ALL` (0x0): Show all users.
+- `USRS_ONLINE` (0x1): Show online users.
 
 ### Admin Operations for ADMIN
 - `ADMIN_SHTDWN <stamp>` (0x00): Schedules a shutdown for the server.

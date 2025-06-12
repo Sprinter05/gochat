@@ -55,27 +55,32 @@ func (cmd *Command) Contents() string {
 	fmt.Fprintf(&output, "* Version: %d\n", cmd.HD.Ver)
 	fmt.Fprintf(&output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
 	fmt.Fprintf(&output, "* Info: %d\n", cmd.HD.Info)
-	if cmd.HD.Op == ERR {
+
+	switch cmd.HD.Op {
+	case ERR:
 		err := ErrorCodeToError(cmd.HD.Info)
 		fmt.Fprintf(&output, "* Error: %s\n", ErrorString(err))
-	}
-	if cmd.HD.Op == ADMIN {
+	case USRS:
+		usrs := Userlist(cmd.HD.Info)
+		fmt.Fprintf(&output, "* Users: %s\n", UserlistString(usrs))
+	case ADMIN:
 		admin := Admin(cmd.HD.Info)
 		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(admin))
-	}
-	if cmd.HD.Op == SUB || cmd.HD.Op == UNSUB || cmd.HD.Op == HOOK {
+	case SUB, UNSUB, HOOK:
 		hook := Hook(cmd.HD.Info)
 		fmt.Fprintf(&output, "* Hook: %s\n", HookString(hook))
 	}
+
 	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)
 	fmt.Fprintf(&output, "* Length: %d\n", cmd.HD.Len)
 	fmt.Fprintf(&output, "* ID: %d\n", cmd.HD.ID)
 	if len(cmd.Args) != 0 {
-		fmt.Fprintln(&output, "-------- PAYLOAD --------")
+		fmt.Fprintln(&output, "------- PAYLOAD -------")
 		for i, v := range cmd.Args {
 			fmt.Fprintf(&output, "[%d] %s\n", i, v)
 		}
 	}
+	fmt.Fprintf(&output, "-------------------------")
 	return output.String()
 }
 
