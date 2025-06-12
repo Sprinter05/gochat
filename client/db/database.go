@@ -499,3 +499,25 @@ func GetAllUsersMessages(db *gorm.DB, src, dst string, address string, port uint
 
 	return messages, nil
 }
+
+func DeleteConversation(db *gorm.DB, src, dst string, address string, port uint16) error {
+	source, err := GetUser(db, src, address, port)
+	if err != nil {
+		return err
+	}
+
+	destination, err := GetUser(db, dst, address, port)
+	if err != nil {
+		return err
+	}
+
+	result := db.Where(
+		`(source_id = ? AND destination_id = ?) 
+		OR 
+		(source_id = ? AND destination_id = ?)`,
+		source.UserID, destination.UserID,
+		destination.UserID, source.UserID,
+	).Delete(&Message{})
+
+	return result.Error
+}

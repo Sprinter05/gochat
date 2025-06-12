@@ -341,3 +341,26 @@ func HookString(h Hook) string {
 	}
 	return v
 }
+
+/* USERS */
+
+// Specifies the user option for the command
+type Userlist uint8
+
+const (
+	UsersAll    Userlist = 0x0
+	UsersOnline Userlist = 0x1
+)
+
+var userToOption map[Userlist]string = map[Userlist]string{
+	UsersAll:    "USRS_ALL",
+	UsersOnline: "USRS_ONLINE",
+}
+
+func UserlistString(u Userlist) string {
+	v, ok := userToOption[u]
+	if !ok {
+		return ""
+	}
+	return v
+}

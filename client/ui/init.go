@@ -14,7 +14,6 @@ import (
 )
 
 // TODO: remove messages when deleting buffer
-// TODO: hide users bar on local server and clear on server change
 
 const Logo string = `
                    _           _   
@@ -70,6 +69,7 @@ var (
 	ErrorMessageSelf      = errors.New("cannot request to message yourself")
 	ErrorTypingTooFast    = errors.New("you are typing too fast")
 	ErrorPasswordNotMatch = errors.New("passwords do not match")
+	ErrorInvalidArgument  = errors.New("provided argument is incorrect")
 )
 
 // Identifies the areas where components are located.
@@ -390,6 +390,10 @@ func setupKeybinds(t *TUI) {
 			toggleUserlist(t)
 		case tcell.KeyCtrlB: // Show/Hide buffer list
 			toggleBufList(t)
+		case tcell.KeyESC: // Scroll to the end
+			if !t.status.blockCond() {
+				t.comp.text.ScrollToEnd()
+			}
 		case tcell.KeyCtrlT: // Changes input between messages and inpit
 			if t.status.blockCond() {
 				break

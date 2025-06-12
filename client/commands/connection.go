@@ -97,7 +97,8 @@ func Listen(cmd Command, cleanup func()) {
 		}
 
 		if cmd.Static.Verbose {
-			cmd.Output(fmt.Sprintf("\r\033[KThe following packet has been received:\n%s", pct.Contents()), PACKET)
+			cmd.Output("\r\033[K", COLOR)
+			cmd.Output(fmt.Sprintf("The following packet has been received:\n%s", pct.Contents()), PACKET)
 		}
 
 		cmd.Data.Waitlist.Insert(pct)

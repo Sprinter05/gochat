@@ -337,17 +337,17 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 
 	ctx, cancel := timeout(s)
 	defer data.Waitlist.Cancel(cancel)
-	reply := cmds.Usrs(ctx, cmds.Command{
+	reply, err := cmds.Usrs(ctx, cmds.Command{
 		Output: output,
 		Static: &t.data,
 		Data:   data,
-	}, []byte("online"))
+	}, cmds.ONLINE)
 
-	if reply.Error != nil {
-		output(reply.Error.Error(), cmds.ERROR)
+	if err != nil {
+		output(err.Error(), cmds.ERROR)
 		return
 	}
 
-	list := bytes.Join(reply.Arguments, []byte("\n"))
+	list := bytes.Join(reply, []byte("\n"))
 	go show(string(list))
 }

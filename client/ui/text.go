@@ -179,7 +179,7 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 
 	fun := func(s string, out cmds.OutputType) {
 		switch out {
-		case cmds.PROMPT, cmds.USRS:
+		case cmds.PROMPT, cmds.USRS, cmds.COLOR:
 			return
 		case cmds.PACKET:
 			t.debugPacket(s)

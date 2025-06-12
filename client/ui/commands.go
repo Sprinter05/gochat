@@ -144,17 +144,12 @@ func (t *TUI) parseCommand(text string) {
 
 // AUX
 
-func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, [][]byte) {
-	array := make([][]byte, len(c.Arguments))
-	for i, v := range c.Arguments {
-		array[i] = []byte(v)
-	}
-
+func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, []string) {
 	return cmds.Command{
 		Data:   d,
 		Static: &t.data,
 		Output: c.print,
-	}, array
+	}, c.Arguments
 }
 
 func askForNewPassword(t *TUI) (string, error) {
@@ -192,10 +187,10 @@ func unsubEvent(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Unsub(ctx, c, args...)
+	_, err := cmds.Unsub(ctx, c, args[0])
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -215,10 +210,10 @@ func subEvent(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Sub(ctx, c, args...)
+	_, err := cmds.Sub(ctx, c, args[0])
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -237,12 +232,10 @@ func exportKey(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
-	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Export(ctx, c, args[0], []byte(pswd))
+	_, err = cmds.Export(c, args[0], pswd)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -261,12 +254,10 @@ func importKey(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
-	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Import(ctx, c, args[0], args[1], []byte(pswd))
+	_, err = cmds.Import(c, args[0], pswd, args[1])
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -325,12 +316,21 @@ func toggleTLS(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
-	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.TLS(ctx, c, args...)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	var useTLS bool
+	if args[0] == "on" {
+		useTLS = true
+	} else if args[0] == "off" {
+		useTLS = false
+	} else {
+		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
+		return
+	}
+
+	_, err := cmds.TLS(c, c.Data.Server, useTLS)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -367,13 +367,11 @@ func disconnectServer(t *TUI, cmd Command) {
 		return
 	}
 
-	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
-	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Discn(ctx, c, args...)
+	c, _ := cmd.createCmd(t, data)
+	_, err := cmds.Discn(c)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -388,13 +386,13 @@ func logoutUser(t *TUI, cmd Command) {
 		return
 	}
 
-	c, args := cmd.createCmd(t, data)
+	c, _ := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Logout(ctx, c, args...)
+	_, err := cmds.Logout(ctx, c)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -429,10 +427,10 @@ func loginUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	lCtx, lCancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(lCancel)
-	r := cmds.Login(lCtx, c, args[0], []byte(pswd))
+	_, err = cmds.Login(lCtx, c, args[0], pswd)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
@@ -450,12 +448,12 @@ func loginUser(t *TUI, cmd Command) {
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
 	rCtx, rCancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(rCancel)
-	reciv := cmds.Reciv(rCtx, c)
-	if reciv.Error != nil {
-		if reciv.Error == spec.ErrorEmpty {
+	_, err = cmds.Reciv(rCtx, c)
+	if err != nil {
+		if err == spec.ErrorEmpty {
 			cmd.print("no new messages have been received", cmds.RESULT)
 		} else {
-			cmd.print(reciv.Error.Error(), cmds.ERROR)
+			cmd.print(err.Error(), cmds.ERROR)
 			return
 		}
 	}
@@ -478,22 +476,35 @@ func listUsers(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
+
+	var usrs cmds.USRSType
+	if args[0] == "all" {
+		usrs = cmds.ALL
+	} else if args[0] == "online" {
+		usrs = cmds.ONLINE
+	} else if args[0] == "local" {
+		usrs = cmds.LOCAL
+	} else {
+		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
+		return
+	}
+
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Usrs(ctx, c, args...)
+	reply, err := cmds.Usrs(ctx, c, usrs)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
 	var list strings.Builder
 	list.WriteString("Showing " + cmd.Arguments[0] + " users:\n")
-	if len(r.Arguments) == 0 {
+	if len(reply) == 0 {
 		list.WriteString("No users to be shown.\n")
 	}
 
-	for _, v := range r.Arguments {
+	for _, v := range reply {
 		list.WriteString("- [pink::i]" + string(v) + "[-::-]\n")
 	}
 
@@ -522,10 +533,10 @@ func registerUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv)
 	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Reg(ctx, c, args[0], []byte(pswd))
+	_, err = cmds.Reg(ctx, c, args[0], pswd)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 }
@@ -537,29 +548,26 @@ func connectServer(t *TUI, cmd Command) {
 		return
 	}
 
-	parts := strings.Split(addr.String(), ":")
 	data, ok := cmd.serv.Online()
 	if ok {
 		cmd.print(ErrorAlreadyOnline.Error(), cmds.ERROR)
 		return
 	}
 
-	args := make([][]byte, 0)
-	args = append(args, []byte(parts[0]))
-	args = append(args, []byte(parts[1]))
+	c, args := cmd.createCmd(t, data)
 
-	if len(cmd.Arguments) >= 1 {
-		args = append(args, []byte(cmd.Arguments[0]))
+	var noVerify bool
+	if len(args) >= 1 && args[0] == "-noverify" {
+		noVerify = true
+	} else {
+		noVerify = false
 	}
 
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
-	c, _ := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
-	defer c.Data.Waitlist.Cancel(cancel)
-	r := cmds.Conn(ctx, c, args...)
+	_, err := cmds.Conn(c, *c.Data.Server, noVerify)
 
-	if r.Error != nil {
-		cmd.print(r.Error.Error(), cmds.ERROR)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
