@@ -14,6 +14,20 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
+// Given a string containing a command name, returns its execution function.
+func fetchCommand(op string, cmd commands.Command) func(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	v, ok := shCommands[strings.ToUpper(op)]
+	if !ok {
+		cmd.Output(
+			fmt.Sprintf("%s: command not found", op),
+			commands.ERROR,
+		)
+
+		return nil
+	}
+	return v
+}
+
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
 func NewShell(data commands.Command) {
@@ -43,15 +57,15 @@ func NewShell(data commands.Command) {
 		args = append(args, bytes.Fields(input)[1:]...)
 
 		// Gets the appropiate command and executes it
-		f := commands.FetchClientCmd(op, data)
+		f := fetchCommand(op, data)
 		if f == nil {
 			continue
 		}
 
 		//* Can be changed with context.WithTimeout
-		cmdReply := f(context.Background(), data, args...)
-		if cmdReply.Error != nil {
-			fmt.Printf("[ERROR] %s: %s\n", op, cmdReply.Error)
+		err := f(context.Background(), data, args...)
+		if err != nil {
+			fmt.Printf("[ERROR] %s: %s\n", op, err)
 		}
 	}
 }

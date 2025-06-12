@@ -129,7 +129,7 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 	}
 	s.data.Waitlist = cmds.DefaultWaitlist()
 
-	serv, err := db.SaveServer(
+	serv, err := db.AddServer(
 		t.data.DB,
 		ip.IP.String(),
 		uint16(ip.Port),
