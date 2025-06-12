@@ -19,13 +19,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO: PENDING and packet buffer
-// TODO: cache requested users in memory
 // TODO: USERINFO command
 // TODO: HELP
-// TODO: "/" for commands. If no "/" send message instead
 // TODO: More advanced verbose options
-// TODO: GETSERVER command
 // TODO: turn duplicated code (import/reg) to aux functions
 // TODO: move ask password function to shell package
 

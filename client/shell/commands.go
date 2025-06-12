@@ -18,12 +18,31 @@ import (
 	"golang.org/x/term"
 )
 
+var shCommands = map[string]func(ctx context.Context, cmd commands.Command, args ...[]byte) error{
+	"CONN":    connect,
+	"DISCN":   disconnect,
+	"REQ":     requestUser,
+	"REG":     registerUser,
+	"LOGIN":   loginUser,
+	"LOGOUT":  logoutUser,
+	"USRS":    getUsers,
+	"MSG":     sendMessage,
+	"RECIV":   receiveMessages,
+	"TLS":     changeTLS,
+	"IMPORT":  importKey,
+	"EXPORT":  exportKey,
+	"SUB":     subscribe,
+	"UNSUB":   unsubscribe,
+	"VER":     ver,
+	"VERBOSE": verbose,
+}
+
 // Sets up the CONN call depending on how the user specified the server.
 //
 // Arguments: <server address> <server port> [-noverify] || <server name> [-noverify]
 func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	noverify := false
-	server := db.Server{}
+	var server db.Server
 	var dbErr error
 
 	if len(args) < 1 {
@@ -61,7 +80,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 // Calls Discn, no aditional sanitization needed.
 //
 // Arguments: none
-func disconnect(ctx context.Context, cmd commands.Command) error {
+func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	_, discnErr := commands.Discn(cmd)
 	return discnErr
 }
@@ -310,6 +329,9 @@ func changeTLS(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		}
 
 		server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
+		if dbErr != nil {
+			return dbErr
+		}
 	}
 
 	_, tlsErr := commands.TLS(cmd, &server, on)
@@ -344,3 +366,5 @@ func verbose(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	}
 	return nil
 }
+
+// TODO: ADDSERVER
