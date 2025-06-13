@@ -158,6 +158,11 @@ func setupStyle(t *TUI) {
 		SetBackgroundColor(tcell.ColorDefault)
 
 	t.comp.users.
+		SetTextStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault)).
+		SetPlaceholderStyle(tcell.StyleDefault.
+			Background(tcell.ColorDefault).
+			Foreground(tcell.ColorGreen)).
 		SetBorder(true).
 		SetTitle("Users").
 		SetBackgroundColor(tcell.ColorDefault)
