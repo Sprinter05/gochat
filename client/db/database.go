@@ -184,6 +184,13 @@ func GetServerByName(db *gorm.DB, name string) (Server, error) {
 	return server, result.Error
 }
 
+// Returns the serverthat the specified user belongs to.
+func GetServerByUser(db *gorm.DB, username string) (Server, error) {
+	var server Server
+	result := db.Raw(`SELECT * FROM servers, users WHERE users.server_id = servers.server_id`, username).Scan(&server)
+	return server, result.Error
+}
+
 // Deletes a server from the database.
 func RemoveServer(db *gorm.DB, address string, port uint16) error {
 	sv, err := GetServer(db, address, port)
