@@ -304,7 +304,7 @@ func GetAllLocalUsers(db *gorm.DB) ([]LocalUser, error) {
 		db.Where("user_id = ?", v.UserID).Find(&user)
 
 		var server Server
-		db.Where("server_id = ?", user.UserID).Find(&server)
+		db.Where("server_id = ?", user.ServerID).Find(&server)
 		user.Server = server
 
 		users[i].User = user
