@@ -283,11 +283,37 @@ func GetServerLocalUsernames(db *gorm.DB, address string, port uint16) ([]string
 	}
 
 	result := db.Raw(
-		`SELECT u.username
-		FROM users u JOIN local_users lu ON u.user_id = lu.user_id
-		WHERE u.server_id = ?`,
+		`SELECT username
+		FROM users
+		WHERE server_id = ?`,
 		sv.ServerID,
 	).Scan(&usernames)
+
+	return usernames, result.Error
+}
+
+// Gets all the local usernames from every registered server
+// (used in USRS to print local usernames).
+func GetAllLocalUsernames(db *gorm.DB) ([]string, error) {
+	var users []User
+
+	result := db.Raw(
+		`SELECT * 
+		FROM users, servers 
+		WHERE users.server_id = servers.server_id`,
+	).Scan(&users)
+
+	usernames := make([]string, len(users))
+	for i := range users {
+		username := users[i].Username
+		server, _ := GetServerByUser(db, username)
+		usernames[i] = fmt.Sprintf("%s (%s - %s:%d)",
+			username,
+			server.Name,
+			server.Address,
+			server.Port,
+		)
+	}
 
 	return usernames, result.Error
 }
