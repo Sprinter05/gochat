@@ -104,9 +104,10 @@ const (
 
 /* USRS TYPES */
 const (
-	ALL    USRSType = 0 // as spec
-	ONLINE USRSType = 1 // as spec
-	LOCAL  USRSType = 2
+	ALL          USRSType = 0 // as spec
+	ONLINE       USRSType = 1 // as spec
+	LOCAL_SERVER USRSType = 2
+	LOCAL_ALL    USRSType = 3
 )
 
 /* ERRORS */
@@ -839,8 +840,8 @@ func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 // Returns a the received usernames in an array if the request was correct.
 func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
 
-	if usrsType == LOCAL {
-		users, err := printLocalUsers(cmd)
+	if usrsType == LOCAL_ALL {
+		users, err := printAllLocalUsers(cmd)
 		if err != nil {
 			return nil, err
 		}
@@ -849,6 +850,14 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
+	}
+
+	if usrsType == LOCAL_SERVER {
+		users, err := printServerLocalUsers(cmd)
+		if err != nil {
+			return nil, err
+		}
+		return users, nil
 	}
 
 	if !cmd.Data.IsLoggedIn() {
@@ -1104,19 +1113,46 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 	}, nil
 }
 
-// Prints out all local users and returns an array with its usernames.
-func printLocalUsers(cmd Command) ([][]byte, error) {
-	localUsers, err := db.GetAllLocalUsernames(
+// Prints out all local users on the current server and returns an array with its usernames.
+func printServerLocalUsers(cmd Command) ([][]byte, error) {
+	localUsers, err := db.GetServerLocalUsernames(
 		cmd.Static.DB,
 		cmd.Data.Server.Address,
 		cmd.Data.Server.Port,
 	)
+
 	if err != nil {
 		return [][]byte{}, err
 	}
 
 	users := make([][]byte, 0, len(localUsers))
-	cmd.Output("local users:", USRS)
+	cmd.Output(fmt.Sprintf("local users from %s - %s:%d:",
+		cmd.Data.Server.Name,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port),
+		USRS,
+	)
+
+	for _, v := range localUsers {
+		users = append(users, []byte(v))
+		cmd.Output(v, USRS)
+	}
+
+	return users, nil
+}
+
+// Prints out all local users on the current server and returns an array with its usernames.
+func printAllLocalUsers(cmd Command) ([][]byte, error) {
+	localUsers, err := db.GetAllLocalUsernames(
+		cmd.Static.DB,
+	)
+
+	if err != nil {
+		return [][]byte{}, err
+	}
+
+	users := make([][]byte, 0, len(localUsers))
+	cmd.Output("all local users:", USRS)
 
 	for _, v := range localUsers {
 		users = append(users, []byte(v))

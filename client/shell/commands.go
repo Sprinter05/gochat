@@ -52,13 +52,13 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 
 	if string(args[len(args)-1]) == "-noverify" {
 		noverify = true
+		args = args[:len(args)-1]
 	}
-
-	args = args[:len(args)-1]
 
 	// If only an argument is left, the server will be obtained by name
 	if len(args) == 1 {
-		server, dbErr = db.GetServerByName(cmd.Static.DB, string(args[0]))
+		name := string(args[0])
+		server, dbErr = db.GetServerByName(cmd.Static.DB, name)
 		if dbErr != nil {
 			return dbErr
 		}
@@ -68,13 +68,15 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 			return parseErr
 		}
 
-		server, dbErr = db.GetServer(cmd.Static.DB, string(args[1]), uint16(port))
+		address := string(args[0])
+		server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
 		if dbErr != nil {
 			return dbErr
 		}
 	}
 
 	_, connErr := commands.Conn(cmd, server, noverify)
+	cmd.Data.Server = &server
 	return connErr
 }
 
@@ -205,6 +207,11 @@ func logoutUser(ctx context.Context, cmd commands.Command, args ...[]byte) error
 //
 // Arguments: <online/all/local>
 func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
 	var option commands.USRSType
 	strOption := strings.ToUpper(string(args[0]))
 	switch strOption {
@@ -213,7 +220,20 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	case "ALL":
 		option = commands.ALL
 	case "LOCAL":
-		option = commands.LOCAL
+		if len(args) < 2 {
+			return commands.ErrorInsuficientArgs
+		}
+		localOption := strings.ToUpper(string(args[1]))
+
+		switch localOption {
+		case "SERVER":
+			option = commands.LOCAL_SERVER
+		case "ALL":
+			option = commands.LOCAL_ALL
+		default:
+			return commands.ErrorUnknownUSRSOption
+		}
+
 	default:
 		return commands.ErrorUnknownUSRSOption
 	}
