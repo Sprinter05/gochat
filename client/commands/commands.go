@@ -1105,19 +1105,46 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 	}, nil
 }
 
-// Prints out all local users and returns an array with its usernames.
-func printLocalUsers(cmd Command) ([][]byte, error) {
+// Prints out all local users on the current server and returns an array with its usernames.
+func printServerLocalUsers(cmd Command) ([][]byte, error) {
 	localUsers, err := db.GetServerLocalUsernames(
 		cmd.Static.DB,
 		cmd.Data.Server.Address,
 		cmd.Data.Server.Port,
 	)
+
 	if err != nil {
 		return [][]byte{}, err
 	}
 
 	users := make([][]byte, 0, len(localUsers))
-	cmd.Output("local users:", USRS)
+	cmd.Output(fmt.Sprintf("local users from %s - %s:%d:",
+		cmd.Data.Server.Name,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port),
+		USRS,
+	)
+
+	for _, v := range localUsers {
+		users = append(users, []byte(v))
+		cmd.Output(v, USRS)
+	}
+
+	return users, nil
+}
+
+// Prints out all local users on the current server and returns an array with its usernames.
+func printAllLocalUsers(cmd Command) ([][]byte, error) {
+	localUsers, err := db.GetAllLocalUsernames(
+		cmd.Static.DB,
+	)
+
+	if err != nil {
+		return [][]byte{}, err
+	}
+
+	users := make([][]byte, 0, len(localUsers))
+	cmd.Output("all local users:", USRS)
 
 	for _, v := range localUsers {
 		users = append(users, []byte(v))
