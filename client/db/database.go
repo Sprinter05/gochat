@@ -168,7 +168,12 @@ func AddServer(db *gorm.DB, address string, port uint16, name string, tls bool) 
 // Returns the server with the specified socket.
 func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 	var server Server
-	result := db.Where("address = ? AND port = ?", address, port).First(&server)
+	result := db.Raw(`SELECT * FROM servers
+		WHERE address = ? AND port = ?`,
+		address,
+		port,
+	).Scan(&server)
+
 	return server, result.Error
 }
 
