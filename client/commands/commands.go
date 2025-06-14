@@ -104,9 +104,10 @@ const (
 
 /* USRS TYPES */
 const (
-	ALL    USRSType = 0 // as spec
-	ONLINE USRSType = 1 // as spec
-	LOCAL  USRSType = 2
+	ALL          USRSType = 0 // as spec
+	ONLINE       USRSType = 1 // as spec
+	LOCAL_SERVER USRSType = 2
+	LOCAL_ALL    USRSType = 3
 )
 
 /* ERRORS */
