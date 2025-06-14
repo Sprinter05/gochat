@@ -4,7 +4,6 @@ package db
 // The database used for the client is SQLite, connected with GORM.
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -105,11 +104,6 @@ type Server struct {
 	Name     string `gorm:"unique;not null"`
 }
 
-/* ERRORS */
-
-var ErrorUnexpectedRows error = fmt.Errorf("unexpected number of rows affected in User creation")
-var ErrorUnexpectedzero error = fmt.Errorf("unexpected ID 0 on query")
-
 /* CONNECTION */
 
 // Opens the client database.
@@ -168,10 +162,10 @@ func AddServer(db *gorm.DB, address string, port uint16, name string, tls bool) 
 // Returns the server with the specified socket.
 func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 	var server Server
-	result := db.Raw(`SELECT * FROM servers
+	result := db.Raw(
+		`SELECT * FROM servers
 		WHERE address = ? AND port = ?`,
-		address,
-		port,
+		address, port,
 	).Scan(&server)
 
 	return server, result.Error
@@ -181,13 +175,6 @@ func GetServer(db *gorm.DB, address string, port uint16) (Server, error) {
 func GetServerByName(db *gorm.DB, name string) (Server, error) {
 	var server Server
 	result := db.Where("name = ?", name).First(&server)
-	return server, result.Error
-}
-
-// Returns the serverthat the specified user belongs to.
-func GetServerByUser(db *gorm.DB, username string) (Server, error) {
-	var server Server
-	result := db.Raw(`SELECT * FROM servers, users WHERE users.server_id = servers.server_id`, username).Scan(&server)
 	return server, result.Error
 }
 
@@ -205,7 +192,9 @@ func RemoveServer(db *gorm.DB, address string, port uint16) error {
 // Returns all servers
 func GetAllServers(db *gorm.DB) ([]Server, error) {
 	var servers []Server
-	result := db.Raw("SELECT * FROM servers").Scan(&servers)
+	result := db.Raw(
+		`SELECT * FROM servers`,
+	).Scan(&servers)
 	return servers, result.Error
 }
 
@@ -274,8 +263,9 @@ func GetLocalUser(db *gorm.DB, username string, address string, port uint16) (Lo
 }
 
 // Gets all the local usernames from a specific server (used in USRS to print local usernames).
-func GetServerLocalUsernames(db *gorm.DB, address string, port uint16) ([]string, error) {
-	var usernames []string
+// Fils the User foreign key
+func GetServerLocalUsers(db *gorm.DB, address string, port uint16) ([]LocalUser, error) {
+	var users []LocalUser
 
 	sv, err := GetServer(db, address, port)
 	if err != nil {
@@ -283,39 +273,44 @@ func GetServerLocalUsernames(db *gorm.DB, address string, port uint16) ([]string
 	}
 
 	result := db.Raw(
-		`SELECT username
-		FROM users
-		WHERE server_id = ?`,
+		`SELECT *
+		FROM local_users lu JOIN users u ON lu.user_id = u.user_id
+		WHERE u.server_id = ?`,
 		sv.ServerID,
-	).Scan(&usernames)
+	).Scan(&users)
 
-	return usernames, result.Error
+	for i, v := range users {
+		var user User
+		db.Where("user_id = ?", v.UserID).Find(&user)
+
+		users[i].User = user
+	}
+
+	return users, result.Error
 }
 
 // Gets all the local usernames from every registered server
 // (used in USRS to print local usernames).
-func GetAllLocalUsernames(db *gorm.DB) ([]string, error) {
-	var users []User
+// Fills both the user and server foreign key
+func GetAllLocalUsers(db *gorm.DB) ([]LocalUser, error) {
+	var users []LocalUser
 
 	result := db.Raw(
-		`SELECT * 
-		FROM users, servers 
-		WHERE users.server_id = servers.server_id`,
+		`SELECT * FROM local_users`,
 	).Scan(&users)
 
-	usernames := make([]string, len(users))
-	for i := range users {
-		username := users[i].Username
-		server, _ := GetServerByUser(db, username)
-		usernames[i] = fmt.Sprintf("%s (%s - %s:%d)",
-			username,
-			server.Name,
-			server.Address,
-			server.Port,
-		)
+	for i, v := range users {
+		var user User
+		db.Where("user_id = ?", v.UserID).Find(&user)
+
+		var server Server
+		db.Where("server_id = ?", user.UserID).Find(&server)
+		user.Server = server
+
+		users[i].User = user
 	}
 
-	return usernames, result.Error
+	return users, result.Error
 }
 
 // Returns true if the specified username and server defines a local user in the database.

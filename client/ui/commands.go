@@ -43,7 +43,7 @@ var commands map[string]operation = map[string]operation{
 	"users": {
 		fun:    listUsers,
 		nArgs:  1,
-		format: "/users <online/all/local>",
+		format: "/users <remote/online/local/server>",
 	},
 	"login": {
 		fun:    loginUser,
@@ -478,12 +478,14 @@ func listUsers(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 
 	var usrs cmds.USRSType
-	if args[0] == "all" {
+	if args[0] == "remote" {
 		usrs = cmds.ALL
 	} else if args[0] == "online" {
 		usrs = cmds.ONLINE
+	} else if args[0] == "server" {
+		usrs = cmds.LOCAL_SERVER
 	} else if args[0] == "local" {
-		usrs = cmds.LOCAL
+		usrs = cmds.LOCAL_ALL
 	} else {
 		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
 		return
