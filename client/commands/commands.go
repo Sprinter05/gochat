@@ -840,8 +840,8 @@ func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 // Returns a the received usernames in an array if the request was correct.
 func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
 
-	if usrsType == LOCAL {
-		users, err := printLocalUsers(cmd)
+	if usrsType == LOCAL_ALL {
+		users, err := printAllLocalUsers(cmd)
 		if err != nil {
 			return nil, err
 		}
@@ -850,6 +850,14 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
+	}
+
+	if usrsType == LOCAL_SERVER {
+		users, err := printServerLocalUsers(cmd)
+		if err != nil {
+			return nil, err
+		}
+		return users, nil
 	}
 
 	if !cmd.Data.IsLoggedIn() {
