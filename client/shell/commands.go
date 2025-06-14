@@ -76,6 +76,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	}
 
 	_, connErr := commands.Conn(cmd, server, noverify)
+	cmd.Data.Server = &server
 	return connErr
 }
 
@@ -206,6 +207,11 @@ func logoutUser(ctx context.Context, cmd commands.Command, args ...[]byte) error
 //
 // Arguments: <online/all/local>
 func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
 	var option commands.USRSType
 	strOption := strings.ToUpper(string(args[0]))
 	switch strOption {
@@ -214,7 +220,20 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	case "ALL":
 		option = commands.ALL
 	case "LOCAL":
-		option = commands.LOCAL
+		if len(args) < 2 {
+			return commands.ErrorInsuficientArgs
+		}
+		localOption := strings.ToUpper(string(args[1]))
+
+		switch localOption {
+		case "SERVER":
+			option = commands.LOCAL_SERVER
+		case "ALL":
+			option = commands.LOCAL_ALL
+		default:
+			return commands.ErrorUnknownUSRSOption
+		}
+
 	default:
 		return commands.ErrorUnknownUSRSOption
 	}
