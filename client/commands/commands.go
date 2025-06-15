@@ -108,6 +108,7 @@ const (
 	ONLINE       USRSType = 1 // as spec
 	LOCAL_SERVER USRSType = 2
 	LOCAL_ALL    USRSType = 3
+	REQUESTED    USRSType = 4
 )
 
 /* ERRORS */
@@ -847,9 +848,13 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 		return users, nil
 	}
 
-	// if !cmd.Data.IsConnected() {
-	// 	return nil, ErrorNotConnected
-	// }
+	if usrsType == REQUESTED {
+		users, err := printExternalUsers(cmd)
+		if err != nil {
+			return nil, err
+		}
+		return users, nil
+	}
 
 	if usrsType == LOCAL_SERVER {
 		users, err := printServerLocalUsers(cmd)
@@ -1111,7 +1116,8 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 	}, nil
 }
 
-// Prints out all local users on the current server and returns an array with its usernames.
+// Prints out all local users on the current server and
+// returns an array with its usernames.
 func printServerLocalUsers(cmd Command) ([][]byte, error) {
 	localUsers, err := db.GetServerLocalUsers(
 		cmd.Static.DB,
@@ -1139,7 +1145,28 @@ func printServerLocalUsers(cmd Command) ([][]byte, error) {
 	return users, nil
 }
 
-// Prints out all local users on the current server and returns an array with its usernames.
+// Prints out all external users on the current server and
+// returns an array with its usernames.
+func printExternalUsers(cmd Command) ([][]byte, error) {
+	externalUsers, err := db.GetRequestedUsers(cmd.Static.DB)
+
+	if err != nil {
+		return [][]byte{}, err
+	}
+
+	users := make([][]byte, 0, len(externalUsers))
+	cmd.Output("external users:", USRS)
+
+	for _, v := range externalUsers {
+		users = append(users, []byte(v.User.Username))
+		cmd.Output(v.User.Username, USRS)
+	}
+
+	return users, nil
+}
+
+// Prints out all local users on the current server and
+// returns an array with its usernames.
 func printAllLocalUsers(cmd Command) ([][]byte, error) {
 	localUsers, err := db.GetAllLocalUsers(
 		cmd.Static.DB,

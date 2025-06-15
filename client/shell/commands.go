@@ -234,6 +234,8 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		default:
 			return commands.ErrorUnknownUSRSOption
 		}
+	case "REQUESTED":
+		option = commands.REQUESTED
 
 	default:
 		return commands.ErrorUnknownUSRSOption
