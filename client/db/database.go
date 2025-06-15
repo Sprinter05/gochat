@@ -289,6 +289,25 @@ func GetServerLocalUsers(db *gorm.DB, address string, port uint16) ([]LocalUser,
 	return users, result.Error
 }
 
+// Gets all the external usernames obtained with the REQ command
+func GetRequestedUsers(db *gorm.DB) ([]ExternalUser, error) {
+	var users []ExternalUser
+
+	result := db.Raw(
+		`SELECT *
+		FROM external_users`,
+	).Scan(&users)
+
+	for i, v := range users {
+		var user User
+		db.Where("user_id = ?", v.UserID).Find(&user)
+
+		users[i].User = user
+	}
+
+	return users, result.Error
+}
+
 // Gets all the local usernames from every registered server
 // (used in USRS to print local usernames).
 // Fills both the user and server foreign key
