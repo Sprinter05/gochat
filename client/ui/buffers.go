@@ -317,7 +317,7 @@ func (t *TUI) renderBuffer(buf string) {
 	msgs := s.Messages(buf)
 
 	l := len(msgs)
-	pending, _ := t.notifs.Get(buf)
+	pending := s.Notifications().Query(buf)
 	unread := l - int(pending)
 
 	for i, v := range msgs {

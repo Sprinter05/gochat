@@ -62,10 +62,10 @@ type USRSType uint
 
 /* DATA FUNCTIONS */
 
-func NewEmptyData() *Data {
+func NewEmptyData() Data {
 	initial := mrand.IntN(int(spec.MaxID))
 
-	return &Data{
+	return Data{
 		Waitlist: DefaultWaitlist(),
 		Next:     spec.ID(initial),
 		Logout:   func() {},

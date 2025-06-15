@@ -45,7 +45,7 @@ func (c *Connection) Cancel() {
 // Returns a new timeout using the parent context
 func timeout(s Server) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(
-		s.Connection().Get(),
+		s.Context().Get(),
 		time.Duration(cmdTimeout)*time.Second,
 	)
 }
@@ -56,8 +56,17 @@ func timeout(s Server) (context.Context, context.CancelFunc) {
 // must fulfill in order to be considered
 // a server by the TUI.
 type Server interface {
+	// Returns the name of the server
+	Name() string
+
+	// Returns the address corresponding to their endpoint
+	Source() net.Addr
+
 	// Returns all messages contained in the specified buffer
 	Messages(string) []Message
+
+	// Returns all notifications belonging to the server
+	Notifications() Notifications
 
 	// Tries to receive a message and indicates if it was for them
 	// and if any error occurred
@@ -66,18 +75,12 @@ type Server interface {
 	// Returns the internal buffer struct they may contain
 	Buffers() *Buffers
 
-	// Returns the address corresponding to their endpoint
-	Source() net.Addr
+	// Returns the context of the connection
+	Context() *Connection
 
 	// Returns the command asocciated data and whether
 	// they are connected to the endpoint or not
 	Online() (*cmds.Data, bool)
-
-	// Returns the name of the server
-	Name() string
-
-	// Returns the context of the connection
-	Connection() *Connection
 }
 
 // Returns the currently active server.
@@ -118,14 +121,15 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		ip:   ip.IP,
 		port: uint16(ip.Port),
 		name: name,
-		conn: &Connection{
+		conn: Connection{
 			ctx:    context.Background(),
 			cancel: func() {},
 		},
 		bufs: Buffers{
 			tabs: models.NewTable[string, *tab](0),
 		},
-		data: cmds.NewEmptyData(),
+		data:   cmds.NewEmptyData(),
+		notifs: models.NewTable[string, uint](0),
 	}
 	s.data.Waitlist = cmds.DefaultWaitlist()
 
@@ -325,10 +329,11 @@ type RemoteServer struct {
 	port uint16
 	name string
 
-	conn *Connection
+	conn Connection
 
-	bufs Buffers
-	data *cmds.Data
+	bufs   Buffers
+	data   cmds.Data
+	notifs models.Table[string, uint]
 }
 
 func (s *RemoteServer) Messages(name string) []Message {
@@ -391,7 +396,7 @@ func (s *RemoteServer) Buffers() *Buffers {
 }
 
 func (s *RemoteServer) Online() (*cmds.Data, bool) {
-	return s.data, s.data.IsConnected()
+	return &s.data, s.data.IsConnected()
 }
 
 func (s *RemoteServer) Source() net.Addr {
@@ -409,8 +414,14 @@ func (s *RemoteServer) Name() string {
 	return s.name
 }
 
-func (s *RemoteServer) Connection() *Connection {
-	return s.conn
+func (s *RemoteServer) Context() *Connection {
+	return &s.conn
+}
+
+func (s *RemoteServer) Notifications() Notifications {
+	return Notifications{
+		data: &s.notifs,
+	}
 }
 
 /* LOCAL SERVER */
@@ -476,6 +487,12 @@ func (l *LocalServer) Name() string {
 	return l.name
 }
 
-func (l *LocalServer) Connection() *Connection {
+func (l *LocalServer) Context() *Connection {
 	return nil
+}
+
+func (l *LocalServer) Notifications() Notifications {
+	return Notifications{
+		data: nil,
+	}
 }

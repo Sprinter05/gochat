@@ -8,6 +8,7 @@ import (
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
+	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
@@ -123,11 +124,62 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 
 /* NOTIFICATIONS */
 
+type Notifications struct {
+	data *models.Table[string, uint]
+}
+
+func (n Notifications) Notify(user string) {
+	if n.data == nil {
+		return
+	}
+
+	v, _ := n.data.Get(user)
+	n.data.Add(user, v+1)
+}
+
+func (n Notifications) Users() []string {
+	if n.data == nil {
+		return make([]string, 0)
+	}
+
+	return n.data.Indexes()
+}
+
+func (n Notifications) Query(user string) uint {
+	if n.data == nil {
+		return 0
+	}
+
+	v, ok := n.data.Get(user)
+	if !ok {
+		return 0
+	}
+
+	return v
+}
+
+func (n Notifications) Zero(user string) {
+	if n.data == nil {
+		return
+	}
+
+	n.data.Add(user, 0)
+}
+
+func (n Notifications) Clear() {
+	if n.data == nil {
+		return
+	}
+
+	n.data.Clear()
+}
+
 // Renders the notification text for the current server
 func (t *TUI) updateNotifications() {
 	s := t.Active()
 	curr := t.Buffer()
-	peding := t.notifs.Indexes()
+	notifs := s.Notifications()
+	peding := notifs.Users()
 
 	_, ok := s.Online()
 	if !ok {
@@ -137,13 +189,13 @@ func (t *TUI) updateNotifications() {
 
 	var text strings.Builder
 	for _, v := range peding {
-		unread, _ := t.notifs.Get(v)
+		unread := notifs.Query(v)
 		if unread == 0 {
 			continue
 		}
 
 		if curr == v {
-			t.notifs.Add(curr, 0)
+			notifs.Zero(curr)
 			continue
 		}
 
@@ -207,7 +259,7 @@ func (t *TUI) remoteMessage(content string) {
 func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 	defer func() {
 		s.Buffers().Offline()
-		t.notifs.Clear()
+		s.Notifications().Clear()
 	}()
 
 	data, _ := s.Online()
@@ -251,8 +303,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			continue
 		}
 
-		v, _ := t.notifs.Get(msg.Sender)
-		t.notifs.Add(msg.Sender, v+1)
+		s.Notifications().Notify(msg.Sender)
 		t.updateNotifications()
 
 		t.SendMessage(Message{

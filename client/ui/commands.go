@@ -440,7 +440,7 @@ func loginUser(t *TUI, cmd Command) {
 		toggleUserlist(t)
 	}
 
-	ctx, cancel := context.WithCancel(cmd.serv.Connection().Get())
+	ctx, cancel := context.WithCancel(cmd.serv.Context().Get())
 	data.Logout = cancel
 	go t.receiveMessages(ctx, cmd.serv)
 	go t.receiveHooks(ctx, cmd.serv)
@@ -573,20 +573,20 @@ func connectServer(t *TUI, cmd Command) {
 		return
 	}
 
-	cmd.serv.Connection().Set(context.Background())
+	cmd.serv.Context().Set(context.Background())
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 
 	c.Output = t.systemMessage("", defaultBuffer)
 	go cmds.Listen(c, func() {
 		cmd.serv.Buffers().Offline()
 		c.Data.Waitlist.Cancel(data.Logout)
-		c.Data.Waitlist.Cancel(cmd.serv.Connection().Cancel)
+		c.Data.Waitlist.Cancel(cmd.serv.Context().Cancel)
 
 		t.comp.input.SetLabel(defaultLabel)
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 
 		cleanupSession(t, cmd.serv)
-		t.notifs.Clear()
+		cmd.serv.Notifications().Clear()
 
 		discn := t.systemMessage()
 		discn("You are no longer connected to this server!", cmds.INFO)

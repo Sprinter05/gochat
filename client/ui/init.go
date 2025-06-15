@@ -479,7 +479,6 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	areas, comps := setupLayout()
 	t := &TUI{
 		servers: models.NewTable[string, Server](0),
-		notifs:  models.NewTable[string, uint](0),
 		comp:    comps,
 		area:    areas,
 		status: state{
