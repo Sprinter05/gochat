@@ -123,7 +123,7 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 			cancel: func() {},
 		},
 		bufs: Buffers{
-			tabs: models.NewTable[string, *tab](maxBuffers),
+			tabs: models.NewTable[string, *tab](0),
 		},
 		data: cmds.NewEmptyData(),
 	}
@@ -273,8 +273,12 @@ func (t *TUI) renderServer(name string) {
 	data, online := s.Online()
 	if online {
 		t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
-		uname := data.User.User.Username
-		t.comp.input.SetLabel(unameLabel(uname))
+		if data.IsLoggedIn() {
+			uname := data.User.User.Username
+			t.comp.input.SetLabel(unameLabel(uname))
+		} else {
+			t.comp.input.SetLabel(defaultLabel)
+		}
 	} else {
 		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 		t.comp.input.SetLabel(defaultLabel)
