@@ -77,6 +77,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 
 	_, connErr := commands.Conn(cmd, server, noverify)
 	cmd.Data.Server = &server
+	go commands.Listen(cmd, func() {})
 	return connErr
 }
 
@@ -90,7 +91,7 @@ func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error
 
 // Calls REQ to request a user.
 //
-// Arguments: <username to be requested> (args[0])
+// Arguments: <username to be requested>
 func requestUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
