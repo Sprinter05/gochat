@@ -13,8 +13,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// TODO: remove messages when deleting buffer
-
 const Logo string = `
                    _           _   
                   | |         | |  
