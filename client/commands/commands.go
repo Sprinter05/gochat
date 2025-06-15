@@ -839,7 +839,6 @@ func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 //
 // Returns a the received usernames in an array if the request was correct.
 func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
-
 	if usrsType == LOCAL_ALL {
 		users, err := printAllLocalUsers(cmd)
 		if err != nil {
@@ -848,9 +847,9 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 		return users, nil
 	}
 
-	if !cmd.Data.IsConnected() {
-		return nil, ErrorNotConnected
-	}
+	// if !cmd.Data.IsConnected() {
+	// 	return nil, ErrorNotConnected
+	// }
 
 	if usrsType == LOCAL_SERVER {
 		users, err := printServerLocalUsers(cmd)
@@ -909,7 +908,6 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 //
 // Returns nil values if an OK packet is received after the sent MSG packet
 func Msg(ctx context.Context, cmd Command, username, message string) ([][]byte, error) {
-
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -1115,7 +1113,7 @@ func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, 
 
 // Prints out all local users on the current server and returns an array with its usernames.
 func printServerLocalUsers(cmd Command) ([][]byte, error) {
-	localUsers, err := db.GetServerLocalUsernames(
+	localUsers, err := db.GetServerLocalUsers(
 		cmd.Static.DB,
 		cmd.Data.Server.Address,
 		cmd.Data.Server.Port,
@@ -1134,8 +1132,8 @@ func printServerLocalUsers(cmd Command) ([][]byte, error) {
 	)
 
 	for _, v := range localUsers {
-		users = append(users, []byte(v))
-		cmd.Output(v, USRS)
+		users = append(users, []byte(v.User.Username))
+		cmd.Output(v.User.Username, USRS)
 	}
 
 	return users, nil
@@ -1143,7 +1141,7 @@ func printServerLocalUsers(cmd Command) ([][]byte, error) {
 
 // Prints out all local users on the current server and returns an array with its usernames.
 func printAllLocalUsers(cmd Command) ([][]byte, error) {
-	localUsers, err := db.GetAllLocalUsernames(
+	localUsers, err := db.GetAllLocalUsers(
 		cmd.Static.DB,
 	)
 
@@ -1155,8 +1153,15 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 	cmd.Output("all local users:", USRS)
 
 	for _, v := range localUsers {
-		users = append(users, []byte(v))
-		cmd.Output(v, USRS)
+		str := fmt.Sprintf(
+			"%s (%s - %s:%d)",
+			v.User.Username,
+			v.User.Server.Name,
+			v.User.Server.Address,
+			v.User.Server.Port,
+		)
+		users = append(users, []byte(str))
+		cmd.Output(str, USRS)
 	}
 
 	return users, nil

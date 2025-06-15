@@ -103,10 +103,10 @@ const CommandHelp string = `
 	- You need an active connection to use this command
 
 [yellow::b]/users[-::-] [green]<local/online/all>[-]: Shows a list of users according to the specified filter
-	- Local will display accounts created for this server in this client
-	- Online will display all connected accounts in the server
-	- All will display all accounts registered in the server
-	- You need an active connection to use this command unless you are displaying local users
+	- Remote will display all users registered on the remote server (requires connection)
+	- Online will display all connected accounts in the server (requires connection)
+	- Local will display accounts created for for all servers on this client
+	- Server will display all local accounts for that server
 	
 [yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
 	- This process is already done automatically if connected and logged in
