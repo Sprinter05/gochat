@@ -4,6 +4,7 @@ package db
 // The database used for the client is SQLite, connected with GORM.
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -123,13 +124,20 @@ func OpenClientDatabase(path string, logger logger.Interface) *gorm.DB {
 // Adds a socket pair to the database if the socket is not on it already. Then,
 // returns it.
 func AddServer(db *gorm.DB, address string, port uint16, name string, tls bool) (Server, error) {
-	// Adds the server to the database only if it is not in it already
+	id := getMaxID(db, "servers") + 1
 	server := Server{
-		ServerID: getMaxID(db, "servers") + 1,
+		ServerID: id,
 		Address:  address,
 		Port:     port,
-		Name:     name,
 		TLS:      tls,
+	}
+
+	// If the name is empty, a default name is set
+	if len(name) == 0 {
+		name = fmt.Sprintf("Default-%d", id)
+		server.Name = name
+	} else {
+		server.Name = name
 	}
 
 	svExists, existsErr := ServerExists(db, address, port)
