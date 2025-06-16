@@ -317,17 +317,37 @@ func unsubscribe(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 
 // Calls Import to import a key.
 //
-// Arguments: <username> <path> <password>
+// Arguments: <username> <path>
 func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	if len(args) < 3 {
+	if len(args) < 2 {
 		return commands.ErrorInsuficientArgs
 	}
 
 	username := string(args[0])
-	pass := string(args[1])
-	path := string(args[2])
+	path := string(args[1])
 
-	_, importErr := commands.Import(cmd, username, pass, path)
+	// Gets the password
+	cmd.Output("password: ", commands.PROMPT)
+	pass1, pass1Err := term.ReadPassword(0)
+	if pass1Err != nil {
+		cmd.Output("", commands.PROMPT)
+		return pass1Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	cmd.Output("repeat password: ", commands.PROMPT)
+	pass2, pass2Err := term.ReadPassword(0)
+	if pass2Err != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return pass2Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	if string(pass1) != string(pass2) {
+		return commands.ErrorPasswordsDontMatch
+	}
+
+	_, importErr := commands.Import(cmd, username, string(pass1), path)
 	return importErr
 }
 
