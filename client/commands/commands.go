@@ -304,8 +304,6 @@ func Import(cmd Command, username, pass, path string) ([][]byte, error) {
 // Exports a local user as a private RSA key
 // in the current directory using the spec PEM format
 //
-// Arguments: <username> [password]
-//
 // Returns a zero value ReplyData if successful
 func Export(cmd Command, username, pass string) ([][]byte, error) {
 	found, existsErr := db.LocalUserExists(
@@ -345,6 +343,11 @@ func Export(cmd Command, username, pass string) ([][]byte, error) {
 		return nil, decryptErr
 	}
 	localUser.PrvKey = string(dec)
+
+	// Creates export/ directory if it does not exist
+	if _, err := os.Stat("export/"); os.IsNotExist(err) {
+		os.Mkdir("export", 0755)
+	}
 
 	file := "export/" + username + ".priv" // TODO: test this
 	f, createErr := os.Create(file)
