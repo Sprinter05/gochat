@@ -121,7 +121,7 @@ var (
 	ErrorNotLoggedIn        error = fmt.Errorf("you are not logged in")
 	ErrorAlreadyLoggedIn    error = fmt.Errorf("you are already logged in")
 	ErrorWrongCredentials   error = fmt.Errorf("wrong credentials")
-	ErrorUnknownUSRSOption  error = fmt.Errorf("unknown option; valid options are online, all or local")
+	ErrorUnknownUSRSOption  error = fmt.Errorf("unknown option; valid options are online, all, local or requested")
 	ErrorUsernameEmpty      error = fmt.Errorf("username cannot be empty")
 	ErrorUserExists         error = fmt.Errorf("local user exists")
 	ErrorPasswordsDontMatch error = fmt.Errorf("passwords do not match")
