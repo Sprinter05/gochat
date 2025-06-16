@@ -144,10 +144,18 @@ func HOOKHandler(cmd *commands.Command) {
 }
 
 // Prints a received message in the shell
-func PrintMessage(reciv spec.Command, decryptedText string, cmd commands.Command) {
+func printMessage(reciv spec.Command, decryptedText string, cmd commands.Command) {
 	stamp, _ := spec.BytesToUnixStamp(reciv.Args[1])
 	// Removes prompt line and rings bell
 	fmt.Print("\r\033[K\a")
 	fmt.Printf("\033[36m[%s] \033[32m%s\033[0m: %s\n", stamp.String(), reciv.Args[0], decryptedText)
+	PrintPrompt(*cmd.Data)
+}
+
+// Prints a received hook in the shell
+func printHook(hook spec.Command, cmd commands.Command) {
+	// Removes prompt line and rings bell
+	fmt.Print("\r\033[K\a")
+	fmt.Printf("\033[0;35m[HOOK] \033[32mHook received\033[0m: Code %d (%s)\n", hook.HD.Info, spec.HookString(spec.Hook(hook.HD.Info)))
 	PrintPrompt(*cmd.Data)
 }
