@@ -1155,11 +1155,17 @@ func printExternalUsers(cmd Command) ([][]byte, error) {
 	}
 
 	users := make([][]byte, 0, len(externalUsers))
-	cmd.Output("external users:", USRS)
+	cmd.Output("all external users:", USRS)
 
 	for _, v := range externalUsers {
 		users = append(users, []byte(v.User.Username))
-		cmd.Output(v.User.Username, USRS)
+		cmd.Output(fmt.Sprintf("%s (%s - %s:%d)",
+			v.User.Username,
+			v.User.Server.Name,
+			v.User.Server.Address,
+			v.User.Server.Port),
+			USRS,
+		)
 	}
 
 	return users, nil
