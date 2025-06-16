@@ -119,6 +119,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 
 	go shell.RECIVHandler(&args)
+	go shell.HOOKHandler(&args)
 	shell.NewShell(args)
 	// TODO: check that the connection closes correctly even without this
 	/*
