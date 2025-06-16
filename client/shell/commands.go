@@ -69,9 +69,20 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		}
 
 		address := string(args[0])
-		server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
-		if dbErr != nil {
-			return dbErr
+
+		exists, _ := db.ServerExists(cmd.Static.DB, address, uint16(port))
+		if !exists {
+			// If the server does not exist and you connect by socket,
+			// it creates it.
+			server, dbErr = db.AddServer(cmd.Static.DB, address, uint16(port), "", false)
+			if dbErr != nil {
+				return dbErr
+			}
+		} else {
+			server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
+			if dbErr != nil {
+				return dbErr
+			}
 		}
 	}
 
