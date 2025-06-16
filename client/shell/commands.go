@@ -87,9 +87,12 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	}
 
 	_, connErr := commands.Conn(cmd, server, noverify)
+	if connErr != nil {
+		return connErr
+	}
 	cmd.Data.Server = &server
 	go commands.Listen(cmd, func() {})
-	return connErr
+	return nil
 }
 
 // Calls Discn, no aditional sanitization needed.
