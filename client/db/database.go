@@ -310,6 +310,10 @@ func GetRequestedUsers(db *gorm.DB) ([]ExternalUser, error) {
 		var user User
 		db.Where("user_id = ?", v.UserID).Find(&user)
 
+		var server Server
+		db.Where("server_id = ?", user.ServerID).Find(&server)
+		user.Server = server
+
 		users[i].User = user
 	}
 
