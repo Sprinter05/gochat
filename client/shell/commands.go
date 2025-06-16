@@ -196,7 +196,12 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		return commands.ErrorInsuficientArgs
 	}
 
-	username := args[0]
+	username := string(args[0])
+	exists, _ := db.LocalUserExists(cmd.Static.DB, username, cmd.Data.Server.Address, cmd.Data.Server.Port)
+	if !exists {
+		return commands.ErrorUserNotFound
+	}
+
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
 	pass, passErr := term.ReadPassword(0)
@@ -243,6 +248,9 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 
 		switch localOption {
 		case "SERVER":
+			if !cmd.Data.IsConnected() {
+				return commands.ErrorNotConnected
+			}
 			option = commands.LOCAL_SERVER
 		case "ALL":
 			option = commands.LOCAL_ALL
