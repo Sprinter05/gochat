@@ -382,7 +382,17 @@ func changeTLS(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	}
 
 	_, tlsErr := commands.TLS(cmd, &server, on)
-	return tlsErr
+	if tlsErr != nil {
+		return tlsErr
+	}
+
+	onString := "off"
+	if on {
+		onString = "on"
+	}
+
+	cmd.Output(fmt.Sprintf("TLS mode turned %s for %s server", onString, server.Name), commands.RESULT)
+	return nil
 }
 
 /* SHELL-EXCLUSIVE COMMANDS */
