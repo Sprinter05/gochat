@@ -100,6 +100,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 // Arguments: none
 func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	_, discnErr := commands.Discn(cmd)
+	cmd.Data.Server = nil
 	return discnErr
 }
 
