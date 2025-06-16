@@ -125,7 +125,7 @@ var (
 	ErrorUsernameEmpty      error = fmt.Errorf("username cannot be empty")
 	ErrorUserExists         error = fmt.Errorf("local user exists")
 	ErrorPasswordsDontMatch error = fmt.Errorf("passwords do not match")
-	ErrorUserNotFound       error = fmt.Errorf("local user not found")
+	ErrorUserNotFound       error = fmt.Errorf("user not found")
 	ErrorUnknownTLSOption   error = fmt.Errorf("unknown option; valid options are on or off")
 	ErrorOfflineRequired    error = fmt.Errorf("you must be offline")
 	ErrorInvalidSkipVerify  error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
