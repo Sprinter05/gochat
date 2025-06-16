@@ -331,18 +331,30 @@ func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	return importErr
 }
 
-// Calls Import to import a key.
+// Calls Export to import a key.
 //
-// Arguments: <username> <path> <password>
+// Arguments: <username> <password>
 func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
 	}
 
-	username := string(args[0])
-	pass := string(args[1])
+	if !cmd.Data.IsConnected() {
+		return commands.ErrorNotConnected
+	}
 
-	_, exportErr := commands.Export(cmd, username, pass)
+	username := string(args[0])
+	// Asks for password
+	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
+	pass, passErr := term.ReadPassword(0)
+
+	if passErr != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return passErr
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	_, exportErr := commands.Export(cmd, username, string(pass))
 	return exportErr
 }
 
