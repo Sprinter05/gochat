@@ -125,7 +125,21 @@ func RECIVHandler(cmd *commands.Command) {
 			fmt.Println(storeErr)
 			continue
 		}
-		PrintMessage(reciv, decrypted.Content, *cmd)
+		printMessage(reciv, decrypted.Content, *cmd)
+	}
+}
+
+// Shell-specific HOOL handler. Listens
+// constantly for incoming HOOK packets
+// and performs the necessary shell
+// operations.
+func HOOKHandler(cmd *commands.Command) {
+	for {
+		hook, _ := cmd.Data.Waitlist.Get(
+			context.Background(),
+			commands.Find(0, spec.HOOK),
+		)
+		printHook(hook, *cmd)
 	}
 }
 
