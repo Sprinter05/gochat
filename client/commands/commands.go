@@ -115,22 +115,23 @@ const (
 
 // Possible command errors.
 var (
-	ErrorInsuficientArgs    error = fmt.Errorf("not enough arguments")
-	ErrorNotConnected       error = fmt.Errorf("not connected to a server")
-	ErrorAlreadyConnected   error = fmt.Errorf("already connected to a server")
-	ErrorNotLoggedIn        error = fmt.Errorf("you are not logged in")
-	ErrorAlreadyLoggedIn    error = fmt.Errorf("you are already logged in")
-	ErrorWrongCredentials   error = fmt.Errorf("wrong credentials")
-	ErrorUnknownUSRSOption  error = fmt.Errorf("unknown option; valid options are online, all, local or requested")
-	ErrorUsernameEmpty      error = fmt.Errorf("username cannot be empty")
-	ErrorUserExists         error = fmt.Errorf("local user exists")
-	ErrorPasswordsDontMatch error = fmt.Errorf("passwords do not match")
-	ErrorUserNotFound       error = fmt.Errorf("user not found")
-	ErrorUnknownTLSOption   error = fmt.Errorf("unknown option; valid options are on or off")
-	ErrorOfflineRequired    error = fmt.Errorf("you must be offline")
-	ErrorInvalidSkipVerify  error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
-	ErrorRequestToSelf      error = fmt.Errorf("cannot request yourself")
-	ErrorUnknownHookOption  error = fmt.Errorf("invalid hook provided")
+	ErrorInsuficientArgs       error = fmt.Errorf("not enough arguments")
+	ErrorNotConnected          error = fmt.Errorf("not connected to a server")
+	ErrorAlreadyConnected      error = fmt.Errorf("already connected to a server")
+	ErrorNotLoggedIn           error = fmt.Errorf("you are not logged in")
+	ErrorAlreadyLoggedIn       error = fmt.Errorf("you are already logged in")
+	ErrorWrongCredentials      error = fmt.Errorf("wrong credentials")
+	ErrorUnknownUSRSOption     error = fmt.Errorf("unknown option; valid options are online, all, local or requested")
+	ErrorUsernameEmpty         error = fmt.Errorf("username cannot be empty")
+	ErrorUserExists            error = fmt.Errorf("local user exists")
+	ErrorPasswordsDontMatch    error = fmt.Errorf("passwords do not match")
+	ErrorUserNotFound          error = fmt.Errorf("user not found")
+	ErrorUnknownTLSOption      error = fmt.Errorf("unknown option; valid options are on or off")
+	ErrorOfflineRequired       error = fmt.Errorf("you must be offline")
+	ErrorInvalidSkipVerify     error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
+	ErrorRequestToSelf         error = fmt.Errorf("cannot request yourself")
+	ErrorUnknownHookOption     error = fmt.Errorf("invalid hook provided")
+	ErrorInvalidAdminOperation error = fmt.Errorf("invalid admin operation")
 )
 
 /* LOOKUP TABLE */
@@ -1044,6 +1045,10 @@ func Reciv(ctx context.Context, cmd Command) ([][]byte, error) {
 		return nil, pctErr
 	}
 
+	if cmd.Static.Verbose {
+		packetPrint(pct, cmd)
+	}
+
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
 		return nil, wErr
@@ -1114,6 +1119,10 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 		return nil, pctErr
 	}
 
+	if cmd.Static.Verbose {
+		packetPrint(pct, cmd)
+	}
+
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
 		return nil, wErr
@@ -1136,6 +1145,74 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 	}
 
 	cmd.Output(fmt.Sprintf("user %s deregistered correctly", username), RESULT)
+	return nil, nil
+}
+
+// Sends an ADMIN packet that performs an specific ADMIN operation.
+//
+// Returns nil values if the packet is sent successfully.
+func Admin(ctx context.Context, cmd Command, op spec.Admin, args [][]byte) ([][]byte, error) {
+	if !cmd.Data.IsConnected() {
+		return nil, ErrorNotConnected
+	}
+
+	if !cmd.Data.IsLoggedIn() {
+		return nil, ErrorNotLoggedIn
+	}
+
+	// TODO: check if user has perms
+
+	switch op {
+	case spec.AdminBroadcast:
+		if len(args) < 1 {
+			return nil, ErrorInsuficientArgs
+		}
+	case spec.AdminDeregister:
+		if len(args) < 1 {
+			return nil, ErrorInsuficientArgs
+		}
+	case spec.AdminChangePerms:
+		if len(args) < 2 {
+			return nil, ErrorInsuficientArgs
+		}
+	case spec.AdminDisconnect:
+		if len(args) < 1 {
+			return nil, ErrorInsuficientArgs
+		}
+	case spec.AdminShutdown:
+		if len(args) < 1 {
+			return nil, ErrorInsuficientArgs
+		}
+	}
+
+	id := cmd.Data.NextID()
+	pct, pctErr := spec.NewPacket(spec.ADMIN, id, uint8(op), args...)
+	if pctErr != nil {
+		return nil, pctErr
+	}
+
+	if cmd.Static.Verbose {
+		packetPrint(pct, cmd)
+	}
+
+	_, wErr := cmd.Data.Conn.Write(pct)
+	if wErr != nil {
+		return nil, wErr
+	}
+
+	verbosePrint("awaiting response...", cmd)
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return nil, spec.ErrorCodeToError(reply.HD.Info)
+	}
+
+	cmd.Output(fmt.Sprintf("admin operation %s sent successfully", spec.AdminString(op)), RESULT)
 	return nil, nil
 }
 
