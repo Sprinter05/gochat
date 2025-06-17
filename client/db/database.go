@@ -395,6 +395,34 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 }
 
 // Adds a local user autoincrementally in the database and then returns it.
+func DeleteLocalUser(db *gorm.DB, username string, address string, port uint16) error {
+	user, err := GetUser(db, username, address, port)
+	if err != nil {
+		return err
+	}
+
+	result := db.Delete(LocalUser{UserID: user.UserID})
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("unexpected rows affected when deleting local user")
+	}
+
+	result = db.Delete(user)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("unexpected rows affected when deleting user")
+	}
+
+	return nil
+}
+
+// Adds a local user autoincrementally in the database and then returns it.
 func AddExternalUser(db *gorm.DB, username string, pubKeyPEM string, address string, port uint16) (ExternalUser, error) {
 	sv, err := GetServer(db, address, port)
 	if err != nil {
