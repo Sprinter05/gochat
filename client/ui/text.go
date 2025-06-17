@@ -83,12 +83,17 @@ const CommandHelp string = `
 	- No two accounts with the same name can exist in one single server
 	- You need an active connection to use this command
 	
+[yellow::b]/deregister[-::-] [green]<username>[-]: Deletes the specified account	
+	- A popup asking for the password asocciated to the account will show up
+	- This will remove the account both in the remote server and local client
+
 [yellow::b]/import[-::-] [green]<username>[-] [green]<path>[-]: Registers a new user from an existing key
 	- The path provided must be related to the directory from which the program was ran
 	- The provided private key must be RSA 4096 bits in PEM PKCS1 format
 	- A popup asking for a password for the imported account will show up
 
 [yellow::b]/export[-::-] [green]<username>[-]: Exports the private key of an existing local user
+	- A popup asking for the password asocciated to the account will show up
 	- The key will be put in a file in the directory from which the program was ran
 	- The fill will be called <username>.priv and will be in PEM PKCS1 format (RSA 4096 bits)
 

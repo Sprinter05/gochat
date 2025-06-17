@@ -40,6 +40,16 @@ func (w *Waitlist[T]) Insert(v T) {
 	w.cond.Broadcast()
 }
 
+// Wakes up all threads once the context timeout ends
+func (w *Waitlist[T]) Timeout(ctx context.Context) {
+	<-ctx.Done()
+
+	w.cond.L.Lock()
+	defer w.cond.L.Unlock()
+
+	w.cond.Broadcast()
+}
+
 // Wakes up all waiting threads and cancels the context.
 func (w *Waitlist[T]) Cancel(cancel context.CancelFunc) {
 	w.cond.L.Lock()

@@ -43,11 +43,17 @@ func (c *Connection) Cancel() {
 }
 
 // Returns a new timeout using the parent context
-func timeout(s Server) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(
+func timeout(s Server, data *cmds.Data) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(
 		s.Context().Get(),
 		time.Duration(cmdTimeout)*time.Second,
 	)
+
+	if data != nil {
+		go data.Waitlist.Timeout(ctx)
+	}
+
+	return ctx, cancel
 }
 
 /* INTERFACE */

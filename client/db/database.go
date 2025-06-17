@@ -133,7 +133,7 @@ func AddServer(db *gorm.DB, address string, port uint16, name string, tls bool) 
 	}
 
 	// If the name is empty, a default name is set
-	if len(name) == 0 {
+	if name == "" {
 		name = fmt.Sprintf("Default-%d", id)
 		server.Name = name
 	} else {

@@ -21,7 +21,7 @@ func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
 	data, _ := s.Online()
 
 	for _, v := range hooks {
-		ctx, cancel := timeout(s)
+		ctx, cancel := timeout(s, data)
 		defer data.Waitlist.Cancel(cancel)
 		_, err := cmds.Sub(ctx, cmds.Command{
 			Output: output,
@@ -107,7 +107,7 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 		Data:   data,
 	}
 
-	ctx, cancel := timeout(s)
+	ctx, cancel := timeout(s, cmd.Data)
 	defer data.Waitlist.Cancel(cancel)
 	_, err = cmds.Req(ctx, cmd, tab.name)
 	if err != nil {
@@ -247,7 +247,7 @@ func (t *TUI) remoteMessage(content string) {
 		Data:   data,
 	}
 
-	ctx, cancel := timeout(s)
+	ctx, cancel := timeout(s, cmd.Data)
 	defer cmd.Data.Waitlist.Cancel(cancel)
 	_, err := cmds.Msg(ctx, cmd, tab.name, content)
 	if err != nil {
@@ -287,7 +287,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			continue
 		}
 
-		rCtx, cancel := timeout(s)
+		rCtx, cancel := timeout(s, data)
 		msg, err := cmds.StoreReciv(
 			rCtx, cmd,
 			cmds.Command{

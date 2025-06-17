@@ -100,6 +100,11 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  1,
 		format: "/unsubscribe <hook>",
 	},
+	"deregister": {
+		fun:    deregisterUser,
+		nArgs:  1,
+		format: "/deregister <user>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -172,6 +177,36 @@ func askForNewPassword(t *TUI) (string, error) {
 
 // COMMANDS
 
+func deregisterUser(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
+		return
+	}
+
+	pswd, err := newLoginPopup(t, "Enter the account's password...")
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv, c.Data)
+	defer c.Data.Waitlist.Cancel(cancel)
+
+	_, err = cmds.Dereg(ctx, c, args[0], pswd)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+}
+
 func unsubEvent(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
 	if data == nil {
@@ -185,7 +220,7 @@ func unsubEvent(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
+	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	_, err := cmds.Unsub(ctx, c, args[0])
 
@@ -208,7 +243,7 @@ func subEvent(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
+	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	_, err := cmds.Sub(ctx, c, args[0])
 
@@ -387,7 +422,7 @@ func logoutUser(t *TUI, cmd Command) {
 	}
 
 	c, _ := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
+	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	_, err := cmds.Logout(ctx, c)
 
@@ -425,7 +460,7 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	lCtx, lCancel := timeout(cmd.serv)
+	lCtx, lCancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(lCancel)
 	_, err = cmds.Login(lCtx, c, args[0], pswd)
 
@@ -446,7 +481,7 @@ func loginUser(t *TUI, cmd Command) {
 	go t.receiveHooks(ctx, cmd.serv)
 
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
-	rCtx, rCancel := timeout(cmd.serv)
+	rCtx, rCancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(rCancel)
 	_, err = cmds.Reciv(rCtx, c)
 	if err != nil {
@@ -491,7 +526,7 @@ func listUsers(t *TUI, cmd Command) {
 		return
 	}
 
-	ctx, cancel := timeout(cmd.serv)
+	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	reply, err := cmds.Usrs(ctx, c, usrs)
 
@@ -533,7 +568,7 @@ func registerUser(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv)
+	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	_, err = cmds.Reg(ctx, c, args[0], pswd)
 

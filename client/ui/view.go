@@ -334,7 +334,7 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 		return
 	}
 
-	ctx, cancel := timeout(s)
+	ctx, cancel := timeout(s, data)
 	defer data.Waitlist.Cancel(cancel)
 	reply, err := cmds.Usrs(ctx, cmds.Command{
 		Output: output,
