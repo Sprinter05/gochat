@@ -395,7 +395,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 // Retrieves all pending messages directed to the user from
 // the database. Should be requested right after a log in.
 //
-// Replies with RECIV or ERR
+// Replies with OK or ERR
 func recivMessages(h *Hub, u User, cmd spec.Command) {
 	msgs, err := db.QueryMessages(h.db, u.name)
 	if err != nil {

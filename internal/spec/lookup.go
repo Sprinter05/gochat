@@ -71,7 +71,7 @@ var (
 	msgLookup    = lookup{MSG, 0x09, "MSG", 3, -1}
 	logoutLookup = lookup{LOGOUT, 0x0A, "LOGOUT", 0, -1}
 	deregLookup  = lookup{DEREG, 0x0B, "DEREG", 0, -1}
-	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", 0, -1}
+	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", -1, 0}
 	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0, -1}
 	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0, -1}
 	subLookup    = lookup{SUB, 0x0F, "SUB", 0, -1}
@@ -321,6 +321,29 @@ var codeToHook map[Hook]string = map[Hook]string{
 // Result is an empty string if not found.
 func HookString(h Hook) string {
 	v, ok := codeToHook[h]
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+/* USER LISTING */
+
+// Specifies the user option for the command
+type Userlist uint8
+
+const (
+	UsersAll    Userlist = 0x0
+	UsersOnline Userlist = 0x1
+)
+
+var userToOption map[Userlist]string = map[Userlist]string{
+	UsersAll:    "USRS_ALL",
+	UsersOnline: "USRS_ONLINE",
+}
+
+func UserlistString(u Userlist) string {
+	v, ok := userToOption[u]
 	if !ok {
 		return ""
 	}
