@@ -144,7 +144,7 @@ The following exhaustive list specifies all possible replies for each command pr
 
 ## Connection
 
-The connection to the server can be established using either **plain TCP** or **TLS**, recommending the use of ports `9037` and `8037` respectively. Although these can be changed.
+The connection to the server can be established using either **plain TCP** or **TLS**, recommending the use of ports `9037` and `8037` respectively, although these can be changed.
 
 When connecting to the server it is important to know that *any malformed packet* will automatically close the connection. Moreover, the server should implement a **deadline** for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be used to allow the connection to persist. 
 
