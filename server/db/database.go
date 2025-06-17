@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	stdlog "log"
-	"os"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -20,51 +19,57 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+/* CONFIG */
+
+type Config struct {
+	Address  *string `json:"address"`
+	Port     *uint16 `json:"port"`
+	User     *string `json:"user"`
+	Password *string `json:"password"`
+	Name     *string `json:"db_name"`
+	Logs     string  `json:"log_file"`
+}
+
 /* UTILITIES */
 
 // Gets the necessary environment variables
 // to connect to the database.
-func getDBEnv() string {
-	user, ok := os.LookupEnv("DB_USER")
-	if !ok {
-		log.Environ("DB_USER")
+func getDBEnv(opts Config) string {
+	if opts.User == nil {
+		log.Config("database.user")
 	}
 
-	pswd, ok := os.LookupEnv("DB_PSWD")
-	if !ok {
-		log.Environ("DB_PSWD")
+	if opts.Password == nil {
+		log.Config("database.password")
 	}
 
-	addr, ok := os.LookupEnv("DB_ADDR")
-	if !ok {
-		log.Environ("DB_ADDR")
+	if opts.Address == nil {
+		log.Config("database.address")
 	}
 
-	port, ok := os.LookupEnv("DB_PORT")
-	if !ok {
-		log.Environ("DB_PORT")
+	if opts.Port == nil {
+		log.Config("database.port")
 	}
 
-	name, ok := os.LookupEnv("DB_NAME")
-	if !ok {
-		log.Environ("DB_NAME")
+	if opts.Name == nil {
+		log.Config("database.db_name")
 	}
 
 	// Get formatted string
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?parseTime=True",
-		user,
-		pswd,
-		addr,
-		port,
-		name,
+		"%s:%s@tcp(%s:%d)/%s?parseTime=True",
+		*opts.User,
+		*opts.Password,
+		*opts.Address,
+		*opts.Port,
+		*opts.Name,
 	)
 }
 
 // Connects to the database using an optional logger
 // that can be passed as a parameter
-func Connect(logfile *stdlog.Logger) *gorm.DB {
-	access := getDBEnv()
+func Connect(logfile *stdlog.Logger, opts Config) *gorm.DB {
+	access := getDBEnv(opts)
 
 	var dblog logger.Interface = nil
 	if logfile != nil {

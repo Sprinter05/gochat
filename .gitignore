@@ -1,11 +1,17 @@
+# Folders
 build/
 export/
 logs/
 certs/
-config/
+config/*
+
+# File types
 *.key
 *.pem
 *.crt
 *.env
 *.db
 **/__debug_bin*
+
+# Exceptions
+!config/example.json

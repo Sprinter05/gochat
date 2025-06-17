@@ -4,7 +4,6 @@ go 1.23.5
 
 require (
 	github.com/gdamore/tcell/v2 v2.7.1
-	github.com/joho/godotenv v1.5.1
 	github.com/rivo/tview v0.0.0-20250330220935-949945f8d922
 	golang.org/x/term v0.31.0
 	gorm.io/driver/mysql v1.5.7

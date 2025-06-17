@@ -1,0 +1,25 @@
+{
+    "database": {
+        "address": "mariadb",
+        "port": 3306,
+        "user": "gochatuser",
+        "password": "gochatpass",
+        "db_name": "gochat",
+        "log_file": "logs/database.log"
+    },
+    "server": {
+        "address": "0.0.0.0",
+        "port": 9037,
+        "max_clients": 10,
+        "tls": {
+            "enabled": false,
+            "port": 8037,
+            "cert_file": "certs/gochat.pem",
+            "key_file": "certs/gochat.key"
+        },
+        "logs": {
+            "level": "ERROR",
+            "log_file": ""
+        }
+    }
+}

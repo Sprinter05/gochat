@@ -4,7 +4,6 @@ package spec
 
 const (
 	ProtocolVersion  uint8  = 1         // Current version of the protocol
-	MaxClients       uint   = 20        // Max amount of clients the server allows at the same time
 	NullOp           Action = 0         // Invalid operation code
 	NullID           ID     = 0         // Only valid for specific documented cases
 	MaxID            ID     = 1<<10 - 1 // Maximum value according to the bit field
@@ -17,7 +16,7 @@ const (
 	UsernameSize     int    = 32        // Max size of a username in bytes
 	LoginTimeout     int    = 2         // Timeout for a handshake process in minutes
 	ReadTimeout      int    = 10        // Timeout for a TCP read block in minutes
-	HandshakeTimeout int    = 1         // Timeout for a connection handshake block in minutes
+	HandshakeTimeout int    = 20        // Timeout for a connection handshake block in seconds
 	TokenExpiration  int    = 30        // Deadline for a reusable token expiration in minutes
 )
 

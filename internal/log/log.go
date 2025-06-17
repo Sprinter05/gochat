@@ -40,14 +40,14 @@ func Notice(msg string) {
 
 // Requires FATAL
 //
-// Informs of a missing environment variable.
-func Environ(envvar string) {
+// Informs of a missing configuration option.
+func Config(opt string) {
 	if Level < FATAL {
 		return
 	}
 	log.Fatalf(
-		"[X] Missing environment variable %s!\n",
-		envvar,
+		"[X] Missing configuration option %s!\n",
+		opt,
 	)
 }
 
