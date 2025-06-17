@@ -51,24 +51,24 @@ type Command struct {
 // Returns a string that contains full information about a command
 func (cmd *Command) Contents() string {
 	var output strings.Builder
-	fmt.Fprintln(&output, "-------- HEADER --------")
+	fmt.Fprintln(&output, "-------- HEADERS --------")
 	fmt.Fprintf(&output, "* Version: %d\n", cmd.HD.Ver)
 	fmt.Fprintf(&output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
-	fmt.Fprintf(&output, "* Info: %d\n", cmd.HD.Info)
+	fmt.Fprintf(&output, "* Info: %d ", cmd.HD.Info)
 
 	switch cmd.HD.Op {
 	case ERR:
 		err := ErrorCodeToError(cmd.HD.Info)
-		fmt.Fprintf(&output, "* Error: %s\n", ErrorString(err))
+		fmt.Fprintf(&output, "(%s)\n", ErrorString(err))
 	case USRS:
 		usrs := Userlist(cmd.HD.Info)
-		fmt.Fprintf(&output, "* Users: %s\n", UserlistString(usrs))
+		fmt.Fprintf(&output, "(%s)\n", UserlistString(usrs))
 	case ADMIN:
 		admin := Admin(cmd.HD.Info)
-		fmt.Fprintf(&output, "* Admin: %s\n", AdminString(admin))
+		fmt.Fprintf(&output, "(%s)\n", AdminString(admin))
 	case SUB, UNSUB, HOOK:
 		hook := Hook(cmd.HD.Info)
-		fmt.Fprintf(&output, "* Hook: %s\n", HookString(hook))
+		fmt.Fprintf(&output, "(%s)\n", HookString(hook))
 	}
 
 	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)
