@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -18,24 +19,109 @@ import (
 	"golang.org/x/term"
 )
 
-var shCommands = map[string]func(ctx context.Context, cmd commands.Command, args ...[]byte) error{
-	"CONN":      connect,
-	"DISCN":     disconnect,
-	"REQ":       requestUser,
-	"REG":       registerUser,
-	"LOGIN":     loginUser,
-	"LOGOUT":    logoutUser,
-	"USRS":      getUsers,
-	"MSG":       sendMessage,
-	"RECIV":     receiveMessages,
-	"TLS":       changeTLS,
-	"IMPORT":    importKey,
-	"EXPORT":    exportKey,
-	"SUB":       subscribe,
-	"UNSUB":     unsubscribe,
-	"VER":       ver,
-	"VERBOSE":   verbose,
-	"REGSERVER": registerServer,
+type ShellCommand struct {
+	Run  func(ctx context.Context, cmd commands.Command, args ...[]byte) error
+	Help string
+}
+
+var shCommands = map[string]ShellCommand{
+	"CONN": {connect,
+		"- CONN: Connects the client to a gochat server.\n" +
+			"Usage: CONN <server address> <server port> [-noverify] || CONN <server name> [-noverify]",
+	},
+
+	"DISCN": {disconnect,
+		"- DISCN: Disconnects the client to a gochat server.\n" +
+			"Usage: DISCN",
+	},
+
+	"REQ": {requestUser,
+		"- REQ: Requests information about a user to the gochat server.\n" +
+			"Usage: REQ <username to be requested>",
+	},
+
+	"REG": {registerUser,
+		"- REG: Registers a user to the gochat server the user is connected to.\n" +
+			"Usage: REG",
+	},
+
+	"DEREG": {deregisterUser,
+		"- DEREG: Deregisters the currently logged in user from the server.\n" +
+			"Usage: DEREG",
+	},
+
+	"LOGIN": {loginUser,
+		"- LOGIN: Requests information about a user to the gochat server.\n" +
+			"Usage: LOGIN <username>",
+	},
+
+	"LOGOUT": {logoutUser,
+		"- LOGOUT: Logs out the current user.\n" +
+			"Usage: LOGOUT",
+	},
+
+	"USRS": {getUsers,
+		"- USRS: Prints a list of users depending on the option provided.\n" +
+			"Usage: USRS <online/all/local server/local all/requested>",
+	},
+
+	"MSG": {sendMessage,
+		"- MSG: Sends a message to a user. You must REQ the user prior to sending them a message.\n" +
+			"Usage: MSG <destination user> <message>",
+	},
+
+	"RECIV": {receiveMessages,
+		"- RECIV: Requests a message catch-up to the gochat server.\n" +
+			"Usage: RECIV",
+	},
+
+	"TLS": {changeTLS,
+		"- TLS: Toggles on/off the TLS mode of the specified server.\n" +
+			"Usage: TLS <on/off> <server name>",
+	},
+
+	"IMPORT": {importKey,
+		". IMPORT: Imports a user to the client database provided the path of its previously-exported key.\n" +
+			"Usage: IMPORT <username of the new user> <path of the key>",
+	},
+
+	"EXPORT": {exportKey,
+		"- EXPORT: Exports a user.\n" +
+			"Usage: EXPORT <user to be exported>",
+	},
+
+	"SUB": {subscribe,
+		"- SUB: Subscribes a user to the specified hook. The user automatically unsubscribes from the hook in each disconnection.\n" +
+			"Usage: SUB <all/new_login/new_logout/duplicated_session/permissions_change>",
+	},
+
+	"UNSUB": {unsubscribe,
+		"-UNSUB: Unsubscribes a user from the specified hook.\n" +
+			"Usage: UNSUB <all/new_login/new_logout/duplicated_session/permissions_change>",
+	},
+
+	"VER": {ver,
+		"- VER: Prints the current client gochat protocol version.\n" +
+			"Usage: VER",
+	},
+
+	"VERBOSE": {verbose,
+		"- VERBOSE: Switches on/off the verbose mode.\n" +
+			"Usage: VERBOSE",
+	},
+
+	"REGSERVER": {registerServer,
+		"- REGSERVER: Registers a server to the client database.\n" +
+			"Usage: REGSERVER <name> <address> <port> [-tls]",
+	},
+
+	"SERVERS": {servers,
+		"- SERVERS: Prints the registered servers of the client database.\n" +
+			"Usage: SERVERS"},
+
+	"ADMIN": {sendAdminCommand,
+		"- ADMIN: Sends an administrator command to the server. The user must have permissions to do so.\n" +
+			"Usage: ADMIN <shtdwn/dereg/brdcast/chperms/kick> <args>"},
 }
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -69,15 +155,30 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		}
 
 		address := string(args[0])
-		server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
-		if dbErr != nil {
-			return dbErr
+
+		exists, _ := db.ServerExists(cmd.Static.DB, address, uint16(port))
+		if !exists {
+			// If the server does not exist and you connect by socket,
+			// it creates it.
+			server, dbErr = db.AddServer(cmd.Static.DB, address, uint16(port), "", false)
+			if dbErr != nil {
+				return dbErr
+			}
+		} else {
+			server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
+			if dbErr != nil {
+				return dbErr
+			}
 		}
 	}
 
 	_, connErr := commands.Conn(cmd, server, noverify)
+	if connErr != nil {
+		return connErr
+	}
 	cmd.Data.Server = &server
-	return connErr
+	go commands.Listen(cmd, func() {})
+	return nil
 }
 
 // Calls Discn, no aditional sanitization needed.
@@ -85,12 +186,13 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 // Arguments: none
 func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	_, discnErr := commands.Discn(cmd)
+	cmd.Data.Server = nil
 	return discnErr
 }
 
 // Calls REQ to request a user.
 //
-// Arguments: <username to be requested> (args[0])
+// Arguments: <username to be requested>
 func requestUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
@@ -163,6 +265,29 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 	return regErr
 }
 
+// Deregisters the current user if the password verification is passed
+//
+// Arguments: <username to be deregistered>
+func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	// Asks for password
+	cmd.Output(fmt.Sprintf("%s's password: ", cmd.Data.User.User.Username), commands.PROMPT)
+	pass, passErr := term.ReadPassword(0)
+
+	if passErr != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return passErr
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	_, deregErr := commands.Dereg(ctx, cmd, cmd.Data.User.User.Username, string(pass))
+	if deregErr != nil {
+		return deregErr
+	}
+	// Empties the user value in Data
+	cmd.Data.User = nil
+	return nil
+}
+
 // Opens a prompt to securely ask for a password in order to call the LOGIN
 // command.
 //
@@ -180,7 +305,12 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		return commands.ErrorInsuficientArgs
 	}
 
-	username := args[0]
+	username := string(args[0])
+	exists, _ := db.LocalUserExists(cmd.Static.DB, username, cmd.Data.Server.Address, cmd.Data.Server.Port)
+	if !exists {
+		return commands.ErrorUserNotFound
+	}
+
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
 	pass, passErr := term.ReadPassword(0)
@@ -227,12 +357,17 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 
 		switch localOption {
 		case "SERVER":
+			if !cmd.Data.IsConnected() {
+				return commands.ErrorNotConnected
+			}
 			option = commands.LOCAL_SERVER
 		case "ALL":
 			option = commands.LOCAL_ALL
 		default:
 			return commands.ErrorUnknownUSRSOption
 		}
+	case "REQUESTED":
+		option = commands.REQUESTED
 
 	default:
 		return commands.ErrorUnknownUSRSOption
@@ -291,32 +426,64 @@ func unsubscribe(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 
 // Calls Import to import a key.
 //
-// Arguments: <username> <path> <password>
+// Arguments: <username> <path>
 func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	if len(args) < 3 {
-		return commands.ErrorInsuficientArgs
-	}
-
-	username := string(args[0])
-	pass := string(args[1])
-	path := string(args[2])
-
-	_, importErr := commands.Import(cmd, username, pass, path)
-	return importErr
-}
-
-// Calls Import to import a key.
-//
-// Arguments: <username> <path> <password>
-func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 2 {
 		return commands.ErrorInsuficientArgs
 	}
 
 	username := string(args[0])
-	pass := string(args[1])
+	path := string(args[1])
 
-	_, exportErr := commands.Export(cmd, username, pass)
+	// Gets the password
+	cmd.Output("password: ", commands.PROMPT)
+	pass1, pass1Err := term.ReadPassword(0)
+	if pass1Err != nil {
+		cmd.Output("", commands.PROMPT)
+		return pass1Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	cmd.Output("repeat password: ", commands.PROMPT)
+	pass2, pass2Err := term.ReadPassword(0)
+	if pass2Err != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return pass2Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	if string(pass1) != string(pass2) {
+		return commands.ErrorPasswordsDontMatch
+	}
+
+	_, importErr := commands.Import(cmd, username, string(pass1), path)
+	return importErr
+}
+
+// Calls Export to import a key.
+//
+// Arguments: <username>
+func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	if !cmd.Data.IsConnected() {
+		return commands.ErrorNotConnected
+	}
+
+	username := string(args[0])
+	// Asks for password
+	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
+	pass, passErr := term.ReadPassword(0)
+
+	if passErr != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return passErr
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	_, exportErr := commands.Export(cmd, username, string(pass))
 	return exportErr
 }
 
@@ -356,7 +523,17 @@ func changeTLS(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	}
 
 	_, tlsErr := commands.TLS(cmd, &server, on)
-	return tlsErr
+	if tlsErr != nil {
+		return tlsErr
+	}
+
+	onString := "off"
+	if on {
+		onString = "on"
+	}
+
+	cmd.Output(fmt.Sprintf("TLS mode turned %s for %s server", onString, server.Name), commands.RESULT)
+	return nil
 }
 
 /* SHELL-EXCLUSIVE COMMANDS */
@@ -420,4 +597,98 @@ func registerServer(ctx context.Context, cmd commands.Command, args ...[]byte) e
 		commands.RESULT,
 	)
 	return nil
+}
+
+func servers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	servers, dbErr := db.GetAllServers(cmd.Static.DB)
+	if dbErr != nil {
+		return dbErr
+	}
+
+	fmt.Println("all servers:")
+
+	for _, v := range servers {
+		fmt.Printf("- %s (%s:%d)\n", v.Name, v.Address, v.Port)
+	}
+
+	return nil
+}
+
+func help(cmd commands.Command, args ...[]byte) error {
+	if len(args) == 0 {
+		fmt.Println("To exit the shell type EXIT")
+		fmt.Println()
+
+		for _, v := range shCommands {
+			fmt.Println(v.Help)
+			fmt.Println()
+		}
+
+		return nil
+	}
+
+	shCmd := fetchCommand(string(args[0]), cmd)
+	fmt.Println(shCmd.Help)
+	return nil
+}
+
+func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	opStr := strings.ToUpper(string(args[0]))
+	adminArgs := make([][]byte, 0)
+	var op spec.Admin
+	switch opStr {
+	case "SHTDWN":
+		if len(args) < 2 {
+			return commands.ErrorInsuficientArgs
+		}
+
+		op = spec.AdminShutdown
+		seconds, parseErr := strconv.ParseUint(string(args[1]), 10, 16)
+		if parseErr != nil {
+			return parseErr
+		}
+		stamp := time.Now().Add(time.Duration(seconds))
+		adminArgs = append(adminArgs, spec.UnixStampToBytes(stamp))
+	case "DEREG":
+		if len(args) < 2 {
+			return commands.ErrorInsuficientArgs
+		}
+		op = spec.AdminDeregister
+		adminArgs = append(adminArgs, args[1])
+	case "BRDCAST":
+		if len(args) < 2 {
+			return commands.ErrorInsuficientArgs
+		}
+		op = spec.AdminBroadcast
+		adminArgs = append(adminArgs, args[1])
+	case "CHGPERMS":
+		if len(args) < 3 {
+			return commands.ErrorInsuficientArgs
+		}
+		op = spec.AdminChangePerms
+		adminArgs = append(adminArgs, args[1])
+		perm, parseErr := strconv.ParseUint(string(args[2]), 10, 16)
+		if parseErr != nil {
+			return parseErr
+		}
+
+		permArg := make([]byte, 0)
+		permArg = append(permArg, byte(perm))
+		adminArgs = append(adminArgs, permArg)
+	case "KICK":
+		if len(args) < 2 {
+			return commands.ErrorInsuficientArgs
+		}
+		op = spec.AdminDisconnect
+		adminArgs = append(adminArgs, args[1])
+	default:
+		return commands.ErrorInvalidAdminOperation
+	}
+
+	_, adminErr := commands.Admin(ctx, cmd, op, adminArgs)
+	return adminErr
 }

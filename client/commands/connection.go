@@ -52,7 +52,6 @@ func Listen(cmd Command, cleanup func()) {
 		cmd.Data.Conn = nil
 		cmd.Data.User = nil
 
-		<-time.After(50 * time.Millisecond)
 		cmd.Output("No longer listening for packets", INFO)
 		cleanup()
 	}()

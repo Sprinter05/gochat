@@ -15,7 +15,7 @@ import (
 )
 
 // Given a string containing a command name, returns its execution function.
-func fetchCommand(op string, cmd commands.Command) func(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+func fetchCommand(op string, cmd commands.Command) ShellCommand {
 	v, ok := shCommands[strings.ToUpper(op)]
 	if !ok {
 		cmd.Output(
@@ -23,7 +23,7 @@ func fetchCommand(op string, cmd commands.Command) func(ctx context.Context, cmd
 			commands.ERROR,
 		)
 
-		return nil
+		return ShellCommand{}
 	}
 	return v
 }
@@ -56,14 +56,19 @@ func NewShell(data commands.Command) {
 		var args [][]byte
 		args = append(args, bytes.Fields(input)[1:]...)
 
+		if strings.ToUpper(op) == "HELP" {
+			help(data, args...)
+			continue
+		}
+
 		// Gets the appropiate command and executes it
-		f := fetchCommand(op, data)
-		if f == nil {
+		shCmd := fetchCommand(op, data)
+		if shCmd.Run == nil {
 			continue
 		}
 
 		//* Can be changed with context.WithTimeout
-		err := f(context.Background(), data, args...)
+		err := shCmd.Run(context.Background(), data, args...)
 		if err != nil {
 			fmt.Printf("[ERROR] %s: %s\n", op, err)
 		}
@@ -92,7 +97,7 @@ func Print(text string, outputType commands.OutputType) {
 	case commands.INTERMEDIATE:
 		prefix = "[...] "
 	case commands.PACKET:
-		prefix = "[PACKET] "
+		prefix = "[PACKET]\n"
 	case commands.PROMPT:
 		jump = ""
 	case commands.ERROR:
@@ -125,15 +130,37 @@ func RECIVHandler(cmd *commands.Command) {
 			fmt.Println(storeErr)
 			continue
 		}
-		PrintMessage(reciv, decrypted.Content, *cmd)
+		printMessage(reciv, decrypted.Content, *cmd)
+	}
+}
+
+// Shell-specific HOOL handler. Listens
+// constantly for incoming HOOK packets
+// and performs the necessary shell
+// operations.
+func HOOKHandler(cmd *commands.Command) {
+	for {
+		hook, _ := cmd.Data.Waitlist.Get(
+			context.Background(),
+			commands.Find(0, spec.HOOK),
+		)
+		printHook(hook, *cmd)
 	}
 }
 
 // Prints a received message in the shell
-func PrintMessage(reciv spec.Command, decryptedText string, cmd commands.Command) {
+func printMessage(reciv spec.Command, decryptedText string, cmd commands.Command) {
 	stamp, _ := spec.BytesToUnixStamp(reciv.Args[1])
 	// Removes prompt line and rings bell
 	fmt.Print("\r\033[K\a")
 	fmt.Printf("\033[36m[%s] \033[32m%s\033[0m: %s\n", stamp.String(), reciv.Args[0], decryptedText)
+	PrintPrompt(*cmd.Data)
+}
+
+// Prints a received hook in the shell
+func printHook(hook spec.Command, cmd commands.Command) {
+	// Removes prompt line and rings bell
+	fmt.Print("\r\033[K\a")
+	fmt.Printf("\033[0;35m[HOOK] \033[32mHook received\033[0m: Code %d (%s)\n", hook.HD.Info, spec.HookString(spec.Hook(hook.HD.Info)))
 	PrintPrompt(*cmd.Data)
 }

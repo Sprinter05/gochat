@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -112,13 +113,21 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	data := commands.Data{Conn: con, Server: &server, Waitlist: commands.DefaultWaitlist()}
 	args := commands.Command{Data: &data, Static: &static, Output: shell.Print}
 
+	if verbosePrint {
+		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
+	}
+
 	if address != "" {
 		commands.ConnectionStart(args)
-		args.Output("listening for incoming packets...", commands.INFO)
+		if verbosePrint {
+			args.Output("listening for incoming packets...", commands.INFO)
+		}
 		go commands.Listen(args, func() {})
 	}
 
 	go shell.RECIVHandler(&args)
+	go shell.HOOKHandler(&args)
+
 	shell.NewShell(args)
 	// TODO: check that the connection closes correctly even without this
 	/*
