@@ -1064,6 +1064,81 @@ func Reciv(ctx context.Context, cmd Command) ([][]byte, error) {
 	return nil, nil
 }
 
+// Sends a DEREG packet to the server that deregisters a user.
+//
+// Returns nil values if the packet is sent successfully.
+func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
+	if !cmd.Data.IsConnected() {
+		return nil, ErrorNotConnected
+	}
+
+	if !cmd.Data.IsLoggedIn() {
+		return nil, ErrorNotLoggedIn
+	}
+
+	found, existsErr := db.LocalUserExists(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if existsErr != nil {
+		return nil, existsErr
+	}
+	if !found {
+		return nil, ErrorUserNotFound
+	}
+
+	// Verifies password
+	localUser, localUserErr := db.GetLocalUser(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if localUserErr != nil {
+		return nil, localUserErr
+	}
+	// localUser.User = user
+
+	verbosePrint("checking password...", cmd)
+	hash := []byte(localUser.Password)
+	cmpErr := bcrypt.CompareHashAndPassword(hash, []byte(pass))
+	if cmpErr != nil {
+		return nil, ErrorWrongCredentials
+	}
+
+	id := cmd.Data.NextID()
+	pct, pctErr := spec.NewPacket(spec.DEREG, id, spec.EmptyInfo, []byte(username))
+	if pctErr != nil {
+		return nil, pctErr
+	}
+
+	_, wErr := cmd.Data.Conn.Write(pct)
+	if wErr != nil {
+		return nil, wErr
+	}
+
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return nil, spec.ErrorCodeToError(reply.HD.Info)
+	}
+
+	dbErr := db.DeleteLocalUser(cmd.Static.DB, username, cmd.Data.Server.Address, cmd.Data.Server.Port)
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	cmd.Output(fmt.Sprintf("user %s deregistered correctly", username), RESULT)
+	return nil, nil
+}
+
 /* AUXILIARY FUNCTIONS */
 
 // Performs the necessary operations to store a RECIV
