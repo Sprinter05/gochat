@@ -23,6 +23,7 @@ var shCommands = map[string]func(ctx context.Context, cmd commands.Command, args
 	"DISCN":     disconnect,
 	"REQ":       requestUser,
 	"REG":       registerUser,
+	"DEREG":     deregisterUser,
 	"LOGIN":     loginUser,
 	"LOGOUT":    logoutUser,
 	"USRS":      getUsers,
@@ -177,6 +178,29 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 
 	_, regErr := commands.Reg(ctx, cmd, string(username), string(pass1))
 	return regErr
+}
+
+// Deregisters the current user if the password verification is passed
+//
+// Arguments: <username to be deregistered>
+func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	// Asks for password
+	cmd.Output(fmt.Sprintf("%s's password: ", cmd.Data.User.User.Username), commands.PROMPT)
+	pass, passErr := term.ReadPassword(0)
+
+	if passErr != nil {
+		cmd.Output("\n", commands.PROMPT)
+		return passErr
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	_, deregErr := commands.Dereg(ctx, cmd, cmd.Data.User.User.Username, string(pass))
+	if deregErr != nil {
+		return deregErr
+	}
+	// Empties the user value in Data
+	cmd.Data.User = nil
+	return nil
 }
 
 // Opens a prompt to securely ask for a password in order to call the LOGIN

@@ -92,7 +92,7 @@ func Print(text string, outputType commands.OutputType) {
 	case commands.INTERMEDIATE:
 		prefix = "[...] "
 	case commands.PACKET:
-		prefix = "[PACKET] "
+		prefix = "[PACKET]\n"
 	case commands.PROMPT:
 		jump = ""
 	case commands.ERROR:
