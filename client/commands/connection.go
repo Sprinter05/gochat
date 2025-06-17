@@ -10,14 +10,19 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
+/* STRUCTS */
+
+// Specifies a message that is going through the connection
 type Message struct {
-	Sender    string
-	Content   string
-	Timestamp time.Time
+	Sender    string    // Who is sending the message
+	Content   string    // What the message contains
+	Timestamp time.Time // When the message was sent
 }
 
-// Connects to the gochat server given its address and port
-func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.Conn, err error) {
+/* CONNECTION FUNCTIONS */
+
+// Performs the socket connection to the server.
+func SocketConnect(address string, port uint16, useTLS bool, noVerify bool) (con net.Conn, err error) {
 	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
 
 	if useTLS {
@@ -40,10 +45,56 @@ func Connect(address string, port uint16, useTLS bool, noVerify bool) (con net.C
 	return con, nil
 }
 
+// Listens for an OK packet from the server when starting the connection,
+// which determines that the client/server connection was started successfully.
+func WaitConnect(data Command) error {
+	cmd := new(spec.Command)
+
+	conn := spec.Connection{
+		Conn: data.Data.Conn,
+		TLS:  data.Data.Server.TLS,
+	}
+
+	// Header listen
+	hdErr := cmd.ListenHeader(conn)
+	if hdErr != nil {
+		return hdErr
+	}
+
+	// Header check
+	chErr := cmd.HD.ClientCheck()
+	if chErr != nil {
+		if data.Static.Verbose {
+			str := fmt.Sprintf(
+				"Incorrect header from server:\n%s",
+				cmd.Contents(),
+			)
+			data.Output(str, PACKET)
+		}
+		return chErr
+	}
+
+	// Payload listen
+	pldErr := cmd.ListenPayload(conn)
+	if pldErr != nil {
+		return pldErr
+	}
+
+	if cmd.HD.Op == 1 {
+		data.Output("successfully connected to the server", RESULT)
+	} else {
+		return spec.ErrorUndefined
+	}
+
+	return nil
+}
+
+/* LISTENING FUNCTIONS */
+
 // Listens for incoming server packets. When a packet
 // is received, it is stored in the packet waitlist
-// A cleanup function that cleans up resources can be passed
-func Listen(cmd Command, cleanup func()) {
+// A cleanup function that cleans up resources can be passed.
+func ListenPackets(cmd Command, cleanup func()) {
 	defer func() {
 		if cmd.Data.Conn != nil {
 			cmd.Data.Conn.Close()
@@ -103,98 +154,3 @@ func Listen(cmd Command, cleanup func()) {
 		cmd.Data.Waitlist.Insert(pct)
 	}
 }
-
-// Listens for an OK packet from the server when starting the connection,
-// which determines that the client/server was started successfully
-func ConnectionStart(data Command) error {
-	cmd := new(spec.Command)
-
-	conn := spec.Connection{
-		Conn: data.Data.Conn,
-		TLS:  data.Data.Server.TLS,
-	}
-
-	// Header listen
-	hdErr := cmd.ListenHeader(conn)
-	if hdErr != nil {
-		return hdErr
-	}
-
-	// Header check
-	chErr := cmd.HD.ClientCheck()
-	if chErr != nil {
-		if data.Static.Verbose {
-			str := fmt.Sprintf(
-				"Incorrect header from server:\n%s",
-				cmd.Contents(),
-			)
-			data.Output(str, PACKET)
-		}
-		return chErr
-	}
-
-	// Payload listen
-	pldErr := cmd.ListenPayload(conn)
-	if pldErr != nil {
-		return pldErr
-	}
-
-	if cmd.HD.Op == 1 {
-		data.Output("successfully connected to the server", RESULT)
-	} else {
-		return spec.ErrorUndefined
-	}
-
-	return nil
-}
-
-/*
-// Receives a slice of command operations to listen to, then starts
-// listening until a received packet fits one of the actions provided
-// and returns it
-func ListenResponse(data Command, id spec.ID, ops ...spec.Action) (spec.Command, error) {
-	//  timeouts
-	var cmd spec.Command
-
-	for !(slices.Contains(ops, cmd.HD.Op)) {
-		cmd = spec.Command{}
-		// Header listen
-		hdErr := cmd.ListenHeader(data.Data.ClientCon)
-		if hdErr != nil {
-			return cmd, hdErr
-		}
-
-		// Header check
-		chErr := cmd.HD.ClientCheck()
-		if chErr != nil {
-			if data.Static.Verbose {
-				str := fmt.Sprintf(
-					"Incorrect header from server:\n%s",
-					cmd.Contents(),
-				)
-				data.Output(str, PACKET)
-			}
-			return cmd, chErr
-		}
-
-		// Payload listen
-		pldErr := cmd.ListenPayload(data.Data.ClientCon)
-		if pldErr != nil {
-			return cmd, pldErr
-		}
-	}
-
-	if data.Static.Verbose {
-		str := fmt.Sprintf(
-			"Packet received from server:\n%s",
-			cmd.Contents(),
-		)
-		data.Output(str, PACKET)
-	}
-
-	if cmd.HD.ID != id {
-		return cmd, fmt.Errorf("unexpected ID received")
-	}
-	return cmd, nil
-}
-*/

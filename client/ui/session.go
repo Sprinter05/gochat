@@ -288,7 +288,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 		}
 
 		rCtx, cancel := timeout(s, data)
-		msg, err := cmds.StoreReciv(
+		msg, err := cmds.StoreMessage(
 			rCtx, cmd,
 			cmds.Command{
 				Output: func(string, cmds.OutputType) {},

@@ -612,7 +612,7 @@ func connectServer(t *TUI, cmd Command) {
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 
 	c.Output = t.systemMessage("", defaultBuffer)
-	go cmds.Listen(c, func() {
+	go cmds.ListenPackets(c, func() {
 		cmd.serv.Buffers().Offline()
 		c.Data.Waitlist.Cancel(data.Logout)
 		c.Data.Waitlist.Cancel(cmd.serv.Context().Cancel)

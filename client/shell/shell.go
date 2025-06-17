@@ -121,7 +121,7 @@ func RECIVHandler(cmd *commands.Command) {
 			context.Background(),
 			commands.Find(0, spec.RECIV),
 		)
-		decrypted, storeErr := commands.StoreReciv(
+		decrypted, storeErr := commands.StoreMessage(
 			context.Background(), reciv, *cmd,
 		)
 		if storeErr != nil {

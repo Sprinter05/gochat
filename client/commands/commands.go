@@ -9,7 +9,6 @@ import (
 	mrand "math/rand/v2"
 	"net"
 	"os"
-	"slices"
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
@@ -19,76 +18,39 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO: USERINFO command
-// TODO: HELP
-// TODO: More advanced verbose options
-// TODO: turn duplicated code (import/reg) to aux functions
-// TODO: move ask password function to shell package
-
 /* STRUCTS */
 
-// Struct that contains all the data required for the shell to function.
-// Commands may alter the data if necessary.
+// Struct that contains all the data necessary to run a command
+// Requires fields may change between commands
+// Commands may alter the data if necessary
 type Data struct {
-	// TODO: Thread safe??
-	Conn     net.Conn
-	Server   *db.Server
-	User     *db.LocalUser
-	Waitlist models.Waitlist[spec.Command]
-	Next     spec.ID
-	Logout   context.CancelFunc
+	Conn     net.Conn                      // Specifies the connection to the server
+	Server   *db.Server                    // Specifies the database server
+	User     *db.LocalUser                 // Specifies the logged in user
+	Logout   context.CancelFunc            // Specifies the function to call on a logout for context propagation
+	Waitlist models.Waitlist[spec.Command] // Stores all commands to be retrieved later
+	Next     spec.ID                       // Specifies the next ID that should be used when sending a packet
 }
 
-// Separated struct that eases interaction with the terminal UI
+// Static data that should only be assigned
+// in specific cases
 type StaticData struct {
-	Verbose bool
-	DB      *gorm.DB
+	Verbose bool     // Whether or not to print detailed information
+	DB      *gorm.DB // Connection to the database
 }
 
-type OutputFunc func(text string, outputType OutputType)
-
+// Specifies all structs necessary for a command
 type Command struct {
-	Output OutputFunc // Custom output-printing function
-	Static *StaticData
-	Data   *Data
+	Output OutputFunc  // Custom output-printing function
+	Static *StaticData // Static Data (mostly)
+	Data   *Data       // Modifiable Data
 }
 
-// Represents the type of a command output.
-// This eases specific output printing actions.
+/* CUSTOM TYPES */
+
+// Represents the type of a command output
+// This eases specific output printing actions
 type OutputType uint
-
-// Represents the different USRS command types
-type USRSType uint
-
-/* DATA FUNCTIONS */
-
-func NewEmptyData() Data {
-	initial := mrand.IntN(int(spec.MaxID))
-
-	return Data{
-		Waitlist: DefaultWaitlist(),
-		Next:     spec.ID(initial),
-		Logout:   func() {},
-	}
-}
-
-func (data *Data) NextID() spec.ID {
-	data.Next = (data.Next + 1) % spec.MaxID
-	if data.Next == spec.NullID {
-		data.Next += 1
-	}
-	return data.Next
-}
-
-func (data *Data) IsLoggedIn() bool {
-	return data.User != nil && data.User.User.Username != "" && data.IsConnected()
-}
-
-func (data *Data) IsConnected() bool {
-	return data.Conn != nil
-}
-
-/* OUTPUT TYPES */
 
 const (
 	INTERMEDIATE OutputType = iota // Intermediate status messages
@@ -102,39 +64,75 @@ const (
 	PLAIN                          // Output type that should be printed as-is, with no prefix
 )
 
-/* USRS TYPES */
+// Represents the function that will be called when outputting info
+type OutputFunc func(text string, outputType OutputType)
+
+// Represents the different USRS command types
+type USRSType uint
+
 const (
-	ALL          USRSType = 0 // as spec
-	ONLINE       USRSType = 1 // as spec
-	LOCAL_SERVER USRSType = 2
-	LOCAL_ALL    USRSType = 3
-	REQUESTED    USRSType = 4
+	ALL          USRSType = 0 // Users in the server (as spec)
+	ONLINE       USRSType = 1 // Online users in the server (as spec)
+	LOCAL_SERVER USRSType = 2 // Registered local users for a server
+	LOCAL_ALL    USRSType = 3 // All local users
+	REQUESTED    USRSType = 4 // All external users whose public key has been saved
 )
+
+/* DATA FUNCTIONS */
+
+// Creates a new empty but initialised struct for Data
+func NewEmptyData() Data {
+	initial := mrand.IntN(int(spec.MaxID))
+
+	return Data{
+		Waitlist: DefaultWaitlist(),
+		Next:     spec.ID(initial),
+		Logout:   func() {},
+	}
+}
+
+// Incremenents the next ID to be used and returns it
+func (data *Data) NextID() spec.ID {
+	data.Next = (data.Next + 1) % spec.MaxID
+	if data.Next == spec.NullID {
+		data.Next += 1
+	}
+	return data.Next
+}
+
+// Whether the connection is logged in or not
+func (data *Data) IsLoggedIn() bool {
+	return data.User != nil && data.User.User.Username != "" && data.IsConnected()
+}
+
+// Whether the connection is or not established
+func (data *Data) IsConnected() bool {
+	return data.Conn != nil
+}
 
 /* ERRORS */
 
-// Possible command errors.
 var (
-	ErrorInsuficientArgs       error = fmt.Errorf("not enough arguments")
-	ErrorNotConnected          error = fmt.Errorf("not connected to a server")
-	ErrorAlreadyConnected      error = fmt.Errorf("already connected to a server")
-	ErrorNotLoggedIn           error = fmt.Errorf("you are not logged in")
-	ErrorAlreadyLoggedIn       error = fmt.Errorf("you are already logged in")
-	ErrorWrongCredentials      error = fmt.Errorf("wrong credentials")
-	ErrorUnknownUSRSOption     error = fmt.Errorf("unknown option; valid options are online, all, local or requested")
-	ErrorUsernameEmpty         error = fmt.Errorf("username cannot be empty")
-	ErrorUserExists            error = fmt.Errorf("local user exists")
-	ErrorPasswordsDontMatch    error = fmt.Errorf("passwords do not match")
-	ErrorUserNotFound          error = fmt.Errorf("user not found")
-	ErrorUnknownTLSOption      error = fmt.Errorf("unknown option; valid options are on or off")
-	ErrorOfflineRequired       error = fmt.Errorf("you must be offline")
-	ErrorInvalidSkipVerify     error = fmt.Errorf("cannot skip verification on a non-TLS endpoint")
-	ErrorRequestToSelf         error = fmt.Errorf("cannot request yourself")
-	ErrorUnknownHookOption     error = fmt.Errorf("invalid hook provided")
-	ErrorInvalidAdminOperation error = fmt.Errorf("invalid admin operation")
+	ErrorInsuficientArgs       error = fmt.Errorf("not enough arguments")                           // not enough arguments
+	ErrorNotConnected          error = fmt.Errorf("not connected to a server")                      // not connected to a server
+	ErrorAlreadyConnected      error = fmt.Errorf("already connected to a server")                  // already connected to a server
+	ErrorNotLoggedIn           error = fmt.Errorf("you are not logged in")                          // you are not logged in
+	ErrorAlreadyLoggedIn       error = fmt.Errorf("you are already logged in")                      // you are already logged in
+	ErrorWrongCredentials      error = fmt.Errorf("wrong credentials")                              // wrong credentials
+	ErrorUnknownUSRSOption     error = fmt.Errorf("unknown usrs option provided")                   // unknown usrs option provided
+	ErrorUsernameEmpty         error = fmt.Errorf("username cannot be empty")                       // username cannot be empty
+	ErrorUserExists            error = fmt.Errorf("local user exists")                              // local user exists
+	ErrorPasswordsDontMatch    error = fmt.Errorf("passwords do not match")                         // passwords do not match
+	ErrorUserNotFound          error = fmt.Errorf("user not found")                                 // user not found
+	ErrorUnknownTLSOption      error = fmt.Errorf("unknown tls option provided")                    // unknown tls option provided
+	ErrorOfflineRequired       error = fmt.Errorf("you must be offline")                            // you must be offline
+	ErrorInvalidSkipVerify     error = fmt.Errorf("cannot skip verification on a non-TLS endpoint") // cannot skip verification on a non-TLS endpoint
+	ErrorRequestToSelf         error = fmt.Errorf("cannot request yourself")                        // cannot request yourself
+	ErrorUnknownHookOption     error = fmt.Errorf("invalid hook provided")                          // invalid hook provided
+	ErrorInvalidAdminOperation error = fmt.Errorf("invalid admin operation")                        // invalid admin operation
 )
 
-/* LOOKUP TABLE */
+/* LOOKUP TABLES */
 
 // List of hooks and their names.
 var hooksList = map[string]spec.Hook{
@@ -145,120 +143,20 @@ var hooksList = map[string]spec.Hook{
 	"permissions_change": spec.HookPermsChange,
 }
 
+// List of all necessary arguments for each admin command.
+var adminArgs = map[spec.Admin]uint{
+	spec.AdminBroadcast:   1,
+	spec.AdminDeregister:  1,
+	spec.AdminChangePerms: 2,
+	spec.AdminDisconnect:  1,
+	spec.AdminShutdown:    1,
+}
+
 /* CLIENT COMMANDS */
-
-// Subscribes to a specific hook to the server
-//
-// Returns a zero value ReplyData if successful
-func Sub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
-	if !cmd.Data.IsConnected() {
-		return nil, ErrorNotConnected
-	}
-
-	if !cmd.Data.IsLoggedIn() {
-		return nil, ErrorNotLoggedIn
-	}
-
-	hook, ok := hooksList[name]
-	if !ok {
-		return nil, ErrorUnknownHookOption
-	}
-
-	str := fmt.Sprintf("subscribing to event %s...", name)
-	verbosePrint(str, cmd)
-	id := cmd.Data.NextID()
-	hookPct, hookPctErr := spec.NewPacket(
-		spec.SUB, id,
-		byte(hook),
-	)
-	if hookPctErr != nil {
-		return nil, hookPctErr
-	}
-
-	if cmd.Static.Verbose {
-		packetPrint(hookPct, cmd)
-	}
-
-	_, hookWErr := cmd.Data.Conn.Write(hookPct)
-	if hookWErr != nil {
-		return nil, hookWErr
-	}
-
-	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := cmd.Data.Waitlist.Get(
-		ctx, Find(id, spec.OK, spec.ERR),
-	)
-	if replyErr != nil {
-		return nil, replyErr
-	}
-
-	if reply.HD.Op == spec.ERR {
-		return nil, spec.ErrorCodeToError(reply.HD.Info)
-	}
-
-	cmd.Output("succesfully subscribed!", RESULT)
-	return nil, nil
-}
-
-// Unsubscribes from a specific hook to the server
-//
-// Returns a zero value ReplyData if successful
-func Unsub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
-	if !cmd.Data.IsConnected() {
-		return nil, ErrorNotConnected
-	}
-
-	if !cmd.Data.IsLoggedIn() {
-		return nil, ErrorNotLoggedIn
-	}
-
-	hook, ok := hooksList[name]
-	if !ok {
-		return nil, ErrorUnknownHookOption
-	}
-
-	str := fmt.Sprintf("unsubscribing to event %s...", name)
-	verbosePrint(str, cmd)
-	id := cmd.Data.NextID()
-	hookPct, hookPctErr := spec.NewPacket(
-		spec.UNSUB, id,
-		byte(hook),
-	)
-	if hookPctErr != nil {
-		return nil, hookPctErr
-	}
-
-	if cmd.Static.Verbose {
-		packetPrint(hookPct, cmd)
-	}
-
-	_, hookWErr := cmd.Data.Conn.Write(hookPct)
-	if hookWErr != nil {
-		return nil, hookWErr
-	}
-
-	verbosePrint("awaiting response...", cmd)
-	reply, replyErr := cmd.Data.Waitlist.Get(
-		ctx, Find(id, spec.OK, spec.ERR),
-	)
-	if replyErr != nil {
-		return nil, replyErr
-	}
-
-	if reply.HD.Op == spec.ERR {
-		return nil, spec.ErrorCodeToError(reply.HD.Info)
-	}
-
-	cmd.Output("succesfully unsubscribed!", RESULT)
-	return nil, nil
-}
 
 // Imports a private RSA key for a new local user
 // from the specified directory using the specification PEM format.
-//
-// Returns a zero value ReplyData if successful
 func Import(cmd Command, username, pass, path string) ([][]byte, error) {
-
 	verbosePrint("reading private key...", cmd)
 	buf, readErr := os.ReadFile(path)
 	if readErr != nil {
@@ -303,9 +201,7 @@ func Import(cmd Command, username, pass, path string) ([][]byte, error) {
 }
 
 // Exports a local user as a private RSA key
-// in the current directory using the spec PEM format
-//
-// Returns a zero value ReplyData if successful
+// in a folder called export using the spec PEM format.
 func Export(cmd Command, username, pass string) ([][]byte, error) {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
@@ -350,7 +246,7 @@ func Export(cmd Command, username, pass string) ([][]byte, error) {
 		os.Mkdir("export", 0755)
 	}
 
-	file := "export/" + username + ".priv" // TODO: test this
+	file := "export/" + username + ".priv"
 	f, createErr := os.Create(file)
 	if createErr != nil {
 		return nil, createErr
@@ -369,9 +265,7 @@ func Export(cmd Command, username, pass string) ([][]byte, error) {
 	return nil, nil
 }
 
-// Changes the state of a TLS server
-//
-// Returns a zero value ReplyData if the argument is correct
+// Changes the state of how TLS will be handled for a server.
 func TLS(cmd Command, server *db.Server, on bool) ([][]byte, error) {
 	if cmd.Data.IsConnected() {
 		return nil, ErrorOfflineRequired
@@ -409,9 +303,7 @@ func TLS(cmd Command, server *db.Server, on bool) ([][]byte, error) {
 
 // Starts a connection with a server. If noverify is set,
 // in case of TLS connections, certificate origins wont be checked.
-// This command does not spawn a listening thread nor allocates a waitlist.
-//
-// Returns nil values if the connection was successful.
+// This command does not spawn a listening thread.
 func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 	if cmd.Data.IsConnected() {
 		return nil, ErrorAlreadyConnected
@@ -429,7 +321,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 		verbosePrint("certificate verification is going to be skipped!", cmd)
 	}
 
-	con, conErr := Connect(
+	con, conErr := SocketConnect(
 		server.Address,
 		server.Port,
 		useTLS,
@@ -440,7 +332,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 	}
 
 	cmd.Data.Conn = con
-	err := ConnectionStart(cmd)
+	err := WaitConnect(cmd)
 
 	if err != nil {
 		return nil, err
@@ -450,94 +342,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 	return nil, nil
 }
 
-// Disconnects a client from a gochat server.
-//
-// Returns nil values if the disconnection was successful.
-func Discn(cmd Command) ([][]byte, error) {
-	if !cmd.Data.IsConnected() {
-		return nil, ErrorNotConnected
-	}
-
-	err := cmd.Data.Conn.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	// Closes the shell client session
-	cmd.Data.Conn = nil
-	cmd.Data.User = nil
-	cmd.Data.Waitlist.Clear()
-	cmd.Output("sucessfully disconnected from the server", RESULT)
-
-	return nil, nil
-}
-
-// Requests the information of an external user to add it to the client database.
-//
-// Returns the reply REQ arguments.
-func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
-	if !cmd.Data.IsConnected() {
-		return nil, ErrorNotConnected
-	}
-
-	if !cmd.Data.IsLoggedIn() {
-		return nil, ErrorNotConnected
-	}
-
-	if username == cmd.Data.User.User.Username {
-		return nil, ErrorRequestToSelf
-	}
-
-	id := cmd.Data.NextID()
-	pct, pctErr := spec.NewPacket(
-		spec.REQ, id,
-		spec.EmptyInfo, []byte(username),
-	)
-	if pctErr != nil {
-		return nil, pctErr
-	}
-
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
-
-	_, wErr := cmd.Data.Conn.Write(pct)
-	if wErr != nil {
-		return nil, wErr
-	}
-
-	// Awaits a response
-	verbosePrint("awaiting response...", cmd)
-	reply, err := cmd.Data.Waitlist.Get(
-		ctx, Find(id, spec.REQ, spec.ERR),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if reply.HD.Op == spec.ERR {
-		return nil, spec.ErrorCodeToError(reply.HD.Info)
-	}
-
-	_, dbErr := db.AddExternalUser(
-		cmd.Static.DB,
-		string(reply.Args[0]),
-		string(reply.Args[1]),
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
-	)
-	if dbErr != nil {
-		return nil, dbErr
-	}
-
-	cmd.Output(fmt.Sprintf("external user %s successfully added to the database", username), RESULT)
-	return reply.Args, nil
-}
-
 // Registers a user to a server and also adds it to the client database.
-// A prompt will get the user input if the user and password is not specified.
-//
-// Returns nil values if an OK packet is received after the sent REG packet.
 func Reg(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
@@ -638,11 +443,84 @@ func Reg(ctx context.Context, cmd Command, username, pass string) ([][]byte, err
 	return nil, nil
 }
 
-// Logs a user to a server. If only the username
-// is given, the command will ask for the password.
-//
-// Returns nil values if an OK packet
-// is received after the sent VERIF packet.
+// Deregisters a user from the server and also removes it locally.
+func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
+	if !cmd.Data.IsConnected() {
+		return nil, ErrorNotConnected
+	}
+
+	if !cmd.Data.IsLoggedIn() {
+		return nil, ErrorNotLoggedIn
+	}
+
+	found, existsErr := db.LocalUserExists(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if existsErr != nil {
+		return nil, existsErr
+	}
+	if !found {
+		return nil, ErrorUserNotFound
+	}
+
+	// Verifies password
+	localUser, localUserErr := db.GetLocalUser(
+		cmd.Static.DB,
+		username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
+	if localUserErr != nil {
+		return nil, localUserErr
+	}
+	// localUser.User = user
+
+	verbosePrint("checking password...", cmd)
+	hash := []byte(localUser.Password)
+	cmpErr := bcrypt.CompareHashAndPassword(hash, []byte(pass))
+	if cmpErr != nil {
+		return nil, ErrorWrongCredentials
+	}
+
+	id := cmd.Data.NextID()
+	pct, pctErr := spec.NewPacket(spec.DEREG, id, spec.EmptyInfo, []byte(username))
+	if pctErr != nil {
+		return nil, pctErr
+	}
+
+	if cmd.Static.Verbose {
+		packetPrint(pct, cmd)
+	}
+
+	_, wErr := cmd.Data.Conn.Write(pct)
+	if wErr != nil {
+		return nil, wErr
+	}
+
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return nil, spec.ErrorCodeToError(reply.HD.Info)
+	}
+
+	dbErr := db.DeleteLocalUser(cmd.Static.DB, username, cmd.Data.Server.Address, cmd.Data.Server.Port)
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	cmd.Output(fmt.Sprintf("user %s deregistered correctly", username), RESULT)
+	return nil, nil
+}
+
+// Logs a user to a server, also performs the verification.
 func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
@@ -676,18 +554,6 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 		return nil, localUserErr
 	}
 
-	// In case the foreign key is not auto filled
-	// user, userErr := db.GetUser(
-	// 	cmd.Static.DB,
-	// 	username,
-	// 	cmd.Data.Server.Address,
-	// 	cmd.Data.Server.Port,
-	// )
-	// if userErr != nil {
-	// 	return ReplyData{Error: userErr}
-	// }
-	// localUser.User = user
-
 	verbosePrint("checking password...", cmd)
 	hash := []byte(localUser.Password)
 	cmpErr := bcrypt.CompareHashAndPassword(hash, []byte(pass))
@@ -703,7 +569,6 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 	}
 	localUser.PrvKey = string(dec)
 
-	// TODO: token
 	// Sends a LOGIN packet with the username as an argument
 	verbosePrint("performing login...", cmd)
 	id1 := cmd.Data.NextID()
@@ -788,12 +653,10 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 	cmd.Data.User = &localUser
 
 	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username), RESULT)
-	return verifReply.Args, nil
+	return nil, nil
 }
 
 // Logs out a user from a server.
-//
-// Returns a zero value ReplyData if an OK packet is received after the sent LOGOUT packet.
 func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
@@ -838,84 +701,27 @@ func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 	return nil, nil
 }
 
-// Requests a list of either "online" or "all" registered users and prints it. If "local"
-// is used as an argument, the local users will be printed insteads and no server requests
-// will be performed.
-//
-// Returns a the received usernames in an array if the request was correct.
-func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
-	if usrsType == LOCAL_ALL {
-		users, err := printAllLocalUsers(cmd)
-		if err != nil {
-			return nil, err
-		}
-		return users, nil
+// Disconnects a client from a server.
+func Discn(cmd Command) ([][]byte, error) {
+	if !cmd.Data.IsConnected() {
+		return nil, ErrorNotConnected
 	}
 
-	if usrsType == REQUESTED {
-		users, err := printExternalUsers(cmd)
-		if err != nil {
-			return nil, err
-		}
-		return users, nil
-	}
-
-	if usrsType == LOCAL_SERVER {
-		users, err := printServerLocalUsers(cmd)
-		if err != nil {
-			return nil, err
-		}
-		return users, nil
-	}
-
-	if !cmd.Data.IsLoggedIn() {
-		return nil, ErrorNotLoggedIn
-	}
-
-	id := cmd.Data.NextID()
-	pct, pctErr := spec.NewPacket(spec.USRS, id, byte(usrsType))
-	if pctErr != nil {
-		return nil, pctErr
-	}
-
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
-
-	// Sends the packet
-	_, wErr := cmd.Data.Conn.Write(pct)
-	if wErr != nil {
-		return nil, wErr
-	}
-
-	// Listens for response
-	verbosePrint("awaiting response...", cmd)
-	reply, err := cmd.Data.Waitlist.Get(
-		ctx, Find(id, spec.USRS, spec.ERR),
-	)
+	err := cmd.Data.Conn.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	if reply.HD.Op == spec.ERR {
-		return nil, spec.ErrorCodeToError(reply.HD.Info)
-	}
+	// Closes the shell client session
+	cmd.Data.Conn = nil
+	cmd.Data.User = nil
+	cmd.Data.Waitlist.Clear()
+	cmd.Output("sucessfully disconnected from the server", RESULT)
 
-	optionString := "all"
-	if usrsType == ONLINE {
-		optionString = "online"
-	}
-
-	cmd.Output(fmt.Sprintf("%s users:", optionString), USRS)
-	cmd.Output(string(reply.Args[0]), USRS)
-	split := bytes.Split(reply.Args[0], []byte("\n"))
-
-	return split, nil
+	return nil, nil
 }
 
 // Sends a message to a user with the current time stamp and stores it in the database.
-//
-// Returns nil values if an OK packet is received after the sent MSG packet
 func Msg(ctx context.Context, cmd Command, username, message string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
@@ -1035,9 +841,8 @@ func Msg(ctx context.Context, cmd Command, username, message string) ([][]byte, 
 	return nil, nil
 }
 
-// Sends a RECIV packet to the server. This command listens for an initial ERR/OK.
-//
-// Returns nil values if the packet is sent successfully.
+// Asks the server to retrieve all messages while the user was offline.
+// This function is not responsible for receiving the messages, only request them.
 func Reciv(ctx context.Context, cmd Command) ([][]byte, error) {
 	id := cmd.Data.NextID()
 	pct, pctErr := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo)
@@ -1069,52 +874,99 @@ func Reciv(ctx context.Context, cmd Command) ([][]byte, error) {
 	return nil, nil
 }
 
-// Sends a DEREG packet to the server that deregisters a user.
-//
-// Returns nil values if the packet is sent successfully.
-func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, error) {
-	if !cmd.Data.IsConnected() {
-		return nil, ErrorNotConnected
+// Requests a list of users depending on the type specified, which may or not
+// require an active connection.
+// Returns a the received usernames in an array if the request was correct.
+func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
+	if usrsType == LOCAL_ALL {
+		users, err := printAllLocalUsers(cmd)
+		if err != nil {
+			return nil, err
+		}
+		return users, nil
+	}
+
+	if usrsType == REQUESTED {
+		users, err := printExternalUsers(cmd)
+		if err != nil {
+			return nil, err
+		}
+		return users, nil
+	}
+
+	if usrsType == LOCAL_SERVER {
+		users, err := printServerLocalUsers(cmd)
+		if err != nil {
+			return nil, err
+		}
+		return users, nil
 	}
 
 	if !cmd.Data.IsLoggedIn() {
 		return nil, ErrorNotLoggedIn
 	}
 
-	found, existsErr := db.LocalUserExists(
-		cmd.Static.DB,
-		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
-	)
-	if existsErr != nil {
-		return nil, existsErr
-	}
-	if !found {
-		return nil, ErrorUserNotFound
+	id := cmd.Data.NextID()
+	pct, pctErr := spec.NewPacket(spec.USRS, id, byte(usrsType))
+	if pctErr != nil {
+		return nil, pctErr
 	}
 
-	// Verifies password
-	localUser, localUserErr := db.GetLocalUser(
-		cmd.Static.DB,
-		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
-	)
-	if localUserErr != nil {
-		return nil, localUserErr
+	if cmd.Static.Verbose {
+		packetPrint(pct, cmd)
 	}
-	// localUser.User = user
 
-	verbosePrint("checking password...", cmd)
-	hash := []byte(localUser.Password)
-	cmpErr := bcrypt.CompareHashAndPassword(hash, []byte(pass))
-	if cmpErr != nil {
-		return nil, ErrorWrongCredentials
+	// Sends the packet
+	_, wErr := cmd.Data.Conn.Write(pct)
+	if wErr != nil {
+		return nil, wErr
+	}
+
+	// Listens for response
+	verbosePrint("awaiting response...", cmd)
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.USRS, spec.ERR),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return nil, spec.ErrorCodeToError(reply.HD.Info)
+	}
+
+	optionString := "all"
+	if usrsType == ONLINE {
+		optionString = "online"
+	}
+
+	cmd.Output(fmt.Sprintf("%s users:", optionString), USRS)
+	cmd.Output(string(reply.Args[0]), USRS)
+	split := bytes.Split(reply.Args[0], []byte("\n"))
+
+	return split, nil
+}
+
+// Requests the information of an external user to add it to the client database.
+// Returns the arguments of a REQ as by specification.
+func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
+	if !cmd.Data.IsConnected() {
+		return nil, ErrorNotConnected
+	}
+
+	if !cmd.Data.IsLoggedIn() {
+		return nil, ErrorNotConnected
+	}
+
+	if username == cmd.Data.User.User.Username {
+		return nil, ErrorRequestToSelf
 	}
 
 	id := cmd.Data.NextID()
-	pct, pctErr := spec.NewPacket(spec.DEREG, id, spec.EmptyInfo, []byte(username))
+	pct, pctErr := spec.NewPacket(
+		spec.REQ, id,
+		spec.EmptyInfo, []byte(username),
+	)
 	if pctErr != nil {
 		return nil, pctErr
 	}
@@ -1128,8 +980,10 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 		return nil, wErr
 	}
 
+	// Awaits a response
+	verbosePrint("awaiting response...", cmd)
 	reply, err := cmd.Data.Waitlist.Get(
-		ctx, Find(id, spec.OK, spec.ERR),
+		ctx, Find(id, spec.REQ, spec.ERR),
 	)
 	if err != nil {
 		return nil, err
@@ -1139,18 +993,22 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 		return nil, spec.ErrorCodeToError(reply.HD.Info)
 	}
 
-	dbErr := db.DeleteLocalUser(cmd.Static.DB, username, cmd.Data.Server.Address, cmd.Data.Server.Port)
+	_, dbErr := db.AddExternalUser(
+		cmd.Static.DB,
+		string(reply.Args[0]),
+		string(reply.Args[1]),
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
+	)
 	if dbErr != nil {
 		return nil, dbErr
 	}
 
-	cmd.Output(fmt.Sprintf("user %s deregistered correctly", username), RESULT)
-	return nil, nil
+	cmd.Output(fmt.Sprintf("external user %s successfully added to the database", username), RESULT)
+	return reply.Args, nil
 }
 
 // Sends an ADMIN packet that performs an specific ADMIN operation.
-//
-// Returns nil values if the packet is sent successfully.
 func Admin(ctx context.Context, cmd Command, op spec.Admin, args [][]byte) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
@@ -1160,29 +1018,14 @@ func Admin(ctx context.Context, cmd Command, op spec.Admin, args [][]byte) ([][]
 		return nil, ErrorNotLoggedIn
 	}
 
-	// TODO: check if user has perms
+	min, ok := adminArgs[op]
 
-	switch op {
-	case spec.AdminBroadcast:
-		if len(args) < 1 {
-			return nil, ErrorInsuficientArgs
-		}
-	case spec.AdminDeregister:
-		if len(args) < 1 {
-			return nil, ErrorInsuficientArgs
-		}
-	case spec.AdminChangePerms:
-		if len(args) < 2 {
-			return nil, ErrorInsuficientArgs
-		}
-	case spec.AdminDisconnect:
-		if len(args) < 1 {
-			return nil, ErrorInsuficientArgs
-		}
-	case spec.AdminShutdown:
-		if len(args) < 1 {
-			return nil, ErrorInsuficientArgs
-		}
+	if !ok {
+		return nil, ErrorInvalidAdminOperation
+	}
+
+	if len(args) < int(min) {
+		return nil, ErrorInsuficientArgs
 	}
 
 	id := cmd.Data.NextID()
@@ -1216,189 +1059,104 @@ func Admin(ctx context.Context, cmd Command, op spec.Admin, args [][]byte) ([][]
 	return nil, nil
 }
 
-/* AUXILIARY FUNCTIONS */
+// Subscribes to a specific hook to the server.
+func Sub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
+	if !cmd.Data.IsConnected() {
+		return nil, ErrorNotConnected
+	}
 
-// Performs the necessary operations to store a RECIV
-// packet in the database (decryption, REQ (if necessary)
-// insert...), then returns the decrypted message
-func StoreReciv(ctx context.Context, reciv spec.Command, cmd Command) (Message, error) {
-	src, err := db.GetUser(
-		cmd.Static.DB,
-		string(reciv.Args[0]),
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+	if !cmd.Data.IsLoggedIn() {
+		return nil, ErrorNotLoggedIn
+	}
+
+	hook, ok := hooksList[name]
+	if !ok {
+		return nil, ErrorUnknownHookOption
+	}
+
+	str := fmt.Sprintf("subscribing to event %s...", name)
+	verbosePrint(str, cmd)
+	id := cmd.Data.NextID()
+	hookPct, hookPctErr := spec.NewPacket(
+		spec.SUB, id,
+		byte(hook),
 	)
-	if err != nil {
-		// The user most likely has not been found, so a REQ is required
-		_, reqErr := Req(ctx, cmd, string(reciv.Args[0]))
-		if reqErr != nil {
-			return Message{}, reqErr
-		}
+	if hookPctErr != nil {
+		return nil, hookPctErr
 	}
 
-	prvKey, pemErr := spec.PEMToPrivkey([]byte(cmd.Data.User.PrvKey))
-	if pemErr != nil {
-		return Message{}, pemErr
+	if cmd.Static.Verbose {
+		packetPrint(hookPct, cmd)
 	}
 
-	decrypted, decryptErr := spec.DecryptText(reciv.Args[2], prvKey)
-	if decryptErr != nil {
-		return Message{}, decryptErr
+	_, hookWErr := cmd.Data.Conn.Write(hookPct)
+	if hookWErr != nil {
+		return nil, hookWErr
 	}
 
-	stamp, parseErr := spec.BytesToUnixStamp(reciv.Args[1])
-	if parseErr != nil {
-		return Message{}, parseErr
-	}
-
-	_, insertErr := db.StoreMessage(
-		cmd.Static.DB,
-		src.Username,
-		cmd.Data.User.User.Username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
-		string(decrypted),
-		stamp,
+	verbosePrint("awaiting response...", cmd)
+	reply, replyErr := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
 	)
-	if insertErr != nil {
-		return Message{}, insertErr
+	if replyErr != nil {
+		return nil, replyErr
 	}
 
-	return Message{
-		Sender:    string(reciv.Args[0]),
-		Content:   string(decrypted),
-		Timestamp: stamp,
-	}, nil
+	if reply.HD.Op == spec.ERR {
+		return nil, spec.ErrorCodeToError(reply.HD.Info)
+	}
+
+	cmd.Output("succesfully subscribed!", RESULT)
+	return nil, nil
 }
 
-// Prints out all local users on the current server and
-// returns an array with its usernames.
-func printServerLocalUsers(cmd Command) ([][]byte, error) {
-	localUsers, err := db.GetServerLocalUsers(
-		cmd.Static.DB,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+// Unsubscribes from a specific hook on the server.
+func Unsub(ctx context.Context, cmd Command, name string) ([][]byte, error) {
+	if !cmd.Data.IsConnected() {
+		return nil, ErrorNotConnected
+	}
+
+	if !cmd.Data.IsLoggedIn() {
+		return nil, ErrorNotLoggedIn
+	}
+
+	hook, ok := hooksList[name]
+	if !ok {
+		return nil, ErrorUnknownHookOption
+	}
+
+	str := fmt.Sprintf("unsubscribing to event %s...", name)
+	verbosePrint(str, cmd)
+	id := cmd.Data.NextID()
+	hookPct, hookPctErr := spec.NewPacket(
+		spec.UNSUB, id,
+		byte(hook),
 	)
-
-	if err != nil {
-		return [][]byte{}, err
+	if hookPctErr != nil {
+		return nil, hookPctErr
 	}
 
-	users := make([][]byte, 0, len(localUsers))
-	cmd.Output(fmt.Sprintf("local users from %s - %s:%d:",
-		cmd.Data.Server.Name,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port),
-		USRS,
+	if cmd.Static.Verbose {
+		packetPrint(hookPct, cmd)
+	}
+
+	_, hookWErr := cmd.Data.Conn.Write(hookPct)
+	if hookWErr != nil {
+		return nil, hookWErr
+	}
+
+	verbosePrint("awaiting response...", cmd)
+	reply, replyErr := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
 	)
-
-	for _, v := range localUsers {
-		users = append(users, []byte(v.User.Username))
-		cmd.Output(v.User.Username, USRS)
+	if replyErr != nil {
+		return nil, replyErr
 	}
 
-	return users, nil
-}
-
-// Prints out all external users on the current server and
-// returns an array with its usernames.
-func printExternalUsers(cmd Command) ([][]byte, error) {
-	externalUsers, err := db.GetRequestedUsers(cmd.Static.DB)
-
-	if err != nil {
-		return [][]byte{}, err
+	if reply.HD.Op == spec.ERR {
+		return nil, spec.ErrorCodeToError(reply.HD.Info)
 	}
 
-	users := make([][]byte, 0, len(externalUsers))
-	cmd.Output("all external users:", USRS)
-
-	for _, v := range externalUsers {
-		users = append(users, []byte(v.User.Username))
-		cmd.Output(fmt.Sprintf("%s (%s - %s:%d)",
-			v.User.Username,
-			v.User.Server.Name,
-			v.User.Server.Address,
-			v.User.Server.Port),
-			USRS,
-		)
-	}
-
-	return users, nil
-}
-
-// Prints out all local users on the current server and
-// returns an array with its usernames.
-func printAllLocalUsers(cmd Command) ([][]byte, error) {
-	localUsers, err := db.GetAllLocalUsers(
-		cmd.Static.DB,
-	)
-
-	if err != nil {
-		return [][]byte{}, err
-	}
-
-	users := make([][]byte, 0, len(localUsers))
-	cmd.Output("all local users:", USRS)
-
-	for _, v := range localUsers {
-		str := fmt.Sprintf(
-			"%s (%s - %s:%d)",
-			v.User.Username,
-			v.User.Server.Name,
-			v.User.Server.Address,
-			v.User.Server.Port,
-		)
-		users = append(users, []byte(str))
-		cmd.Output(str, USRS)
-	}
-
-	return users, nil
-}
-
-// Prints a packet.
-func packetPrint(pct []byte, cmd Command) {
-	// TODO: remove the Print and print the string obtained
-	pctCmd := spec.ParsePacket(pct)
-	str := fmt.Sprintf(
-		"Client packet to be sent:\n%s",
-		pctCmd.Contents(),
-	)
-	cmd.Output(str, PACKET)
-}
-
-// Prints text if the verbose mode is on.
-func verbosePrint(text string, args Command) {
-	if args.Static.Verbose {
-		args.Output(text, INTERMEDIATE)
-	}
-}
-
-/* WAITLIST FUNCTIONS */
-
-// Returns a function that returns true if the received command fulfills
-// the given conditions in the arguments (ID and operations).
-// This is used to dinamically create functions that retrieve commands
-// from the waitlist with waitlist.Get()
-func Find(id spec.ID, ops ...spec.Action) func(cmd spec.Command) bool {
-	return func(cmd spec.Command) bool {
-		if cmd.HD.ID == id && slices.Contains(ops, cmd.HD.Op) {
-			return true
-		}
-
-		return false
-	}
-}
-
-// Returns an appropiate waitlist
-func DefaultWaitlist() models.Waitlist[spec.Command] {
-	return models.NewWaitlist(0, func(a spec.Command, b spec.Command) int {
-		switch {
-		case a.HD.ID > b.HD.ID:
-			return 1
-		case a.HD.ID < b.HD.ID:
-			return -1
-		default:
-			return 0
-		}
-	})
+	cmd.Output("succesfully unsubscribed!", RESULT)
+	return nil, nil
 }

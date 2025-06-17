@@ -53,7 +53,7 @@ func main() {
 
 	// Opens the database
 	dbLog := db.GetDBLogger(config.Database.LogLevel, config.Database.LogPath)
-	clientDB := db.OpenClientDatabase(config.Database.Path, dbLog)
+	clientDB := db.OpenDatabase(config.Database.Path, dbLog)
 
 	if useShell {
 		setupShell(config, clientDB)
@@ -97,7 +97,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	var server db.Server
 	if address != "" {
 		var conErr error
-		con, conErr = commands.Connect(
+		con, conErr = commands.SocketConnect(
 			address, port,
 			config.ShellServer.TLS,
 			config.ShellServer.VerifyCert,
@@ -118,11 +118,11 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 
 	if address != "" {
-		commands.ConnectionStart(args)
+		commands.WaitConnect(args)
 		if verbosePrint {
 			args.Output("listening for incoming packets...", commands.INFO)
 		}
-		go commands.Listen(args, func() {})
+		go commands.ListenPackets(args, func() {})
 	}
 
 	go shell.RECIVHandler(&args)

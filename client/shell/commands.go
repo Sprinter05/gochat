@@ -177,7 +177,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		return connErr
 	}
 	cmd.Data.Server = &server
-	go commands.Listen(cmd, func() {})
+	go commands.ListenPackets(cmd, func() {})
 	return nil
 }
 
