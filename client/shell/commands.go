@@ -18,25 +18,101 @@ import (
 	"golang.org/x/term"
 )
 
-var shCommands = map[string]func(ctx context.Context, cmd commands.Command, args ...[]byte) error{
-	"CONN":      connect,
-	"DISCN":     disconnect,
-	"REQ":       requestUser,
-	"REG":       registerUser,
-	"DEREG":     deregisterUser,
-	"LOGIN":     loginUser,
-	"LOGOUT":    logoutUser,
-	"USRS":      getUsers,
-	"MSG":       sendMessage,
-	"RECIV":     receiveMessages,
-	"TLS":       changeTLS,
-	"IMPORT":    importKey,
-	"EXPORT":    exportKey,
-	"SUB":       subscribe,
-	"UNSUB":     unsubscribe,
-	"VER":       ver,
-	"VERBOSE":   verbose,
-	"REGSERVER": registerServer,
+type ShellCommand struct {
+	Run  func(ctx context.Context, cmd commands.Command, args ...[]byte) error
+	Help string
+}
+
+var shCommands = map[string]ShellCommand{
+	"CONN": {connect,
+		"- CONN: Connects the client to a gochat server.\n" +
+			"Usage: CONN <server address> <server port> [-noverify] || CONN <server name> [-noverify]",
+	},
+
+	"DISCN": {disconnect,
+		"- DISCN: Disconnects the client to a gochat server.\n" +
+			"Usage: DISCN",
+	},
+
+	"REQ": {requestUser,
+		"- REQ: Requests information about a user to the gochat server.\n" +
+			"Usage: REQ <username to be requested>",
+	},
+
+	"REG": {registerUser,
+		"- REG: Registers a user to the gochat server the user is connected to.\n" +
+			"Usage: REG",
+	},
+
+	"DEREG": {deregisterUser,
+		"- DEREG: Deregisters the currently logged in user from the server.\n" +
+			"Usage: DEREG",
+	},
+
+	"LOGIN": {loginUser,
+		"- LOGIN: Requests information about a user to the gochat server.\n" +
+			"Usage: LOGIN <username>",
+	},
+
+	"LOGOUT": {logoutUser,
+		"- LOGOUT: Logs out the current user.\n" +
+			"Usage: LOGOUT",
+	},
+
+	"USRS": {getUsers,
+		"- USRS: Prints a list of users depending on the option provided.\n" +
+			"Usage: USRS <online/all/local server/local all/requested>",
+	},
+
+	"MSG": {sendMessage,
+		"- MSG: Sends a message to a user. You must REQ the user prior to sending them a message.\n" +
+			"Usage: MSG <destination user> <message>",
+	},
+
+	"RECIV": {receiveMessages,
+		"- RECIV: Requests a message catch-up to the gochat server.\n" +
+			"Usage: RECIV",
+	},
+
+	"TLS": {changeTLS,
+		"- TLS: Toggles on/off the TLS mode of the specified server.\n" +
+			"Usage: TLS <on/off> <server name>",
+	},
+
+	"IMPORT": {importKey,
+		". IMPORT: Imports a user to the client database provided the path of its previously-exported key.\n" +
+			"Usage: IMPORT <username of the new user> <path of the key>",
+	},
+
+	"EXPORT": {exportKey,
+		"- EXPORT: Exports a user.\n" +
+			"Usage: EXPORT <user to be exported>",
+	},
+
+	"SUB": {subscribe,
+		"- SUB: Subscribes a user to the specified hook. The user automatically unsubscribes from the hook in each disconnection.\n" +
+			"Usage: SUB <all/new_login/new_logout/duplicated_session/permissions_change>",
+	},
+
+	"UNSUB": {unsubscribe,
+		"-UNSUB: Unsubscribes a user from the specified hook.\n" +
+			"Usage: UNSUB <all/new_login/new_logout/duplicated_session/permissions_change>",
+	},
+
+	"VER": {ver,
+		"- VER: Prints the current client gochat protocol version.\n" +
+			"Usage: VER",
+	},
+
+	"VERBOSE": {verbose,
+		"- VERBOSE: Switches on/off the verbose mode.\n" +
+			"Usage: VERBOSE",
+	},
+
+	"REGSERVER": {registerServer,
+		"- REGSERVER: Registers a server to the client database.\n" +
+			"Usage: REGSERVER <name> <address> <port> [-tls]",
+	},
 }
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -377,7 +453,7 @@ func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 
 // Calls Export to import a key.
 //
-// Arguments: <username> <password>
+// Arguments: <username>
 func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
@@ -511,5 +587,23 @@ func registerServer(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	),
 		commands.RESULT,
 	)
+	return nil
+}
+
+func help(cmd commands.Command, args ...[]byte) error {
+	if len(args) == 0 {
+		fmt.Println("To exit the shell type EXIT")
+		fmt.Println()
+
+		for _, v := range shCommands {
+			fmt.Println(v.Help)
+			fmt.Println()
+		}
+
+		return nil
+	}
+
+	shCmd := fetchCommand(string(args[0]), cmd)
+	fmt.Println(shCmd.Help)
 	return nil
 }

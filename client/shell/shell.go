@@ -15,7 +15,7 @@ import (
 )
 
 // Given a string containing a command name, returns its execution function.
-func fetchCommand(op string, cmd commands.Command) func(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+func fetchCommand(op string, cmd commands.Command) ShellCommand {
 	v, ok := shCommands[strings.ToUpper(op)]
 	if !ok {
 		cmd.Output(
@@ -23,7 +23,7 @@ func fetchCommand(op string, cmd commands.Command) func(ctx context.Context, cmd
 			commands.ERROR,
 		)
 
-		return nil
+		return ShellCommand{}
 	}
 	return v
 }
@@ -56,14 +56,19 @@ func NewShell(data commands.Command) {
 		var args [][]byte
 		args = append(args, bytes.Fields(input)[1:]...)
 
+		if strings.ToUpper(op) == "HELP" {
+			help(data, args...)
+			continue
+		}
+
 		// Gets the appropiate command and executes it
-		f := fetchCommand(op, data)
-		if f == nil {
+		shCmd := fetchCommand(op, data)
+		if shCmd.Run == nil {
 			continue
 		}
 
 		//* Can be changed with context.WithTimeout
-		err := f(context.Background(), data, args...)
+		err := shCmd.Run(context.Background(), data, args...)
 		if err != nil {
 			fmt.Printf("[ERROR] %s: %s\n", op, err)
 		}
