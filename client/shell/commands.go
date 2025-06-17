@@ -113,6 +113,10 @@ var shCommands = map[string]ShellCommand{
 		"- REGSERVER: Registers a server to the client database.\n" +
 			"Usage: REGSERVER <name> <address> <port> [-tls]",
 	},
+
+	"SERVERS": {servers,
+		"- SERVERS: Prints the registered servers of the client database.\n" +
+			"Usage: SERVERS"},
 }
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -587,6 +591,21 @@ func registerServer(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	),
 		commands.RESULT,
 	)
+	return nil
+}
+
+func servers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	servers, dbErr := db.GetAllServers(cmd.Static.DB)
+	if dbErr != nil {
+		return dbErr
+	}
+
+	fmt.Println("all servers:")
+
+	for _, v := range servers {
+		fmt.Printf("- %s (%s:%d)\n", v.Name, v.Address, v.Port)
+	}
+
 	return nil
 }
 
