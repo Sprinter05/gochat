@@ -215,6 +215,10 @@ func (cmd *Command) CheckArgs() error {
 		return ErrorArguments
 	}
 
+	if len(cmd.Args) > MaxArgs {
+		return ErrorMaxSize
+	}
+
 	var total int
 	for _, v := range cmd.Args {
 		l := len(v) + 2 // CRLF
@@ -227,6 +231,10 @@ func (cmd *Command) CheckArgs() error {
 
 	// Incorrect length of payload according to header
 	if total != int(cmd.HD.Len) {
+		return ErrorMaxSize
+	}
+
+	if total > MaxPayload {
 		return ErrorMaxSize
 	}
 

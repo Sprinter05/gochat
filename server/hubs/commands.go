@@ -309,21 +309,15 @@ func listUsers(h *Hub, u User, cmd spec.Command) {
 	// Online/All argument
 	online := cmd.HD.Info
 
-	// 0x01 is show online
-	if online == 0x01 {
+	switch online {
+	case uint8(spec.UsersOnline):
 		usrs = h.Userlist(true)
-	} else if online == 0x00 {
+	case uint8(spec.UsersAll):
 		usrs = h.Userlist(false)
-	} else {
+	default:
 		// Error due to invalid argument in header info
 		log.User(string(u.name), "userlist argument", spec.ErrorHeader)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorHeader, u.conn)
-		return
-	}
-
-	if usrs == "" {
-		// Could not find any users matching
-		SendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
 		return
 	}
 
@@ -397,7 +391,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 // Retrieves all pending messages directed to the user from
 // the database. Should be requested right after a log in.
 //
-// Replies with RECIV or ERR
+// Replies with OK or ERR
 func recivMessages(h *Hub, u User, cmd spec.Command) {
 	msgs, err := db.QueryMessages(h.db, u.name)
 	if err != nil {
