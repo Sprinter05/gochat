@@ -1,6 +1,6 @@
 # The gochat Protocol
 
-The **gochat protocol** is a chat protocol based on **TCP** designed for end-to-end (**E2E**) encrypted communication between users in the same server. This document specifies this protocol in detail.
+The **gochat protocol** is a chat protocol based on **TCP** designed for end-to-end (**E2E**) encrypted communication between users in the same server. This document specifies the **version 1** protocol in detail.
 
 ## Commands
 
@@ -87,6 +87,7 @@ The following list of codes are used by `ERR`.
 - `ERR_DEREG`     (`0x11`): User is no longer registered.
 - `ERR_DUPSESS`   (`0x12`): Session already exists in another endpoint.
 - `ERR_NOSECURE`  (`0x13`): Operation requires a secure connection.
+- `ERR_CORRUPTED` (`0x14`): Data found is corrupted.
 
 ##### Types of user lists
 
@@ -144,9 +145,9 @@ The following exhaustive list specifies all possible replies for each command pr
 
 ## Connection
 
-The connection to the server can be established using either **plain TCP** or **TLS**, recommending the use of ports `9037` and `8037` respectively, although these can be changed.
+The connection to the server can be established using either **plain TCP** or **TLS** (implementation is optional), recommending the use of ports `9037` and `8037` respectively, although these can be changed.
 
-When connecting to the server it is important to know that *any malformed packet* will automatically close the connection. Moreover, the server should implement a **deadline** for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be used to allow the connection to persist. 
+When connecting to the server it is important to know that *any malformed packet* will automatically close the connection. Moreover, the server should implement a **deadline** for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be implemented to allow the connection to persist. 
 
 The server can limit the amount of connected users, which means that when connection the server might be *unable to accept new clients* on the connection, in which case the connection should await until a spot is free. Once the client can be connected, an `OK` packet with a _Null ID_ will be sent to the client.
 
@@ -154,7 +155,7 @@ The server can limit the amount of connected users, which means that when connec
 
 ## Permissions
 
-By default, the protocol only requires a single level of permissions, `0`, which indicates the *lowest level* of permissions. The server is free to add more permission levels which *must be higher* than the lowest level. The server can decide what actions can be or not performed with a certain level of permissions.
+By default, the protocol only requires a single level of permissions, `0`, which indicates the *lowest level* of permissions. The server is free to add more permission levels which *must be higher* than the lowest level. The server can decide what **administrative actions** can be or not performed with a certain level of permissions, this means that all operations that are not `ADMIN` must be able to be ran with the lowest level of permissions. Levels must also *be incremental*, meaning that higher levels of permissions must be able to run everything the lower levels can.
 
 ## Hooks
 
@@ -164,7 +165,7 @@ Clients can request a **subscription** to an **event**, also called a **hook**. 
 
 ### User accounts
 
-User accounts in the server will be identified by a **lowercase username** and an **RSA Public Key**. Said key must be `4096` bits and whenever used as an argument, it must be in **PKIX, ASN.1 DER** format.
+User accounts in the server will be identified by a **lowercase username** and an **RSA Public Key**. Said key must be `4096` bits and whenever used as an argument, it must be in **PKIX, ASN.1 DER** format. Usernames cannot be changed but the server is free to decide how to handle usernames when an account is deleted (for example, allowing new users to register using that dangling username).
 
 #### User registration
 
@@ -190,6 +191,8 @@ The client must return the decyphered text to the server from the *same connecti
 
 Any future commands from that user *must be tied to the connection* until the user logs out, disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text will be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process. Said token should also have an expiry date, after which the token must be deleted.
 
+> **NOTE**: Reusable tokens must not be renewed after being used, meaning its expiry date cannot change.
+
 #### User disconnection
 
 Informs the server that the user must be marked as **offline**. The server must then *release the connection from the user*. This command may also be used to *cancel an ongoing verification*. The user must be logged in to perform this operation.
@@ -208,7 +211,7 @@ Once the deregistration has happened the server must then *release the connectio
 
 #### Requesting connection with a user
 
-To start messaging a user, the client application must request the **public key** of that user to the server. Said key can be saved by the client so the request is only made once per user. The user must be logged in to perform this operation.
+To start messaging a user, the client application must request the **public key** of that user to the server. Said key can be saved by the client so the request is only made once per user, although it is important to note that, as stated above, usernames can be reused by a new account once they become *dangling*. The user must be logged in to perform this operation.
 
     REQ <username> (Client -> Server)
 
@@ -228,7 +231,7 @@ The server will reply with a list of all users separated by the **newline charac
 
 #### Sending a message
 
-Messages *should be cyphered* with the private key by the client application. The server is *not responsible* for verifying that the text is cyphered, nor that the public key for cyphering has been saved by the client. The **timestamp** must be in standard *UNIX second timestamp* (which means `4 bytes`). The user must be logged in to perform this operation.
+Messages *should be cyphered* with the private key by the client application. The server is *not responsible* for verifying that the text is cyphered, nor that the public key for cyphering has been saved by the client. The **timestamp** must be in standard *UNIX second timestamp* (which means `4 bytes`). If the destination user is offline, the server is responsible for *caching the message* until it is requested by the destination. The user must be logged in to perform this operation.
 
     MSG <username> <unix_stamp> <cypher_message> (Client -> Server)
 
@@ -254,7 +257,13 @@ To perform an administative operation, the following command must be used, speci
 
     ADMIN <arg_1> <arg_2> ... <arg_n> (Client -> Server)
 
-The argument amount is not fixed and will depend on the action.
+The argument amount is not fixed and will depend on the action. An exhaustive list of administrative operations and their arguments is detailed below:
+
+- `ADMIN_SHTDWN <timestamp>`
+- `ADMIN_DEREG <username>`
+- `ADMIN_BRDCAST <message>`
+- `ADMIN_CHGPERMS <username> <permission>`
+- `ADMIN_KICK <username>`
 
 #### Subscriptions to events
 

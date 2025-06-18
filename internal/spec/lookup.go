@@ -3,21 +3,21 @@ package spec
 /* PREDEFINED VALUES */
 
 const (
-	ProtocolVersion  uint8  = 1         // Current version of the protocol
-	NullOp           Action = 0         // Invalid operation code
-	NullID           ID     = 0         // Only valid for specific documented cases
-	MaxID            ID     = 1<<10 - 1 // Maximum value according to the bit field
-	EmptyInfo        byte   = 0xFF      // No information provided
-	HeaderSize       int    = 8         // Max size of the header in bytes
-	MaxArgs          int    = 1<<4 - 1  // Max amount of arguments
-	MaxPayload       int    = 1<<14 - 1 // Max amount of total arguments size
-	MaxArgSize       int    = 1<<11 - 1 // Max amount of single argument size
-	RSABitSize       int    = 4096      // Size of the RSA keypair used by the spec crypto functions
-	UsernameSize     int    = 32        // Max size of a username in bytes
-	LoginTimeout     int    = 2         // Timeout for a handshake process in minutes
-	ReadTimeout      int    = 10        // Timeout for a TCP read block in minutes
-	HandshakeTimeout int    = 20        // Timeout for a connection handshake block in seconds
-	TokenExpiration  int    = 30        // Deadline for a reusable token expiration in minutes
+	ProtocolVersion  uint8  = 1             // Current version of the protocol
+	NullOp           Action = 0             // Invalid operation code
+	NullID           ID     = 0             // Only valid for specific documented cases
+	MaxID            ID     = 1<<10 - 1     // Maximum value according to the bit field
+	EmptyInfo        byte   = 0xFF          // No information provided
+	HeaderSize       int    = 8             // Max size of the header in bytes
+	MaxArgs          int    = (1 << 4) - 1  // Max amount of arguments
+	MaxPayload       int    = (1 << 14) - 1 // Max amount of total arguments size
+	MaxArgSize       int    = (1 << 11) - 1 // Max amount of single argument size
+	RSABitSize       int    = 4096          // Size of the RSA keypair used by the spec crypto functions
+	UsernameSize     int    = 32            // Max size of a username in bytes
+	LoginTimeout     int    = 2             // Timeout for a handshake process in minutes
+	ReadTimeout      int    = 10            // Timeout for a TCP read block in minutes
+	HandshakeTimeout int    = 20            // Timeout for a connection handshake block in seconds
+	TokenExpiration  int    = 30            // Deadline for a reusable token expiration in minutes
 )
 
 /* ACTION CODES */
@@ -214,9 +214,10 @@ var (
 	ErrorServer       error = SpecError{0x0E, "server operation failed"}                 // server operation failed
 	ErrorIdle         error = SpecError{0x0F, "user has been idle for too long"}         // user has been idle for too long
 	ErrorExists       error = SpecError{0x10, "content already exists"}                  // content already exists
-	ErrorUnescure     error = SpecError{0x10, "connection is not secure"}                // connection is not secure
 	ErrorDeregistered error = SpecError{0x11, "user no longer exists"}                   // user no longer exists
 	ErrorDupSession   error = SpecError{0x12, "session exists in another endpoint"}      // session exists in another endpoint
+	ErrorUnsecure     error = SpecError{0x13, "connection is not secure"}                // connection is not secure
+	ErrorCorrupted    error = SpecError{0x14, "data queried is corrupted"}               // data queried is corrupted
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -239,6 +240,8 @@ var codeToError map[byte]error = map[byte]error{
 	0x10: ErrorExists,
 	0x11: ErrorDeregistered,
 	0x12: ErrorDupSession,
+	0x13: ErrorUnsecure,
+	0x14: ErrorCorrupted,
 }
 
 // Returns the error asocciated to a hex byte.

@@ -42,16 +42,23 @@ type Verif struct {
 
 // Queries and transforms a user from the database into
 // a hub user that is online. It also checks that the retrieved
-// user does not have malformed data.
+// user does not have malformed data or that it hasn't
+// become deregistered.
+//
+// Returns a specification error.
 func (hub *Hub) userFromDB(uname string) (*User, error) {
 	dbuser, err := db.QueryUser(hub.db, uname)
 	if err != nil {
-		return nil, err
+		if err == db.ErrorNotFound {
+			return nil, spec.ErrorNotFound
+		}
+
+		return nil, spec.ErrorServer
 	}
 
 	// Check that the permission int is not out of bounds
 	if dbuser.Permission > db.OWNER {
-		return nil, spec.ErrorServer
+		return nil, spec.ErrorCorrupted
 	}
 
 	// Check that the public key is not null
@@ -62,7 +69,7 @@ func (hub *Hub) userFromDB(uname string) (*User, error) {
 	// Turn it into a public key from PEM certificate
 	key, err := spec.PEMToPubkey([]byte(dbuser.Pubkey.String))
 	if err != nil {
-		return nil, err
+		return nil, spec.ErrorCorrupted
 	}
 
 	// Connection remains null as we don't know if it will be online
@@ -79,11 +86,13 @@ func (hub *Hub) userFromDB(uname string) (*User, error) {
 
 // Checks if a reusable token is applicable to a user and if
 // it is valid and safe to use.
+//
+// Returns a specification error.
 func (hub *Hub) checkToken(u User, text []byte) error {
 	if !u.secure {
 		// We do not remove the verif
 		// This allows trying again with a secure connection
-		return spec.ErrorUnescure
+		return spec.ErrorUnsecure
 	}
 
 	v, ok := hub.verifs.Get(u.name)
