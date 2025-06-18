@@ -13,13 +13,13 @@ import (
 /* AUXILIARY FUNCTIONS */
 
 // Requests the user logged in to get its permissions
-func getOwnPermissions(ctx context.Context, cmd Command) (uint, error) {
+func GetPermissions(ctx context.Context, cmd Command, uname string) (uint, error) {
 	id := cmd.Data.NextID()
 	packet, err := spec.NewPacket(
 		spec.REQ,
 		id,
 		spec.EmptyInfo,
-		[]byte(cmd.Data.User.User.Username),
+		[]byte(uname),
 	)
 	if err != nil {
 		return 0, err
@@ -47,12 +47,6 @@ func getOwnPermissions(ctx context.Context, cmd Command) (uint, error) {
 		return 0, err
 	}
 
-	// TODO: save to data?
-	str := fmt.Sprintf(
-		"logged in with permission level %d",
-		perms,
-	)
-	cmd.Output(str, RESULT)
 	return perms, nil
 }
 

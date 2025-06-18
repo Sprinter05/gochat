@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"bytes"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -324,29 +324,41 @@ func toggleUserlist(t *TUI) {
 func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 	data, ok := s.Online()
 
-	// Prevents TUI deadlock
-	show := func(text string) {
-		t.comp.users.SetText(text, false)
+	if data == nil || !ok {
+		t.comp.users.SetText("")
+		return
 	}
 
-	if data == nil || !ok {
-		go show("")
-		return
+	cmd := cmds.Command{
+		Output: output,
+		Static: &t.data,
+		Data:   data,
 	}
 
 	ctx, cancel := timeout(s, data)
 	defer data.Waitlist.Cancel(cancel)
-	reply, err := cmds.Usrs(ctx, cmds.Command{
-		Output: output,
-		Static: &t.data,
-		Data:   data,
-	}, cmds.ONLINE)
+	reply, err := cmds.Usrs(ctx, cmd, cmds.ONLINE)
 
 	if err != nil {
 		output(err.Error(), cmds.ERROR)
 		return
 	}
 
-	list := bytes.Join(reply, []byte("\n"))
-	go show(string(list))
+	full := make([]string, 0, len(reply))
+	for _, v := range reply {
+		perms, err := cmds.GetPermissions(ctx, cmd, string(v))
+		if err != nil {
+			full = append(full, string(v))
+			continue
+		}
+
+		str := fmt.Sprintf(
+			"[[purple::i]%d[-::-]] %s",
+			perms, string(v),
+		)
+		full = append(full, str)
+	}
+
+	list := strings.Join(full, "\n")
+	t.comp.users.SetText(list)
 }

@@ -656,7 +656,14 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 
 	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username), RESULT)
 
-	getOwnPermissions(ctx, cmd)
+	perms, err := GetPermissions(ctx, cmd, localUser.User.Username)
+	if err == nil {
+		str := fmt.Sprintf(
+			"logged in with permission level %d",
+			perms,
+		)
+		cmd.Output(str, RESULT)
+	}
 
 	return nil, nil
 }

@@ -273,7 +273,7 @@ func requestUser(h *Hub, u User, cmd spec.Command) {
 		[]byte(req.name),
 		p,
 		[]byte{
-			byte(u.perms),
+			byte(req.perms),
 		},
 	)
 	if err != nil {

@@ -323,7 +323,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 // Waits for new notifications of hooks from the server
 func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 	defer func() {
-		t.comp.users.SetText("", false)
+		t.comp.users.SetText("")
 	}()
 
 	data, _ := s.Online()

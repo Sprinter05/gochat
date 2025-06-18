@@ -9,6 +9,7 @@ import (
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
+	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -88,7 +89,7 @@ type components struct {
 	errors *tview.TextView // shows TUI errors
 	input  *tview.TextArea // input area to type
 
-	users *tview.TextArea // list of users
+	users *tview.TextView // list of users
 }
 
 // Creates all components and assigns them to each area.
@@ -100,7 +101,7 @@ func setupLayout() (areas, components) {
 		text:    tview.NewTextView(),
 		errors:  tview.NewTextView(),
 		input:   tview.NewTextArea(),
-		users:   tview.NewTextArea(),
+		users:   tview.NewTextView(),
 	}
 
 	bottom := tview.NewFlex().
@@ -157,14 +158,13 @@ func setupStyle(t *TUI) {
 		SetBackgroundColor(tcell.ColorDefault)
 
 	t.comp.users.
-		SetTextStyle(tcell.StyleDefault.
-			Background(tcell.ColorDefault)).
-		SetPlaceholderStyle(tcell.StyleDefault.
-			Background(tcell.ColorDefault).
-			Foreground(tcell.ColorGreen)).
+		SetDynamicColors(true).
+		SetWrap(true).
+		SetWordWrap(true).
+		SetScrollable(true).
+		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
-		SetTitle("Users").
-		SetBackgroundColor(tcell.ColorDefault)
+		SetTitle("Users")
 
 	t.comp.servers.
 		SetMainTextStyle(tcell.StyleDefault.
@@ -184,6 +184,7 @@ func setupStyle(t *TUI) {
 
 	t.comp.input.
 		SetLabel(defaultLabel).
+		SetMaxLength(spec.MaxArgSize).
 		SetTextStyle(tcell.StyleDefault.
 			Background(tcell.ColorDefault)).
 		SetPlaceholderStyle(tcell.StyleDefault.
