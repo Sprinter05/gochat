@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
@@ -45,14 +46,14 @@ func SocketConnect(address string, port uint16, useTLS bool, noVerify bool) (con
 	return con, nil
 }
 
-// Listens for an OK packet from the server when starting the connection,
+// Listens for a HELLO packet from the server when starting the connection,
 // which determines that the client/server connection was started successfully.
-func WaitConnect(data Command) error {
+func WaitConnect(data Command, server db.Server) error {
 	cmd := new(spec.Command)
 
 	conn := spec.Connection{
 		Conn: data.Data.Conn,
-		TLS:  data.Data.Server.TLS,
+		TLS:  server.TLS,
 	}
 
 	// Header listen
@@ -64,14 +65,12 @@ func WaitConnect(data Command) error {
 	// Header check
 	chErr := cmd.HD.ClientCheck()
 	if chErr != nil {
-		if data.Static.Verbose {
-			str := fmt.Sprintf(
-				"Incorrect header from server:\n%s",
-				cmd.Contents(),
-			)
-			data.Output(str, PACKET)
-		}
+		data.Output("Incorrect header from server!", ERROR)
 		return chErr
+	}
+
+	if data.Static.Verbose {
+		data.Output(cmd.Contents(), PACKET)
 	}
 
 	// Payload listen
@@ -80,11 +79,18 @@ func WaitConnect(data Command) error {
 		return pldErr
 	}
 
-	if cmd.HD.Op == 1 {
-		data.Output("successfully connected to the server", RESULT)
-	} else {
+	if cmd.HD.Op != spec.HELLO {
+		data.Output("invalid initial packet from the server", ERROR)
 		return spec.ErrorUndefined
 	}
+	data.Output("succesfully connected to the server", RESULT)
+
+	motd := string(cmd.Args[0])
+	str := fmt.Sprintf(
+		"server MOTD (message of the day):\n%s",
+		motd,
+	)
+	data.Output(str, INFO)
 
 	return nil
 }

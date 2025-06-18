@@ -16,6 +16,7 @@ var adminArgs map[spec.Admin]uint8 = map[spec.Admin]uint8{
 	spec.AdminDeregister:  1,
 	spec.AdminChangePerms: 2,
 	spec.AdminDisconnect:  1,
+	spec.AdminMotd:        1,
 }
 
 var adminPerms map[spec.Admin]db.Permission = map[spec.Admin]db.Permission{
@@ -24,6 +25,7 @@ var adminPerms map[spec.Admin]db.Permission = map[spec.Admin]db.Permission{
 	spec.AdminDeregister:  db.ADMIN,
 	spec.AdminChangePerms: db.OWNER,
 	spec.AdminDisconnect:  db.ADMIN,
+	spec.AdminMotd:        db.OWNER,
 }
 
 var adminLookup map[spec.Admin]action = map[spec.Admin]action{
@@ -32,6 +34,7 @@ var adminLookup map[spec.Admin]action = map[spec.Admin]action{
 	spec.AdminDeregister:  adminDeregister,
 	spec.AdminChangePerms: adminChangePerms,
 	spec.AdminDisconnect:  adminDisconnect,
+	spec.AdminMotd:        adminChangeMotd,
 }
 
 /* WRAPPER FUNCTIONS */
@@ -213,4 +216,15 @@ func adminDisconnect(h *Hub, u User, cmd spec.Command) {
 	// This should trigger the cleanup on
 	// the goroutine listening to the client
 	dc.conn.Close()
+
+	SendOKPacket(cmd.HD.ID, u.conn)
+}
+
+// Changes the MOTD of the server
+//
+// Requires OWNER or more
+// Requires 1 argument for the new MOTD
+func adminChangeMotd(h *Hub, u User, cmd spec.Command) {
+	h.motd = string(cmd.Args[0])
+	SendOKPacket(cmd.HD.ID, u.conn)
 }

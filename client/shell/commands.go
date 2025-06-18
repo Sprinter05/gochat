@@ -242,7 +242,7 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 
 	// Gets the password
 	cmd.Output("password: ", commands.PROMPT)
-	pass1, pass1Err := term.ReadPassword(0)
+	pass1, pass1Err := term.ReadPassword(int(os.Stdin.Fd()))
 	if pass1Err != nil {
 		cmd.Output("", commands.PROMPT)
 		return pass1Err
@@ -250,7 +250,7 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 	cmd.Output("\n", commands.PROMPT)
 
 	cmd.Output("repeat password: ", commands.PROMPT)
-	pass2, pass2Err := term.ReadPassword(0)
+	pass2, pass2Err := term.ReadPassword(int(os.Stdin.Fd()))
 	if pass2Err != nil {
 		cmd.Output("\n", commands.PROMPT)
 		return pass2Err
@@ -271,7 +271,7 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ", cmd.Data.User.User.Username), commands.PROMPT)
-	pass, passErr := term.ReadPassword(0)
+	pass, passErr := term.ReadPassword(int(os.Stdin.Fd()))
 
 	if passErr != nil {
 		cmd.Output("\n", commands.PROMPT)
@@ -313,7 +313,7 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
-	pass, passErr := term.ReadPassword(0)
+	pass, passErr := term.ReadPassword(int(os.Stdin.Fd()))
 
 	if passErr != nil {
 		cmd.Output("\n", commands.PROMPT)
@@ -437,7 +437,7 @@ func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 
 	// Gets the password
 	cmd.Output("password: ", commands.PROMPT)
-	pass1, pass1Err := term.ReadPassword(0)
+	pass1, pass1Err := term.ReadPassword(int(os.Stdin.Fd()))
 	if pass1Err != nil {
 		cmd.Output("", commands.PROMPT)
 		return pass1Err
@@ -445,7 +445,7 @@ func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	cmd.Output("\n", commands.PROMPT)
 
 	cmd.Output("repeat password: ", commands.PROMPT)
-	pass2, pass2Err := term.ReadPassword(0)
+	pass2, pass2Err := term.ReadPassword(int(os.Stdin.Fd()))
 	if pass2Err != nil {
 		cmd.Output("\n", commands.PROMPT)
 		return pass2Err
@@ -475,7 +475,7 @@ func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	username := string(args[0])
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
-	pass, passErr := term.ReadPassword(0)
+	pass, passErr := term.ReadPassword(int(os.Stdin.Fd()))
 
 	if passErr != nil {
 		cmd.Output("\n", commands.PROMPT)
@@ -684,6 +684,12 @@ func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte)
 			return commands.ErrorInsuficientArgs
 		}
 		op = spec.AdminDisconnect
+		adminArgs = append(adminArgs, args[1])
+	case "MOTD":
+		if len(args) < 1 {
+			return commands.ErrorInsuficientArgs
+		}
+		op = spec.AdminMotd
 		adminArgs = append(adminArgs, args[1])
 	default:
 		return commands.ErrorInvalidAdminOperation

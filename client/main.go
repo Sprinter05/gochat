@@ -109,8 +109,12 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 
 	// TODO: verbose to config
+
+	data := commands.NewEmptyData()
+	data.Server = &server
+	data.Conn = con
+
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
-	data := commands.Data{Conn: con, Server: &server, Waitlist: commands.DefaultWaitlist()}
 	args := commands.Command{Data: &data, Static: &static, Output: shell.Print}
 
 	if verbosePrint {
@@ -118,7 +122,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 
 	if address != "" {
-		commands.WaitConnect(args)
+		commands.WaitConnect(args, server)
 		if verbosePrint {
 			args.Output("listening for incoming packets...", commands.INFO)
 		}

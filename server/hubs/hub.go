@@ -21,6 +21,7 @@ import (
 // by all client connections. It is safe to use concurrently.
 type Hub struct {
 	db     *gorm.DB                                         // Database with all relevant information
+	motd   string                                           // Initial message sent to all clients
 	close  context.CancelFunc                               // Used to trigger a shutdown
 	users  models.Table[net.Conn, *User]                    // Stores all online users
 	verifs models.Table[string, *Verif]                     // Stores all verifications and/or reusable tokens
@@ -28,6 +29,12 @@ type Hub struct {
 }
 
 /* HUB FUNCTIONS */
+
+// Returns the message of the day that is
+// currently active
+func (hub *Hub) Motd() string {
+	return hub.motd
+}
 
 // Notifies of a hook to all relevant connections. An
 // optional "only" list of connections can be provided
@@ -197,7 +204,7 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 
 // Initialises all data structures the hub needs to function:
 // database, shutdown context and table sizes.
-func NewHub(database *gorm.DB, cancel context.CancelFunc, size uint) *Hub {
+func NewHub(database *gorm.DB, cancel context.CancelFunc, size uint, motd string) *Hub {
 	// Allocate fields
 	hub := &Hub{
 		close:  cancel,
@@ -205,6 +212,7 @@ func NewHub(database *gorm.DB, cancel context.CancelFunc, size uint) *Hub {
 		verifs: models.NewTable[string, *Verif](size),
 		subs:   models.NewTable[spec.Hook, *models.Slice[net.Conn]](uint(len(spec.Hooks))),
 		db:     database,
+		motd:   motd,
 	}
 
 	// Allocate subscription lists

@@ -41,6 +41,7 @@ type Config struct {
 			Level string `json:"level"`
 			File  string `json:"log_file"`
 		} `json:"logs"`
+		Motd string `json:"default_motd"`
 	} `json:"server"`
 }
 
@@ -340,7 +341,12 @@ func main() {
 
 	// Setup hub and make it wait until a shutdown signal is sent
 	ctx, cancel := context.WithCancel(context.Background())
-	hub := hubs.NewHub(database, cancel, *config.Server.Clients)
+	hub := hubs.NewHub(
+		database,
+		cancel,
+		*config.Server.Clients,
+		config.Server.Motd,
+	)
 
 	if config.Server.TLS.Enabled {
 		go hub.Wait(ctx, sock, tlssock)

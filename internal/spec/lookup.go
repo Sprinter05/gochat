@@ -29,21 +29,22 @@ type Action uint8
 const (
 	OK Action = iota + 1
 	ERR
+	KEEP
 	REG
+	DEREG
+	LOGIN
+	LOGOUT
 	VERIF
 	REQ
 	USRS
-	RECIV
-	LOGIN
 	MSG
-	LOGOUT
-	DEREG
+	RECIV
 	SHTDWN
 	ADMIN
-	KEEP
 	SUB
 	UNSUB
 	HOOK
+	HELLO
 )
 
 // Identifies an operation to be performed
@@ -62,61 +63,64 @@ type lookup struct {
 var (
 	okLookup     = lookup{OK, 0x01, "OK", -1, 0}
 	errLookup    = lookup{ERR, 0x02, "ERR", -1, 0}
-	regLookup    = lookup{REG, 0x03, "REG", 2, -1}
-	verifLookup  = lookup{VERIF, 0x04, "VERIF", 2, 1}
-	reqLookup    = lookup{REQ, 0x05, "REQ", 1, 3}
-	usrsLookup   = lookup{USRS, 0x06, "USRS", 0, 1}
-	recivLookup  = lookup{RECIV, 0x07, "RECIV", 0, 3}
-	loginLookup  = lookup{LOGIN, 0x08, "LOGIN", 1, -1}
-	msgLookup    = lookup{MSG, 0x09, "MSG", 3, -1}
-	logoutLookup = lookup{LOGOUT, 0x0A, "LOGOUT", 0, -1}
-	deregLookup  = lookup{DEREG, 0x0B, "DEREG", 0, -1}
-	shtdwnLookup = lookup{SHTDWN, 0x0C, "SHTDWN", -1, 0}
-	adminLookup  = lookup{ADMIN, 0x0D, "ADMIN", 0, -1}
-	keepLookup   = lookup{KEEP, 0x0E, "KEEP", 0, -1}
+	keepLookup   = lookup{KEEP, 0x03, "KEEP", 0, -1}
+	regLookup    = lookup{REG, 0x04, "REG", 2, -1}
+	deregLookup  = lookup{DEREG, 0x05, "DEREG", 0, -1}
+	loginLookup  = lookup{LOGIN, 0x06, "LOGIN", 1, -1}
+	logoutLookup = lookup{LOGOUT, 0x07, "LOGOUT", 0, -1}
+	verifLookup  = lookup{VERIF, 0x08, "VERIF", 2, 1}
+	reqLookup    = lookup{REQ, 0x09, "REQ", 1, 3}
+	usrsLookup   = lookup{USRS, 0x0A, "USRS", 0, 1}
+	msgLookup    = lookup{MSG, 0x0B, "MSG", 3, -1}
+	recivLookup  = lookup{RECIV, 0x0C, "RECIV", 0, 3}
+	shtdwnLookup = lookup{SHTDWN, 0x0D, "SHTDWN", -1, 0}
+	adminLookup  = lookup{ADMIN, 0x0E, "ADMIN", 0, -1}
 	subLookup    = lookup{SUB, 0x0F, "SUB", 0, -1}
 	unsubLookup  = lookup{UNSUB, 0x10, "UNSUB", 0, -1}
 	hookLookup   = lookup{HOOK, 0x11, "HOOK", -1, 0}
+	helloLookup  = lookup{HELLO, 0x12, "HELLO", -1, 1}
 )
 
 var lookupByOperation map[Action]lookup = map[Action]lookup{
 	OK:     okLookup,
 	ERR:    errLookup,
+	KEEP:   keepLookup,
 	REG:    regLookup,
+	DEREG:  deregLookup,
+	LOGIN:  loginLookup,
+	LOGOUT: logoutLookup,
 	VERIF:  verifLookup,
 	REQ:    reqLookup,
 	USRS:   usrsLookup,
-	RECIV:  recivLookup,
-	LOGIN:  loginLookup,
 	MSG:    msgLookup,
-	LOGOUT: logoutLookup,
-	DEREG:  deregLookup,
+	RECIV:  recivLookup,
 	SHTDWN: shtdwnLookup,
 	ADMIN:  adminLookup,
-	KEEP:   keepLookup,
 	SUB:    subLookup,
 	UNSUB:  unsubLookup,
 	HOOK:   hookLookup,
+	HELLO:  helloLookup,
 }
 
 var lookupByString map[string]lookup = map[string]lookup{
 	"OK":     okLookup,
 	"ERR":    errLookup,
+	"KEEP":   keepLookup,
 	"REG":    regLookup,
+	"DEREG":  deregLookup,
+	"LOGIN":  loginLookup,
+	"LOGOUT": logoutLookup,
 	"VERIF":  verifLookup,
 	"REQ":    reqLookup,
 	"USRS":   usrsLookup,
-	"RECIV":  recivLookup,
-	"LOGIN":  loginLookup,
 	"MSG":    msgLookup,
-	"LOGOUT": logoutLookup,
-	"DEREG":  deregLookup,
+	"RECIV":  recivLookup,
 	"SHTDWN": shtdwnLookup,
 	"ADMIN":  adminLookup,
-	"KEEP":   keepLookup,
 	"SUB":    subLookup,
 	"UNSUB":  unsubLookup,
 	"HOOK":   hookLookup,
+	"HELLO":  helloLookup,
 }
 
 // Returns the operation code associated to a hex byte.
@@ -291,6 +295,7 @@ const (
 	AdminBroadcast   Admin = 0x02 // Broadcast a message to all online users
 	AdminChangePerms Admin = 0x03 // Increase the permission level of a user
 	AdminDisconnect  Admin = 0x04 // Disconnect an online user
+	AdminMotd        Admin = 0x05 // Changes the MOTD of the server
 )
 
 var codeToAdmin map[Admin]string = map[Admin]string{
@@ -299,6 +304,7 @@ var codeToAdmin map[Admin]string = map[Admin]string{
 	AdminBroadcast:   "ADMIN_BRDCAST",
 	AdminChangePerms: "ADMIN_CHGPERMS",
 	AdminDisconnect:  "ADMIN_KICK",
+	AdminMotd:        "ADMIN_MOTD",
 }
 
 // Returns the admin string asocciated to a hex byte.

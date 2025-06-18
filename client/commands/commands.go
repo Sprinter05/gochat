@@ -150,6 +150,7 @@ var adminArgs = map[spec.Admin]uint{
 	spec.AdminChangePerms: 2,
 	spec.AdminDisconnect:  1,
 	spec.AdminShutdown:    1,
+	spec.AdminMotd:        1,
 }
 
 /* CLIENT COMMANDS */
@@ -309,7 +310,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 		return nil, ErrorAlreadyConnected
 	}
 
-	useTLS := cmd.Data.Server.TLS
+	useTLS := server.TLS
 	skipVerify := false
 
 	if noverify {
@@ -332,7 +333,7 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 	}
 
 	cmd.Data.Conn = con
-	err := WaitConnect(cmd)
+	err := WaitConnect(cmd, server)
 
 	if err != nil {
 		return nil, err

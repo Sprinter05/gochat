@@ -22,6 +22,7 @@ This server implements *3 levels* of permissions. The following, exhaustive list
     - `ADMIN_KICK`
 - **OWNER** = `2`
     - `ADMIN_CHGPERMS`
+    - `ADMIN_MOTD`
 
 ## Limits
 

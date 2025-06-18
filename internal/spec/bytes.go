@@ -47,14 +47,13 @@ type Command struct {
 
 /* COMMAND FUNCTIONS */
 
-// TODO: improve arguments (hide encrypted, translate permissions...)
 // Returns a string that contains full information about a command
 func (cmd *Command) Contents() string {
 	var output strings.Builder
 	fmt.Fprintln(&output, "-------- HEADERS --------")
 	fmt.Fprintf(&output, "* Version: %d\n", cmd.HD.Ver)
-	fmt.Fprintf(&output, "* Action: %d (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
-	fmt.Fprintf(&output, "* Info: %d ", cmd.HD.Info)
+	fmt.Fprintf(&output, "* Action: 0x%02x (%s)\n", cmd.HD.Op, CodeToString(cmd.HD.Op))
+	fmt.Fprintf(&output, "* Info: 0x%02x ", cmd.HD.Info)
 
 	switch cmd.HD.Op {
 	case ERR:
@@ -136,8 +135,8 @@ func (hd Header) ClientCheck() error {
 	// Only these operations can have a null ID
 	check := hd.Op == SHTDWN ||
 		hd.Op == RECIV ||
-		hd.Op == OK ||
-		hd.Op == HOOK
+		hd.Op == HOOK ||
+		hd.Op == HELLO
 
 	if !check && hd.ID == NullID {
 		return ErrorHeader

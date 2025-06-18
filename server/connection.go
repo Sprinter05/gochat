@@ -13,13 +13,18 @@ import (
 /* INITIAL CONNECTION */
 
 // Waits for a possible TLS handshake and sends an initial welcome OK
-func welcomeConn(cl *spec.Connection) {
+func welcomeConn(cl *spec.Connection, motd string) {
 	// Set timeout for the initial write to prevent blocking forever
 	deadline := time.Now().Add(time.Duration(spec.HandshakeTimeout) * time.Second)
 	cl.Conn.SetDeadline(deadline)
 
 	// Notify the user they are connected to the server
-	pak, err := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
+	pak, err := spec.NewPacket(
+		spec.HELLO,
+		spec.NullID,
+		spec.EmptyInfo,
+		[]byte(motd),
+	)
 	if err != nil {
 		log.Packet(spec.OK, err)
 	} else {
@@ -88,7 +93,7 @@ func ListenConnection(cl spec.Connection, c *models.Counter, req chan<- hubs.Req
 	}()
 
 	// Perform initial welcome handshake
-	welcomeConn(&cl)
+	welcomeConn(&cl, hub.Motd())
 
 	// Set timeout and log connection
 	ip := cl.Conn.RemoteAddr().String()

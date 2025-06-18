@@ -10,7 +10,7 @@ The following diagram illustrates the format that a command travelling through t
     | Header | Argument 1 | .... | Argument n |
     +--------+------------+------+------------+
 
-The header will be *8 bytes* long and both the separator between header and arguments (also called **payload**) and between each argument must be `\r\n`.
+The header will be *8 bytes* long and both the separator between header and arguments (also called **payload**) and between each argument must be `\r\n`. The protocol also requires of a *trailing separator* after the last argument.
 
 ### Header
 
@@ -41,21 +41,22 @@ The following diagram indicates the different *bit fields* that the header must 
 
 - `OK`     | `0x01` (*Server only*)
 - `ERR`    | `0x02` (*Server only*)
-- `REG`    | `0x03` (*Client only*)
-- `VERIF`  | `0x04`
-- `REQ`    | `0x05`
-- `USRS`   | `0x06`
-- `RECIV`  | `0x07`
-- `LOGIN`  | `0x08` (*Client only*)
-- `MSG`    | `0x09` (*Client only*)
-- `LOGOUT` | `0x0A` (*Client only*)
-- `DEREG`  | `0x0B` (*Client only*)
-- `SHTDWN` | `0x0C` (*Server only*)
-- `ADMIN`  | `0x0D` (*Client only*)
-- `KEEP`   | `0x0E` (*Client only*)
+- `KEEP`   | `0x03` (*Client only*)
+- `REG`    | `0x04` (*Client only*)
+- `DEREG`  | `0x05` (*Client only*)
+- `LOGIN`  | `0x06` (*Client only*)
+- `LOGOUT` | `0x07` (*Client only*)
+- `VERIF`  | `0x08`
+- `REQ`    | `0x09`
+- `USRS`   | `0x0A`
+- `MSG`    | `0x0B` (*Client only*)
+- `RECIV`  | `0x0C`
+- `SHTDWN` | `0x0D` (*Server only*)
+- `ADMIN`  | `0x0E` (*Client only*)
 - `SUB`    | `0x0F` (*Client only*)
 - `UNSUB`  | `0x10` (*Client only*)
 - `HOOK`   | `0x11` (*Server only*)
+- `HELLO`  | `0x12` (*Server only*)
 
 > **NOTE**: All commands sent by the client except `KEEP` must get a response from the server.
 
@@ -106,6 +107,7 @@ The following list of codes are used by `ADMIN`.
 - `ADMIN_BRDCAST`  (`0x02`): Broadcasts a message to all online users.
 - `ADMIN_CHGPERMS` (`0x03`): Changes the permission level of a user.
 - `ADMIN_KICK`     (`0x04`): Kicks a user, also disconnecting it.
+- `ADMIN_MOTD`     (`0x05`): Changes the MOTD of the server.
 
 ##### Hooks
 
@@ -150,7 +152,9 @@ The connection to the server can be established using either **plain TCP** or **
 
 When connecting to the server it is important to know that *any malformed packet* will automatically close the connection. Moreover, the server should implement a **deadline** for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be implemented to allow the connection to persist. 
 
-The server can limit the amount of connected users, which means that when connection the server might be *unable to accept new clients* on the connection, in which case the connection should await until a spot is free. Once the client can be connected, an `OK` packet with a _Null ID_ will be sent to the client.
+The server can limit the amount of connected users, which means that when connection the server might be *unable to accept new clients* on the connection, in which case the connection should await until a spot is free. Once the client can be connected, an `HELLO` packet with a _Null ID_ will be sent to the client.
+
+    HELLO <motd> (Server -> Client)
 
 > **NOTE**: The server can implement whatever method it wants for choosing which awaiting client should be connected next.
 
@@ -265,6 +269,7 @@ The argument amount is not fixed and will depend on the action. An exhaustive li
 - `ADMIN_BRDCAST <message>`
 - `ADMIN_CHGPERMS <username> <permission>`
 - `ADMIN_KICK <username>`
+- `ADMIN_MOTD <motd>`
 
 #### Subscriptions to events
 
