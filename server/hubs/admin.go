@@ -140,6 +140,11 @@ func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	go func() {
 		list := h.users.GetAll()
 		for _, v := range list {
+			// Ignore the person sending the message
+			if v.conn == u.conn {
+				continue
+			}
+
 			// Send to each user
 			v.conn.Write(pak)
 		}

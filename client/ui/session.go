@@ -306,6 +306,10 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 		s.Notifications().Notify(msg.Sender)
 		t.updateNotifications()
 
+		if msg.Sender == data.User.User.Username {
+			print(ErrorMessageFromSelf.Error())
+		}
+
 		t.SendMessage(Message{
 			Buffer:    msg.Sender,
 			Sender:    msg.Sender,

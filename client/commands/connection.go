@@ -86,6 +86,10 @@ func WaitConnect(data Command, server db.Server) error {
 	data.Output("succesfully connected to the server", RESULT)
 
 	motd := string(cmd.Args[0])
+	if motd == "" {
+		return nil
+	}
+
 	str := fmt.Sprintf(
 		"server MOTD (message of the day):\n%s",
 		motd,

@@ -12,6 +12,50 @@ import (
 
 /* AUXILIARY FUNCTIONS */
 
+// Requests the user logged in to get its permissions
+func getOwnPermissions(ctx context.Context, cmd Command) (uint, error) {
+	id := cmd.Data.NextID()
+	packet, err := spec.NewPacket(
+		spec.REQ,
+		id,
+		spec.EmptyInfo,
+		[]byte(cmd.Data.User.User.Username),
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = cmd.Data.Conn.Write(packet)
+	if err != nil {
+		return 0, err
+	}
+
+	verbosePrint("querying permissions...", cmd)
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.REQ, spec.ERR),
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	if reply.HD.Op == spec.ERR {
+		return 0, spec.ErrorCodeToError(reply.HD.Info)
+	}
+
+	perms, err := spec.ParsePermissionBytes(reply.Args[2])
+	if err != nil {
+		return 0, err
+	}
+
+	// TODO: save to data?
+	str := fmt.Sprintf(
+		"logged in with permission level %d",
+		perms,
+	)
+	cmd.Output(str, RESULT)
+	return perms, nil
+}
+
 // Performs the necessary operations to store a RECIV
 // packet in the database (decryption, REQ (if necessary)
 // insert...), then returns the decrypted message

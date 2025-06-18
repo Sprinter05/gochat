@@ -66,15 +66,12 @@ func readJSON(path string) (cfg Config) {
 // setup() should always run first when the program starts
 func setup() Config {
 	var configFile string
-	// var useTLS bool
 
 	flag.StringVar(&configFile, "config", "config.json", "Configuration file to load, must be in JSON format.")
-	// flag.BoolVar(&useTLS, "tls", true, "Enabled or disabled the TLS socket, this option overrides the one in the configuration file.")
 	flag.Parse()
 
 	// Read configuration file
 	config := readJSON(configFile)
-	// config.Server.TLS.Enabled = useTLS // Override
 
 	return config
 }

@@ -655,6 +655,9 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 	cmd.Data.User = &localUser
 
 	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username), RESULT)
+
+	getOwnPermissions(ctx, cmd)
+
 	return nil, nil
 }
 

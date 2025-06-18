@@ -68,6 +68,7 @@ var (
 	ErrorTypingTooFast    = errors.New("you are typing too fast")
 	ErrorPasswordNotMatch = errors.New("passwords do not match")
 	ErrorInvalidArgument  = errors.New("provided argument is incorrect")
+	ErrorMessageFromSelf  = errors.New("received message from self")
 )
 
 // Identifies the areas where components are located.
