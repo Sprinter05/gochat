@@ -70,7 +70,7 @@ func (cmd *Command) Contents() string {
 		hook := Hook(cmd.HD.Info)
 		fmt.Fprintf(&output, "(%s)\n", HookString(hook))
 	default:
-		fmt.Fprint(&output, "\n")
+		fmt.Fprint(&output, "[Empty]\n")
 	}
 
 	fmt.Fprintf(&output, "* Args: %d\n", cmd.HD.Args)

@@ -486,7 +486,7 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 	}
 
 	id := cmd.Data.NextID()
-	pct, pctErr := spec.NewPacket(spec.DEREG, id, spec.EmptyInfo, []byte(username))
+	pct, pctErr := spec.NewPacket(spec.DEREG, id, spec.EmptyInfo)
 	if pctErr != nil {
 		return nil, pctErr
 	}
@@ -516,6 +516,7 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 		return nil, dbErr
 	}
 
+	cmd.Data.Waitlist.Cancel(cmd.Data.Logout)
 	cmd.Output(fmt.Sprintf("user %s deregistered correctly", username), RESULT)
 	return nil, nil
 }
@@ -697,6 +698,7 @@ func Logout(ctx context.Context, cmd Command) ([][]byte, error) {
 	// Empties the user value in Data
 	cmd.Data.User = nil
 
+	cmd.Data.Waitlist.Cancel(cmd.Data.Logout)
 	cmd.Output("logged out", RESULT)
 	return nil, nil
 }
@@ -715,6 +717,7 @@ func Discn(cmd Command) ([][]byte, error) {
 	// Closes the shell client session
 	cmd.Data.Conn = nil
 	cmd.Data.User = nil
+	cmd.Data.Waitlist.Cancel(cmd.Data.Logout)
 	cmd.Data.Waitlist.Clear()
 	cmd.Output("sucessfully disconnected from the server", RESULT)
 

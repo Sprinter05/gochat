@@ -353,11 +353,12 @@ func toggleTLS(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 
 	var useTLS bool
-	if args[0] == "on" {
+	switch args[0] {
+	case "on":
 		useTLS = true
-	} else if args[0] == "off" {
+	case "off":
 		useTLS = false
-	} else {
+	default:
 		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
 		return
 	}
@@ -431,7 +432,6 @@ func logoutUser(t *TUI, cmd Command) {
 		return
 	}
 
-	data.Waitlist.Cancel(data.Logout)
 	t.comp.input.SetLabel(defaultLabel)
 	cleanupSession(t, cmd.serv)
 }
@@ -513,15 +513,16 @@ func listUsers(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 
 	var usrs cmds.USRSType
-	if args[0] == "remote" {
+	switch args[0] {
+	case "remote":
 		usrs = cmds.ALL
-	} else if args[0] == "online" {
+	case "online":
 		usrs = cmds.ONLINE
-	} else if args[0] == "server" {
+	case "server":
 		usrs = cmds.LOCAL_SERVER
-	} else if args[0] == "local" {
+	case "local":
 		usrs = cmds.LOCAL_ALL
-	} else {
+	default:
 		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
 		return
 	}
