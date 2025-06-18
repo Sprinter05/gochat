@@ -101,6 +101,8 @@ func (hub *Hub) Cleanup(cl net.Conn) {
 // for a connection, and returns the corresponding user if so. If no user
 // exists and it is applicable, a newly created user will be returned,
 // which should be filled by the function processing the operation.
+//
+// Returns a specification error
 func (hub *Hub) Session(r Request) (*User, error) {
 	op := r.Command.HD.Op
 
@@ -117,18 +119,13 @@ func (hub *Hub) Session(r Request) (*User, error) {
 	// Check for users in the database
 	// only if we are either in LOGIN or VERIF
 	if op == spec.LOGIN || op == spec.VERIF {
-		user, e := hub.dbLogin(r)
-		if e == nil {
+		user, err := hub.dbLogin(r)
+		if err == nil {
 			// User found in database so we serve request
 			return user, nil
 		} else {
-			if e == spec.ErrorNotFound {
-				// User did not exist when trying to search previously
-				SendErrorPacket(r.Command.HD.ID, spec.ErrorNotFound, r.Conn)
-			}
-
 			// We do not create a new user if there was an error
-			return nil, e
+			return nil, err
 		}
 	}
 
@@ -136,7 +133,6 @@ func (hub *Hub) Session(r Request) (*User, error) {
 	// So if its not REG we error
 	if op != spec.REG {
 		// Cannot do anything without an account
-		SendErrorPacket(r.Command.HD.ID, spec.ErrorNoSession, r.Conn)
 		return nil, spec.ErrorNoSession
 	}
 
@@ -149,16 +145,16 @@ func (hub *Hub) Session(r Request) (*User, error) {
 
 /* HUB LOGIN FUNCTIONS */
 
-// Checks if there is a user in the database
-// Be careful with sending error packets in the calling function
+// Checks if there is a user in the database, returning an
+// specification error if not.
 func (hub *Hub) dbLogin(r Request) (*User, error) {
 	u := string(r.Command.Args[0])
-	user, e := hub.userFromDB(u)
-	if e != nil {
-		if e != spec.ErrorNotFound {
-			SendErrorPacket(r.Command.HD.ID, spec.ErrorLogin, r.Conn)
+	user, err := hub.userFromDB(u)
+	if err != nil {
+		if err == spec.ErrorCorrupted || err == spec.ErrorServer {
+			return nil, spec.ErrorLogin
 		}
-		return nil, e
+		return nil, err
 	}
 
 	// Assign connection and if said connection is secure
@@ -167,8 +163,8 @@ func (hub *Hub) dbLogin(r Request) (*User, error) {
 	return user, nil
 }
 
-// Check if the user is already online
-// Be careful with sending error packets in the calling function
+// Check if the user is already online, returning an
+// specification error if not.
 func (hub *Hub) cachedLogin(r Request) (*User, error) {
 	id := r.Command.HD.Op
 
@@ -176,7 +172,6 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 	if ok {
 		// Cannot perform these operations if already online
 		if id == spec.REG || id == spec.LOGIN || id == spec.VERIF {
-			SendErrorPacket(r.Command.HD.ID, spec.ErrorInvalid, r.Conn)
 			return nil, spec.ErrorInvalid
 		}
 
@@ -190,7 +185,6 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 		if ipok {
 			// Cannot have two sessions of the same user
 			go hub.Notify(spec.HookDuplicateSession, dup.conn)
-			SendErrorPacket(r.Command.HD.ID, spec.ErrorDupSession, r.Conn)
 			return nil, spec.ErrorDupSession
 		}
 	}

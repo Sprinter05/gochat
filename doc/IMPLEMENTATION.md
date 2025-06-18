@@ -8,7 +8,7 @@ This server supports both **plain TCP** and **TLS** for the **v1 Protocol** on t
 
 This server implementes all **Actions**, including the optional `KEEP` for persistent connections. It also implements all **administrative operations** and all **hooks**.
 
-**Dangling usernames** can be used by new accounts unless the previous owner of that username has messages cached in the database. 
+**Dangling usernames** cannot be used by new accounts, meaning that once registered, that username can never be reused.
 
 ## Permissions
 

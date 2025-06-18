@@ -92,9 +92,9 @@ func QueryMessages(db *gorm.DB, uname string) ([]*spec.Message, error) {
 		}
 
 		// Conversion from hex string
-		dec, e := hex.DecodeString(undec)
-		if e != nil {
-			log.DBFatal("encripted hex message", uname, e)
+		dec, err := hex.DecodeString(undec)
+		if err != nil {
+			log.DBFatal("encripted hex message", uname, err)
 		}
 		temp.Content = dec
 

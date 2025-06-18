@@ -88,6 +88,7 @@ The following list of codes are used by `ERR`.
 - `ERR_DUPSESS`   (`0x12`): Session already exists in another endpoint.
 - `ERR_NOSECURE`  (`0x13`): Operation requires a secure connection.
 - `ERR_CORRUPTED` (`0x14`): Data found is corrupted.
+- `ERR_OPTION`    (`0x15`): Invalid option provided.
 
 ##### Types of user lists
 

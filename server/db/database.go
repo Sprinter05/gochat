@@ -97,8 +97,8 @@ func Connect(logfile *stdlog.Logger, opts Config) *gorm.DB {
 
 	// Check if the database can be pinged
 	sqldb, _ := db.DB()
-	if e := sqldb.Ping(); e != nil {
-		log.Fatal("database ping", e)
+	if err := sqldb.Ping(); err != nil {
+		log.Fatal("database ping", err)
 	}
 
 	// Run migrations

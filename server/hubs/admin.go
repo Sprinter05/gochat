@@ -79,7 +79,7 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 	stamp, err := spec.BytesToUnixStamp(cmd.Args[0])
 	if err != nil {
 		// Invalid number given
-		SendErrorPacket(cmd.HD.ID, err, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
@@ -99,9 +99,9 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 		h.close()
 	}()
 
-	pak, e := spec.NewPacket(spec.SHTDWN, spec.NullID, spec.EmptyInfo, cmd.Args[0])
-	if e != nil {
-		log.Packet(spec.SHTDWN, e)
+	pak, err := spec.NewPacket(spec.SHTDWN, spec.NullID, spec.EmptyInfo, cmd.Args[0])
+	if err != nil {
+		log.Packet(spec.SHTDWN, err)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}
@@ -122,13 +122,13 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 // Requires 1 argument for the message
 func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 	// Create packet with the message
-	pak, e := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
-		[]byte(u.name+" ["+db.PermissionString(u.perms)+"]"),
+	pak, err := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
+		[]byte(u.name),
 		spec.UnixStampToBytes(time.Now()),
 		cmd.Args[0],
 	)
-	if e != nil {
-		log.Packet(spec.RECIV, e)
+	if err != nil {
+		log.Packet(spec.RECIV, err)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
 		return
 	}

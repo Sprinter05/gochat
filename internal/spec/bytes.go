@@ -100,8 +100,13 @@ func (hd Header) ServerCheck() error {
 	}
 
 	// These operations cannot accept empty info field
-	check := hd.Op == USRS || hd.Op == ADMIN || hd.Op == ERR
-	if check && hd.Info == EmptyInfo {
+	info := hd.Op == USRS ||
+		hd.Op == ADMIN ||
+		hd.Op == ERR ||
+		hd.Op == SUB ||
+		hd.Op == UNSUB
+
+	if info && hd.Info == EmptyInfo {
 		return ErrorHeader
 	}
 
@@ -129,8 +134,18 @@ func (hd Header) ClientCheck() error {
 	}
 
 	// Only these operations can have a null ID
-	check := hd.Op == SHTDWN || hd.Op == RECIV || hd.Op == OK || hd.Op == HOOK
+	check := hd.Op == SHTDWN ||
+		hd.Op == RECIV ||
+		hd.Op == OK ||
+		hd.Op == HOOK
+
 	if !check && hd.ID == NullID {
+		return ErrorHeader
+	}
+
+	// These operations cannot have empty information
+	info := hd.Op == HOOK || hd.Op == ERR
+	if info && hd.Info == EmptyInfo {
 		return ErrorHeader
 	}
 

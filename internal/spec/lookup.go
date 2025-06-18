@@ -219,6 +219,7 @@ var (
 	ErrorDupSession   error = SpecError{0x12, "ERR_DUPSESS", "session exists in another endpoint"}      // session exists in another endpoint
 	ErrorUnsecure     error = SpecError{0x13, "ERR_NOSECURE", "secured connection required"}            // secure connection required
 	ErrorCorrupted    error = SpecError{0x14, "ERR_CORRUPTED", "queried data is currupted"}             // queried data is corrupted
+	ErrorOption       error = SpecError{0x15, "ERR_OPTION", "invalid option provided"}                  // invalid option provided
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -243,6 +244,7 @@ var codeToError map[byte]error = map[byte]error{
 	0x12: ErrorDupSession,
 	0x13: ErrorUnsecure,
 	0x14: ErrorCorrupted,
+	0x15: ErrorOption,
 }
 
 // Returns the error asocciated to a hex byte.

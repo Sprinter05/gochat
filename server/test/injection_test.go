@@ -94,9 +94,9 @@ func TestREG(t *testing.T) {
 	vpak := readFromConn(conn) // VERIF packet
 	fmt.Print(vpak.Contents())
 
-	dec, e := spec.DecryptText(vpak.Args[0], v)
-	if e != nil {
-		t.Fatal(e)
+	dec, err := spec.DecryptText(vpak.Args[0], v)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Verify

@@ -19,9 +19,9 @@ func welcomeConn(cl *spec.Connection) {
 	cl.Conn.SetDeadline(deadline)
 
 	// Notify the user they are connected to the server
-	pak, e := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
-	if e != nil {
-		log.Packet(spec.OK, e)
+	pak, err := spec.NewPacket(spec.OK, spec.NullID, spec.EmptyInfo)
+	if err != nil {
+		log.Packet(spec.OK, err)
 	} else {
 		_, err := cl.Conn.Write(pak)
 		if err != nil {
@@ -135,6 +135,7 @@ func RunTask(hub *hubs.Hub, req <-chan hubs.Request) {
 		// Check if the user can be served
 		u, err := hub.Session(r)
 		if err != nil {
+			hubs.SendErrorPacket(r.Command.HD.ID, err, r.Conn)
 			log.Error("session checking for "+ip, err)
 			continue // Next request
 		}

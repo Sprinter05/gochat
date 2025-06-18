@@ -58,9 +58,9 @@ func catchUp(cl net.Conn, msgs ...*spec.Message) {
 
 // Auxiliary function to reduce code when sending errors.
 func SendErrorPacket(id spec.ID, err error, cl net.Conn) {
-	pak, e := spec.NewPacket(spec.ERR, id, spec.ErrorCode(err))
-	if e != nil {
-		log.Packet(spec.ERR, e)
+	pak, err := spec.NewPacket(spec.ERR, id, spec.ErrorCode(err))
+	if err != nil {
+		log.Packet(spec.ERR, err)
 	} else {
 		cl.Write(pak)
 	}
@@ -68,9 +68,9 @@ func SendErrorPacket(id spec.ID, err error, cl net.Conn) {
 
 // Auxiliary function to reduce code when sending ok packets.
 func SendOKPacket(id spec.ID, cl net.Conn) {
-	pak, e := spec.NewPacket(spec.OK, id, spec.EmptyInfo)
-	if e != nil {
-		log.Packet(spec.OK, e)
+	pak, err := spec.NewPacket(spec.OK, id, spec.EmptyInfo)
+	if err != nil {
+		log.Packet(spec.OK, err)
 	} else {
 		cl.Write(pak)
 	}
