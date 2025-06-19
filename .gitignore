@@ -1,6 +1,7 @@
 # Folders
 build/
 export/
+import/
 logs/
 certs/
 config/*

@@ -5,10 +5,13 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"errors"
 	"fmt"
+	"io/fs"
 	mrand "math/rand/v2"
 	"net"
 	"os"
+	"path"
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
@@ -156,10 +159,17 @@ var adminArgs = map[spec.Admin]uint{
 /* CLIENT COMMANDS */
 
 // Imports a private RSA key for a new local user
-// from the specified directory using the specification PEM format.
-func Import(cmd Command, username, pass, path string) ([][]byte, error) {
+// from the "import" directory using the specification PEM format.
+func Import(cmd Command, username, pass, dir string) ([][]byte, error) {
+	// Creates import/ directory if it does not exist
+	if _, err := os.Stat("import"); errors.Is(err, fs.ErrNotExist) {
+		cmd.Output("missing 'import' folder", ERROR)
+		return nil, err
+	}
+
 	verbosePrint("reading private key...", cmd)
-	buf, readErr := os.ReadFile(path)
+	fulldir := path.Join("import", dir)
+	buf, readErr := os.ReadFile(fulldir)
 	if readErr != nil {
 		return nil, readErr
 	}
@@ -202,7 +212,7 @@ func Import(cmd Command, username, pass, path string) ([][]byte, error) {
 }
 
 // Exports a local user as a private RSA key
-// in a folder called export using the spec PEM format.
+// in the "export" folder using the spec PEM format.
 func Export(cmd Command, username, pass string) ([][]byte, error) {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
@@ -243,12 +253,13 @@ func Export(cmd Command, username, pass string) ([][]byte, error) {
 	localUser.PrvKey = string(dec)
 
 	// Creates export/ directory if it does not exist
-	if _, err := os.Stat("export/"); os.IsNotExist(err) {
+	if _, err := os.Stat("export"); errors.Is(err, fs.ErrNotExist) {
+		cmd.Output("Creating 'export' directory", INFO)
 		os.Mkdir("export", 0755)
 	}
 
-	file := "export/" + username + ".priv"
-	f, createErr := os.Create(file)
+	fulldir := path.Join("export", username+".priv")
+	f, createErr := os.Create(fulldir)
 	if createErr != nil {
 		return nil, createErr
 	}
