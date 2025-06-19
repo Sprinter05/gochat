@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"net"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +16,11 @@ import (
 )
 
 /* TUI */
+
+type userlistUser struct {
+	name  string
+	perms uint
+}
 
 // Identifies conditions that may in any moment
 // block another action from being performed, or
@@ -29,6 +36,8 @@ type state struct {
 
 	deletingServer bool // Currently choosing to delete server
 	deletingBuffer bool // Currently choosing to delete buffer
+
+	userlist models.Slice[userlistUser] // Used for displaying users in the user bar
 
 	lastDate time.Time // Last rendered date in the current buffer
 	lastMsg  time.Time // last message sent
@@ -60,6 +69,56 @@ func (s *state) blockCond() bool {
 		s.typingPassword ||
 		s.deletingServer ||
 		s.deletingBuffer
+}
+
+/* USERLIST */
+
+func (s *state) userlistRender() string {
+	var list strings.Builder
+
+	if s.userlist.Len() == 0 {
+		return ""
+	}
+
+	copy := s.userlist.Copy(0)
+	slices.SortFunc(copy, func(a, b userlistUser) int {
+		if a.perms < b.perms {
+			return 1
+		} else if a.perms > b.perms {
+			return -1
+		}
+
+		return 0
+	})
+
+	for _, v := range copy {
+		str := fmt.Sprintf(
+			"[[purple::i]%d[-::-]] %s\n",
+			v.perms, v.name,
+		)
+		list.WriteString(str)
+	}
+
+	ret := list.String()
+	l := len(ret)
+	return ret[:l-1]
+}
+
+func (s *state) userlistAdd(name string, perms uint) {
+	s.userlist.Add(userlistUser{
+		name:  name,
+		perms: perms,
+	})
+}
+
+func (s *state) userlistRemove(name string) {
+	val, ok := s.userlist.Find(func(uu userlistUser) bool {
+		return uu.name == name
+	})
+
+	if ok {
+		s.userlist.Remove(val)
+	}
 }
 
 /* POPUPS */
@@ -323,9 +382,10 @@ func toggleUserlist(t *TUI) {
 
 func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 	data, ok := s.Online()
+	t.status.userlist.Clear()
 
 	if data == nil || !ok {
-		t.comp.users.SetText("")
+		t.comp.users.SetText(defaultUserlist)
 		return
 	}
 
@@ -337,28 +397,21 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 
 	ctx, cancel := timeout(s, data)
 	defer data.Waitlist.Cancel(cancel)
-	reply, err := cmds.Usrs(ctx, cmd, cmds.ONLINE)
+	reply, err := cmds.Usrs(ctx, cmd, cmds.ONLINEPERMS)
 
 	if err != nil {
 		output(err.Error(), cmds.ERROR)
 		return
 	}
 
-	full := make([]string, 0, len(reply))
 	for _, v := range reply {
-		perms, err := cmds.GetPermissions(ctx, cmd, string(v))
+		name, perms, _ := strings.Cut(string(v), " ")
+		val, err := strconv.Atoi(perms)
 		if err != nil {
-			full = append(full, string(v))
-			continue
+			val = 0
 		}
-
-		str := fmt.Sprintf(
-			"[[purple::i]%d[-::-]] %s",
-			perms, string(v),
-		)
-		full = append(full, str)
+		t.status.userlistAdd(name, uint(val))
 	}
 
-	list := strings.Join(full, "\n")
-	t.comp.users.SetText(list)
+	t.comp.users.SetText(t.status.userlistRender())
 }

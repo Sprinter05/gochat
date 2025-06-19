@@ -27,24 +27,25 @@ const Logo string = `
 `
 
 const (
-	tuiVersion     float32 = 0.1       // Current client TUI version
-	selfSender     string  = "You"     // Self sender of a message
-	systemBuffer   string  = "System"  // System buffer name
-	debugBuffer    string  = "Debug"   // Buffer where packets will be shown
-	defaultBuffer  string  = "Default" // Default server system buffer
-	localServer    string  = "Local"   // Local server name
-	defaultLabel   string  = " > "     // Default prompt
-	inputSize      int     = 4         // size in the TUI of the input bar
-	errorSize      int     = 1         // size of the erro bar
-	notifSize      int     = 2         // size of the notif bar
-	textSize       int     = 30        // Size of the text window
-	errorMessage   uint    = 3         // seconds
-	asciiNumbers   int     = 0x30      // Start of ASCII for number 1
-	asciiLowercase int     = 0x61      // Start of ASCII for lowercase a
-	maxBuffers     uint    = 35        // Maximum amount of allowed buffers in one server
-	maxServers     uint    = 9         // Maximum amount of allowed servers
-	cmdTimeout     uint    = 30        // Max seconds to wait for a command to finish
-	msgDelay       uint    = 500       // miliseconds between msgs
+	tuiVersion      float32 = 0.1       // Current client TUI version
+	selfSender      string  = "You"     // Self sender of a message
+	systemBuffer    string  = "System"  // System buffer name
+	debugBuffer     string  = "Debug"   // Buffer where packets will be shown
+	defaultBuffer   string  = "Default" // Default server system buffer
+	localServer     string  = "Local"   // Local server name
+	defaultLabel    string  = " > "     // Default prompt
+	defaultUserlist string  = "(Empty)" // Default userlist content
+	inputSize       int     = 4         // size in the TUI of the input bar
+	errorSize       int     = 1         // size of the erro bar
+	notifSize       int     = 2         // size of the notif bar
+	textSize        int     = 30        // Size of the text window
+	errorMessage    uint    = 3         // seconds
+	asciiNumbers    int     = 0x30      // Start of ASCII for number 1
+	asciiLowercase  int     = 0x61      // Start of ASCII for lowercase a
+	maxBuffers      uint    = 35        // Maximum amount of allowed buffers in one server
+	maxServers      uint    = 9         // Maximum amount of allowed servers
+	cmdTimeout      uint    = 30        // Max seconds to wait for a command to finish
+	msgDelay        uint    = 500       // miliseconds between msgs
 )
 
 var (
@@ -489,6 +490,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 			creatingServer: false,
 			deletingServer: false,
 			deletingBuffer: false,
+			userlist:       models.NewSlice[userlistUser](0),
 			lastDate:       time.Now(),
 			lastMsg:        time.Now(),
 		},
@@ -531,6 +533,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 		print("Packets between client and server will be shown here.", cmds.INFO)
 	}
 
+	t.comp.users.SetText(defaultUserlist)
 	t.changeBuffer(0) // System buffer
 	t.restoreSession()
 	t.renderServer(localServer)

@@ -63,7 +63,7 @@ func (w *Waitlist[T]) Cancel(cancel context.CancelFunc) {
 func (w *Waitlist[T]) Clear() {
 	w.cond.L.Lock()
 	defer w.cond.L.Unlock()
-	clear(w.data)
+	w.data = make([]T, 0)
 }
 
 // Tries to retrieve an element from the waitlist that
@@ -73,15 +73,15 @@ func (w *Waitlist[T]) TryGet(find func(T) bool) (T, bool) {
 	w.cond.L.Lock()
 	defer w.cond.L.Unlock()
 
-	for i, v := range w.data {
-		if find(v) {
-			w.data = slices.Delete(w.data, i, i+1)
-			return v, true
-		}
+	i := slices.IndexFunc(w.data, find)
+	if i == -1 {
+		var empty T
+		return empty, false
 	}
 
-	var empty T
-	return empty, false
+	ret := w.data[i]
+	w.data = slices.Delete(w.data, i, i+1)
+	return ret, true
 }
 
 // Tries to retrieve an element that fulfills
@@ -97,11 +97,11 @@ func (w *Waitlist[T]) Get(ctx context.Context, find func(T) bool) (T, error) {
 	defer w.cond.L.Unlock()
 
 	for {
-		for i, v := range w.data {
-			if find(v) {
-				w.data = slices.Delete(w.data, i, i+1)
-				return v, nil
-			}
+		i := slices.IndexFunc(w.data, find)
+		if i != -1 {
+			ret := w.data[i]
+			w.data = slices.Delete(w.data, i, i+1)
+			return ret, nil
 		}
 
 		w.cond.Wait()

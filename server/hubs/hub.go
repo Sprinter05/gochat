@@ -84,7 +84,6 @@ func (hub *Hub) Cleanup(cl net.Conn) {
 		go hub.Notify(
 			spec.HookNewLogout, nil,
 			[]byte(user.name),
-			[]byte{byte(user.perms)},
 		)
 	}
 

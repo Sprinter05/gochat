@@ -555,9 +555,9 @@ func listUsers(t *TUI, cmd Command) {
 	var list strings.Builder
 	mode := fmt.Sprintf("%s %s", args[0], args[1])
 	if queryPerms {
-		list.WriteString("Showing " + mode + " users:\n")
-	} else {
 		list.WriteString("Showing " + mode + " users with permissions:\n")
+	} else {
+		list.WriteString("Showing " + mode + " users:\n")
 	}
 
 	if len(reply) == 0 {
@@ -574,7 +574,7 @@ func listUsers(t *TUI, cmd Command) {
 			)
 		} else {
 			str = fmt.Sprintf(
-				"- [pink::i]%s[-::-] | [cyan::b]%s[-::-]",
+				"- [pink::i]%s[-::-] | [blue::b]%s[-::-]\n",
 				uname, extra,
 			)
 		}

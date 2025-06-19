@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -200,7 +201,7 @@ func (t *TUI) updateNotifications() {
 		}
 
 		str := fmt.Sprintf(
-			"[cyan::b]%s[-:-:-]: [green]%d[-] | ",
+			"[blue::b]%s[-:-:-]: [green]%d[-] | ",
 			v, unread,
 		)
 		text.WriteString(str)
@@ -323,7 +324,8 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 // Waits for new notifications of hooks from the server
 func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 	defer func() {
-		t.comp.users.SetText("")
+		t.status.userlist.Clear()
+		t.comp.users.SetText(defaultUserlist)
 	}()
 
 	data, _ := s.Online()
@@ -335,7 +337,6 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 			output(msg, cmds.ERROR)
 		}
 	}
-	empty := func(string, cmds.OutputType) {}
 
 	for {
 		cmd, err := data.Waitlist.Get(
@@ -380,10 +381,26 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 				string(cmd.Args[0]),
 			)
 			output(str, cmds.INFO)
-		case spec.HookNewLogin, spec.HookNewLogout:
-			if t.Active().Name() == s.Name() {
-				updateOnlineUsers(t, s, empty)
+		case spec.HookNewLogin:
+			perms, err := strconv.Atoi(string(cmd.Args[1]))
+			if err != nil {
+				perms = 0
 			}
+
+			t.status.userlistAdd(
+				string(cmd.Args[0]),
+				uint(perms),
+			)
+		case spec.HookNewLogout:
+			t.status.userlistRemove(
+				string(cmd.Args[0]),
+			)
+		}
+
+		if (hook == spec.HookNewLogin ||
+			hook == spec.HookNewLogout) &&
+			t.Active().Name() == s.Name() {
+			t.comp.users.SetText(t.status.userlistRender())
 		}
 	}
 }

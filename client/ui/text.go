@@ -74,7 +74,7 @@ const CommandHelp string = `
 	
 [yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
 
-[yellow::b]/connect[-::-] [cyan](-noverify)[-]: Connects to the currently active server using its address
+[yellow::b]/connect[-::-] [blue](-noverify)[-]: Connects to the currently active server using its address
 	- This will fail if the server is local
 	- If the connection is TLS and noverify is used, certificates will not be checked
 
@@ -107,21 +107,21 @@ const CommandHelp string = `
 [yellow::b]/disconnect[-::-]: Interrumps the connection with the currently active server
 	- You need an active connection to use this command
 
-[yellow::b]/users[-::-] [green]<remote/local>[-] [green]<all/online/server>[-] [cyan](-perms)[-]: Shows a list of users according to the specified filter
-	- "remote all" will display all users registered on the remote server (requires connection)
-	- "remote online" will display all connected accounts in the server (requires connection)
-	- "local all" will display accounts created for for all servers on this client
-	- "local server" will display all local accounts for that server
-	- For the "remote" options you can optionally pass "-perms" to show permission levels.
+[yellow::b]/users[-::-] [green]<remote/local>[-] [green]<all/online/server>[-] [blue](-perms)[-]: Shows a list of users according to the specified filter
+	- [cyan]"remote all"[-] will display all users registered on the remote server (requires connection)
+	- [cyan]"remote online"[-] will display all connected accounts in the server (requires connection)
+	- [cyan]"local all"[-] will display accounts created for for all servers on this client
+	- [cyan]"local server"[-] will display all local accounts for that server
+	- For the [cyan]"remote"[-] options you can optionally pass "-perms" to show permission levels.
 	
 [yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
 	- This process is already done automatically if connected and logged in
 
 [yellow::b]/subscribe[-::-] [green]<hook>[-]: Subscribes to a specific event in the server
-	- Available options are <new_login/new_logout/duplicated_session/permissions_change/all>
+	- Available options are [cyan]<new_login/new_logout/duplicated_session/permissions_change/all>[-]
 	
 [yellow::b]/unsubscribe[-::-] [green]<hook>[-]: Unsubscribes from a specific event in the server
-	- Available options are <new_login/new_logout/duplicated_session/permissions_change/all>
+	- Available options are [cyan]<new_login/new_logout/duplicated_session/permissions_change/all>[-]
 `
 
 /* MESSAGES */

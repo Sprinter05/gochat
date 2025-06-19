@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"time"
 
@@ -147,6 +148,7 @@ func (hub *Hub) Userlist(ulist spec.Userlist) (ret string) {
 			users = append(users, v.name)
 		}
 
+		slices.Sort(users)
 		ret = strings.Join(users, "\n")
 	case spec.UsersOnlinePerms:
 		list := hub.users.GetAll()
@@ -157,6 +159,7 @@ func (hub *Hub) Userlist(ulist spec.Userlist) (ret string) {
 			users = append(users, str)
 		}
 
+		slices.Sort(users)
 		ret = strings.Join(users, "\n")
 	case spec.UsersAll:
 		query, err := db.QueryUsernames(hub.db)

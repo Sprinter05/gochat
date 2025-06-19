@@ -49,22 +49,9 @@ func (s *Slice[T]) Remove(val T) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
-	// Find the position of the element
-	pos := -1
-	for i, v := range s.data {
-		if v == val {
-			pos = i
-			break
-		}
-	}
-
-	// Nothing found
-	if pos == -1 {
-		return
-	}
-
-	// Reorder the array
-	s.data = slices.Delete(s.data, pos, pos+1)
+	s.data = slices.DeleteFunc(s.data, func(v T) bool {
+		return v == val
+	})
 }
 
 // Returns the element located at a certain index and
@@ -83,11 +70,27 @@ func (s *Slice[T]) Get(index uint) (T, bool) {
 	return s.data[index], true
 }
 
+// Returns the element found that fulfills the given
+// function and a boolean indicating whether it was or
+// not found.
+func (s *Slice[T]) Find(find func(T) bool) (T, bool) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	i := slices.IndexFunc(s.data, find)
+	if i == -1 {
+		var empty T
+		return empty, false
+	}
+
+	return s.data[i], true
+}
+
 // Clears all elements from the slice.
 func (s *Slice[T]) Clear() {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	clear(s.data)
+	s.data = make([]T, 0)
 }
 
 // Returns true if the given element exists

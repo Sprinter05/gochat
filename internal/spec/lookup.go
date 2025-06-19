@@ -366,7 +366,7 @@ var codeToHook map[Hook]string = map[Hook]string{
 
 var hookToArgs map[Hook]int = map[Hook]int{
 	HookNewLogin:         2,
-	HookNewLogout:        2,
+	HookNewLogout:        1,
 	HookDuplicateSession: 1,
 	HookPermsChange:      1,
 }

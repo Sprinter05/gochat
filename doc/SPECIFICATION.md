@@ -235,6 +235,8 @@ The client application can request a list of *all users* that are registered in 
 The server will reply with a list of all users separated by the **newline character** (`\n`) (including the user that requested the list). If the requested type of listing *includes permissions* it will be in the format `<username> <permission>`.
 
     USRS <username_list> (Server -> Client)
+    
+> **NOTE**: There is no predefined way in which the user list should be sorted
 
 #### Sending a message
 
@@ -294,6 +296,6 @@ Whenever an event is triggered, the server will send a `HOOK` packet using the _
 The argument amount is not fixed and will depend on the action. An exhaustive list of administrative operations and their arguments is detailed below:
 
 - `HOOK_NEWLOGIN <username> <permission>`
-- `HOOK_NEWLOGOUT <username> <permission>`
+- `HOOK_NEWLOGOUT <username>`
 - `HOOK_DUPSESS <ip>`
 - `HOOK_PERMSCHG <permission>`
