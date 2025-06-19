@@ -103,6 +103,43 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 	}, nil
 }
 
+func tokenLogin(ctx context.Context, cmd Command, username string) error {
+	id := cmd.Data.NextID()
+	pct, err := spec.NewPacket(
+		spec.LOGIN, id,
+		spec.EmptyInfo,
+		[]byte(username),
+		[]byte(cmd.Data.Token),
+	)
+	if err != nil {
+		return err
+	}
+
+	if cmd.Static.Verbose {
+		packetPrint(pct, cmd)
+	}
+
+	_, err = cmd.Data.Conn.Write(pct)
+	if err != nil {
+		return err
+	}
+
+	verbosePrint("awaiting response...", cmd)
+	reply, err := cmd.Data.Waitlist.Get(
+		ctx, Find(id, spec.OK, spec.ERR),
+	)
+	if err != nil {
+		return err
+	}
+
+	if reply.HD.Op == spec.ERR {
+		cmd.Data.Token = ""
+		return spec.ErrorCodeToError(reply.HD.Info)
+	}
+
+	return nil
+}
+
 /* PRINTING FUNCTIONS */
 
 // Prints out all local users on the current server and

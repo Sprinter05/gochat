@@ -137,6 +137,7 @@ func ListenPackets(cmd Command, cleanup func()) {
 
 		cmd.Data.Conn = nil
 		cmd.Data.User = nil
+		cmd.Data.Token = ""
 
 		cmd.Output("No longer listening for packets", INFO)
 		cleanup()

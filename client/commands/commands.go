@@ -33,6 +33,7 @@ type Data struct {
 	User     *db.LocalUser                 // Specifies the logged in user
 	Logout   context.CancelFunc            // Specifies the function to call on a logout for context propagation
 	Waitlist models.Waitlist[spec.Command] // Stores all commands to be retrieved later
+	Token    string                        // Reusable token in case of TLS usage
 	Next     spec.ID                       // Specifies the next ID that should be used when sending a packet
 }
 
@@ -584,6 +585,36 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 	}
 	localUser.PrvKey = string(dec)
 
+	getPerms := func() {
+		perms, err := GetPermissions(ctx, cmd, localUser.User.Username)
+		if err == nil {
+			str := fmt.Sprintf(
+				"logged in with permission level %d",
+				perms,
+			)
+			cmd.Output(str, RESULT)
+		}
+	}
+
+	// Try to login with a reusable token
+	if cmd.Data.Server.TLS && cmd.Data.Token != "" {
+		err := tokenLogin(ctx, cmd, username)
+		if err == nil {
+			str := fmt.Sprintf(
+				"logged in using a reusable token!\nWelcome %s",
+				username,
+			)
+			cmd.Output(str, RESULT)
+
+			cmd.Data.User = &localUser
+			getPerms()
+			return nil, nil
+		}
+
+		cmd.Output(err.Error(), ERROR)
+		cmd.Output("token verification failed, trying normal login", ERROR)
+	}
+
 	// Sends a LOGIN packet with the username as an argument
 	verbosePrint("performing login...", cmd)
 	id1 := cmd.Data.NextID()
@@ -667,15 +698,11 @@ func Login(ctx context.Context, cmd Command, username, pass string) ([][]byte, e
 	// Assigns the logged in user to Data
 	cmd.Data.User = &localUser
 
-	cmd.Output(fmt.Sprintf("login successful. Welcome, %s", username), RESULT)
+	cmd.Output(fmt.Sprintf("login successful!\nWelcome, %s", username), RESULT)
+	getPerms()
 
-	perms, err := GetPermissions(ctx, cmd, localUser.User.Username)
-	if err == nil {
-		str := fmt.Sprintf(
-			"logged in with permission level %d",
-			perms,
-		)
-		cmd.Output(str, RESULT)
+	if cmd.Data.Server.TLS {
+		cmd.Data.Token = string(decrypted)
 	}
 
 	return nil, nil
