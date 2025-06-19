@@ -10,15 +10,6 @@ import (
 
 /* LOOKUP */
 
-var adminArgs map[spec.Admin]uint8 = map[spec.Admin]uint8{
-	spec.AdminShutdown:    1,
-	spec.AdminBroadcast:   1,
-	spec.AdminDeregister:  1,
-	spec.AdminChangePerms: 2,
-	spec.AdminDisconnect:  1,
-	spec.AdminMotd:        1,
-}
-
 var adminPerms map[spec.Admin]db.Permission = map[spec.Admin]db.Permission{
 	spec.AdminShutdown:    db.ADMIN,
 	spec.AdminBroadcast:   db.ADMIN,
@@ -57,8 +48,9 @@ func adminOperation(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	args := adminArgs[op]
-	if cmd.HD.Args < args {
+	// No need to check for -1 since we already checked if it existed
+	args := spec.AdminArgs(op)
+	if int(cmd.HD.Args) < args {
 		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}

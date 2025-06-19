@@ -146,16 +146,6 @@ var hooksList = map[string]spec.Hook{
 	"permissions_change": spec.HookPermsChange,
 }
 
-// List of all necessary arguments for each admin command.
-var adminArgs = map[spec.Admin]uint{
-	spec.AdminBroadcast:   1,
-	spec.AdminDeregister:  1,
-	spec.AdminChangePerms: 2,
-	spec.AdminDisconnect:  1,
-	spec.AdminShutdown:    1,
-	spec.AdminMotd:        1,
-}
-
 /* CLIENT COMMANDS */
 
 // Imports a private RSA key for a new local user
@@ -1043,9 +1033,9 @@ func Admin(ctx context.Context, cmd Command, op spec.Admin, args [][]byte) ([][]
 		return nil, ErrorNotLoggedIn
 	}
 
-	min, ok := adminArgs[op]
+	min := spec.AdminArgs(op)
 
-	if !ok {
+	if min == -1 {
 		return nil, ErrorInvalidAdminOperation
 	}
 

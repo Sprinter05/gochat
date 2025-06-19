@@ -309,6 +309,15 @@ var codeToAdmin map[Admin]string = map[Admin]string{
 	AdminMotd:        "ADMIN_MOTD",
 }
 
+var adminToArgs map[Admin]int = map[Admin]int{
+	AdminShutdown:    1,
+	AdminDeregister:  1,
+	AdminBroadcast:   1,
+	AdminChangePerms: 2,
+	AdminDisconnect:  1,
+	AdminMotd:        1,
+}
+
 // Returns the admin string asocciated to a hex byte.
 // Result is an empty string if not found.
 func AdminString(a Admin) string {
@@ -316,6 +325,17 @@ func AdminString(a Admin) string {
 	if !ok {
 		return ""
 	}
+	return v
+}
+
+// Returns the amount of arguments the hook should have
+// Result is -1 if not found
+func AdminArgs(a Admin) int {
+	v, ok := adminToArgs[a]
+	if !ok {
+		return -1
+	}
+
 	return v
 }
 
@@ -343,6 +363,13 @@ var codeToHook map[Hook]string = map[Hook]string{
 	HookPermsChange:      "HOOK_PERMSCHG",
 }
 
+var hookToArgs map[Hook]int = map[Hook]int{
+	HookNewLogin:         2,
+	HookNewLogout:        2,
+	HookDuplicateSession: 1,
+	HookPermsChange:      1,
+}
+
 // Returns the hook string asocciated to a hex byte.
 // Result is an empty string if not found.
 func HookString(h Hook) string {
@@ -350,6 +377,17 @@ func HookString(h Hook) string {
 	if !ok {
 		return ""
 	}
+	return v
+}
+
+// Returns the amount of arguments the hook should have
+// Result is -1 if not found
+func HookArgs(h Hook) int {
+	v, ok := hookToArgs[h]
+	if !ok {
+		return -1
+	}
+
 	return v
 }
 
