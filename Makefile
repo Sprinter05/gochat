@@ -3,27 +3,27 @@ CC=go
 BUILD=build
 
 .PHONY: clean
-all: $(BUILD)/gcserver $(BUILD)/gcclient
-server: $(BUILD)/gcserver
-client: $(BUILD)/gcclient
+all: $(BUILD)/gochat_server $(BUILD)/gochat_client
+server: $(BUILD)/gochat_server
+client: $(BUILD)/gochat_client
 
 # Create build folder if it doesn't exist
 $(BUILD):
 	if ! [ -d "./$(BUILD)" ]; then mkdir $(BUILD); fi
 
 # We check the OS environment varible for the .exe extension
-$(BUILD)/gcserver: $(BUILD)
+$(BUILD)/gochat_server: $(BUILD)
 ifeq ($(OS),Windows_NT)
-	$(CC) build -o $(BUILD)/gcserver.exe ./server
+	$(CC) build -o $(BUILD)/gochat_server.exe ./server
 else 
-	$(CC) build -o $(BUILD)/gcserver ./server
+	$(CC) build -o $(BUILD)/gochat_server ./server
 endif
 
-$(BUILD)/gcclient: $(BUILD)
+$(BUILD)/gochat_client: $(BUILD)
 ifeq ($(OS),Windows_NT)
-	$(CC) build -o $(BUILD)/gcclient.exe ./client
+	$(CC) build -o $(BUILD)/gochat_client.exe ./client
 else 
-	$(CC) build -o $(BUILD)/gcclient ./client
+	$(CC) build -o $(BUILD)/gochat_client ./client
 endif
 
 # Clean build folder
