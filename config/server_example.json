@@ -10,7 +10,7 @@
     "server": {
         "address": "0.0.0.0",
         "port": 9037,
-        "max_clients": 10,
+        "max_clients": 50,
         "tls": {
             "enabled": false,
             "port": 8037,

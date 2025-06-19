@@ -1,0 +1,16 @@
+{
+    "shell_server": {
+        "address": "127.0.0.1",
+        "port": 9037,
+        "tls": true,
+        "verify_tls": false
+    },
+    "database": {
+        "path": "db/client.db",
+        "log_path": "logs/client.log",
+        "log_level": 2
+    },
+    "ui_config": {
+        "debug_buffer": false
+    }
+}

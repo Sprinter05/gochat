@@ -15,4 +15,4 @@ config/*
 **/__debug_bin*
 
 # Exceptions
-!config/example.json
+!config/*_example.json
