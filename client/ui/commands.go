@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -485,7 +486,7 @@ func loginUser(t *TUI, cmd Command) {
 	defer c.Data.Waitlist.Cancel(rCancel)
 	_, err = cmds.Reciv(rCtx, c)
 	if err != nil {
-		if err == spec.ErrorEmpty {
+		if errors.Is(err, spec.ErrorEmpty) {
 			cmd.print("no new messages have been received", cmds.RESULT)
 		} else {
 			cmd.print(err.Error(), cmds.ERROR)

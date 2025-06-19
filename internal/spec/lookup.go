@@ -224,6 +224,7 @@ var (
 	ErrorUnsecure     error = SpecError{0x13, "ERR_NOSECURE", "secured connection required"}            // secure connection required
 	ErrorCorrupted    error = SpecError{0x14, "ERR_CORRUPTED", "queried data is currupted"}             // queried data is corrupted
 	ErrorOption       error = SpecError{0x15, "ERR_OPTION", "invalid option provided"}                  // invalid option provided
+	ErrorDisconnected error = SpecError{0x16, "ERR_DISCN", "connection was manually closed"}            // connection manually closed
 )
 
 var codeToError map[byte]error = map[byte]error{
@@ -249,6 +250,7 @@ var codeToError map[byte]error = map[byte]error{
 	0x13: ErrorUnsecure,
 	0x14: ErrorCorrupted,
 	0x15: ErrorOption,
+	0x16: ErrorDisconnected,
 }
 
 // Returns the error asocciated to a hex byte.

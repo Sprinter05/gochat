@@ -2,6 +2,7 @@ package commands
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -101,6 +102,30 @@ func WaitConnect(data Command, server db.Server) error {
 
 /* LISTENING FUNCTIONS */
 
+// Checks for a final error the server might have
+// sent when closing the connection.
+func closeError(cmd Command) error {
+	reply, ok := cmd.Data.Waitlist.TryGet(
+		Find(spec.NullID, spec.ERR),
+	)
+
+	if !ok {
+		return nil
+	}
+
+	err := spec.ErrorCodeToError(reply.HD.Info)
+	if err != nil {
+		str := fmt.Sprintf(
+			"server closed the connection due to %s",
+			err,
+		)
+		cmd.Output(str, ERROR)
+		return err
+	}
+
+	return nil
+}
+
 // Listens for incoming server packets. When a packet
 // is received, it is stored in the packet waitlist
 // A cleanup function that cleans up resources can be passed.
@@ -117,6 +142,22 @@ func ListenPackets(cmd Command, cleanup func()) {
 		cleanup()
 	}()
 
+	exit := func(prompt string, err error) {
+		if errors.Is(err, spec.ErrorDisconnected) {
+			cmd.Output("Connection manually closed", INFO)
+			return
+		}
+
+		if cmd.Static.Verbose && closeError(cmd) == nil {
+			cmd.Output(
+				fmt.Sprintf(
+					"%s: %s",
+					prompt, err,
+				), ERROR,
+			)
+		}
+	}
+
 	conn := spec.Connection{
 		Conn: cmd.Data.Conn,
 		TLS:  cmd.Data.Server.TLS,
@@ -131,34 +172,32 @@ func ListenPackets(cmd Command, cleanup func()) {
 		// Header listen
 		hdErr := pct.ListenHeader(conn)
 		if hdErr != nil {
-			if cmd.Static.Verbose {
-				cmd.Output(fmt.Sprintf("error in header listen: %s", hdErr), ERROR)
-			}
+			exit("error in header listen", hdErr)
 			return
 		}
 
 		// Header check
 		chErr := pct.HD.ClientCheck()
 		if chErr != nil {
-			if cmd.Static.Verbose {
-				cmd.Output(fmt.Sprintf("incorrect header from server: %s", chErr), ERROR)
-				cmd.Output(pct.Contents(), PACKET)
-			}
+			exit("incorrect header from server", hdErr)
 			return
 		}
 
 		// Payload listen
 		pldErr := pct.ListenPayload(conn)
 		if pldErr != nil {
-			if cmd.Static.Verbose {
-				cmd.Output(fmt.Sprintf("error in payload listen: %s", pldErr), ERROR)
-			}
+			exit("error in payload listen", pldErr)
 			return
 		}
 
 		if cmd.Static.Verbose {
 			cmd.Output("\r\033[K", COLOR)
-			cmd.Output(fmt.Sprintf("The following packet has been received:\n%s", pct.Contents()), PACKET)
+			cmd.Output(
+				fmt.Sprintf(
+					"The following packet has been received:\n%s",
+					pct.Contents(),
+				), PACKET,
+			)
 		}
 
 		cmd.Data.Waitlist.Insert(pct)

@@ -136,7 +136,8 @@ func (hd Header) ClientCheck() error {
 	check := hd.Op == SHTDWN ||
 		hd.Op == RECIV ||
 		hd.Op == HOOK ||
-		hd.Op == HELLO
+		hd.Op == HELLO ||
+		hd.Op == ERR
 
 	if !check && hd.ID == NullID {
 		return ErrorHeader

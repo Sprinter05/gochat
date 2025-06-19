@@ -90,6 +90,7 @@ The following list of codes are used by `ERR`.
 - `ERR_NOSECURE`  (`0x13`): Operation requires a secure connection.
 - `ERR_CORRUPTED` (`0x14`): Data found is corrupted.
 - `ERR_OPTION`    (`0x15`): Invalid option provided.
+- `ERR_DISCN`     (`0x16`): Endpoint manually closed the connection.
 
 ##### Types of user lists
 
@@ -137,7 +138,6 @@ The following exhaustive list specifies all possible replies for each command pr
 - `REQ`    -> `REQ` or `ERR`
 - `USRS`   -> `USRS` or `ERR`
 - `LOGOUT` -> `OK` or `ERR`
-- `DISCN`  -> *No reply*
 - `DEREG`  -> `OK` or `ERR`
 - `MSG`    -> `OK` or `ERR`
 - `RECIV`  -> `OK` or `ERR`
@@ -150,7 +150,7 @@ The following exhaustive list specifies all possible replies for each command pr
 
 The connection to the server can be established using either **plain TCP** or **TLS** (implementation is optional), recommending the use of ports `9037` and `8037` respectively, although these can be changed.
 
-When connecting to the server it is important to know that *any malformed packet* will automatically close the connection. Moreover, the server should implement a **deadline** for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be implemented to allow the connection to persist. 
+When connecting to the server it is important to know that *any malformed packet* will automatically close the connection. It is recommended for the server to send a _Null ID_ `ERR` packet when a connection must be closed informing of the problem to the client, although it is not obligatory to do so. Moreover, the server should implement a **deadline** for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be implemented to allow the connection to persist. 
 
 The server can limit the amount of connected users, which means that when connection the server might be *unable to accept new clients* on the connection, in which case the connection should await until a spot is free. Once the client can be connected, an `HELLO` packet with a _Null ID_ will be sent to the client.
 

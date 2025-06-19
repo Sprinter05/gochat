@@ -3,6 +3,7 @@ package hubs
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"slices"
 	"strings"
@@ -95,7 +96,7 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	err = db.InsertUser(h.db, uname, cmd.Args[1])
 	if err != nil {
 		log.User(string(uname), "registration", err)
-		if err == db.ErrorDuplicatedKey {
+		if errors.Is(err, db.ErrorDuplicatedKey) {
 			SendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
 			return
 		}
@@ -367,7 +368,7 @@ func messageUser(h *Hub, u User, cmd spec.Command) {
 		Stamp:   stamp,
 	})
 	if err != nil {
-		if err == db.ErrorNotFound {
+		if errors.Is(err, db.ErrorNotFound) {
 			SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
 			return
 		}
@@ -388,7 +389,7 @@ func recivMessages(h *Hub, u User, cmd spec.Command) {
 	msgs, err := db.QueryMessages(h.db, u.name)
 	if err != nil {
 		// No messages to query
-		if err == db.ErrorEmpty {
+		if errors.Is(err, db.ErrorEmpty) {
 			SendErrorPacket(cmd.HD.ID, spec.ErrorEmpty, u.conn)
 			return
 		}

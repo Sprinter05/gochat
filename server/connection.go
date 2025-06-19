@@ -52,14 +52,14 @@ func readCommand(cl spec.Connection) (cmd spec.Command, err error) {
 	// Error logged by the function
 	if err := cmd.ListenHeader(cl); err != nil {
 		log.Read("header", ip, err)
-		hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
+		hubs.SendErrorPacket(spec.NullID, err, cl.Conn)
 		return cmd, err
 	}
 
 	// Check that all header fields are correct
 	if err := cmd.HD.ServerCheck(); err != nil {
 		log.Read("header checking", ip, err)
-		hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
+		hubs.SendErrorPacket(spec.NullID, err, cl.Conn)
 		return cmd, err
 	}
 
@@ -68,7 +68,7 @@ func readCommand(cl spec.Connection) (cmd spec.Command, err error) {
 		// Error logged by the function
 		if err := cmd.ListenPayload(cl); err != nil {
 			log.Read("payload", ip, err)
-			hubs.SendErrorPacket(cmd.HD.ID, err, cl.Conn)
+			hubs.SendErrorPacket(spec.NullID, err, cl.Conn)
 			return cmd, err
 		}
 	}

@@ -5,6 +5,7 @@ package hubs
 
 import (
 	"context"
+	"errors"
 	"net"
 	"slices"
 	"time"
@@ -158,7 +159,7 @@ func (hub *Hub) dbLogin(r Request) (*User, error) {
 	u := string(r.Command.Args[0])
 	user, err := hub.userFromDB(u)
 	if err != nil {
-		if err == spec.ErrorCorrupted || err == spec.ErrorServer {
+		if errors.Is(err, spec.ErrorCorrupted) || errors.Is(err, spec.ErrorServer) {
 			return nil, spec.ErrorLogin
 		}
 		return nil, err

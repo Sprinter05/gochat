@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rsa"
+	"errors"
 	"net"
 	"strings"
 	"time"
@@ -49,7 +50,7 @@ type Verif struct {
 func (hub *Hub) userFromDB(uname string) (*User, error) {
 	dbuser, err := db.QueryUser(hub.db, uname)
 	if err != nil {
-		if err == db.ErrorNotFound {
+		if errors.Is(err, db.ErrorNotFound) {
 			return nil, spec.ErrorNotFound
 		}
 

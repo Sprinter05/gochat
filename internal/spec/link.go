@@ -2,6 +2,7 @@ package spec
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -50,8 +51,10 @@ func (cmd *Command) ListenHeader(cl Connection) error {
 	b := make([]byte, HeaderSize+2)
 	_, err := io.ReadAtLeast(cl.Conn, b, HeaderSize+2)
 	if err != nil {
-		if err == os.ErrDeadlineExceeded {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
 			return ErrorIdle
+		} else if errors.Is(err, net.ErrClosed) {
+			return ErrorDisconnected
 		}
 		return ErrorConnection
 	}
@@ -75,8 +78,10 @@ func (cmd *Command) ListenPayload(cl Connection) error {
 	b := make([]byte, cmd.HD.Len)
 	_, err := io.ReadAtLeast(cl.Conn, b, int(cmd.HD.Len))
 	if err != nil {
-		if err == os.ErrDeadlineExceeded {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
 			return ErrorIdle
+		} else if errors.Is(err, net.ErrClosed) {
+			return ErrorDisconnected
 		}
 		return ErrorConnection
 	}
