@@ -1095,7 +1095,7 @@ func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) ([][]byt
 		motd := bytes.Join(args, []byte(" "))
 		arr = append(arr, motd)
 	case spec.AdminBroadcast:
-		message := bytes.Join(args, []byte(""))
+		message := bytes.Join(args, []byte(" "))
 		arr = append(arr, message)
 	}
 

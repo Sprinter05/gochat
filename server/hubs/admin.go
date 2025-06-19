@@ -113,34 +113,17 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 
 // Broadcasts a message to all online users.
 //
-// Requires ADMIN or more
+// Requires ADMIN or more and a TLS connection
 // Requires 1 argument for the message
 func adminBroadcast(h *Hub, u User, cmd spec.Command) {
-	// Create packet with the message
-	pak, err := spec.NewPacket(spec.RECIV, spec.NullID, spec.EmptyInfo,
-		[]byte(u.name),
-		spec.UnixStampToBytes(time.Now()),
-		cmd.Args[0],
-	)
-	if err != nil {
-		log.Packet(spec.RECIV, err)
-		SendErrorPacket(cmd.HD.ID, spec.ErrorPacket, u.conn)
+	if !u.secure {
+		// Requires TLS
+		SendErrorPacket(cmd.HD.ID, spec.ErrorUnsecure, u.conn)
 		return
 	}
 
-	// Goroutine to optimise sending everywhere
-	go func() {
-		list := h.users.GetAll()
-		for _, v := range list {
-			// Ignore the person sending the message
-			if v.conn == u.conn {
-				continue
-			}
-
-			// Send to each user
-			v.conn.Write(pak)
-		}
-	}()
+	// We use the hub function to broadcast messages
+	h.Broadcast(string(cmd.Args[0]), u)
 
 	SendOKPacket(cmd.HD.ID, u.conn)
 }

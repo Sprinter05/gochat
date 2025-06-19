@@ -6,6 +6,7 @@ package hubs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"time"
 
@@ -34,6 +35,45 @@ type Hub struct {
 // currently active
 func (hub *Hub) Motd() string {
 	return hub.motd
+}
+
+// Sends a message to all users on the server, creating
+// the corresponding RECIV for each user and encrypting
+// the data correspondingly
+func (hub *Hub) Broadcast(message string, sender User) {
+	list := hub.users.GetAll()
+
+	for _, v := range list {
+		if v.conn == sender.conn {
+			// We skip the sender
+			continue
+		}
+
+		bdcast := fmt.Sprintf(
+			"ADMINISTRATIVE BROADCAST:\n%s", message,
+		)
+
+		enc, err := spec.EncryptText([]byte(bdcast), v.pubkey)
+		if err != nil {
+			// We ignore the user if the payload cant be encrypted
+			log.User(v.name, "message broadcast", err)
+			continue
+		}
+
+		pak, err := spec.NewPacket(
+			spec.RECIV, spec.NullID, spec.EmptyInfo,
+			[]byte(sender.name),
+			spec.UnixStampToBytes(time.Now()),
+			enc,
+		)
+		if err != nil {
+			log.Packet(spec.RECIV, err)
+			continue
+		}
+
+		v.conn.Write(pak)
+	}
+
 }
 
 // Notifies of a hook to all relevant connections. An

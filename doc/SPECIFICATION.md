@@ -279,6 +279,8 @@ The argument amount is not fixed and will depend on the action. An exhaustive li
 - `ADMIN_KICK <username>`
 - `ADMIN_MOTD <motd>`
 
+> **NOTE**: Usage of `ADMIN_BRDCAST` requires TLS as the message must NOT be encrypted when being sent to the server.
+
 #### Subscriptions to events
 
 Any client can request a subscription to a hook by indicating the hook in the header's **Information**. The list of available hooks is detailed above. The user must be logged in to perform this operation.

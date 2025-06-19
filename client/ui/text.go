@@ -33,7 +33,6 @@ const KeybindHelp string = `
 	- It can be shown again by creating a buffer with the same name
 	
 [yellow::b]Ctrl-K + Ctrl-X[-::-]: Delete currently focused buffer
-	- This will permanantely delete all messages if the buffer corresponded to a remote user
 
 [yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
 	- Press [green]Esc[-::-] to cancel the jump
@@ -129,6 +128,7 @@ const CommandHelp string = `
 
 [yellow::b]/admin[-::-] [green]<operation>[-] [blue](...)[-]: Performs an administrative operation
 	- [cyan]"shutdown <offset>"[-] will perform a shutdown in the current time + offset (in minutes)
+	- [cyan]"broadcast <message>[-] will send a message to all online users of the server
 	- [cyan]"ban <username>"[-] will ban the specified user from the server
 	- [cyan]"kick <username>"[-] will disconnect the specified user from the server
 	- [cyan]"setperms <username> <permissions>[-] will set the permission level of the new user
