@@ -159,6 +159,7 @@ var (
 	ErrorForeignKey    = errors.New("foreign key restrict violation")                  // foreign key restrict violation
 	ErrorConsistency   = errors.New("invalid data found in the database")              // invalid data found in the database
 	ErrorEmpty         = errors.New("empty result found")                              // empty result found
+	ErrorNullPubkey    = errors.New("null public key found")                           // null public key found
 )
 
 /* FUNCTIONS */

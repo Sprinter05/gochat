@@ -10,7 +10,7 @@ The following diagram illustrates the format that a command travelling through t
     | Header | Argument 1 | .... | Argument n |
     +--------+------------+------+------------+
 
-The header will be *8 bytes* long and both the separator between header and arguments (also called **payload**) and between each argument must be `\r\n`. The protocol also requires of a *trailing separator* after the last argument.
+The header msut be *8 bytes* long and both the separator between header and arguments (also called **payload**) and between each argument must be `\r\n`. The protocol also requires of a *trailing separator* after the last argument.
 
 ### Header
 
@@ -26,7 +26,7 @@ The following diagram indicates the different *bit fields* that the header must 
 - **Information** | `8 bits`: Additional information provided by specific instructions.
 - **Arguments** | `4 bits` : Amount of arguments to be read.
 - **Length** | `14 bits`: Indicates the size of the payload (which includes all arguments) in bytes,  including delimiters.
-- **Identificator** | `10 bits`: Indicates the packet identification number the client has provided. The server's reply to a command will have the same identificator that was sent by the client in order to easily identify replies.
+- **Identificator** | `10 bits`: Indicates the packet identification number the client has provided. The server's reply to a command must have the same identificator that was sent by the client in order to easily identify replies.
 - **Reserved** | `16 bits`: For future extension that might be needed. (`0xFFFF` by default)
 
 #### Special Codes
@@ -120,7 +120,7 @@ The following list of codes are used by `SUB`, `UNSUB` and `HOOK`.
 - `HOOK_NEWLOGIN`  (`0x01`): Triggers whenever a new user succesfully logs into the server. 
 - `HOOK_NEWLOGOUT` (`0x02`): Triggers whenever a user either disconnects or logs out.
 - `HOOK_DUPSESS`   (`0x03`): Triggers whenever an attempt to log into your account from another endpoint happens.
-- `HOOK_PERMSCHG`  (`0x04`): Triggers whenever your account's permissions have changed
+- `HOOK_PERMSCHG`  (`0x04`): Triggers whenever someone's permissions have changed.
 
 ### Payload
 
@@ -152,27 +152,31 @@ The following exhaustive list specifies all possible replies for each command pr
 
 The connection to the server can be established using either **plain TCP** or **TLS** (implementation is optional), recommending the use of ports `9037` and `8037` respectively, although these can be changed.
 
-When connecting to the server it is important to know that *any malformed packet* will automatically close the connection. It is recommended for the server to send a _Null ID_ `ERR` packet when a connection must be closed informing of the problem to the client, although it is not obligatory to do so. Moreover, the server should implement a **deadline** for receiving packets, after which the connection will close if nothing is received. A `KEEP` packet may be implemented to allow the connection to persist. 
+When connecting to the server it is important to know that *any malformed packet* must automatically close the connection. It is recommended for the server to send a _Null ID_ `ERR` packet when a connection must be closed informing of the problem to the client, although it is not obligatory to do so. Moreover, the server should implement a **deadline** for receiving packets, after which the connection must close if nothing is received. A `KEEP` packet may be implemented to allow the connection to persist. 
 
-The server can limit the amount of connected users, which means that when connection the server might be *unable to accept new clients* on the connection, in which case the connection should await until a spot is free. Once the client can be connected, an `HELLO` packet with a _Null ID_ will be sent to the client.
+The server can limit the amount of connected users, which means that when connection the server might be *unable to accept new clients* on the connection, in which case the connection should await until a spot is free. Once the client can be connected, an `HELLO` packet with a _Null ID_ must be sent to the client.
 
     HELLO <motd> (Server -> Client)
+
+If a shutdown is scheduled, a `SHTDWN` packet with a _Null ID_ must be sent to all logged in users. Timestamps must be in byte integer format.
+
+    SHTDWN <timestamp> (Server -> Client)
 
 > **NOTE**: The server can implement whatever method it wants for choosing which awaiting client should be connected next.
 
 ## Permissions
 
-By default, the protocol only requires a single level of permissions, `0`, which indicates the *lowest level* of permissions. The server is free to add more permission levels which *must be higher* than the lowest level. The server can decide what **administrative actions** can be or not performed with a certain level of permissions, this means that all operations that are not `ADMIN` must be able to be ran with the lowest level of permissions. Levels must also *be incremental*, meaning that higher levels of permissions must be able to run everything the lower levels can.
+By default, the protocol only requires a single level of permissions, `0`, which indicates the *lowest level* of permissions. The server is free to add more permission levels which *must be higher* than the lowest level. The server can decide what **administrative actions** can be or not performed with a certain level of permissions, this means that all operations that are not `ADMIN` must be able to be ran with the lowest level of permissions. Levels must also *be incremental*, meaning that higher levels of permissions must be able to run everything the lower levels can. Permission levels should be sent in arguments as a *single byte* meaning that levels can range from 0-255.
 
 ## Hooks
 
-Clients can request a **subscription** to an **event**, also called a **hook**. This means that whenever the event is triggered, a notification will be sent to the client application.
+Clients can request a **subscription** to an **event**, also called a **hook**. This means that whenever the event is triggered, a notification must be sent to the client application.
 
 ## Operations
 
 ### User accounts
 
-User accounts in the server will be identified by a **username** (can only contain lowercase letters and numbers, without spaces) and an **RSA Public Key**. Said key must be `4096` bits and whenever used as an argument, it must be in **PKIX, ASN.1 DER** format. Usernames cannot be changed but the server is free to decide how to handle usernames when an account is deleted (for example, allowing new users to register using that dangling username).
+User accounts in the server must be identified by a **username** (can only contain lowercase letters and numbers, without spaces) and an **RSA Public Key**. Said key must be `4096` bits and whenever used as an argument, it must be in **PKIX, ASN.1 DER** format. Usernames cannot be changed but the server is free to decide how to handle usernames when an account is deleted (for example, allowing new users to register using that dangling username).
 
 #### User registration
 
@@ -186,7 +190,7 @@ The client must send its **username** to log into the server, additionally it ca
 
     LOGIN <username> [token] (Client -> Server)
 
-If not using a **reusable token**, the server will reply with a *random cyphered text* to verify that the user owns the private key.
+If not using a **reusable token**, the server must reply with a *random cyphered text* to verify that the user owns the private key.
 
     VERIF <cyphered_text> (Server -> Client)
 
@@ -196,7 +200,7 @@ The client must return the decyphered text to the server from the *same connecti
 
 > **NOTE**: The verification of the decyphered text should be implemented with a server-side timeout.
 
-Any future commands from that user *must be tied to the connection* until the user logs out, disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text will be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process. Said token should also have an expiry date, after which the token must be deleted.
+Any future commands from that user *must be tied to the connection* until the user logs out, disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text must be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process. Said token should also have an expiry date, after which the token must be deleted.
 
 > **NOTE**: Reusable tokens must not be renewed after being used, meaning its expiry date cannot change.
 
@@ -222,7 +226,7 @@ To start messaging a user, the client application must request the **public key*
 
     REQ <username> (Client -> Server)
 
-The server will reply with the public key and the **permission level** (as an *integer*) of the requested user.
+The server must reply with the public key and the **permission level** (as an *integer*) of the requested user.
 
     REQ <username> <rsa_pub> <permission> (Server -> Client)
 
@@ -232,7 +236,7 @@ The client application can request a list of *all users* that are registered in 
 
     USRS (Client -> Server)
 
-The server will reply with a list of all users separated by the **newline character** (`\n`) (including the user that requested the list). If the requested type of listing *includes permissions* it will be in the format `<username> <permission>`.
+The server must reply with a list of all users separated by the **newline character** (`\n`) (including the user that requested the list). If the requested type of listing *includes permissions* it must be in the format `<username> <permission>`.
 
     USRS <username_list> (Server -> Client)
     
@@ -248,7 +252,7 @@ Messages *should be cyphered* with the private key by the client application. Th
 
 #### Receiving messages
 
-When a new message is sent to the user a `RECIV` with a _Null ID_ will be sent by the server.
+When a new message is sent to the user a `RECIV` with a _Null ID_ must be sent by the server.
 
     RECIV <username> <unix_stamp> <cyphered_message> (Server -> Client)
 
@@ -289,7 +293,7 @@ In the same way, the client application can unsubscribe from any event for which
 
 #### Triggering events
 
-Whenever an event is triggered, the server will send a `HOOK` packet using the _Null ID_ with the corresponding hook in the header's **Information** field. It will also include any relevant information for the hook.
+Whenever an event is triggered, the server must send a `HOOK` packet using the _Null ID_ with the corresponding hook in the header's **Information** field. It will also include any relevant information for the hook.
 
     HOOK <arg_1> <arg_2> ... <arg_n> (Server -> Client)
 
@@ -298,4 +302,4 @@ The argument amount is not fixed and will depend on the action. An exhaustive li
 - `HOOK_NEWLOGIN <username> <permission>`
 - `HOOK_NEWLOGOUT <username>`
 - `HOOK_DUPSESS <ip>`
-- `HOOK_PERMSCHG <permission>`
+- `HOOK_PERMSCHG <username> <permission>`

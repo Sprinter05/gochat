@@ -20,7 +20,7 @@ import (
 // Returns a database user according to their username
 func QueryUser(db *gorm.DB, uname string) (*User, error) {
 	var user User
-	res := db.First(&user, "username = ?", uname)
+	res := db.Where("username = ?", uname).First(&user)
 	if res.Error != nil {
 		log.DBError(res.Error)
 		// Abstract with errors of the db package
@@ -194,6 +194,11 @@ func InsertUser(db *gorm.DB, uname string, pubkey []byte) error {
 		log.DBError(res.Error)
 		// Abstract gorm database error
 		if res.Error == gorm.ErrDuplicatedKey {
+			target, _ := QueryUser(db, uname)
+			if !target.Pubkey.Valid {
+				return ErrorNullPubkey
+			}
+
 			return ErrorDuplicatedKey
 		}
 		return res.Error

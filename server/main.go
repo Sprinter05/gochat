@@ -66,12 +66,20 @@ func readJSON(path string) (cfg Config) {
 // setup() should always run first when the program starts
 func setup() Config {
 	var configFile string
+	var useShell bool
 
 	flag.StringVar(&configFile, "config", "config.json", "Configuration file to load, must be in JSON format.")
+	flag.BoolVar(&useShell, "shell", false, "Open a database shell for the server.")
 	flag.Parse()
 
 	// Read configuration file
 	config := readJSON(configFile)
+
+	if useShell {
+		shell := setupShell(config)
+		shell.Run()
+		os.Exit(0)
+	}
 
 	return config
 }

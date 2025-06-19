@@ -109,11 +109,15 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 	if err != nil {
 		log.User(string(uname), "registration", err)
 		if errors.Is(err, db.ErrorDuplicatedKey) {
+			// User already exists
 			SendErrorPacket(cmd.HD.ID, spec.ErrorExists, u.conn)
-			return
+		} else if errors.Is(err, db.ErrorNullPubkey) {
+			// Public key is null (deregistered)
+			SendErrorPacket(cmd.HD.ID, spec.ErrorDeregistered, u.conn)
+		} else {
+			// Something went wrong
+			SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		}
-		// Something went wrong
-		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
 	}
 

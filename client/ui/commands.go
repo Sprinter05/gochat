@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
-	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/spec"
@@ -116,15 +114,14 @@ var commands map[string]operation = map[string]operation{
 }
 
 func (t *TUI) parseCommand(text string) {
-	lower := strings.ToLower(text)
-	parts := strings.Split(lower, " ")
+	parts := strings.Split(text, " ")
 
 	if parts[0] == "" {
 		t.showError(ErrorEmptyCmd)
 		return
 	}
 
-	t.history.Add(lower)
+	t.history.Add(text)
 
 	cmd := Command{
 		Operation: parts[0],
@@ -193,51 +190,17 @@ func adminOperation(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	arr := make([][]byte, 0, len(args)-1)
-
-	var op spec.Admin
-	switch args[0] {
-	case "shutdown":
-		op = spec.AdminShutdown
-		offset, err := strconv.Atoi(args[1])
-		if err != nil {
-			cmd.print(err.Error(), cmds.ERROR)
-			return
-		}
-
-		shutdown := time.Now().Add(
-			time.Duration(offset) * time.Minute,
-		)
-		unix := spec.UnixStampToBytes(shutdown)
-		arr = append(arr, unix)
-	case "ban":
-		op = spec.AdminDeregister
-		arr = append(arr, []byte(args[1]))
-	case "kick":
-		op = spec.AdminDisconnect
-		arr = append(arr, []byte(args[1]))
-	case "setperms":
-		op = spec.AdminChangePerms
-		num, err := strconv.Atoi(args[2])
-		if err != nil {
-			cmd.print(err.Error(), cmds.ERROR)
-			return
-		}
-
-		perms := spec.PermissionToBytes(uint(num))
-		arr = append(arr, []byte(args[1]))
-		arr = append(arr, perms)
-	case "motd":
-		op = spec.AdminMotd
-		arr = append(arr, []byte(args[1]))
-	default:
-		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
-		return
-	}
 
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-	_, err := cmds.Admin(ctx, c, op, arr...)
+
+	extra := make([][]byte, 0, len(args)-1)
+	list := args[1:]
+	for _, v := range list {
+		extra = append(extra, []byte(v))
+	}
+
+	_, err := cmds.Admin(ctx, c, args[0], extra...)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -543,8 +506,10 @@ func loginUser(t *TUI, cmd Command) {
 
 	ctx, cancel := context.WithCancel(cmd.serv.Context().Get())
 	data.Logout = cancel
+
 	go t.receiveMessages(ctx, cmd.serv)
 	go t.receiveHooks(ctx, cmd.serv)
+	go t.waitShutdown(ctx, cmd.serv)
 
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
 	rCtx, rCancel := timeout(cmd.serv, c.Data)

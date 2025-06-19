@@ -220,7 +220,7 @@ var (
 	ErrorServer       error = SpecError{0x0E, "ERR_SERVER", "server operation failed"}                  // server operation failed
 	ErrorIdle         error = SpecError{0x0F, "ERR_IDLE", "user has been idle for too long"}            // user has been idle for too long
 	ErrorExists       error = SpecError{0x10, "ERR_EXISTS", "content already exists"}                   // content already exists
-	ErrorDeregistered error = SpecError{0x11, "ERR_DEREG", "user no longer exists"}                     // user no longer exists
+	ErrorDeregistered error = SpecError{0x11, "ERR_DEREG", "user has been deleted"}                     // user has been deleted
 	ErrorDupSession   error = SpecError{0x12, "ERR_DUPSESS", "session exists in another endpoint"}      // session exists in another endpoint
 	ErrorUnsecure     error = SpecError{0x13, "ERR_NOSECURE", "secured connection required"}            // secure connection required
 	ErrorCorrupted    error = SpecError{0x14, "ERR_CORRUPTED", "queried data is currupted"}             // queried data is corrupted
@@ -354,7 +354,12 @@ const (
 )
 
 // Array with all possible existing hooks for easier traversal
-var Hooks []Hook = []Hook{HookNewLogin, HookNewLogout, HookDuplicateSession, HookPermsChange}
+var Hooks []Hook = []Hook{
+	HookNewLogin,
+	HookNewLogout,
+	HookDuplicateSession,
+	HookPermsChange,
+}
 
 var codeToHook map[Hook]string = map[Hook]string{
 	HookAllHooks:         "HOOK_ALL",
@@ -368,7 +373,7 @@ var hookToArgs map[Hook]int = map[Hook]int{
 	HookNewLogin:         2,
 	HookNewLogout:        1,
 	HookDuplicateSession: 1,
-	HookPermsChange:      1,
+	HookPermsChange:      2,
 }
 
 // Returns the hook string asocciated to a hex byte.

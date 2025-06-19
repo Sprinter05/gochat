@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -637,64 +636,8 @@ func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte)
 		return commands.ErrorInsuficientArgs
 	}
 
-	opStr := strings.ToUpper(string(args[0]))
-	adminArgs := make([][]byte, 0)
-	var op spec.Admin
-	switch opStr {
-	case "SHTDWN":
-		if len(args) < 2 {
-			return commands.ErrorInsuficientArgs
-		}
+	opStr := strings.ToLower(string(args[0]))
 
-		op = spec.AdminShutdown
-		seconds, parseErr := strconv.ParseUint(string(args[1]), 10, 16)
-		if parseErr != nil {
-			return parseErr
-		}
-		stamp := time.Now().Add(time.Duration(seconds))
-		adminArgs = append(adminArgs, spec.UnixStampToBytes(stamp))
-	case "DEREG":
-		if len(args) < 2 {
-			return commands.ErrorInsuficientArgs
-		}
-		op = spec.AdminDeregister
-		adminArgs = append(adminArgs, args[1])
-	case "BRDCAST":
-		if len(args) < 2 {
-			return commands.ErrorInsuficientArgs
-		}
-		op = spec.AdminBroadcast
-		adminArgs = append(adminArgs, args[1])
-	case "CHGPERMS":
-		if len(args) < 3 {
-			return commands.ErrorInsuficientArgs
-		}
-		op = spec.AdminChangePerms
-		adminArgs = append(adminArgs, args[1])
-		perm, parseErr := strconv.ParseUint(string(args[2]), 10, 16)
-		if parseErr != nil {
-			return parseErr
-		}
-
-		permArg := make([]byte, 0)
-		permArg = append(permArg, byte(perm))
-		adminArgs = append(adminArgs, permArg)
-	case "KICK":
-		if len(args) < 2 {
-			return commands.ErrorInsuficientArgs
-		}
-		op = spec.AdminDisconnect
-		adminArgs = append(adminArgs, args[1])
-	case "MOTD":
-		if len(args) < 1 {
-			return commands.ErrorInsuficientArgs
-		}
-		op = spec.AdminMotd
-		adminArgs = append(adminArgs, args[1])
-	default:
-		return commands.ErrorInvalidAdminOperation
-	}
-
-	_, adminErr := commands.Admin(ctx, cmd, op, adminArgs...)
+	_, adminErr := commands.Admin(ctx, cmd, opStr, args[1:]...)
 	return adminErr
 }

@@ -127,7 +127,7 @@ const CommandHelp string = `
 [yellow::b]/unsubscribe[-::-] [green]<hook>[-]: Unsubscribes from a specific event in the server
 	- Available options are the same as for [yellow::b]/subscribe[-::-]
 
-[yellow::b]/admin[-::-] [green]<operation[-] [blue](...)[-]: Performs an administrative operation
+[yellow::b]/admin[-::-] [green]<operation>[-] [blue](...)[-]: Performs an administrative operation
 	- [cyan]"shutdown <offset>"[-] will perform a shutdown in the current time + offset (in minutes)
 	- [cyan]"ban <username>"[-] will ban the specified user from the server
 	- [cyan]"kick <username>"[-] will disconnect the specified user from the server

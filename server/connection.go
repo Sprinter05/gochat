@@ -15,7 +15,9 @@ import (
 // Waits for a possible TLS handshake and sends an initial welcome OK
 func welcomeConn(cl *spec.Connection, motd string) {
 	// Set timeout for the initial write to prevent blocking forever
-	deadline := time.Now().Add(time.Duration(spec.HandshakeTimeout) * time.Second)
+	deadline := time.Now().Add(
+		time.Duration(spec.HandshakeTimeout) * time.Second,
+	)
 	cl.Conn.SetDeadline(deadline)
 
 	// Notify the user they are connected to the server

@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
@@ -146,6 +147,15 @@ var hooksList = map[string]spec.Hook{
 	"new_logout":         spec.HookNewLogout,
 	"duplicated_session": spec.HookDuplicateSession,
 	"permissions_change": spec.HookPermsChange,
+}
+
+var adminList = map[string]spec.Admin{
+	"shutdown":  spec.AdminShutdown,
+	"broadcast": spec.AdminBroadcast,
+	"ban":       spec.AdminDeregister,
+	"kick":      spec.AdminDisconnect,
+	"setperms":  spec.AdminChangePerms,
+	"motd":      spec.AdminMotd,
 }
 
 /* CLIENT COMMANDS */
@@ -1033,7 +1043,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 }
 
 // Sends an ADMIN packet that performs an specific ADMIN operation.
-func Admin(ctx context.Context, cmd Command, op spec.Admin, args ...[]byte) ([][]byte, error) {
+func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -1042,18 +1052,55 @@ func Admin(ctx context.Context, cmd Command, op spec.Admin, args ...[]byte) ([][
 		return nil, ErrorNotLoggedIn
 	}
 
-	min := spec.AdminArgs(op)
-
-	if min == -1 {
+	admin, ok := adminList[op]
+	if !ok {
 		return nil, ErrorInvalidAdminOperation
 	}
 
+	min := spec.AdminArgs(admin)
 	if len(args) < int(min) {
 		return nil, ErrorInsuficientArgs
 	}
 
+	arr := make([][]byte, 0, len(args)-1)
+
+	switch admin {
+	case spec.AdminShutdown:
+		offset, err := strconv.Atoi(string(args[0]))
+		if err != nil {
+			return nil, err
+		}
+
+		shutdown := time.Now().Add(
+			time.Duration(offset) * time.Minute,
+		)
+		unix := spec.UnixStampToBytes(shutdown)
+
+		arr = append(arr, unix)
+	case spec.AdminDeregister:
+		arr = append(arr, args[0])
+	case spec.AdminDisconnect:
+		arr = append(arr, args[0])
+	case spec.AdminChangePerms:
+		num, err := strconv.Atoi(string(args[1]))
+		if err != nil {
+			return nil, err
+		}
+
+		perms := spec.PermissionToBytes(uint(num))
+
+		arr = append(arr, args[0])
+		arr = append(arr, perms)
+	case spec.AdminMotd:
+		motd := bytes.Join(args, []byte(" "))
+		arr = append(arr, motd)
+	case spec.AdminBroadcast:
+		message := bytes.Join(args, []byte(""))
+		arr = append(arr, message)
+	}
+
 	id := cmd.Data.NextID()
-	pct, pctErr := spec.NewPacket(spec.ADMIN, id, uint8(op), args...)
+	pct, pctErr := spec.NewPacket(spec.ADMIN, id, uint8(admin), arr...)
 	if pctErr != nil {
 		return nil, pctErr
 	}
@@ -1079,7 +1126,11 @@ func Admin(ctx context.Context, cmd Command, op spec.Admin, args ...[]byte) ([][
 		return nil, spec.ErrorCodeToError(reply.HD.Info)
 	}
 
-	cmd.Output(fmt.Sprintf("admin operation %s sent successfully", spec.AdminString(op)), RESULT)
+	cmd.Output(
+		fmt.Sprintf(
+			"admin operation %s sent successfully", op,
+		), RESULT,
+	)
 	return nil, nil
 }
 

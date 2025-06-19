@@ -18,7 +18,7 @@ import (
 // Subscribes to the default hooks of the server
 // and updates the userlist once
 func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
-	hooks := []string{"new_login", "new_logout"}
+	hooks := []string{"all"}
 	data, _ := s.Online()
 
 	for _, v := range hooks {
@@ -321,6 +321,42 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 	}
 }
 
+/* OTHER LISTENERS */
+
+func (t *TUI) waitShutdown(ctx context.Context, s Server) {
+	data, _ := s.Online()
+	output := t.systemMessage("shutdown", defaultBuffer)
+
+	print := func(msg string) {
+		if t.data.Verbose {
+			<-time.After(50 * time.Millisecond)
+			output(msg, cmds.ERROR)
+		}
+	}
+
+	cmd, err := data.Waitlist.Get(
+		ctx, cmds.Find(spec.NullID, spec.SHTDWN),
+	)
+	if err != nil {
+		print(err.Error())
+		return
+	}
+
+	stamp, err := spec.BytesToUnixStamp(cmd.Args[0])
+	if err != nil {
+		print(err.Error())
+		return
+	}
+
+	str := fmt.Sprintf(
+		"Server shutdown scheduled at %s!",
+		stamp.String(),
+	)
+
+	warn := t.systemMessage()
+	warn(str, cmds.INFO)
+}
+
 // Waits for new notifications of hooks from the server
 func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 	defer func() {
@@ -340,8 +376,7 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 
 	for {
 		cmd, err := data.Waitlist.Get(
-			ctx,
-			cmds.Find(spec.NullID, spec.HOOK),
+			ctx, cmds.Find(spec.NullID, spec.HOOK),
 		)
 		if err != nil {
 			print(err.Error())
@@ -369,17 +404,25 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 
 		switch hook {
 		case spec.HookPermsChange:
-			perms, _ := spec.BytesToPermission(cmd.Args[0])
-			str := fmt.Sprintf(
-				"Your permission level in the server has changed to %d!",
-				perms,
-			)
-			output(str, cmds.INFO)
+			uname := string(cmd.Args[0])
+			perms, _ := spec.BytesToPermission(cmd.Args[1])
+
+			if uname == data.User.User.Username {
+				str := fmt.Sprintf(
+					"Your permission level in the server has changed to %d!",
+					perms,
+				)
+
+				output(str, cmds.INFO)
+			}
+
+			t.status.userlistChange(uname, perms)
 		case spec.HookDuplicateSession:
 			str := fmt.Sprintf(
 				"Someone has tried to log in with your account from %s!",
 				string(cmd.Args[0]),
 			)
+
 			output(str, cmds.INFO)
 		case spec.HookNewLogin:
 			perms, err := strconv.Atoi(string(cmd.Args[1]))
@@ -387,7 +430,7 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 				perms = 0
 			}
 
-			t.status.userlistAdd(
+			t.status.userlistChange(
 				string(cmd.Args[0]),
 				uint(perms),
 			)
@@ -397,9 +440,12 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 			)
 		}
 
-		if (hook == spec.HookNewLogin ||
-			hook == spec.HookNewLogout) &&
-			t.Active().Name() == s.Name() {
+		// Condition to render again and do a USRS
+		refresh := hook == spec.HookNewLogin ||
+			hook == spec.HookNewLogout ||
+			hook == spec.HookPermsChange
+
+		if refresh && t.Active().Name() == s.Name() {
 			t.comp.users.SetText(t.status.userlistRender())
 		}
 	}

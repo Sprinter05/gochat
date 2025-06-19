@@ -172,23 +172,14 @@ func NewHeader(hdr []byte) Header {
 /* PERMISSION FUNCTIONS */
 
 func PermissionToBytes(perm uint) []byte {
-	// Preallocation
-	p := make([]byte, 0, binary.Size(perm))
-	p = binary.AppendVarint(p, int64(perm))
-	return p
+	return []byte{byte(perm)}
 }
 
 // Reads a byte array corresponding to the permission
 // argument of a command and returns the unsigned integer
 // asocciated to said array or an error if the reading failed.
 func BytesToPermission(perm []byte) (uint, error) {
-	buf := bytes.NewBuffer(perm)
-	permission, err := binary.ReadUvarint(buf)
-	if err != nil {
-		return 0, ErrorArguments
-	}
-
-	return uint(permission), nil
+	return uint(perm[0]), nil
 }
 
 /* UNIX STAMP FUNCTIONS */

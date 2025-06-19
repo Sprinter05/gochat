@@ -1,6 +1,7 @@
 package hubs
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -87,8 +88,7 @@ func adminShutdown(h *Hub, u User, cmd spec.Command) {
 
 	// Block until the specified time
 	go func() {
-		wait := time.Duration(duration) * time.Second
-		time.Sleep(wait)
+		time.Sleep(duration)
 
 		// Send shutdown signal to hub
 		h.close()
@@ -150,11 +150,36 @@ func adminBroadcast(h *Hub, u User, cmd spec.Command) {
 // Requires ADMIN or more
 // Requires 1 argument for the user
 func adminDeregister(h *Hub, u User, cmd spec.Command) {
-	err := db.RemoveKey(h.db, string(cmd.Args[0]))
+	uname := string(cmd.Args[0])
+	dr, err := db.QueryUser(h.db, uname)
+	if err != nil {
+		if errors.Is(err, db.ErrorNotFound) {
+			// Invalid user provided
+			SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+		} else {
+			SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		}
+		return
+	}
+
+	if uint(u.perms) <= uint(dr.Permission) {
+		// Cannot deregister someone with higher permissions than you
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
+		return
+	}
+
+	err = db.RemoveKey(h.db, string(cmd.Args[0]))
 	if err != nil {
 		// Failed to change the key of the user
 		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
 		return
+	}
+
+	dc, ok := h.FindUser(uname)
+	if ok {
+		// We close the connection with the target,
+		// also triggering the cleanup function
+		dc.conn.Close()
 	}
 
 	SendOKPacket(cmd.HD.ID, u.conn)
@@ -165,10 +190,22 @@ func adminDeregister(h *Hub, u User, cmd spec.Command) {
 // Requires OWNER or more
 // Requires 1 argument for the user and 1 for the level of permissions
 func adminChangePerms(h *Hub, u User, cmd spec.Command) {
-	target, err := db.QueryUser(h.db, string(cmd.Args[0]))
+	dest := string(cmd.Args[0])
+
+	if dest == u.name {
+		// Cannot change your own permissions
+		SendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
+		return
+	}
+
+	target, err := db.QueryUser(h.db, dest)
 	if err != nil {
-		// Invalid user provided
-		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		if errors.Is(err, db.ErrorNotFound) {
+			// Invalid user provided
+			SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+		} else {
+			SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		}
 		return
 	}
 
@@ -188,7 +225,13 @@ func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 
 	if uint(u.perms) <= level {
 		// Cannot change perms that are over your permissions
-		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
+		return
+	}
+
+	if uint(u.perms) <= uint(target.Permission) {
+		// Cannot change permissions of someone with more
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return
 	}
 
@@ -201,14 +244,19 @@ func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 	// Update in database, we do not check error
 	// because it was already queried
 	new := db.Permission(level)
-	db.ChangePermission(h.db, u.name, new)
+	err = db.ChangePermission(h.db, dest, new)
+	if err != nil {
+		log.DBError(err)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+	}
 
 	// Update if online
 	chg, ok := h.FindUser(string(cmd.Args[0]))
 	if ok {
 		chg.perms = new
 		go h.Notify(
-			spec.HookPermsChange, chg.conn,
+			spec.HookPermsChange, nil,
+			[]byte(dest),
 			[]byte{byte(level)},
 		)
 	}
@@ -224,6 +272,11 @@ func adminDisconnect(h *Hub, u User, cmd spec.Command) {
 	dc, ok := h.FindUser(string(cmd.Args[0]))
 	if !ok {
 		SendErrorPacket(cmd.HD.ID, spec.ErrorNotFound, u.conn)
+		return
+	}
+
+	if u.perms <= dc.perms {
+		SendErrorPacket(cmd.HD.ID, spec.ErrorPrivileges, u.conn)
 		return
 	}
 

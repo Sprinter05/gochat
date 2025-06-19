@@ -104,7 +104,17 @@ func (s *state) userlistRender() string {
 	return ret[:l-1]
 }
 
-func (s *state) userlistAdd(name string, perms uint) {
+func (s *state) userlistChange(name string, perms uint) {
+	val, ok := s.userlist.Find(func(uu userlistUser) bool {
+		return uu.name == name
+	})
+
+	if ok {
+		// If it already existed we remove it
+		// to add with new perms
+		s.userlist.Remove(val)
+	}
+
 	s.userlist.Add(userlistUser{
 		name:  name,
 		perms: perms,
@@ -410,7 +420,7 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 		if err != nil {
 			val = 0
 		}
-		t.status.userlistAdd(name, uint(val))
+		t.status.userlistChange(name, uint(val))
 	}
 
 	t.comp.users.SetText(t.status.userlistRender())
