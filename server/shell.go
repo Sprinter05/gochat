@@ -119,6 +119,8 @@ func (shell *Shell) Run() {
 	defer sqldb.Close()
 	defer shell.log.Close()
 
+	fmt.Print("Connected to server database, use HELP for information\n")
+
 	for {
 		shell.showPrompt()
 
