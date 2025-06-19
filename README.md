@@ -27,7 +27,7 @@ gochat is made up of the following packets:
     - **commands:** Implements all the functionality required for **every client command** specified in the gochat protocol.
     - **db:** Implements the **database** connection management.
     - **ui**: Implements the **TUI** for the application.
-    - **shell**: Implements the **shell** for the application.
+    - **cli**: Implements the **shell** for the application.
 - **server:**
     - **db:** Implements the **database** connection management.
     - **hubs**: Implements the functionalities required to **fulfill client requests**.

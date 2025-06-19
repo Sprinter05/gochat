@@ -8,9 +8,9 @@ import (
 	"net"
 	"os"
 
+	"github.com/Sprinter05/gochat/client/cli"
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
-	"github.com/Sprinter05/gochat/client/shell"
 	"github.com/Sprinter05/gochat/client/ui"
 	"gorm.io/gorm"
 )
@@ -115,7 +115,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	data.Conn = con
 
 	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
-	args := commands.Command{Data: &data, Static: &static, Output: shell.Print}
+	args := commands.Command{Data: &data, Static: &static, Output: cli.Print}
 
 	if verbosePrint {
 		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
@@ -129,10 +129,10 @@ func setupShell(config Config, dbconn *gorm.DB) {
 		go commands.ListenPackets(args, func() {})
 	}
 
-	go shell.RECIVHandler(&args)
-	go shell.HOOKHandler(&args)
+	go cli.RECIVHandler(&args)
+	go cli.HOOKHandler(&args)
 
-	shell.NewShell(args)
+	cli.NewShell(args)
 	// TODO: check that the connection closes correctly even without this
 	/*
 		if data.ClientCon.Conn != nil {

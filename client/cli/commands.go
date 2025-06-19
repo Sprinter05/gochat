@@ -1,4 +1,4 @@
-package shell
+package cli
 
 // Includes auxiliary functions that sanitize the input to call the command functions
 // in the commands package. It also implements aditional, shell-exclusive commands.

@@ -1,4 +1,4 @@
-package shell
+package cli
 
 // This package includes the core functionality of the gochat client shell
 
