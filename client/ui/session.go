@@ -369,7 +369,7 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 
 		switch hook {
 		case spec.HookPermsChange:
-			perms, _ := spec.ParsePermissionBytes(cmd.Args[0])
+			perms, _ := spec.BytesToPermission(cmd.Args[0])
 			str := fmt.Sprintf(
 				"Your permission level in the server has changed to %d!",
 				perms,

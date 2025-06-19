@@ -42,7 +42,7 @@ func GetPermissions(ctx context.Context, cmd Command, uname string) (uint, error
 		return 0, spec.ErrorCodeToError(reply.HD.Info)
 	}
 
-	perms, err := spec.ParsePermissionBytes(reply.Args[2])
+	perms, err := spec.BytesToPermission(reply.Args[2])
 	if err != nil {
 		return 0, err
 	}

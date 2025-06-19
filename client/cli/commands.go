@@ -695,6 +695,6 @@ func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte)
 		return commands.ErrorInvalidAdminOperation
 	}
 
-	_, adminErr := commands.Admin(ctx, cmd, op, adminArgs)
+	_, adminErr := commands.Admin(ctx, cmd, op, adminArgs...)
 	return adminErr
 }

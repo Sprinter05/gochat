@@ -1033,7 +1033,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 }
 
 // Sends an ADMIN packet that performs an specific ADMIN operation.
-func Admin(ctx context.Context, cmd Command, op spec.Admin, args [][]byte) ([][]byte, error) {
+func Admin(ctx context.Context, cmd Command, op spec.Admin, args ...[]byte) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}

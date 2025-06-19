@@ -172,14 +172,27 @@ func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
-	level := db.StringPermission(string(cmd.Args[1]))
-	if level == -1 {
+	level, err := spec.BytesToPermission(cmd.Args[1])
+	if err != nil {
 		// Invalid permission provided
 		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
 		return
 	}
 
-	if target.Permission == level {
+	check := db.PermissionExists(level)
+	if !check {
+		// Invalid permisison provided
+		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		return
+	}
+
+	if uint(u.perms) <= level {
+		// Cannot change perms that are over your permissions
+		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		return
+	}
+
+	if uint(target.Permission) == level {
 		// Cannot change permissions if they are the same
 		SendErrorPacket(cmd.HD.ID, spec.ErrorInvalid, u.conn)
 		return
@@ -187,12 +200,13 @@ func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 
 	// Update in database, we do not check error
 	// because it was already queried
-	db.ChangePermission(h.db, u.name, level)
+	new := db.Permission(level)
+	db.ChangePermission(h.db, u.name, new)
 
 	// Update if online
 	chg, ok := h.FindUser(string(cmd.Args[0]))
 	if ok {
-		chg.perms = level
+		chg.perms = new
 		go h.Notify(
 			spec.HookPermsChange, chg.conn,
 			[]byte{byte(level)},

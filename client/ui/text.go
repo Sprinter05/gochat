@@ -112,16 +112,27 @@ const CommandHelp string = `
 	- [cyan]"remote online"[-] will display all connected accounts in the server (requires connection)
 	- [cyan]"local all"[-] will display accounts created for for all servers on this client
 	- [cyan]"local server"[-] will display all local accounts for that server
-	- For the [cyan]"remote"[-] options you can optionally pass "-perms" to show permission levels.
+	- For the [cyan]"remote"[-] options you can optionally pass "-perms" to show permission levels
 	
 [yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
 	- This process is already done automatically if connected and logged in
 
 [yellow::b]/subscribe[-::-] [green]<hook>[-]: Subscribes to a specific event in the server
-	- Available options are [cyan]<new_login/new_logout/duplicated_session/permissions_change/all>[-]
+	- [cyan]"new_login"[-] will update the userlist whenever a new user logs in
+	- [cyan]"new_logout"[-] will update the userlist whenever a user logs out
+	- [cyan]"duplicated_session"[-] will notify whenever someone tries to log in with your account from another place
+	- [cyan]"permissions_change"[-] will notify whenever your permission level changes.
+	- [cyan]"all"[-] subscribes to every hook mentioned before
 	
 [yellow::b]/unsubscribe[-::-] [green]<hook>[-]: Unsubscribes from a specific event in the server
-	- Available options are [cyan]<new_login/new_logout/duplicated_session/permissions_change/all>[-]
+	- Available options are the same as for [yellow::b]/subscribe[-::-]
+
+[yellow::b]/admin[-::-] [green]<operation[-] [blue](...)[-]: Performs an administrative operation
+	- [cyan]"shutdown <offset>"[-] will perform a shutdown in the current time + offset (in minutes)
+	- [cyan]"ban <username>"[-] will ban the specified user from the server
+	- [cyan]"kick <username>"[-] will disconnect the specified user from the server
+	- [cyan]"setperms <username> <permissions>[-] will set the permission level of the new user
+	- [cyan]"motd <motd>"[-] will set a new MOTD (message of the day) for the server
 `
 
 /* MESSAGES */

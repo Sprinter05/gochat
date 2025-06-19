@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/internal/spec"
@@ -106,6 +108,11 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  1,
 		format: "/deregister <user>",
 	},
+	"admin": {
+		fun:    adminOperation,
+		nArgs:  1,
+		format: "/admin <operation> <arg_1> <arg_2> ... <arg_n>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -178,6 +185,65 @@ func askForNewPassword(t *TUI) (string, error) {
 
 // COMMANDS
 
+func adminOperation(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	arr := make([][]byte, 0, len(args)-1)
+
+	var op spec.Admin
+	switch args[0] {
+	case "shutdown":
+		op = spec.AdminShutdown
+		offset, err := strconv.Atoi(args[1])
+		if err != nil {
+			cmd.print(err.Error(), cmds.ERROR)
+			return
+		}
+
+		shutdown := time.Now().Add(
+			time.Duration(offset) * time.Minute,
+		)
+		unix := spec.UnixStampToBytes(shutdown)
+		arr = append(arr, unix)
+	case "ban":
+		op = spec.AdminDeregister
+		arr = append(arr, []byte(args[1]))
+	case "kick":
+		op = spec.AdminDisconnect
+		arr = append(arr, []byte(args[1]))
+	case "setperms":
+		op = spec.AdminChangePerms
+		num, err := strconv.Atoi(args[2])
+		if err != nil {
+			cmd.print(err.Error(), cmds.ERROR)
+			return
+		}
+
+		perms := spec.PermissionToBytes(uint(num))
+		arr = append(arr, []byte(args[1]))
+		arr = append(arr, perms)
+	case "motd":
+		op = spec.AdminMotd
+		arr = append(arr, []byte(args[1]))
+	default:
+		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
+		return
+	}
+
+	ctx, cancel := timeout(cmd.serv, c.Data)
+	defer c.Data.Waitlist.Cancel(cancel)
+	_, err := cmds.Admin(ctx, c, op, arr...)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+	}
+}
+
 func deregisterUser(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
 	if data == nil {
@@ -199,7 +265,6 @@ func deregisterUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-
 	_, err = cmds.Dereg(ctx, c, args[0], pswd)
 
 	if err != nil {

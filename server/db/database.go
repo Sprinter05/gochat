@@ -163,6 +163,14 @@ var (
 
 /* FUNCTIONS */
 
+// Returns whether or not the permission
+// exists in this database.
+func PermissionExists(level uint) bool {
+	perm := Permission(level)
+	_, ok := permsToString[perm]
+	return ok
+}
+
 // Returns the name string asocciated to a
 // permission level or an empty string if the
 // permission level was not found.
