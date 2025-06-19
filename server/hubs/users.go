@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -136,8 +137,9 @@ func (hub *Hub) FindUser(uname string) (*User, bool) {
 // Provides a list of all registered users, if the "online"
 // parameter is true, it will only return online users.
 // If no results are found, an empty string will be returned.
-func (hub *Hub) Userlist(online bool) (ret string) {
-	if online {
+func (hub *Hub) Userlist(ulist spec.Userlist) (ret string) {
+	switch ulist {
+	case spec.UsersOnline:
 		list := hub.users.GetAll()
 		users := make([]string, 0, len(list))
 
@@ -146,8 +148,24 @@ func (hub *Hub) Userlist(online bool) (ret string) {
 		}
 
 		ret = strings.Join(users, "\n")
-	} else {
+	case spec.UsersOnlinePerms:
+		list := hub.users.GetAll()
+		users := make([]string, 0, len(list))
+
+		for _, v := range list {
+			str := fmt.Sprintf("%s %d", v.name, v.perms)
+			users = append(users, str)
+		}
+
+		ret = strings.Join(users, "\n")
+	case spec.UsersAll:
 		query, err := db.QueryUsernames(hub.db)
+		if err != nil {
+			log.DB("userlist", err)
+		}
+		ret = query
+	case spec.UsersAllPerms:
+		query, err := db.QueryUsernamesAndPerms(hub.db)
 		if err != nil {
 			log.DB("userlist", err)
 		}

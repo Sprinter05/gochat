@@ -96,8 +96,10 @@ The following list of codes are used by `ERR`.
 
 The following list of codes are used by `USRS`.
 
-- `USRS_ALL`    (`0x0`): Show all users.
-- `USRS_ONLINE` (`0x1`): Show online users.
+- `USRS_ALL`         (`0x0`): Show all usernames.
+- `USRS_ONLINE`      (`0x1`): Show online usernames.
+- `USRS_ALLPERMS`    (`0x2`): Show all usernames and permissions.
+- `USRS_ONLINEPERMS` (`0x3`): Show online usernames and permissions.
 
 ##### Admin Operations
 
@@ -170,7 +172,7 @@ Clients can request a **subscription** to an **event**, also called a **hook**. 
 
 ### User accounts
 
-User accounts in the server will be identified by a **lowercase username** and an **RSA Public Key**. Said key must be `4096` bits and whenever used as an argument, it must be in **PKIX, ASN.1 DER** format. Usernames cannot be changed but the server is free to decide how to handle usernames when an account is deleted (for example, allowing new users to register using that dangling username).
+User accounts in the server will be identified by a **username** (can only contain lowercase letters and numbers, without spaces) and an **RSA Public Key**. Said key must be `4096` bits and whenever used as an argument, it must be in **PKIX, ASN.1 DER** format. Usernames cannot be changed but the server is free to decide how to handle usernames when an account is deleted (for example, allowing new users to register using that dangling username).
 
 #### User registration
 
@@ -230,7 +232,7 @@ The client application can request a list of *all users* that are registered in 
 
     USRS (Client -> Server)
 
-The server will reply with a list of all users separated by the **newline character** (`\n`) (including the user that requested the list).
+The server will reply with a list of all users separated by the **newline character** (`\n`) (including the user that requested the list). If the requested type of listing *includes permissions* it will be in the format `<username> <permission>`.
 
     USRS <username_list> (Server -> Client)
 

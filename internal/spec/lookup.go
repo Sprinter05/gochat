@@ -3,21 +3,22 @@ package spec
 /* PREDEFINED VALUES */
 
 const (
-	ProtocolVersion  uint8  = 1             // Current version of the protocol
-	NullOp           Action = 0             // Invalid operation code
-	NullID           ID     = 0             // Only valid for specific documented cases
-	MaxID            ID     = 1<<10 - 1     // Maximum value according to the bit field
-	EmptyInfo        byte   = 0xFF          // No information provided
-	HeaderSize       int    = 8             // Max size of the header in bytes
-	MaxArgs          int    = (1 << 4) - 1  // Max amount of arguments
-	MaxPayload       int    = (1 << 14) - 1 // Max amount of total arguments size
-	MaxArgSize       int    = (1 << 11) - 1 // Max amount of single argument size
-	RSABitSize       int    = 4096          // Size of the RSA keypair used by the spec crypto functions
-	UsernameSize     int    = 32            // Max size of a username in bytes
-	LoginTimeout     int    = 2             // Timeout for a handshake process in minutes
-	ReadTimeout      int    = 10            // Timeout for a TCP read block in minutes
-	HandshakeTimeout int    = 20            // Timeout for a connection handshake block in seconds
-	TokenExpiration  int    = 30            // Deadline for a reusable token expiration in minutes
+	ProtocolVersion  uint8  = 1                  // Current version of the protocol
+	NullOp           Action = 0                  // Invalid operation code
+	NullID           ID     = 0                  // Only valid for specific documented cases
+	MaxID            ID     = 1<<10 - 1          // Maximum value according to the bit field
+	EmptyInfo        byte   = 0xFF               // No information provided
+	HeaderSize       int    = 8                  // Max size of the header in bytes
+	MaxArgs          int    = (1 << 4) - 1       // Max amount of arguments
+	MaxPayload       int    = (1 << 14) - 1      // Max amount of total arguments size
+	MaxArgSize       int    = (1 << 11) - 1      // Max amount of single argument size
+	RSABitSize       int    = 4096               // Size of the RSA keypair used by the spec crypto functions
+	UsernameSize     int    = 32                 // Max size of a username in bytes
+	LoginTimeout     int    = 2                  // Timeout for a handshake process in minutes
+	ReadTimeout      int    = 10                 // Timeout for a TCP read block in minutes
+	HandshakeTimeout int    = 20                 // Timeout for a connection handshake block in seconds
+	TokenExpiration  int    = 30                 // Deadline for a reusable token expiration in minutes
+	UsernameRegex    string = "^[0-9a-z]{0,32}$" // To check if ausername is valid
 )
 
 /* ACTION CODES */
@@ -397,13 +398,17 @@ func HookArgs(h Hook) int {
 type Userlist uint8
 
 const (
-	UsersAll    Userlist = 0x0
-	UsersOnline Userlist = 0x1
+	UsersAll         Userlist = 0x0
+	UsersOnline      Userlist = 0x1
+	UsersAllPerms    Userlist = 0x2
+	UsersOnlinePerms Userlist = 0x3
 )
 
 var userToOption map[Userlist]string = map[Userlist]string{
-	UsersAll:    "USRS_ALL",
-	UsersOnline: "USRS_ONLINE",
+	UsersAll:         "USRS_ALL",
+	UsersOnline:      "USRS_ONLINE",
+	UsersAllPerms:    "USRS_ALLPERMS",
+	UsersOnlinePerms: "USRS_ONLINEPERMS",
 }
 
 func UserlistString(u Userlist) string {

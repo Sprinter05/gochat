@@ -76,9 +76,11 @@ type USRSType uint
 const (
 	ALL          USRSType = 0 // Users in the server (as spec)
 	ONLINE       USRSType = 1 // Online users in the server (as spec)
-	LOCAL_SERVER USRSType = 2 // Registered local users for a server
-	LOCAL_ALL    USRSType = 3 // All local users
-	REQUESTED    USRSType = 4 // All external users whose public key has been saved
+	ALLPERMS     USRSType = 2 // All users with perms (as spec)
+	ONLINEPERMS  USRSType = 3 // Online users with perms (as spec)
+	LOCAL_SERVER USRSType = 4 // Registered local users for a server
+	LOCAL_ALL    USRSType = 5 // All local users
+	REQUESTED    USRSType = 6 // All external users whose public key has been saved
 )
 
 /* DATA FUNCTIONS */
@@ -893,29 +895,29 @@ func Reciv(ctx context.Context, cmd Command) ([][]byte, error) {
 // require an active connection.
 // Returns a the received usernames in an array if the request was correct.
 func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
-	if usrsType == LOCAL_ALL {
+	// We check for local listing
+	switch usrsType {
+	case LOCAL_ALL:
 		users, err := printAllLocalUsers(cmd)
 		if err != nil {
 			return nil, err
 		}
 		return users, nil
-	}
-
-	if usrsType == REQUESTED {
+	case REQUESTED:
 		users, err := printExternalUsers(cmd)
 		if err != nil {
 			return nil, err
 		}
 		return users, nil
-	}
-
-	if usrsType == LOCAL_SERVER {
+	case LOCAL_SERVER:
 		users, err := printServerLocalUsers(cmd)
 		if err != nil {
 			return nil, err
 		}
 		return users, nil
 	}
+
+	// We send the usrs petition to the server now
 
 	if !cmd.Data.IsLoggedIn() {
 		return nil, ErrorNotLoggedIn
@@ -950,9 +952,16 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 		return nil, spec.ErrorCodeToError(reply.HD.Info)
 	}
 
-	optionString := "all"
-	if usrsType == ONLINE {
+	optionString := "unknown"
+	switch usrsType {
+	case ALL:
+		optionString = "all"
+	case ONLINE:
 		optionString = "online"
+	case ALLPERMS:
+		optionString = "all with permissions"
+	case ONLINEPERMS:
+		optionString = "online with permissions"
 	}
 
 	cmd.Output(fmt.Sprintf("%s users:", optionString), USRS)

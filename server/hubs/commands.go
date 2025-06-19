@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 	"net"
+	"regexp"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -75,8 +75,7 @@ func Process(h *Hub, r Request, u User) {
 //
 // Replies with OK or ERR
 func registerUser(h *Hub, u User, cmd spec.Command) {
-	username := string(cmd.Args[0])
-	uname := strings.ToLower(username)
+	uname := string(cmd.Args[0])
 
 	if len(uname) > spec.UsernameSize {
 		log.User(string(uname), "username registration", spec.ErrorMaxSize)
@@ -84,8 +83,21 @@ func registerUser(h *Hub, u User, cmd spec.Command) {
 		return
 	}
 
+	match, err := regexp.MatchString(spec.UsernameRegex, uname)
+	if err != nil {
+		log.Error("failed to check username regex for "+uname, err)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorServer, u.conn)
+		return
+	}
+
+	if !match {
+		log.User(string(uname), "username registration", spec.ErrorArguments)
+		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
+		return
+	}
+
 	// Check if the public key is usable
-	_, err := spec.PEMToPubkey(cmd.Args[1])
+	_, err = spec.PEMToPubkey(cmd.Args[1])
 	if err != nil {
 		log.User(string(uname), "pubkey registration", err)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorArguments, u.conn)
@@ -298,17 +310,12 @@ func requestUser(h *Hub, u User, cmd spec.Command) {
 //
 // Replies with USRS or ERR
 func listUsers(h *Hub, u User, cmd spec.Command) {
-	var usrs string
-
 	// Online/All argument
 	online := cmd.HD.Info
+	ulist := spec.Userlist(online)
 
-	switch online {
-	case uint8(spec.UsersOnline):
-		usrs = h.Userlist(true)
-	case uint8(spec.UsersAll):
-		usrs = h.Userlist(false)
-	default:
+	usrs := h.Userlist(ulist)
+	if usrs == "" {
 		// Error due to invalid argument in header info
 		log.User(string(u.name), "userlist argument", spec.ErrorOption)
 		SendErrorPacket(cmd.HD.ID, spec.ErrorOption, u.conn)

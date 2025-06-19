@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -129,7 +130,43 @@ func QueryUsernames(db *gorm.DB) (string, error) {
 	}
 
 	for _, v := range dbusers {
-		users.WriteString(string(v.Username) + "\n")
+		users.WriteString(v.Username + "\n")
+	}
+
+	// Return result without the last newline
+	l := users.Len()
+	slice := users.String()
+	return slice[:l-1], nil
+}
+
+// Returns a list of all users registered in the database
+// as a single string separated by '\n', or an error if
+// no users are registered. Each user will be in the format
+// "<username> <permission>" as by spec
+func QueryUsernamesAndPerms(db *gorm.DB) (string, error) {
+	var users strings.Builder
+	var dbusers []User
+
+	res := db.Select("username, permission").
+		Find(&dbusers).
+		Order("username ASC")
+	if res.Error != nil {
+		log.DBError(res.Error)
+		return "", res.Error
+	}
+
+	if len(dbusers) == 0 {
+		return "", ErrorEmpty
+	}
+
+	// Preallocate strings builder
+	for _, v := range dbusers {
+		users.Grow(len(v.Username))
+	}
+
+	for _, v := range dbusers {
+		user := fmt.Sprintf("%s %d", v.Username, v.Permission)
+		users.WriteString(user + "\n")
 	}
 
 	// Return result without the last newline

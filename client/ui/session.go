@@ -354,17 +354,32 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 
 		hook := spec.Hook(cmd.HD.Info)
 
+		min := spec.HookArgs(hook)
+
+		if min == -1 {
+			print("invalid hook received, ignoring")
+			continue
+		}
+
+		if int(cmd.HD.Args) < min {
+			print("hook with invalid arguments received, ignoring")
+			continue
+		}
+
 		switch hook {
 		case spec.HookPermsChange:
-			output(
-				"Your permission level in the server has changed!",
-				cmds.INFO,
+			perms, _ := spec.ParsePermissionBytes(cmd.Args[0])
+			str := fmt.Sprintf(
+				"Your permission level in the server has changed to %d!",
+				perms,
 			)
+			output(str, cmds.INFO)
 		case spec.HookDuplicateSession:
-			output(
-				"Someone has tried to log in with your account from a different endpoint!",
-				cmds.INFO,
+			str := fmt.Sprintf(
+				"Someone has tried to log in with your account from %s!",
+				string(cmd.Args[0]),
 			)
+			output(str, cmds.INFO)
 		case spec.HookNewLogin, spec.HookNewLogout:
 			if t.Active().Name() == s.Name() {
 				updateOnlineUsers(t, s, empty)

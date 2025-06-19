@@ -43,8 +43,8 @@ var commands map[string]operation = map[string]operation{
 	},
 	"users": {
 		fun:    listUsers,
-		nArgs:  1,
-		format: "/users <remote/online/local/server>",
+		nArgs:  2,
+		format: "/users <remote/local> <all/online/server> (-perms)",
 	},
 	"login": {
 		fun:    loginUser,
@@ -513,16 +513,31 @@ func listUsers(t *TUI, cmd Command) {
 
 	c, args := cmd.createCmd(t, data)
 
+	queryPerms := false
+	if len(args) > 2 &&
+		args[0] == "remote" &&
+		args[2] == "-perms" {
+		queryPerms = true
+	}
+
 	var usrs cmds.USRSType
-	switch args[0] {
-	case "remote":
-		usrs = cmds.ALL
-	case "online":
-		usrs = cmds.ONLINE
-	case "server":
-		usrs = cmds.LOCAL_SERVER
-	case "local":
+	switch args[0] + "|" + args[1] {
+	case "remote|all":
+		if queryPerms {
+			usrs = cmds.ALLPERMS
+		} else {
+			usrs = cmds.ALL
+		}
+	case "remote|online":
+		if queryPerms {
+			usrs = cmds.ONLINEPERMS
+		} else {
+			usrs = cmds.ONLINE
+		}
+	case "local|all":
 		usrs = cmds.LOCAL_ALL
+	case "local|server":
+		usrs = cmds.LOCAL_SERVER
 	default:
 		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
 		return
@@ -538,13 +553,32 @@ func listUsers(t *TUI, cmd Command) {
 	}
 
 	var list strings.Builder
-	list.WriteString("Showing " + cmd.Arguments[0] + " users:\n")
+	mode := fmt.Sprintf("%s %s", args[0], args[1])
+	if queryPerms {
+		list.WriteString("Showing " + mode + " users:\n")
+	} else {
+		list.WriteString("Showing " + mode + " users with permissions:\n")
+	}
+
 	if len(reply) == 0 {
 		list.WriteString("No users to be shown.\n")
 	}
 
 	for _, v := range reply {
-		list.WriteString("- [pink::i]" + string(v) + "[-::-]\n")
+		uname, extra, ok := strings.Cut(string(v), " ")
+		var str string
+		if !ok {
+			str = fmt.Sprintf(
+				"- [pink::i]%s[-::-]\n",
+				uname,
+			)
+		} else {
+			str = fmt.Sprintf(
+				"- [pink::i]%s[-::-] | [cyan::b]%s[-::-]",
+				uname, extra,
+			)
+		}
+		list.WriteString(str)
 	}
 
 	l := list.Len()
