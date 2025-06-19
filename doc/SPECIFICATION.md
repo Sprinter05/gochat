@@ -124,7 +124,7 @@ The following list of codes are used by `SUB`, `UNSUB` and `HOOK`.
 
 It is important that no single argument is bigger than **2047 bytes**. This document will use the following notation to indicate the payload and command format for each **Action**:
 
-    ACTION <arg_1> ... [arg_n] (Source -> Destination)
+    ACTION <arg_1> <arg_2> ... [arg_n] (Source -> Destination)
 
 If the argument is put between `<>` it means it is **obligatory**, if it is put between `[]` it means it is **optional**. All optional arguments *must go at the end*, after the obligatory ones.
 
@@ -285,6 +285,13 @@ In the same way, the client application can unsubscribe from any event for which
 
 #### Triggering events
 
-Whenever an event is triggered, the server will send a `HOOK` packet using the _Null ID_ with the corresponding hook in the header's **Information** field.
+Whenever an event is triggered, the server will send a `HOOK` packet using the _Null ID_ with the corresponding hook in the header's **Information** field. It will also include any relevant information for the hook.
 
-    HOOK (Server -> Client)
+    HOOK <arg_1> <arg_2> ... <arg_n> (Server -> Client)
+
+The argument amount is not fixed and will depend on the action. An exhaustive list of administrative operations and their arguments is detailed below:
+
+- `HOOK_NEWLOGIN <username> <permission>`
+- `HOOK_NEWLOGOUT <username> <permission>`
+- `HOOK_DUPSESS <ip>`
+- `HOOK_PERMSCHG <permission>`

@@ -201,7 +201,10 @@ func adminChangePerms(h *Hub, u User, cmd spec.Command) {
 	chg, ok := h.FindUser(string(cmd.Args[0]))
 	if ok {
 		chg.perms = level
-		go h.Notify(spec.HookPermsChange, chg.conn)
+		go h.Notify(
+			spec.HookPermsChange, chg.conn,
+			[]byte{byte(level)},
+		)
 	}
 
 	SendOKPacket(cmd.HD.ID, u.conn)

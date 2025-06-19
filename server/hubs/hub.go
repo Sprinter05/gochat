@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"slices"
 	"time"
 
 	"github.com/Sprinter05/gochat/internal/log"
@@ -38,10 +37,11 @@ func (hub *Hub) Motd() string {
 }
 
 // Notifies of a hook to all relevant connections. An
-// optional "only" list of connections can be provided
-// to only notify those specified in said list. It is
-// safe to run this function concurrently.
-func (hub *Hub) Notify(h spec.Hook, only ...net.Conn) {
+// optional connection can be provided to only notify
+// the one specified, otherwise that argument should be
+// nil. An optional list of arguments to be sent can also
+// be provided. It is safe to run this function concurrently.
+func (hub *Hub) Notify(h spec.Hook, only net.Conn, args ...[]byte) {
 	sl, ok := hub.subs.Get(h)
 	if !ok {
 		//! This means the hook slice no longer exists even though it should
@@ -49,7 +49,7 @@ func (hub *Hub) Notify(h spec.Hook, only ...net.Conn) {
 		return
 	}
 
-	pak, err := spec.NewPacket(spec.HOOK, spec.NullID, byte(h))
+	pak, err := spec.NewPacket(spec.HOOK, spec.NullID, byte(h), args...)
 	if err != nil {
 		log.Packet(spec.HOOK, err)
 		return
@@ -62,7 +62,7 @@ func (hub *Hub) Notify(h spec.Hook, only ...net.Conn) {
 	}
 
 	for _, v := range list {
-		if only != nil && !slices.Contains(only, v) {
+		if only != nil && v != only {
 			// The connection is not of the only ones to notify
 			continue
 		}
@@ -76,9 +76,17 @@ func (hub *Hub) Notify(h spec.Hook, only ...net.Conn) {
 // from the hub, except the reusable token if the connection
 // is secure (condition that is not checked here).
 func (hub *Hub) Cleanup(cl net.Conn) {
-	// Cleanup on the users table
-	hub.users.Remove(cl)
-	go hub.Notify(spec.HookNewLogout)
+	// Get the user data
+	user, ok := hub.users.Get(cl)
+	if ok {
+		// Cleanup on the users table
+		hub.users.Remove(cl)
+		go hub.Notify(
+			spec.HookNewLogout, nil,
+			[]byte(user.name),
+			[]byte{byte(user.perms)},
+		)
+	}
 
 	// Cleanup on the verification table
 	list := hub.verifs.GetAll()
@@ -192,7 +200,12 @@ func (hub *Hub) cachedLogin(r Request) (*User, error) {
 		dup, ipok := hub.FindUser(string(r.Command.Args[0]))
 		if ipok {
 			// Cannot have two sessions of the same user
-			go hub.Notify(spec.HookDuplicateSession, dup.conn)
+			ip := r.Conn.RemoteAddr()
+			remote, _ := net.ResolveTCPAddr("tcp", ip.String())
+			go hub.Notify(
+				spec.HookDuplicateSession, dup.conn,
+				[]byte(remote.IP.String()),
+			)
 			return nil, spec.ErrorDupSession
 		}
 	}

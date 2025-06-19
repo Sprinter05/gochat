@@ -114,7 +114,7 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		return ErrorExists
 	}
 
-	ip, err := net.ResolveTCPAddr("tcp4", addr.String())
+	ip, err := net.ResolveTCPAddr("tcp", addr.String())
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (t *TUI) existsServer(addr net.TCPAddr) bool {
 			continue
 		}
 
-		tcp, _ := net.ResolveTCPAddr("tcp4", source.String())
+		tcp, _ := net.ResolveTCPAddr("tcp", source.String())
 		if slices.Equal(tcp.IP, addr.IP) && tcp.Port == addr.Port {
 			return true
 		}
@@ -260,7 +260,7 @@ func (t *TUI) removeServer(s Server) {
 	}
 
 	addr := s.Source()
-	ip, _ := net.ResolveTCPAddr("tcp4", addr.String())
+	ip, _ := net.ResolveTCPAddr("tcp", addr.String())
 	db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
 }
 
@@ -368,7 +368,7 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 		return false, nil
 	}
 
-	ip, err := net.ResolveTCPAddr("tcp4", msg.Source.String())
+	ip, err := net.ResolveTCPAddr("tcp", msg.Source.String())
 	if err != nil {
 		// Not this destination
 		return false, nil
@@ -408,7 +408,7 @@ func (s *RemoteServer) Online() (*cmds.Data, bool) {
 func (s *RemoteServer) Source() net.Addr {
 	str := fmt.Sprintf("%s:%d", s.ip.String(), s.port)
 
-	ip, err := net.ResolveTCPAddr("tcp4", str)
+	ip, err := net.ResolveTCPAddr("tcp", str)
 	if err != nil {
 		panic("invalid IP in remote server")
 	}

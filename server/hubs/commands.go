@@ -123,7 +123,11 @@ func loginUser(h *Hub, u User, cmd spec.Command) {
 
 		// Cache the user
 		h.users.Add(u.conn, &u)
-		go h.Notify(spec.HookNewLogin)
+		go h.Notify(
+			spec.HookNewLogin, nil,
+			[]byte(u.name),
+			[]byte{byte(u.perms)},
+		)
 		SendOKPacket(cmd.HD.ID, u.conn)
 		return
 	}
@@ -198,8 +202,12 @@ func verifyUser(h *Hub, u User, cmd spec.Command) {
 	// If we get here, it means it was correctly verified
 	// We modify the tables and cancel the goroutine
 	verif.cancel()
-	go h.Notify(spec.HookNewLogin)
 	h.users.Add(u.conn, &u)
+	go h.Notify(
+		spec.HookNewLogin, nil,
+		[]byte(u.name),
+		[]byte{byte(u.perms)},
+	)
 
 	if u.secure {
 		// If we are using TLS we mark a soft delete,

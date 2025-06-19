@@ -170,7 +170,7 @@ func setupConn(config Config) net.Listener {
 		*port,
 	)
 
-	l, err := net.Listen("tcp4", socket)
+	l, err := net.Listen("tcp", socket)
 	if err != nil {
 		log.Fatal("socket setup", err)
 	}
@@ -222,7 +222,7 @@ func setupTLSConn(config Config) net.Listener {
 		Certificates: []tls.Certificate{cert},
 	}
 
-	l, err := tls.Listen("tcp4", socket, tlsConfig)
+	l, err := tls.Listen("tcp", socket, tlsConfig)
 	if err != nil {
 		log.Fatal("tls socket setup", err)
 	}

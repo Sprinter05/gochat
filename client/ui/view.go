@@ -167,7 +167,7 @@ func newServerPopup(t *TUI) {
 				return
 			}
 
-			addr, err := net.ResolveTCPAddr("tcp4", ip)
+			addr, err := net.ResolveTCPAddr("tcp", ip)
 			if err != nil {
 				t.showError(err)
 				pExit()
