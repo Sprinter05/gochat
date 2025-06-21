@@ -8,7 +8,7 @@ services:
       MYSQL_PASSWORD: gochatpass
       MYSQL_DATABASE: gochat
     volumes:
-      - "gochat_db:/var/lib/mysql"
+      - "db:/var/lib/mysql"
     healthcheck:
         test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
         start_period: 10s
@@ -22,9 +22,10 @@ services:
       - "8037:8037/tcp"
       - "9037:9037/tcp"
     volumes:
-      - "./config:/config"
+      - "config:/config"
     depends_on:
       mariadb:
         condition: service_healthy
 volumes:
-  gochat_db:
+  db:
+  config:
