@@ -7,12 +7,15 @@ WORKDIR /src
 COPY . .
 RUN make server
 
-# Copy the app binary and create config folders
-WORKDIR /app
+# Setup configuration files
+WORKDIR /config
 VOLUME ["/config"]
-RUN mv /src/config/server_example.json /config/server.json &&\
-    cp /src/build/gochat-server . &&\
-    mkdir certs logs
+RUN mv /src/config/server_example.json ./server.json
+
+# Copy the app binary and create necessary folders
+WORKDIR /app
+RUN mkdir certs logs &&\
+    cp /src/build/gochat-server .
 
 # Forward ports
 EXPOSE 9037/tcp
