@@ -5,6 +5,7 @@
         "user": "gochatuser",
         "password": "gochatpass",
         "db_name": "gochat",
+        "enable_logs": false,
         "log_file": "logs/database.log"
     },
     "server": {
@@ -19,7 +20,8 @@
         },
         "logs": {
             "level": "ERROR",
-            "log_file": ""
-        }
+            "log_file": "logs/server.log"
+        },
+        "default_motd": "Welcome to the server!"
     }
 }

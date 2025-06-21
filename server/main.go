@@ -316,9 +316,9 @@ func main() {
 	}
 
 	// Set up database logging file only
-	// if the logging level is INFO or more
+	// if specified in the config file
 	var dblog *stdlog.Logger
-	if log.Level >= log.INFO {
+	if config.Database.Logging {
 		f := setupDBLog(config)
 		defer f.Close()
 		dblog = stdlog.New(f, "", stdlog.LstdFlags)

@@ -27,6 +27,7 @@ type Config struct {
 	User     *string `json:"user"`
 	Password *string `json:"password"`
 	Name     *string `json:"db_name"`
+	Logging  bool    `json:"enable_logs"`
 	Logs     string  `json:"log_file"`
 }
 
