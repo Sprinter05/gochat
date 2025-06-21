@@ -5,7 +5,7 @@ FROM golang:$GOVERSION
 # Copy the source code and compile
 WORKDIR /src
 
-COPY server .
+COPY server ./server
 COPY Makefile go.mod go.sum .
 RUN make server
 
