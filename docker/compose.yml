@@ -22,10 +22,9 @@ services:
       - "8037:8037/tcp"
       - "9037:9037/tcp"
     volumes:
-      - "config:/config"
+      - "./config:/config"
     depends_on:
       mariadb:
         condition: service_healthy
 volumes:
   db:
-  config:

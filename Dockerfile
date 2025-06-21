@@ -9,7 +9,6 @@ RUN make server
 
 # Setup configuration files
 WORKDIR /config
-VOLUME ["/config"]
 RUN mv /src/config/server_example.json ./server.json
 
 # Copy the app binary and create necessary folders
@@ -20,6 +19,9 @@ RUN mkdir certs logs &&\
 # Forward ports
 EXPOSE 9037/tcp
 EXPOSE 8037/tcp
+
+# Set volumes
+VOLUME ["/config"]
 
 # Set binary and parameters
 ENTRYPOINT ["/app/gochat-server"]
