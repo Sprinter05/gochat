@@ -20,7 +20,7 @@ services:
     container_name: gochat
     ports:
       - "8037:8037/tcp"
-      - "9037:9037/tcp"`
+      - "9037:9037/tcp"
     volumes:
       - "./config:/config"
     depends_on:
