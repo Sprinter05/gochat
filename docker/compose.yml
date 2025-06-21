@@ -23,6 +23,8 @@ services:
       - "9037:9037/tcp"
     volumes:
       - "./config:/config"
+      - "./certs:/app/certs"
+      - "./logs:/app/logs"
     depends_on:
       mariadb:
         condition: service_healthy
