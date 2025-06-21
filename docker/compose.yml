@@ -1,4 +1,3 @@
-# https://github.com/uber-go/automaxprocs
 services:
   mariadb:
     image: mariadb:latest
@@ -20,8 +19,10 @@ services:
     image: Sprinter05/gochat:latest
     container_name: gochat
     ports:
-      - "8037:8037"
-      - "9037:9037"
+      - "8037:8037/tcp"
+      - "9037:9037/tcp"`
+    volumes:
+      - "./config:/config"
     depends_on:
       mariadb:
         condition: service_healthy

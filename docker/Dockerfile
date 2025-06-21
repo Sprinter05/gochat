@@ -1,20 +1,30 @@
-FROM golang
+# This allows for a different version to be used
+ARG GOVERSION=latest
+FROM golang:$GOVERSION
 
-WORKDIR /app
+# Copy the source code and compile
+WORKDIR /src
 
-RUN git clone https://github.com/Sprinter05/gochat.git
-
-WORKDIR /app/gochat
-
+COPY ../server .
+COPY ../Makefile .
 RUN make server
-RUN mv ./build/gcserver /app
-RUN mv ./config/example.json /app/config.json
 
+# Create configuration
+WORKDIR /config
+
+VOLUME ["/config"]
+COPY ../config/server_example.json /config/server.json
+
+# Copy the app binary and create necessary folders
 WORKDIR /app
 
-RUN rm -r ./gochat
-RUN mkdir logs
-RUN mv ./gcserver ./gochat
-RUN chmod +x ./gochat
+RUN cp /src/build/gochat-server .
+RUN mkdir certs logs
 
-ENTRYPOINT ["/app/gochat"]
+# Forward ports
+EXPOSE 9037/tcp
+EXPOSE 8037/tcp
+
+# Set binary and parameters
+ENTRYPOINT ["/app/gochat-server"]
+CMD ["--config", "/config/server.json"]
