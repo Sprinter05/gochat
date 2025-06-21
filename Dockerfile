@@ -11,10 +11,11 @@ RUN make server
 WORKDIR /config
 RUN mv /src/config/server_example.json ./server.json
 
-# Copy the app binary and create necessary folders
+# Copy the app binary and entrypoint, then create necessary folders
 WORKDIR /app
 RUN mkdir certs logs &&\
-    cp /src/build/gochat-server .
+    cp /src/build/gochat-server . &&\
+    cp /src/docker/docker-entrypoint.sh entrypoint.sh
 
 # Forward ports
 EXPOSE 9037/tcp
@@ -24,5 +25,5 @@ EXPOSE 8037/tcp
 VOLUME ["/config"]
 
 # Set binary and parameters
-ENTRYPOINT ["/app/gochat-server"]
+ENTRYPOINT ["/app/entrypoint.sh", "/app/gochat-server"]
 CMD ["--config", "/config/server.json"]

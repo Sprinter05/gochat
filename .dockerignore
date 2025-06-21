@@ -1,7 +1,6 @@
 .vscode/
 client/
 doc/
-docker/
 .dockerignore
 .gitignore
 *.md
