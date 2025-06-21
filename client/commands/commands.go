@@ -346,12 +346,12 @@ func Conn(cmd Command, server db.Server, noverify bool) ([][]byte, error) {
 		return nil, conErr
 	}
 
-	cmd.Data.Conn = con
-	err := WaitConnect(cmd, server)
-
+	err := WaitConnect(cmd, con, server)
 	if err != nil {
 		return nil, err
 	}
+
+	cmd.Data.Conn = con
 
 	cmd.Output("listening for incoming packets...", INFO)
 	return nil, nil

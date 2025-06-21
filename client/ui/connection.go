@@ -58,14 +58,29 @@ func timeout(s Server, data *cmds.Data) (context.Context, context.CancelFunc) {
 
 /* INTERFACE */
 
+// Identifies the source used by gochat
+type Source struct {
+	Address string
+	Port    uint16
+}
+
+func (s Source) Network() string {
+	return "tcp4"
+}
+
+func (s Source) String() string {
+	return fmt.Sprintf("%s:%d", s.Address, s.Port)
+}
+
 // Identifies the operations a server
 // must fulfill in order to be considered
 // a server by the TUI.
 type Server interface {
-	// Returns the name of the server
+	// Returns the name of the server and if it is secure
 	Name() string
 
 	// Returns the address corresponding to their endpoint
+	// and a boolean indicating if the address is valid
 	Source() net.Addr
 
 	// Returns all messages contained in the specified buffer
@@ -104,7 +119,7 @@ func (t *TUI) Active() Server {
 
 // Adds a server connected to a remote endpoint, stores it in
 // the database, adds it to the TUI but does not changes to it.
-func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
+func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 	if t.servers.Len() >= int(maxServers) {
 		return ErrorMaxServers
 	}
@@ -114,18 +129,17 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 		return ErrorExists
 	}
 
-	ip, err := net.ResolveTCPAddr("tcp", addr.String())
-	if err != nil {
-		return err
+	source := Source{
+		Address: addr,
+		Port:    port,
 	}
 
-	if t.existsServer(*ip) {
+	if t.existsServer(source) {
 		return ErrorExists
 	}
 
 	s := &RemoteServer{
-		ip:   ip.IP,
-		port: uint16(ip.Port),
+		addr: source,
 		name: name,
 		conn: Connection{
 			ctx:    context.Background(),
@@ -141,8 +155,8 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 
 	serv, err := db.AddServer(
 		t.data.DB,
-		ip.IP.String(),
-		uint16(ip.Port),
+		addr,
+		port,
 		name,
 		tls,
 	)
@@ -152,20 +166,21 @@ func (t *TUI) addServer(name string, addr net.Addr, tls bool) error {
 	s.data.Server = &serv
 
 	t.servers.Add(name, s)
-	l := t.servers.Len()
-
-	if tls {
-		t.comp.servers.AddItem(name, addr.String()+" (TLS)", ascii(l), nil)
-	} else {
-		t.comp.servers.AddItem(name, addr.String(), ascii(l), nil)
+	num := t.servers.Len()
+	indexes := len(t.status.serverIndexes)
+	if indexes > 0 {
+		num = t.status.serverIndexes[0] + 1
+		t.status.serverIndexes = t.status.serverIndexes[1:]
 	}
+
+	t.comp.servers.AddItem(name, tlsText(source, tls), ascii(num), nil)
 
 	t.renderServer(name)
 	return nil
 }
 
 // Finds a server by a given address
-func (t *TUI) existsServer(addr net.TCPAddr) bool {
+func (t *TUI) existsServer(addr net.Addr) bool {
 	list := t.servers.GetAll()
 	for _, v := range list {
 		source := v.Source()
@@ -173,8 +188,7 @@ func (t *TUI) existsServer(addr net.TCPAddr) bool {
 			continue
 		}
 
-		tcp, _ := net.ResolveTCPAddr("tcp", source.String())
-		if slices.Equal(tcp.IP, addr.IP) && tcp.Port == addr.Port {
+		if addr.String() == source.String() {
 			return true
 		}
 	}
@@ -225,6 +239,7 @@ func (t *TUI) hideServer(name string) {
 	if ok {
 		t.comp.servers.RemoveItem(i)
 	}
+	t.status.serverIndexes = append(t.status.serverIndexes, i)
 
 	// Cleanup resources and wait a bit
 	data, connected := s.Online()
@@ -260,8 +275,13 @@ func (t *TUI) removeServer(s Server) {
 	}
 
 	addr := s.Source()
-	ip, _ := net.ResolveTCPAddr("tcp", addr.String())
-	db.RemoveServer(t.data.DB, ip.IP.String(), uint16(ip.Port))
+	source, ok := addr.(Source)
+	if !ok {
+		t.showError(ErrorInvalidAddress)
+		return
+	}
+
+	db.RemoveServer(t.data.DB, source.Address, source.Port)
 }
 
 // Changes to a server specified by its name and updates all
@@ -331,8 +351,7 @@ func (t *TUI) renderServer(name string) {
 /* REMOTE SERVER */
 
 type RemoteServer struct {
-	ip   net.IP
-	port uint16
+	addr Source
 	name string
 
 	conn Connection
@@ -368,14 +387,7 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 		return false, nil
 	}
 
-	ip, err := net.ResolveTCPAddr("tcp", msg.Source.String())
-	if err != nil {
-		// Not this destination
-		return false, nil
-	}
-
-	cmp := slices.Compare(ip.IP, s.ip)
-	if cmp != 0 || ip.Port != int(s.port) {
+	if msg.Source.String() != s.addr.String() {
 		// Not this destination
 		return false, nil
 	}
@@ -388,8 +400,6 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 
 	b, ok := s.bufs.tabs.Get(msg.Buffer)
 	if !ok {
-		// s.bufs.New(msg.Buffer, false)
-		// b, _ = s.bufs.tabs.Get(msg.Buffer)
 		return false, nil
 	}
 
@@ -406,14 +416,7 @@ func (s *RemoteServer) Online() (*cmds.Data, bool) {
 }
 
 func (s *RemoteServer) Source() net.Addr {
-	str := fmt.Sprintf("%s:%d", s.ip.String(), s.port)
-
-	ip, err := net.ResolveTCPAddr("tcp", str)
-	if err != nil {
-		panic("invalid IP in remote server")
-	}
-
-	return ip
+	return s.addr
 }
 
 func (s *RemoteServer) Name() string {

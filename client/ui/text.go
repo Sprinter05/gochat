@@ -146,6 +146,15 @@ type Message struct {
 	Source    net.Addr  // Destination server
 }
 
+// Returns the TLS secondary text for servers
+func tlsText(addr net.Addr, tls bool) string {
+	if tls {
+		return addr.String() + " (TLS)"
+	}
+
+	return addr.String()
+}
+
 // Sends a predefines message on every new server
 func welcomeMessage(t *TUI) {
 	s := t.Active()

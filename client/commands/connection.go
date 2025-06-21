@@ -28,7 +28,7 @@ func SocketConnect(address string, port uint16, useTLS bool, noVerify bool) (con
 	socket := net.JoinHostPort(address, strconv.FormatUint(uint64(port), 10))
 
 	if useTLS {
-		con, err = tls.Dial("tcp4", socket, &tls.Config{
+		con, err = tls.Dial("tcp", socket, &tls.Config{
 			InsecureSkipVerify: noVerify,
 		})
 		if err != nil {
@@ -39,7 +39,7 @@ func SocketConnect(address string, port uint16, useTLS bool, noVerify bool) (con
 	}
 
 	// Default to non-TLS
-	con, err = net.Dial("tcp4", socket)
+	con, err = net.Dial("tcp", socket)
 	if err != nil {
 		return nil, err
 	}
@@ -49,11 +49,11 @@ func SocketConnect(address string, port uint16, useTLS bool, noVerify bool) (con
 
 // Listens for a HELLO packet from the server when starting the connection,
 // which determines that the client/server connection was started successfully.
-func WaitConnect(data Command, server db.Server) error {
+func WaitConnect(data Command, endpoint net.Conn, server db.Server) error {
 	cmd := new(spec.Command)
 
 	conn := spec.Connection{
-		Conn: data.Data.Conn,
+		Conn: endpoint,
 		TLS:  server.TLS,
 	}
 

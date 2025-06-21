@@ -199,7 +199,7 @@ func setupShell(config Config) Shell {
 		*config.Database.Address,
 		*config.Database.Port,
 	)
-	addr, _ := net.ResolveTCPAddr("tcp4", str)
+	addr, _ := net.ResolveTCPAddr("tcp", str)
 
 	// Connect to database
 	database := db.Connect(dblog, config.Database)

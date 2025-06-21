@@ -90,7 +90,8 @@ func (t *Table[I, T]) Indexes() []I {
 }
 
 // Returns all value elements of the
-// table in an array
+// table in an array. It is important
+// to note that order can change.
 func (t *Table[I, T]) GetAll() []T {
 	l := len(t.data)
 	if l == 0 {

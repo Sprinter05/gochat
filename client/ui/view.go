@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"net"
 	"slices"
 	"strconv"
 	"strings"
@@ -37,7 +36,8 @@ type state struct {
 	deletingServer bool // Currently choosing to delete server
 	deletingBuffer bool // Currently choosing to delete buffer
 
-	userlist models.Slice[userlistUser] // Used for displaying users in the user bar
+	userlist      models.Slice[userlistUser] // Used for displaying users in the user bar
+	serverIndexes []int                      // Used to track deleted elements
 
 	lastDate time.Time // Last rendered date in the current buffer
 	lastMsg  time.Time // last message sent
@@ -220,7 +220,7 @@ func newServerPopup(t *TUI) {
 
 		pInput, pExit := createPopup(t,
 			&t.status.creatingServer,
-			"Enter server IP and port...",
+			"Enter server address and port as 'address:port':",
 		)
 
 		// Asks for address
@@ -230,21 +230,26 @@ func newServerPopup(t *TUI) {
 				return
 			}
 
-			ip := pInput.GetText()
-			if ip == "" {
+			text := pInput.GetText()
+			if text == "" {
 				t.showError(ErrorNoText)
 				return
 			}
 
-			addr, err := net.ResolveTCPAddr("tcp", ip)
+			addr, num, ok := strings.Cut(text, ":")
+			if !ok {
+				t.showError(ErrorInvalidAddress)
+				return
+			}
+
+			port, err := strconv.ParseUint(num, 10, 16)
 			if err != nil {
-				t.showError(err)
-				pExit()
+				t.showError(ErrorInvalidAddress)
 				return
 			}
 
 			// We enable TLS by default
-			ret := t.addServer(name, addr, true)
+			ret := t.addServer(name, addr, uint16(port), true)
 			if ret != nil {
 				t.showError(ret)
 			} else {
@@ -389,6 +394,8 @@ func toggleUserlist(t *TUI) {
 		t.status.showingUsers = true
 	}
 }
+
+/* RENDER FUNCTIONS */
 
 func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 	data, ok := s.Online()

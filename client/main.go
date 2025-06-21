@@ -122,7 +122,7 @@ func setupShell(config Config, dbconn *gorm.DB) {
 	}
 
 	if address != "" {
-		commands.WaitConnect(args, server)
+		commands.WaitConnect(args, con, server)
 		if verbosePrint {
 			args.Output("listening for incoming packets...", commands.INFO)
 		}

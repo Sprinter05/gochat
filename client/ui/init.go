@@ -3,7 +3,6 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"net"
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
@@ -71,6 +70,7 @@ var (
 	ErrorPasswordNotMatch = errors.New("passwords do not match")
 	ErrorInvalidArgument  = errors.New("provided argument is incorrect")
 	ErrorMessageFromSelf  = errors.New("received message from self")
+	ErrorInvalidAddress   = errors.New("address of server is not valid")
 )
 
 // Identifies the areas where components are located.
@@ -491,6 +491,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 			deletingServer: false,
 			deletingBuffer: false,
 			userlist:       models.NewSlice[userlistUser](0),
+			serverIndexes:  make([]int, 0),
 			lastDate:       time.Now(),
 			lastMsg:        time.Now(),
 		},
@@ -550,9 +551,7 @@ func (t *TUI) restoreSession() {
 	}
 
 	for _, v := range list {
-		str := fmt.Sprintf("%s:%d", v.Address, v.Port)
-		addr, _ := net.ResolveTCPAddr("tcp", str)
-		err := t.addServer(v.Name, addr, v.TLS)
+		err := t.addServer(v.Name, v.Address, v.Port, v.TLS)
 		if err != nil {
 			panic(err)
 		}
