@@ -263,7 +263,7 @@ func newServerPopup(t *TUI) {
 			}
 
 			port, err := strconv.ParseUint(num, 10, 16)
-			if err != nil {
+			if err != nil || port == 0 {
 				t.showError(ErrorInvalidAddress)
 				return
 			}
@@ -357,7 +357,7 @@ func createConfirmWindow(t *TUI, cond *bool, title string) (*tview.Modal, func()
 func deleteServWindow(t *TUI) {
 	window, exit := createConfirmWindow(t,
 		&t.status.deletingServer,
-		"Do you want to permanently\ndelete this server?",
+		"Do you want to permanently\ndelete this server?\nAll information about this server will be lost!",
 	)
 
 	window.SetDoneFunc(func(buttonIndex int, buttonLabel string) {

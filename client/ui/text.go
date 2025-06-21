@@ -42,10 +42,11 @@ const KeybindHelp string = `
 	- [green]Enter[-::-] to confirm the different steps
 	
 [yellow::b]Ctrl-S + Ctrl-W/Ctrl-H[-::-]: Hide currently focused server
-	- It can be shown again under any name by typing the same address it was used at creation
+	- It can be shown again by typing its name when creating a new server
 
 [yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server
-	- This will permanantely delete all asocciated data to the server
+	- This will permanantely delete all asocciated data to the server except users
+	- Users registered in the deleted server will become "dangling" as they are no longer asocciated to a server
 
 [yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
 	- Press [green]Esc[-::-] to cancel the jump
@@ -65,6 +66,8 @@ const CommandHelp string = `
 [-::u]Commands Manual:[-::-]
 
 [yellow::b]/version[-::-]: Displays the current version of the client and protocol
+
+[yellow::b]/servers[-::-]: Displays the list of all servers that are in the database
 
 [yellow::b]/buffers[-::-]: Displays a list of all buffers in the current server
 	- Those that have been hidden will also be displayed
@@ -92,6 +95,7 @@ const CommandHelp string = `
 	- A popup asking for a password for the imported account will show up
 
 [yellow::b]/export[-::-] [green]<username>[-]: Exports the private key of an existing local user
+	- The specified user must be registered on the server on which the command is ran	
 	- A popup asking for the password asocciated to the account will show up
 	- The key will be put in a file in the directory from which the program was ran
 	- The fill will be called <username>.priv and will be in PEM PKCS1 format (RSA 4096 bits)
