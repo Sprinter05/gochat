@@ -5,15 +5,15 @@ FROM golang:$GOVERSION
 # Copy the source code and compile
 WORKDIR /src
 
-COPY ../server .
-COPY ../Makefile .
+COPY server .
+COPY Makefile .
 RUN make server
 
 # Create configuration
 WORKDIR /config
 
 VOLUME ["/config"]
-COPY ../config/server_example.json /config/server.json
+COPY config/server_example.json /config/server.json
 
 # Copy the app binary and create necessary folders
 WORKDIR /app
