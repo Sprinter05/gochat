@@ -4,23 +4,15 @@ FROM golang:$GOVERSION
 
 # Copy the source code and compile
 WORKDIR /src
-
-COPY internal ./internal
-COPY server ./server
-COPY Makefile go.mod go.sum .
+COPY . .
 RUN make server
 
-# Create configuration
-WORKDIR /config
-
-VOLUME ["/config"]
-COPY config/server_example.json /config/server.json
-
-# Copy the app binary and create necessary folders
+# Copy the app binary and create config folders
 WORKDIR /app
-
-RUN cp /src/build/gochat-server .
-RUN mkdir certs logs
+VOLUME ["/config"]
+RUN mv /src/config/server_example.json /config/server.json &&\
+    cp /src/build/gochat-server . &&\
+    mkdir certs logs
 
 # Forward ports
 EXPOSE 9037/tcp
