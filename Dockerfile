@@ -6,7 +6,7 @@ FROM golang:$GOVERSION
 WORKDIR /src
 
 COPY server .
-COPY Makefile .
+COPY Makefile go.mod go.sum .
 RUN make server
 
 # Create configuration
