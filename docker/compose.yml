@@ -1,7 +1,7 @@
 services:
   mariadb:
     image: mariadb:latest
-    container_name: database
+    container_name: gochat-database
     environment:
       MYSQL_ROOT_PASSWORD: gochatpass
       MYSQL_USER: gochatuser
