@@ -15,7 +15,8 @@ RUN mv /src/config/server_example.json ./server.json
 WORKDIR /app
 RUN mkdir certs logs &&\
     cp /src/build/gochat-server . &&\
-    cp /src/docker/docker-entrypoint.sh entrypoint.sh
+    cp /src/docker/docker-entrypoint.sh entrypoint.sh &&\
+    chmod +x entrypoint.sh
 
 # Forward ports
 EXPOSE 9037/tcp
