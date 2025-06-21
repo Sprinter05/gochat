@@ -9,7 +9,7 @@ RUN make server
 
 # Setup configuration files
 WORKDIR /config
-RUN mv /src/config/server_example.json ./server.json
+RUN cp /src/config/server_example.json ./server.json
 
 # Copy the app binary and entrypoint, then create necessary folders
 WORKDIR /app
