@@ -9,6 +9,7 @@ import (
 	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -213,6 +214,25 @@ func newServerPopup(t *TUI) {
 		name := sInput.GetText()
 		if name == "" {
 			t.showError(ErrorNoText)
+			return
+		}
+
+		exists, err := db.ServerExistsByName(t.data.DB, name)
+		if err != nil {
+			t.showError(err)
+			return
+		}
+
+		if exists {
+			err := t.showServer(name)
+			if err != nil {
+				t.showError(err)
+			} else {
+				t.addBuffer(defaultBuffer, true)
+				welcomeMessage(t)
+			}
+
+			sExit()
 			return
 		}
 

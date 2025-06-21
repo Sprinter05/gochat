@@ -151,7 +151,6 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 		data:   cmds.NewEmptyData(),
 		notifs: models.NewTable[string, uint](0),
 	}
-	s.data.Waitlist = cmds.DefaultWaitlist()
 
 	serv, err := db.AddServer(
 		t.data.DB,
@@ -174,6 +173,48 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 	}
 
 	t.comp.servers.AddItem(name, tlsText(source, tls), ascii(num), nil)
+
+	t.renderServer(name)
+	return nil
+}
+
+// Adds a server from the database that already existed
+func (t *TUI) showServer(name string) error {
+	serv, err := db.GetServerByName(t.data.DB, name)
+	if err != nil {
+		return err
+	}
+
+	source := Source{
+		Address: serv.Address,
+		Port:    serv.Port,
+	}
+
+	s := &RemoteServer{
+		addr: source,
+		name: name,
+		conn: Connection{
+			ctx:    context.Background(),
+			cancel: func() {},
+		},
+		bufs: Buffers{
+			tabs: models.NewTable[string, *tab](0),
+		},
+		data:   cmds.NewEmptyData(),
+		notifs: models.NewTable[string, uint](0),
+	}
+
+	s.data.Server = &serv
+
+	t.servers.Add(name, s)
+	num := t.servers.Len()
+	indexes := len(t.status.serverIndexes)
+	if indexes > 0 {
+		num = t.status.serverIndexes[0] + 1
+		t.status.serverIndexes = t.status.serverIndexes[1:]
+	}
+
+	t.comp.servers.AddItem(name, tlsText(source, serv.TLS), ascii(num), nil)
 
 	t.renderServer(name)
 	return nil

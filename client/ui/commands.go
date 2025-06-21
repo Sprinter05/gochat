@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"github.com/gdamore/tcell/v2"
 )
@@ -110,6 +111,11 @@ var commands map[string]operation = map[string]operation{
 		fun:    adminOperation,
 		nArgs:  1,
 		format: "/admin <operation> <arg_1> <arg_2> ... <arg_n>",
+	},
+	"servers": {
+		fun:    listServers,
+		nArgs:  0,
+		format: "/servers",
 	},
 }
 
@@ -715,6 +721,36 @@ func listBuffers(t *TUI, cmd Command) {
 	}
 
 	content := list.String()
+	cmd.print(content, cmds.RESULT)
+}
 
+func listServers(t *TUI, cmd Command) {
+	var list strings.Builder
+	servs, err := db.GetAllServers(t.data.DB)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+	}
+
+	for _, v := range servs {
+		hidden := ""
+		_, ok := t.servers.Get(v.Name)
+		if !ok {
+			hidden = " - [gray::i]Hidden[-::-]"
+		}
+
+		addr := Source{
+			Address: v.Address,
+			Port:    v.Port,
+		}
+
+		str := fmt.Sprintf(
+			"\n- [yellow::b]%s[-::-] ([red]%s[-])%s",
+			v.Name, addr.String(), hidden,
+		)
+
+		list.WriteString(str)
+	}
+
+	content := list.String()
 	cmd.print(content, cmds.RESULT)
 }

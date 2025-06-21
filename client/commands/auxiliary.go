@@ -212,12 +212,20 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 	cmd.Output("all local users:", USRS)
 
 	for _, v := range localUsers {
+		addr := "(Unknown)"
+		if v.User.Server.Port != 0 {
+			addr = fmt.Sprintf(
+				"(%s - %s:%d)",
+				v.User.Server.Name,
+				v.User.Server.Address,
+				v.User.Server.Port,
+			)
+		}
+
 		str := fmt.Sprintf(
-			"%s (%s - %s:%d)",
+			"%s %s",
 			v.User.Username,
-			v.User.Server.Name,
-			v.User.Server.Address,
-			v.User.Server.Port,
+			addr,
 		)
 		users = append(users, []byte(str))
 		cmd.Output(str, USRS)

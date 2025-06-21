@@ -89,7 +89,8 @@ func RemoveServer(db *gorm.DB, address string, port uint16) error {
 func GetAllServers(db *gorm.DB) ([]Server, error) {
 	var servers []Server
 	result := db.Raw(
-		`SELECT * FROM servers`,
+		`SELECT * FROM servers
+		ORDER BY server_ID ASC`,
 	).Scan(&servers)
 	return servers, result.Error
 }
@@ -103,6 +104,20 @@ func ServerExists(db *gorm.DB, address string, port uint16) (bool, error) {
 			WHERE address = ? AND port = ?
 		) AS found`,
 		address, port,
+	).Scan(&found)
+
+	return found, result.Error
+}
+
+// Returns true if the specified named server exists in the database.
+func ServerExistsByName(db *gorm.DB, name string) (bool, error) {
+	var found bool
+	result := db.Raw(
+		`SELECT EXISTS(
+			SELECT * FROM servers 
+			WHERE name = ?
+		) AS found`,
+		name,
 	).Scan(&found)
 
 	return found, result.Error
