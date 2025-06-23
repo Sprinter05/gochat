@@ -18,7 +18,7 @@ const (
 	ReadTimeout      int    = 10                 // Timeout for a TCP read block in minutes
 	HandshakeTimeout int    = 20                 // Timeout for a connection handshake block in seconds
 	TokenExpiration  int    = 30                 // Deadline for a reusable token expiration in minutes
-	UsernameRegex    string = "^[0-9a-z]{0,32}$" // To check if ausername is valid
+	UsernameRegex    string = "^[0-9a-z]{0,32}$" // To check if a username is valid
 )
 
 /* ACTION CODES */
