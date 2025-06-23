@@ -1,4 +1,4 @@
-# This allows for a different version to be used
+# Using alpine for size optimisation
 FROM golang:alpine
 
 # Install necessary packages

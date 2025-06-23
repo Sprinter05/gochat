@@ -300,17 +300,9 @@ func DeleteLocalUser(db *gorm.DB, username string, address string, port uint16) 
 		return result.Error
 	}
 
-	if result.RowsAffected != 1 {
-		return fmt.Errorf("unexpected rows affected when deleting local user")
-	}
-
 	result = db.Delete(user)
 	if result.Error != nil {
 		return result.Error
-	}
-
-	if result.RowsAffected != 1 {
-		return fmt.Errorf("unexpected rows affected when deleting user")
 	}
 
 	return nil
@@ -511,4 +503,46 @@ func DeleteConversation(db *gorm.DB, src, dst string, address string, port uint1
 	).Delete(&Message{})
 
 	return result.Error
+}
+
+/* RECOVERY FUNCTIONS */
+
+// Tries to recover all data belonging to a dangling local username
+// in a matrix with all messages per user found and all users found
+func RecoverMessages(db *gorm.DB, username string) ([]LocalUser, [][]Message, error) {
+	var users []LocalUser
+	result := db.Raw(
+		`SELECT *
+		FROM local_users lu JOIN users u ON lu.user_id = u.user_id
+		WHERE u.username = ? AND u.server_id NOT IN (
+			SELECT server_id
+			FROM servers
+		)`,
+		username,
+	).Scan(&users)
+
+	if result.Error != nil {
+		return nil, nil, result.Error
+	}
+
+	msgs := make([][]Message, 0)
+
+	for _, v := range users {
+		convo := make([]Message, 0)
+		result = db.Raw(
+			`SELECT *
+			FROM messages
+			WHERE source_id = ? OR destination_id = ?
+			ORDER BY source_id ASC`,
+			v.UserID, v.UserID,
+		).Scan(&convo)
+
+		if result.Error != nil {
+			return nil, nil, result.Error
+		}
+
+		msgs = append(msgs, convo)
+	}
+
+	return users, msgs, nil
 }
