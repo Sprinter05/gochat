@@ -1,6 +1,9 @@
 # This allows for a different version to be used
 FROM golang:alpine
 
+# Install necessary packages
+RUN apk add --no-cache make
+
 # Copy the source code and compile
 WORKDIR /src
 COPY . .
