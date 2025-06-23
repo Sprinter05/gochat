@@ -1,5 +1,5 @@
 # gochat
-gochat is a light, **TCP**-based, client-server, **E2E*** (end-to-end) chat protocol. Said protocol is detailed in the [Specification](https://github.com/Sprinter05/gochat/blob/main/doc/SPECIFICATION.md).
+gochat is a light, **TCP**-based, client-server, **E2E** (end-to-end) chat protocol. Said protocol is detailed in the [Specification](https://github.com/Sprinter05/gochat/blob/main/doc/SPECIFICATION.md).
 
 ## Content
 This repository includes:
@@ -9,11 +9,11 @@ This repository includes:
     - A **shell** interface
 - A **server** implementation with:
     - The **source code**
-    - The [implementation](https://github.com/Sprinter05/gochat/blob/main/doc/IMPLEMENTATION.md)
+    - The [implementation](https://github.com/Sprinter05/gochat/blob/main/doc/IMPLEMENTATION.md) details.
 
 ## Stack
 ### Client stack:
-The client's local database is a [SQLite](https://www.sqlite.org/) database handled by [GORM](https://gorm.io/index.html). The client terminal UI is made possible thanks to [tview](https://github.com/rivo/tview).
+The client's local database is a [SQLite](https://www.sqlite.org/) database handled by [GORM](https://gorm.io/index.html). The client **TUI** is made possible thanks to [tview](https://github.com/rivo/tview).
 ### Server stack:
 The server database runs under [MariaDB](https://mariadb.org/), also handled by with [GORM](https://gorm.io/index.html).
 
@@ -39,61 +39,42 @@ For more information on the protocol, be sure to read the [Specification](https:
 
 ## Build
 ### Compiling
-In order to compile the client or server you may use the `Makefile`. To build the server, in the root of the repository, run:
+In order to compile the client or server you may use the `Makefile`. To build the any of them, in the root of the repository, run:
 
 ```bash
-$ make server
+$ make <server/client/all>
 ```
 
-Or alternatively, to build the client:
-
-```bash
-$ make client
-```
-
-> Note: You can compile both the client and server with `make all`, and delete the applications with `make clean`
+> Note: You can delete the compiled applications by running `make clean`
 
 Executing any of these commands will generate a `build/` directory if it wasn't created already. In it, the compiled binary executables will be generated.
 
+### Running
+Both client and server provide a `--help` argument to see the available parameters for the program. The configuration file will be loaded automatically if it exists in the current directory and is named `config.json`.
+ 
 ## Running the server
-#### Setting up the server database
-The server requires an open MariaDB database. You may create a **MariaDB** service 
-on your own, but this repository also includes a **Docker** stack with both the database and server.
-
-You may compile the *server image* using the provided **Dockerfile** in `docker/Dockerfile`.
-
-With `docker/compose.yml` you can run the stack. Install `docker-compose` if you need to (or **Docker** as a whole), `cd` into `docker/` and run:
+### Running under Docker
+This repository provides a full **Compose** stack to run the server. You just need to manually compile the *Docker image* through the provided **Dockerfile** first using the following command (ran in the root directory):
 
 ```bash
-$ docker compose up
+docker build -t Sprinter05/gochat:latest .
 ```
 
-or
+After that you will need to run the compose stack using the file found in `docker/compose.yml` and running the following command:
 
 ```bash
-$ docker compose up -d
+docker compose up -d
 ```
 
-to run it in detached mode.
+Once the stack has been initialised you will find *3 new folders* created in the same directory used to run the stack. The `config` folder contains the `server.json` configuration file which can be used to modify the behaviour of the server (restart is required after changes to the configuration file), the `logs` folder contains all the relevant server logs, and the `certs` folder is an empty folder that must be used if you want the **TLS** functionality (you must provide both the private key and certificate in said folder, making sure the names are correct in the configuration file).
 
-#### (Optional) Creating TLS certificates
-You may run the server in TLS mode creating the required TLS certificates. Use any prefered method you may have.
+### Running manually
+To run manually you must use a **MariaDB** database and modify the server's configuration file accordingly to be able to connect to it.
 
-#### Configuring the server
+### Creating TLS certificates
+You may run the server with a **TLS** port by creating the required **TLS** certificates. It is recommended to use `certbot` for creating your certificates, following the instructions of your domain provider. The required files generated using `certbot` will be `fullchain.pem` (`cert_file`) and `privkey.pem` (`key_file`). Other methods should also work, but are not documented here. Please note that *self-signed* certificates are also supported, but not recommended.
 
-TODO
+> Note: When connecting to the server through the TLS port you must use the `domain:port` combination instead of using `ip:port` or the TLS certificate will fail to load.
 
 ## Running a client instance
-To run a client instance you need to set up a configuration file first. There is an example configuration file in the repository: `client_config.json`.
-
-Once the file is set up, you can open the terminal UI by executing:
-
-```bash
-$ build/gcclient
-```
-
-You can open the shell mode by executing:
-
-```bash
-$ build/gcclient --shell
-```
+The client application can be ran by just using the executable. Necessary files will be created automatically by the application. We recommend reading the [Quickstart Guide]() (***TODO***) to familiarise yourself with the usage of the client application.

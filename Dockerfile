@@ -1,6 +1,5 @@
 # This allows for a different version to be used
-ARG GOVERSION=latest
-FROM golang:$GOVERSION
+FROM golang:alpine
 
 # Copy the source code and compile
 WORKDIR /src

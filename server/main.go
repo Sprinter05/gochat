@@ -69,7 +69,7 @@ func setup() Config {
 	var useShell bool
 
 	flag.StringVar(&configFile, "config", "config.json", "Configuration file to load, must be in JSON format.")
-	flag.BoolVar(&useShell, "shell", false, "Open a database shell for the server.")
+	flag.BoolVar(&useShell, "shell", false, "Open a database management shell for the server.")
 	flag.Parse()
 
 	// Read configuration file
