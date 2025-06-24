@@ -117,6 +117,11 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/servers",
 	},
+	"recover": {
+		fun:    recoverData,
+		nArgs:  1,
+		format: "/recover <username> (-cleanup)",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -187,6 +192,32 @@ func askForNewPassword(t *TUI) (string, error) {
 }
 
 // COMMANDS
+
+func recoverData(t *TUI, cmd Command) {
+	uname := cmd.Arguments[0]
+	pswd, err := newLoginPopup(t, "Please enter the account's password...")
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	cleanup := false
+	if len(cmd.Arguments) > 1 && cmd.Arguments[1] == "-cleanup" {
+		cleanup = true
+	}
+
+	err = cmds.Recover(cmds.Command{
+		Static: &t.data,
+		Output: cmd.print,
+	}, uname, pswd, cleanup)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	cmd.print("data succesfully recovered!", cmds.RESULT)
+}
 
 func adminOperation(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
@@ -542,7 +573,8 @@ func loginUser(t *TUI, cmd Command) {
 
 func listUsers(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
-	if data == nil {
+	opt := cmd.Arguments[0] + "|" + cmd.Arguments[1]
+	if data == nil && opt != "local|all" {
 		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
@@ -557,7 +589,7 @@ func listUsers(t *TUI, cmd Command) {
 	}
 
 	var usrs cmds.USRSType
-	switch args[0] + "|" + args[1] {
+	switch opt {
 	case "remote|all":
 		if queryPerms {
 			usrs = cmds.ALLPERMS
@@ -579,8 +611,12 @@ func listUsers(t *TUI, cmd Command) {
 		return
 	}
 
-	ctx, cancel := timeout(cmd.serv, c.Data)
-	defer c.Data.Waitlist.Cancel(cancel)
+	ctx := context.Background()
+	if opt != "local|all" {
+		var cancel context.CancelFunc
+		ctx, cancel = timeout(cmd.serv, c.Data)
+		defer c.Data.Waitlist.Cancel(cancel)
+	}
 	reply, err := cmds.Usrs(ctx, c, usrs)
 
 	if err != nil {

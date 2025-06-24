@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
+	"io/fs"
 	"log"
 	"net"
 	"os"
@@ -94,20 +96,23 @@ func init() {
 	flag.BoolVar(&verbosePrint, "verbose", true, "Whether or not to print verbose output information.")
 	flag.Parse()
 
-	err := os.Mkdir("export", commands.DefaultPerms)
-	if err != nil {
-		log.Fatal(err)
+	folders := []string{
+		"export",
+		"import",
+		"logs",
 	}
 
-	err = os.Mkdir("import", commands.DefaultPerms)
-	if err != nil {
-		log.Fatal(err)
+	// Create necessary folders
+	for _, v := range folders {
+		_, err := os.Stat(v)
+		if err != nil && errors.Is(err, fs.ErrNotExist) {
+			err = os.Mkdir(v, commands.DefaultPerms)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 
-	err = os.Mkdir("logs", commands.DefaultPerms)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 /* MAIN */

@@ -295,7 +295,11 @@ func DeleteLocalUser(db *gorm.DB, username string, address string, port uint16) 
 		return err
 	}
 
-	result := db.Delete(LocalUser{UserID: user.UserID})
+	result := db.Raw(
+		`DELETE FROM local_users
+		WHERE user_id = ?`,
+		user.UserID,
+	)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -443,7 +447,7 @@ func GetUsersMessagesLimit(db *gorm.DB, src, dst string, address string, port ui
 	return messages, nil
 }
 
-// Returns a slice with all messages between two users.
+// Returns a slice with all messages between two users, filling foreign keys.
 func GetAllUsersMessages(db *gorm.DB, src, dst string, address string, port uint16) ([]Message, error) {
 	var messages []Message
 
@@ -507,9 +511,9 @@ func DeleteConversation(db *gorm.DB, src, dst string, address string, port uint1
 
 /* RECOVERY FUNCTIONS */
 
-// Tries to recover all data belonging to a dangling local username
-// in a matrix with all messages per user found and all users found
-func RecoverMessages(db *gorm.DB, username string) ([]LocalUser, [][]Message, error) {
+// Tries to recover all local users not belonging to any server
+// given a username
+func RecoverUsers(db *gorm.DB, username string) ([]LocalUser, error) {
 	var users []LocalUser
 	result := db.Raw(
 		`SELECT *
@@ -522,27 +526,98 @@ func RecoverMessages(db *gorm.DB, username string) ([]LocalUser, [][]Message, er
 	).Scan(&users)
 
 	if result.Error != nil {
-		return nil, nil, result.Error
+		return nil, result.Error
 	}
 
-	msgs := make([][]Message, 0)
+	return users, nil
+}
 
-	for _, v := range users {
-		convo := make([]Message, 0)
-		result = db.Raw(
+// Tries to recover all messages asocciated to a user, separeted
+// by conversations
+func RecoverMessages(db *gorm.DB, lu LocalUser) ([][]Message, error) {
+	var ids []uint
+
+	// Get all people that it has messages with
+	result := db.Raw(
+		`SELECT DISTINCT(u.user_id)
+			FROM messages m JOIN users u ON m.source_id = u.user_id
+				OR m.destination_id = u.user_id
+			WHERE m.source_id = ? 
+				OR m.destination_id = ?
+		EXCEPT SELECT user_id
+			FROM users
+			WHERE user_id = ?`,
+		lu.UserID, lu.UserID, lu.UserID,
+	).Scan(&ids)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// Preallocate array
+	convos := make([][]Message, 0, len(ids))
+
+	// Used to fill foreign keys
+	user, err := getUserByID(db, lu.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all conversations
+	for _, v := range ids {
+		var messages []Message
+		result := db.Raw(
 			`SELECT *
 			FROM messages
-			WHERE source_id = ? OR destination_id = ?
-			ORDER BY source_id ASC`,
-			v.UserID, v.UserID,
-		).Scan(&convo)
+			WHERE (source_id = ? AND destination_id = ?) 
+				OR (source_id = ? AND destination_id = ?)
+			ORDER BY stamp ASC`,
+			lu.UserID, v,
+			v, lu.UserID,
+		).Scan(&messages)
 
 		if result.Error != nil {
-			return nil, nil, result.Error
+			return nil, result.Error
 		}
 
-		msgs = append(msgs, convo)
+		dest, err := getUserByID(db, v)
+		if err != nil {
+			return nil, err
+		}
+
+		// Fill foreign keys
+		for i, m := range messages {
+			if m.SourceID == user.UserID {
+				messages[i].SourceUser = user
+				messages[i].DestinationUser = dest
+			} else {
+				messages[i].SourceUser = dest
+				messages[i].DestinationUser = user
+			}
+		}
+
+		convos = append(convos, messages)
 	}
 
-	return users, msgs, nil
+	return convos, nil
+}
+
+// Cleans a user that has been recovered
+func CleanupUser(db *gorm.DB, lu LocalUser) error {
+	result := db.Delete(&lu)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	user, err := getUserByID(db, lu.UserID)
+	if err != nil {
+		return err
+	}
+
+	result = db.Delete(&user)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
 }

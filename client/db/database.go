@@ -143,6 +143,17 @@ func addUser(db *gorm.DB, username string, serverID uint) (User, error) {
 	return user, result.Error
 }
 
+// Returns a user with an specific id
+func getUserByID(db *gorm.DB, id uint) (u User, err error) {
+	result := db.Raw(
+		`SELECT *
+		FROM users
+		WHERE user_id = ?`,
+		id,
+	).Scan(&u)
+	return u, result.Error
+}
+
 // Finds a message in the database doing a deep search.
 func findMessage(db *gorm.DB, srcID, dstID uint, stamp time.Time, text string) (bool, error) {
 	var found bool

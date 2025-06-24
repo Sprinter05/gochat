@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
@@ -140,6 +141,7 @@ var (
 	ErrorRequestToSelf         error = fmt.Errorf("cannot request yourself")                        // cannot request yourself
 	ErrorUnknownHookOption     error = fmt.Errorf("invalid hook provided")                          // invalid hook provided
 	ErrorInvalidAdminOperation error = fmt.Errorf("invalid admin operation")                        // invalid admin operation
+	ErrorRecoveryPassword      error = fmt.Errorf("could not recover during password checking")     // could not recover during password checking
 )
 
 /* LOOKUP TABLES */
@@ -163,6 +165,105 @@ var adminList = map[string]spec.Admin{
 }
 
 /* CLIENT COMMANDS */
+
+// Recovers the private key and messages for a specified user
+// Does not require a Data struct in Command
+func Recover(cmd Command, username, pass string, cleanup bool) error {
+	verbosePrint("recovering data...", cmd)
+	users, err := db.RecoverUsers(cmd.Static.DB, username)
+	if err != nil {
+		return err
+	}
+
+	var target db.LocalUser
+	attempts := 0
+
+	clean := func() {
+		if cleanup {
+			db.CleanupUser(cmd.Static.DB, target)
+			cmd.Output("deleted user from database", RESULT)
+		}
+	}
+
+	// We try the password on every user
+	verbosePrint("trying password...", cmd)
+	for _, v := range users {
+		hash := []byte(v.Password)
+		err := bcrypt.CompareHashAndPassword(hash, []byte(pass))
+		if err != nil {
+			attempts += 1
+			continue
+		}
+
+		// User found
+		target = v
+		break
+	}
+
+	// No matching password found
+	if attempts == len(users) {
+		return ErrorRecoveryPassword
+	}
+
+	verbosePrint("exporting private key...", cmd)
+	unamedir := path.Join("export", username+".priv")
+	dec, err := db.DecryptData([]byte(pass), []byte(target.PrvKey))
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(unamedir, []byte(dec), DefaultPerms)
+	if err != nil {
+		return err
+	}
+
+	str1 := fmt.Sprintf(
+		"file succesfully written to %s", unamedir,
+	)
+	cmd.Output(str1, RESULT)
+
+	verbosePrint("exporting messages...", cmd)
+	msgs, err := db.RecoverMessages(cmd.Static.DB, target)
+	if err != nil {
+		return err
+	}
+
+	if len(msgs) == 0 {
+		cmd.Output("no messages to export", RESULT)
+		clean()
+		return nil
+	}
+
+	var messages strings.Builder
+	for _, v := range msgs {
+		messages.WriteString("--- CONVERSATION BEGINS ---\n")
+		for _, m := range v {
+			str := fmt.Sprintf(
+				"%s | [%s] -> [%s]: %s\n",
+				m.Stamp.Format(time.RFC850),
+				m.SourceUser.Username,
+				m.DestinationUser.Username,
+				m.Text,
+			)
+			messages.WriteString(str)
+		}
+		messages.WriteString("--- CONVERSATION FINISH ---\n")
+	}
+
+	msgsdir := path.Join("export", username+".msgs")
+	err = os.WriteFile(msgsdir, []byte(messages.String()), DefaultPerms)
+	if err != nil {
+		return err
+	}
+
+	str2 := fmt.Sprintf(
+		"file succesfully written to %s", msgsdir,
+	)
+	cmd.Output(str2, RESULT)
+
+	clean()
+	return nil
+}
 
 // Imports a private RSA key for a new local user
 // from the "import" directory using the specification PEM format.
@@ -256,16 +357,14 @@ func Export(cmd Command, username, pass string) error {
 	if decryptErr != nil {
 		return decryptErr
 	}
-	localUser.PrvKey = string(dec)
 
-	// Creates export/ directory if it does not exist
 	if _, err := os.Stat("export"); errors.Is(err, fs.ErrNotExist) {
 		cmd.Output("missing 'export' directory", INFO)
 		return err
 	}
 
 	fulldir := path.Join("export", username+".priv")
-	writeErr := os.WriteFile(fulldir, []byte(localUser.PrvKey), DefaultPerms)
+	writeErr := os.WriteFile(fulldir, []byte(dec), DefaultPerms)
 	if writeErr != nil {
 		return writeErr
 	}

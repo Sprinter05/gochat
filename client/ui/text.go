@@ -137,6 +137,12 @@ const CommandHelp string = `
 	- [cyan]"kick <username>"[-] will disconnect the specified user from the server
 	- [cyan]"setperms <username> <permissions>[-] will set the permission level of the new user
 	- [cyan]"motd <motd>"[-] will set a new MOTD (message of the day) for the server
+
+[yellow::b]/recover[-::-] [green]<user>[-] [blue](-cleanup)[-]: Recovers data from a dangling user
+	- If a user has become dangling (server is "Unknown"), this can be used to recover its data
+	- This command will only work with dangling users
+	- A popup asking for the password of the account to recover will appear
+	- If cleanup is used, the user will be deleted from the database after recovery
 `
 
 /* MESSAGES */
