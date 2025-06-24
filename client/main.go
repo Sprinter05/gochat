@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -15,7 +14,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// Stores the json attributes of the client configuration file
+// Default level of permissions that should be used
+const defautlPerms = 0755
+
+/* CONFIG */
+
+// Specifies the configuration JSON file for
+// the client.
 type Config struct {
 	ShellServer struct {
 		Address    string `json:"address"`
@@ -26,25 +31,89 @@ type Config struct {
 	Database struct {
 		Path     string `json:"path"`
 		LogPath  string `json:"log_path"`
-		LogLevel uint8  `json:"log_level"`
+		LogLevel uint8  `json:"log_level"` // From 1 to 4
 	} `json:"database"`
 	UIConfig struct {
 		DebugBuffer bool `json:"debug_buffer"`
 	} `json:"ui_config"`
 }
 
+// Returns a Config struct with the data obtained from the json
+// configuration file.
+func getConfig() (config Config) {
+	f, err := os.Open(configFile)
+	if err != nil {
+		// Get the default configuration
+		config = defaultConfig()
+		cfg, err := json.Marshal(config)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Write it for next execution
+		err = os.WriteFile("config.json", cfg, defautlPerms)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		return config
+	}
+	defer f.Close()
+
+	// Decode the configuration into the struct
+	jsonParser := json.NewDecoder(f)
+	jsonParser.Decode(&config)
+	return config
+}
+
+// Returns the default configuration file
+func defaultConfig() Config {
+	return Config{
+		Database: struct {
+			Path     string "json:\"path\""
+			LogPath  string "json:\"log_path\""
+			LogLevel uint8  "json:\"log_level\""
+		}{
+			Path:     "client.db",
+			LogPath:  "logs/database.log",
+			LogLevel: 2,
+		},
+	}
+}
+
+/* FLAGS */
+
+// Specifies flags to be passed to the program
 var (
 	configFile   string
 	useShell     bool
 	verbosePrint bool
 )
 
+// Function that is ran every time the program is started
 func init() {
 	flag.StringVar(&configFile, "config", "config.json", "Configuration file to use. Must be in JSON format.")
 	flag.BoolVar(&useShell, "shell", false, "Whether to use a shell instead of a TUI.")
 	flag.BoolVar(&verbosePrint, "verbose", true, "Whether or not to print verbose output information.")
 	flag.Parse()
+
+	err := os.Mkdir("export", 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.Mkdir("import", 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.Mkdir("logs", 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
+
+/* MAIN */
 
 // Main client function
 func main() {
@@ -62,22 +131,7 @@ func main() {
 	}
 }
 
-// Returns a Config struct with the data obtained from the json
-// configuration file.
-func getConfig() Config {
-	config := Config{}
-
-	f, err := os.Open(configFile)
-	if err != nil {
-		log.Fatalf("configuration file could not be opened: %s", err)
-	}
-	defer f.Close()
-
-	jsonParser := json.NewDecoder(f)
-	jsonParser.Decode(&config)
-	return config
-}
-
+// Function that creates a new TUI and executes it
 func setupTUI(config Config, dbconn *gorm.DB) {
 	_, app := ui.New(commands.StaticData{
 		Verbose: verbosePrint,
@@ -85,19 +139,22 @@ func setupTUI(config Config, dbconn *gorm.DB) {
 	}, config.UIConfig.DebugBuffer && verbosePrint)
 
 	if err := app.Run(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
+// Function that creates a new working shell and executes it
 func setupShell(config Config, dbconn *gorm.DB) {
 	address := config.ShellServer.Address
 	port := config.ShellServer.Port
 
-	var con net.Conn
+	var conn net.Conn
 	var server db.Server
+
+	// Connect automatically if shell server exists
 	if address != "" {
 		var conErr error
-		con, conErr = commands.SocketConnect(
+		conn, conErr = commands.SocketConnect(
 			address, port,
 			config.ShellServer.TLS,
 			config.ShellServer.VerifyCert,
@@ -108,35 +165,10 @@ func setupShell(config Config, dbconn *gorm.DB) {
 		server, _ = db.AddServer(dbconn, address, port, "Default", false)
 	}
 
-	// TODO: verbose to config
+	args := cli.New(commands.StaticData{
+		Verbose: verbosePrint,
+		DB:      dbconn,
+	}, conn, server)
 
-	data := commands.NewEmptyData()
-	data.Server = &server
-	data.Conn = con
-
-	static := commands.StaticData{Verbose: verbosePrint, DB: dbconn}
-	args := commands.Command{Data: &data, Static: &static, Output: cli.Print}
-
-	if verbosePrint {
-		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
-	}
-
-	if address != "" {
-		commands.WaitConnect(args, con, server)
-		if verbosePrint {
-			args.Output("listening for incoming packets...", commands.INFO)
-		}
-		go commands.ListenPackets(args, func() {})
-	}
-
-	go cli.RECIVHandler(&args)
-	go cli.HOOKHandler(&args)
-
-	cli.NewShell(args)
-	// TODO: check that the connection closes correctly even without this
-	/*
-		if data.ClientCon.Conn != nil {
-			data.ClientCon.Conn.Close()
-		}
-	*/
+	cli.Run(args)
 }

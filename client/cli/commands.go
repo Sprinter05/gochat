@@ -171,7 +171,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		}
 	}
 
-	_, connErr := commands.Conn(cmd, server, noverify)
+	connErr := commands.Conn(cmd, server, noverify)
 	if connErr != nil {
 		return connErr
 	}
@@ -184,7 +184,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 //
 // Arguments: none
 func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	_, discnErr := commands.Discn(cmd)
+	discnErr := commands.Discn(cmd)
 	cmd.Data.Server = nil
 	return discnErr
 }
@@ -260,7 +260,7 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 		return commands.ErrorPasswordsDontMatch
 	}
 
-	_, regErr := commands.Reg(ctx, cmd, string(username), string(pass1))
+	regErr := commands.Reg(ctx, cmd, string(username), string(pass1))
 	return regErr
 }
 
@@ -278,7 +278,7 @@ func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	}
 	cmd.Output("\n", commands.PROMPT)
 
-	_, deregErr := commands.Dereg(ctx, cmd, cmd.Data.User.User.Username, string(pass))
+	deregErr := commands.Dereg(ctx, cmd, cmd.Data.User.User.Username, string(pass))
 	if deregErr != nil {
 		return deregErr
 	}
@@ -319,7 +319,7 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		return passErr
 	}
 	cmd.Output("\n", commands.PROMPT)
-	_, loginErr := commands.Login(ctx, cmd, string(username), string(pass))
+	loginErr := commands.Login(ctx, cmd, string(username), string(pass))
 	return loginErr
 }
 
@@ -327,7 +327,7 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 //
 // Arguments: none
 func logoutUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	_, logoutErr := commands.Logout(ctx, cmd)
+	logoutErr := commands.Logout(ctx, cmd)
 	return logoutErr
 }
 
@@ -385,7 +385,7 @@ func sendMessage(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 	dstUser := string(args[0])
 	plainText := string(args[1])
 
-	_, msgErr := commands.Msg(ctx, cmd, dstUser, plainText)
+	msgErr := commands.Msg(ctx, cmd, dstUser, plainText)
 	return msgErr
 }
 
@@ -393,7 +393,7 @@ func sendMessage(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 //
 // Arguments: none
 func receiveMessages(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	_, recivErr := commands.Reciv(ctx, cmd)
+	recivErr := commands.Reciv(ctx, cmd)
 	return recivErr
 }
 
@@ -406,7 +406,7 @@ func subscribe(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	}
 
 	hook := string(args[0])
-	_, subErr := commands.Sub(ctx, cmd, hook)
+	subErr := commands.Sub(ctx, cmd, hook)
 	return subErr
 }
 
@@ -419,7 +419,7 @@ func unsubscribe(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 	}
 
 	hook := string(args[0])
-	_, unsubErr := commands.Unsub(ctx, cmd, hook)
+	unsubErr := commands.Unsub(ctx, cmd, hook)
 	return unsubErr
 }
 
@@ -455,7 +455,7 @@ func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		return commands.ErrorPasswordsDontMatch
 	}
 
-	_, importErr := commands.Import(cmd, username, string(pass1), path)
+	importErr := commands.Import(cmd, username, string(pass1), path)
 	return importErr
 }
 
@@ -482,7 +482,7 @@ func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	}
 	cmd.Output("\n", commands.PROMPT)
 
-	_, exportErr := commands.Export(cmd, username, string(pass))
+	exportErr := commands.Export(cmd, username, string(pass))
 	return exportErr
 }
 
@@ -521,7 +521,7 @@ func changeTLS(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		}
 	}
 
-	_, tlsErr := commands.TLS(cmd, &server, on)
+	tlsErr := commands.TLS(cmd, &server, on)
 	if tlsErr != nil {
 		return tlsErr
 	}
@@ -638,6 +638,6 @@ func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte)
 
 	opStr := strings.ToLower(string(args[0]))
 
-	_, adminErr := commands.Admin(ctx, cmd, opStr, args[1:]...)
+	adminErr := commands.Admin(ctx, cmd, opStr, args[1:]...)
 	return adminErr
 }

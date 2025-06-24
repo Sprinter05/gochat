@@ -7,10 +7,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
 	"github.com/Sprinter05/gochat/client/commands"
+	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
@@ -28,9 +30,38 @@ func fetchCommand(op string, cmd commands.Command) ShellCommand {
 	return v
 }
 
+// Creates a new shell and an option connection and server
+func New(static commands.StaticData, conn net.Conn, server db.Server) commands.Command {
+	data := commands.NewEmptyData()
+	cmds := commands.Command{
+		Data:   &data,
+		Static: &static,
+		Output: Print,
+	}
+
+	// Assign data variables
+	data.Conn = conn
+	data.Server = &server
+
+	if static.Verbose {
+		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
+	}
+
+	commands.WaitConnect(cmds, conn, server)
+	if static.Verbose {
+		cmds.Output("listening for incoming packets...", commands.INFO)
+	}
+	go commands.ListenPackets(cmds, func() {})
+
+	go RECIVHandler(cmds)
+	go HOOKHandler(cmds)
+
+	return cmds
+}
+
 // Starts a shell that allows the client to send packets
 // to the gochat server, along with other functionalities.
-func NewShell(data commands.Command) {
+func Run(data commands.Command) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
 		PrintPrompt(*data.Data)
@@ -115,14 +146,14 @@ func Print(text string, outputType commands.OutputType) {
 // constantly for incoming RECIV packets
 // and performs the necessary shell
 // operations.
-func RECIVHandler(cmd *commands.Command) {
+func RECIVHandler(cmd commands.Command) {
 	for {
 		reciv, _ := cmd.Data.Waitlist.Get(
 			context.Background(),
 			commands.Find(0, spec.RECIV),
 		)
 		decrypted, storeErr := commands.StoreMessage(
-			context.Background(), reciv, *cmd,
+			context.Background(), reciv, cmd,
 		)
 		if storeErr != nil {
 			// Removes prompt line
@@ -130,7 +161,7 @@ func RECIVHandler(cmd *commands.Command) {
 			fmt.Println(storeErr)
 			continue
 		}
-		printMessage(reciv, decrypted.Content, *cmd)
+		printMessage(reciv, decrypted.Content, cmd)
 	}
 }
 
@@ -138,13 +169,13 @@ func RECIVHandler(cmd *commands.Command) {
 // constantly for incoming HOOK packets
 // and performs the necessary shell
 // operations.
-func HOOKHandler(cmd *commands.Command) {
+func HOOKHandler(cmd commands.Command) {
 	for {
 		hook, _ := cmd.Data.Waitlist.Get(
 			context.Background(),
 			commands.Find(0, spec.HOOK),
 		)
-		printHook(hook, *cmd)
+		printHook(hook, cmd)
 	}
 }
 

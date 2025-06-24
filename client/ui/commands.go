@@ -206,7 +206,7 @@ func adminOperation(t *TUI, cmd Command) {
 		extra = append(extra, []byte(v))
 	}
 
-	_, err := cmds.Admin(ctx, c, args[0], extra...)
+	err := cmds.Admin(ctx, c, args[0], extra...)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -234,7 +234,7 @@ func deregisterUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-	_, err = cmds.Dereg(ctx, c, args[0], pswd)
+	err = cmds.Dereg(ctx, c, args[0], pswd)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -257,7 +257,7 @@ func unsubEvent(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-	_, err := cmds.Unsub(ctx, c, args[0])
+	err := cmds.Unsub(ctx, c, args[0])
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -280,7 +280,7 @@ func subEvent(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-	_, err := cmds.Sub(ctx, c, args[0])
+	err := cmds.Sub(ctx, c, args[0])
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -302,7 +302,7 @@ func exportKey(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	_, err = cmds.Export(c, args[0], pswd)
+	err = cmds.Export(c, args[0], pswd)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -324,7 +324,7 @@ func importKey(t *TUI, cmd Command) {
 	}
 
 	c, args := cmd.createCmd(t, data)
-	_, err = cmds.Import(c, args[0], pswd, args[1])
+	err = cmds.Import(c, args[0], pswd, args[1])
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -398,7 +398,7 @@ func toggleTLS(t *TUI, cmd Command) {
 		return
 	}
 
-	_, err := cmds.TLS(c, c.Data.Server, useTLS)
+	err := cmds.TLS(c, c.Data.Server, useTLS)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -439,7 +439,7 @@ func disconnectServer(t *TUI, cmd Command) {
 	}
 
 	c, _ := cmd.createCmd(t, data)
-	_, err := cmds.Discn(c)
+	err := cmds.Discn(c)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -460,7 +460,7 @@ func logoutUser(t *TUI, cmd Command) {
 	c, _ := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-	_, err := cmds.Logout(ctx, c)
+	err := cmds.Logout(ctx, c)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -497,7 +497,7 @@ func loginUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	lCtx, lCancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(lCancel)
-	_, err = cmds.Login(lCtx, c, args[0], pswd)
+	err = cmds.Login(lCtx, c, args[0], pswd)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -520,7 +520,7 @@ func loginUser(t *TUI, cmd Command) {
 	cmd.print("recovering messages...", cmds.INTERMEDIATE)
 	rCtx, rCancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(rCancel)
-	_, err = cmds.Reciv(rCtx, c)
+	err = cmds.Reciv(rCtx, c)
 	if err != nil {
 		if errors.Is(err, spec.ErrorEmpty) {
 			cmd.print("no new messages have been received", cmds.RESULT)
@@ -642,7 +642,7 @@ func registerUser(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-	_, err = cmds.Reg(ctx, c, args[0], pswd)
+	err = cmds.Reg(ctx, c, args[0], pswd)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -673,7 +673,7 @@ func connectServer(t *TUI, cmd Command) {
 	}
 
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
-	_, err := cmds.Conn(c, *c.Data.Server, noVerify)
+	err := cmds.Conn(c, *c.Data.Server, noVerify)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
