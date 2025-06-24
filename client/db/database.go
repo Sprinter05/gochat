@@ -4,6 +4,7 @@ package db
 // The database used for the client is SQLite, connected with GORM.
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"time"
@@ -49,6 +50,11 @@ func GetDBLogger(logLevel uint8, logPath string) logger.Interface {
 
 /* MODELS */
 
+// Per-user configuration
+type UserConfig struct {
+	Buffers []string `json:"buffer_list"`
+}
+
 // Generic user table that defines the columns every user shares.
 type User struct {
 	UserID   uint   `gorm:"autoIncrement:false;not null"`
@@ -61,8 +67,9 @@ type User struct {
 // The passwords should be hashed and the private
 // keys need to be stored in PEM format.
 type LocalUser struct {
-	UserID   uint   `gorm:"primaryKey;not null;autoIncrement:false"`
-	Password string `gorm:"not null"`
+	UserID   uint           `gorm:"primaryKey;not null;autoIncrement:false"`
+	Password string         `gorm:"not null"`
+	Config   map[string]any `gorm:"serializer:json"`
 	PrvKey   string
 	User     User `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
 }
@@ -117,6 +124,24 @@ func OpenDatabase(path string, logger logger.Interface) *gorm.DB {
 var tableToID = map[string]string{
 	"servers": "server_id",
 	"users":   "user_id",
+}
+
+/* CONFIG FUNCTIONS */
+
+// Parses the map from the config to the actual struct
+// This function may be unnecessary but this is the ORM way I guess
+func (lu LocalUser) GetConfig() (cfg UserConfig, err error) {
+	fromMap, err := json.Marshal(lu.Config)
+	if err != nil {
+		return cfg, err
+	}
+
+	err = json.Unmarshal(fromMap, &cfg)
+	if err != nil {
+		return cfg, err
+	}
+
+	return cfg, nil
 }
 
 /* AUXILIARY FUNCTIONS */
