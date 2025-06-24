@@ -236,20 +236,29 @@ func Set(cmd Command, server *db.Server, target, value string) error {
 	return nil
 }
 
-// Prints the current configuration
+// Returns the current configuration values for the structs
 func Config(server db.Server) [][]byte {
 	buf := make([][]byte, 0)
 
-	// Store information about the server
+	// Get the type and values about the server struct
 	t := reflect.TypeOf(server)
 	s := reflect.ValueOf(server)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		v := s.Field(i)
-		if f.Name == "ServerID" {
+
+		// We do not show internal IDs
+		if strings.Contains(f.Name, "ID") {
 			continue
 		}
 
+		// We also skip foreign keys
+		check, ok := f.Tag.Lookup("gorm")
+		if ok && strings.Contains(check, "foreignKey") {
+			continue
+		}
+
+		// Add the information to the list
 		str := fmt.Sprintf("Server.%s = %v", f.Name, v)
 		buf = append(buf, []byte(str))
 	}
