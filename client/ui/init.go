@@ -276,6 +276,11 @@ func setupHandlers(t *TUI) {
 		return event
 	})
 
+	// // Forces a redraw when new text shows up
+	// t.comp.servers.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+	// 	t.app.Draw()
+	// })
+
 	// Forces a redraw when new text shows up
 	t.comp.text.SetChangedFunc(func() {
 		t.app.Draw()

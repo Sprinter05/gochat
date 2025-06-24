@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-/* AUXILIARY FUNCTIONS */
+/* HELPER FUNCTIONS */
 
 // Requests the user logged in to get its permissions
 func GetPermissions(ctx context.Context, cmd Command, uname string) (uint, error) {
@@ -101,6 +102,60 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 		Content:   string(decrypted),
 		Timestamp: stamp,
 	}, nil
+}
+
+/* AUXILIARY FUNCTIONS */
+
+// Tries to convert a string into any of the primitive values
+func stringToValue(val string, bits int) any {
+	// First we try as a boolean
+	asBool, err := strconv.ParseBool(val)
+	if err == nil {
+		return asBool
+	}
+
+	// Now we try to parse as an unsigned integer
+	asUint, err := strconv.ParseUint(val, 10, bits)
+	if err == nil {
+		// We need this or it will fail when setting
+		switch bits {
+		case 8:
+			return uint8(asUint)
+		case 16:
+			return uint16(asUint)
+		case 32:
+			return uint32(asUint)
+		}
+		return uint(asUint)
+	}
+
+	// Now we try to parse as an integer
+	asInt, err := strconv.ParseInt(val, 10, bits)
+	if err == nil {
+		// We need this or it will fail when setting
+		switch bits {
+		case 8:
+			return int8(asUint)
+		case 16:
+			return int16(asUint)
+		case 32:
+			return int32(asUint)
+		}
+		return int(asInt)
+	}
+
+	// Now we try to parse as a float
+	asFloat, err := strconv.ParseFloat(val, bits)
+	if err == nil {
+		// We need this or it will fail when setting
+		if bits == 32 {
+			return float32(asFloat)
+		}
+		return asFloat
+	}
+
+	// If its none of the others then its just a normal string
+	return val
 }
 
 // Tries to log in using a reusable token if applicable

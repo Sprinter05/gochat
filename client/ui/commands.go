@@ -122,6 +122,16 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  1,
 		format: "/recover <username> (-cleanup)",
 	},
+	"config": {
+		fun:    showConfig,
+		nArgs:  0,
+		format: "/config",
+	},
+	"set": {
+		fun:    setConfig,
+		nArgs:  2,
+		format: "/set <target> <value>",
+	},
 }
 
 func (t *TUI) parseCommand(text string) {
@@ -192,6 +202,57 @@ func askForNewPassword(t *TUI) (string, error) {
 }
 
 // COMMANDS
+
+func setConfig(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+
+	extra := args[1:]
+	extended := strings.Join(extra, " ")
+
+	err := cmds.Set(c, data.Server, args[0], extended)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	go updateServerTexts(t)
+
+	str := fmt.Sprintf(
+		"succesfully changed %s to %s",
+		args[0], extended,
+	)
+	cmd.print(str, cmds.RESULT)
+}
+
+func showConfig(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	list := cmds.Config(*data.Server)
+
+	var str strings.Builder
+	str.WriteString("Showing configuration options:")
+	for _, v := range list {
+		name, val, _ := strings.Cut(string(v), " = ")
+
+		format := fmt.Sprintf(
+			"\n- [pink::i]%s[-::-] = [blue::b]%s[-::-]",
+			name, val,
+		)
+		str.WriteString(format)
+	}
+
+	cmd.print(str.String(), cmds.RESULT)
+}
 
 func recoverData(t *TUI, cmd Command) {
 	uname := cmd.Arguments[0]

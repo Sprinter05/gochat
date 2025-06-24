@@ -76,6 +76,9 @@ func (s Source) String() string {
 // must fulfill in order to be considered
 // a server by the TUI.
 type Server interface {
+	// Updates the values of the server according to its data
+	Update()
+
 	// Returns the name of the server and if it is secure
 	Name() string
 
@@ -474,6 +477,14 @@ func (s *RemoteServer) Notifications() Notifications {
 	}
 }
 
+func (s *RemoteServer) Update() {
+	s.name = s.data.Server.Name
+	s.addr = Source{
+		Address: s.data.Server.Address,
+		Port:    s.data.Server.Port,
+	}
+}
+
 /* LOCAL SERVER */
 
 type LocalServer struct {
@@ -546,3 +557,5 @@ func (l *LocalServer) Notifications() Notifications {
 		data: nil,
 	}
 }
+
+func (l *LocalServer) Update() {}

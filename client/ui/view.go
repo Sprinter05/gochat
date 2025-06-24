@@ -417,6 +417,32 @@ func toggleUserlist(t *TUI) {
 
 /* RENDER FUNCTIONS */
 
+func updateServerTexts(t *TUI) {
+	list := t.servers.GetAll()
+
+	for _, v := range list {
+		data, _ := v.Online()
+		if data == nil {
+			continue
+		}
+
+		i, ok := t.findServer(v.Name())
+		if !ok {
+			continue
+		}
+
+		v.Update()
+
+		t.comp.servers.SetItemText(
+			i, v.Name(),
+			tlsText(
+				v.Source(),
+				data.Server.TLS,
+			),
+		)
+	}
+}
+
 func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 	data, ok := s.Online()
 	t.status.userlist.Clear()

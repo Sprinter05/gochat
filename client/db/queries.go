@@ -123,6 +123,17 @@ func ServerExistsByName(db *gorm.DB, name string) (bool, error) {
 	return found, result.Error
 }
 
+// Update information about a server using its internal ID
+func UpdateServer(db *gorm.DB, data Server, column string, value any) error {
+	result := db.Model(&Server{}).
+		Where("server_id = ?", data.ServerID).
+		Update(
+			column, value,
+		)
+
+	return result.Error
+}
+
 // Updates TLS data about a server.
 func ChangeServerTLS(db *gorm.DB, address string, port uint16, tls bool) error {
 	sv, err := GetServer(db, address, port)

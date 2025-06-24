@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -142,6 +143,8 @@ var (
 	ErrorUnknownHookOption     error = fmt.Errorf("invalid hook provided")                          // invalid hook provided
 	ErrorInvalidAdminOperation error = fmt.Errorf("invalid admin operation")                        // invalid admin operation
 	ErrorRecoveryPassword      error = fmt.Errorf("could not recover during password checking")     // could not recover during password checking
+	ErrorInvalidField          error = fmt.Errorf("provided field is non-existant")                 // provided field is non-existant
+	ErrorCannotSet             error = fmt.Errorf("failed to set a value on the given field")       // failed to set a value on the given field
 )
 
 /* LOOKUP TABLES */
@@ -165,6 +168,94 @@ var adminList = map[string]spec.Admin{
 }
 
 /* CLIENT COMMANDS */
+
+// Sets a server variable as configuration.
+func Set(cmd Command, server *db.Server, target, value string) error {
+	if cmd.Data.IsConnected() {
+		return ErrorOfflineRequired
+	}
+
+	// We dereference the pointer
+	s := reflect.ValueOf(server).Elem()
+	t := reflect.TypeOf(server).Elem()
+
+	// We remove the original "Server."
+	_, actual, ok := strings.Cut(target, ".")
+	if !ok {
+		return ErrorInvalidField
+	}
+
+	// Allowing ID modification would be too dangerous
+	if strings.Contains(actual, "ID") {
+		return ErrorInvalidField
+	}
+
+	change := s.FieldByName(actual)
+	tag, ok := t.FieldByName(actual)
+	if ok {
+		// Make sure we dont allow modifying foreign keys
+		check, ok := tag.Tag.Lookup("gorm")
+		if ok && strings.Contains(check, "foreignKey") {
+			return ErrorInvalidField
+		}
+	}
+
+	// Not settable
+	if !change.CanSet() {
+		return ErrorCannotSet
+	}
+
+	bits := 0
+	kind := change.Kind()
+	// We get the amount of bits if its a numeric
+	if kind >= reflect.Int && kind <= reflect.Float64 {
+		bits = change.Type().Bits()
+	}
+
+	// We turn the integer into an interface
+	val := stringToValue(value, bits)
+	ref := reflect.ValueOf(val)
+
+	// Used to rollback
+	tmp := change.Interface()
+
+	// This check is necessary to avoid panics
+	if ref.Kind() != change.Kind() {
+		return ErrorCannotSet
+	}
+
+	// We set the value and update the database
+	change.Set(ref)
+	column := strings.ToLower(actual)
+	err := db.UpdateServer(cmd.Static.DB, *server, column, val)
+	if err != nil {
+		change.Set(reflect.ValueOf(tmp))
+		return err
+	}
+
+	return nil
+}
+
+// Prints the current configuration
+func Config(server db.Server) [][]byte {
+	buf := make([][]byte, 0)
+
+	// Store information about the server
+	t := reflect.TypeOf(server)
+	s := reflect.ValueOf(server)
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		v := s.Field(i)
+		if f.Name == "ServerID" {
+			continue
+		}
+
+		str := fmt.Sprintf("Server.%s = %v", f.Name, v)
+		buf = append(buf, []byte(str))
+	}
+
+	return buf
+}
 
 // Recovers the private key and messages for a specified user
 // Does not require a Data struct in Command
