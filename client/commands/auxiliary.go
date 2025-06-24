@@ -103,6 +103,7 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 	}, nil
 }
 
+// Tries to log in using a reusable token if applicable
 func tokenLogin(ctx context.Context, cmd Command, username string) error {
 	id := cmd.Data.NextID()
 	pct, err := spec.NewPacket(

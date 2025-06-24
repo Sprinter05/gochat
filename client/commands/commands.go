@@ -117,7 +117,10 @@ func (data *Data) IsConnected() bool {
 	return data.Conn != nil
 }
 
-/* ERRORS */
+/* ERRORS AND CONSTANTS */
+
+// Default level of permissions that should be used
+const DefaultPerms = 0755
 
 var (
 	ErrorInsuficientArgs       error = fmt.Errorf("not enough arguments")                           // not enough arguments
@@ -257,24 +260,18 @@ func Export(cmd Command, username, pass string) error {
 
 	// Creates export/ directory if it does not exist
 	if _, err := os.Stat("export"); errors.Is(err, fs.ErrNotExist) {
-		cmd.Output("Creating 'export' directory", INFO)
-		os.Mkdir("export", 0755)
+		cmd.Output("missing 'export' directory", INFO)
+		return err
 	}
 
 	fulldir := path.Join("export", username+".priv")
-	f, createErr := os.Create(fulldir)
-	if createErr != nil {
-		return createErr
-	}
-	defer f.Close()
-
-	_, writeErr := f.Write([]byte(localUser.PrvKey))
+	writeErr := os.WriteFile(fulldir, []byte(localUser.PrvKey), DefaultPerms)
 	if writeErr != nil {
 		return writeErr
 	}
 
 	str := fmt.Sprintf(
-		"file succesfully written to %s", f.Name(),
+		"file succesfully written to %s", fulldir,
 	)
 	cmd.Output(str, RESULT)
 	return nil
@@ -491,7 +488,6 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 	if localUserErr != nil {
 		return localUserErr
 	}
-	// localUser.User = user
 
 	verbosePrint("checking password...", cmd)
 	hash := []byte(localUser.Password)

@@ -14,9 +14,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Default level of permissions that should be used
-const defautlPerms = 0755
-
 /* CONFIG */
 
 // Specifies the configuration JSON file for
@@ -51,7 +48,7 @@ func getConfig() (config Config) {
 		}
 
 		// Write it for next execution
-		err = os.WriteFile("config.json", cfg, defautlPerms)
+		err = os.WriteFile("config.json", cfg, commands.DefaultPerms)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -97,17 +94,17 @@ func init() {
 	flag.BoolVar(&verbosePrint, "verbose", true, "Whether or not to print verbose output information.")
 	flag.Parse()
 
-	err := os.Mkdir("export", 0755)
+	err := os.Mkdir("export", commands.DefaultPerms)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = os.Mkdir("import", 0755)
+	err = os.Mkdir("import", commands.DefaultPerms)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = os.Mkdir("logs", 0755)
+	err = os.Mkdir("logs", commands.DefaultPerms)
 	if err != nil {
 		log.Fatal(err)
 	}
