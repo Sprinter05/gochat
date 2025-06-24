@@ -30,4 +30,4 @@ This server implements *3 levels* of permissions. The following, exhaustive list
 - **Inactivity** timeouts are of *10 minutes*
 - **Verification handshakes** have a deadline of *2 minutes*
 - **Usernames** cannot be bigger than *32 characters*
-- **Reusable tokens** expire after *30 minutes*
+- **Reusable tokens** expire after *30 minutes* and can be used more than once

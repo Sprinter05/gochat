@@ -200,7 +200,7 @@ The client must return the decyphered text to the server from the *same connecti
 
 > **NOTE**: The verification of the decyphered text should be implemented with a server-side timeout.
 
-Any future commands from that user *must be tied to the connection* until the user logs out, disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text must be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process. Said token should also have an expiry date, after which the token must be deleted.
+Any future commands from that user *must be tied to the connection* until the user logs out, disconnects or the server shuts down. This prevents someone else from logging in with the same account from a different location. If the connection is secure, the decyphered text must be stored in the server as a **reusable token**, which, in case of a disconnect, can be used when logging in again, effectively skipping the handshake process. This mechanism should only be activated *once the user has disconnected*. Said token should also have an **expiry date**, after which the token must be deleted. It is up to the server to allow for a token to be *used more than once*.
 
 > **NOTE**: Reusable tokens must not be renewed after being used, meaning its expiry date cannot change.
 
