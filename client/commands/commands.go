@@ -8,8 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	mrand "math/rand/v2"
-	"net"
 	"os"
 	"path"
 	"reflect"
@@ -18,40 +16,9 @@ import (
 	"time"
 
 	"github.com/Sprinter05/gochat/client/db"
-	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
-
-/* STRUCTS */
-
-// Struct that contains all the data necessary to run a command
-// Requires fields may change between commands
-// Commands may alter the data if necessary
-type Data struct {
-	Conn     net.Conn                      // Specifies the connection to the server
-	Server   *db.Server                    // Specifies the database server
-	User     *db.LocalUser                 // Specifies the logged in user
-	Logout   context.CancelFunc            // Specifies the function to call on a logout for context propagation
-	Waitlist models.Waitlist[spec.Command] // Stores all commands to be retrieved later
-	Token    string                        // Reusable token in case of TLS usage
-	Next     spec.ID                       // Specifies the next ID that should be used when sending a packet
-}
-
-// Static data that should only be assigned
-// in specific cases
-type StaticData struct {
-	Verbose bool     // Whether or not to print detailed information
-	DB      *gorm.DB // Connection to the database
-}
-
-// Specifies all structs necessary for a command
-type Command struct {
-	Output OutputFunc  // Custom output-printing function
-	Static *StaticData // Static Data (mostly)
-	Data   *Data       // Modifiable Data
-}
 
 /* CUSTOM TYPES */
 
@@ -86,38 +53,6 @@ const (
 	LOCAL_ALL    USRSType = 5 // All local users
 	REQUESTED    USRSType = 6 // All external users whose public key has been saved
 )
-
-/* DATA FUNCTIONS */
-
-// Creates a new empty but initialised struct for Data
-func NewEmptyData() Data {
-	initial := mrand.IntN(int(spec.MaxID))
-
-	return Data{
-		Waitlist: DefaultWaitlist(),
-		Next:     spec.ID(initial),
-		Logout:   func() {},
-	}
-}
-
-// Incremenents the next ID to be used and returns it
-func (data *Data) NextID() spec.ID {
-	data.Next = (data.Next + 1) % spec.MaxID
-	if data.Next == spec.NullID {
-		data.Next += 1
-	}
-	return data.Next
-}
-
-// Whether the connection is logged in or not
-func (data *Data) IsLoggedIn() bool {
-	return data.User != nil && data.User.User.Username != "" && data.IsConnected()
-}
-
-// Whether the connection is or not established
-func (data *Data) IsConnected() bool {
-	return data.Conn != nil
-}
 
 /* ERRORS AND CONSTANTS */
 
