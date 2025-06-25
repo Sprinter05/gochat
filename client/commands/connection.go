@@ -131,13 +131,13 @@ func closeError(cmd Command) error {
 // A cleanup function that cleans up resources can be passed.
 func ListenPackets(cmd Command, cleanup func()) {
 	defer func() {
-		if cmd.Data.Conn != nil {
-			cmd.Data.Conn.Close()
+		if cmd.Data.GetConn() != nil {
+			cmd.Data.GetConn().Close()
 		}
 
-		cmd.Data.Conn = nil
-		cmd.Data.User = nil
-		cmd.Data.Token = ""
+		cmd.Data.SetConn(nil)
+		cmd.Data.SetUser(nil)
+		cmd.Data.SetToken("")
 
 		cmd.Output("No longer listening for packets", INFO)
 		cleanup()
@@ -160,12 +160,12 @@ func ListenPackets(cmd Command, cleanup func()) {
 	}
 
 	conn := spec.Connection{
-		Conn: cmd.Data.Conn,
-		TLS:  cmd.Data.Server.TLS,
+		Conn: cmd.Data.GetConn(),
+		TLS:  cmd.Data.GetServer().TLS,
 	}
 
 	for {
-		if cmd.Data.Conn == nil {
+		if cmd.Data.GetConn() == nil {
 			return
 		}
 		pct := spec.Command{}

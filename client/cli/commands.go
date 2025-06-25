@@ -175,7 +175,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if connErr != nil {
 		return connErr
 	}
-	cmd.Data.Server = &server
+	cmd.Data.SetServer(&server)
 	go commands.ListenPackets(cmd, func() {})
 	return nil
 }
@@ -185,7 +185,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 // Arguments: none
 func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	discnErr := commands.Discn(cmd)
-	cmd.Data.Server = nil
+	cmd.Data.SetServer(nil)
 	return discnErr
 }
 
@@ -228,8 +228,8 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 	exists, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		string(username),
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 
 	if existsErr != nil {
@@ -269,7 +269,11 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 // Arguments: <username to be deregistered>
 func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	// Asks for password
-	cmd.Output(fmt.Sprintf("%s's password: ", cmd.Data.User.User.Username), commands.PROMPT)
+	cmd.Output(fmt.Sprintf("%s's password: ",
+		cmd.Data.GetUser().User.Username),
+		commands.PROMPT,
+	)
+
 	pass, passErr := term.ReadPassword(int(os.Stdin.Fd()))
 
 	if passErr != nil {
@@ -278,12 +282,12 @@ func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	}
 	cmd.Output("\n", commands.PROMPT)
 
-	deregErr := commands.Dereg(ctx, cmd, cmd.Data.User.User.Username, string(pass))
+	deregErr := commands.Dereg(ctx, cmd, cmd.Data.GetUser().User.Username, string(pass))
 	if deregErr != nil {
 		return deregErr
 	}
 	// Empties the user value in Data
-	cmd.Data.User = nil
+	cmd.Data.SetUser(nil)
 	return nil
 }
 
@@ -305,7 +309,11 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	}
 
 	username := string(args[0])
-	exists, _ := db.LocalUserExists(cmd.Static.DB, username, cmd.Data.Server.Address, cmd.Data.Server.Port)
+	exists, _ := db.LocalUserExists(cmd.Static.DB,
+		username,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
+	)
 	if !exists {
 		return commands.ErrorUserNotFound
 	}

@@ -40,8 +40,8 @@ func New(static commands.StaticData, conn net.Conn, server db.Server) commands.C
 	}
 
 	// Assign data variables
-	data.Conn = conn
-	data.Server = &server
+	data.SetConn(conn)
+	data.SetServer(&server)
 
 	if static.Verbose {
 		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
@@ -64,7 +64,7 @@ func New(static commands.StaticData, conn net.Conn, server db.Server) commands.C
 func Run(data commands.Command) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
-		PrintPrompt(*data.Data)
+		PrintPrompt(data.Data)
 		// Reads user input
 		input, readErr := rd.ReadBytes('\n')
 		if readErr != nil {
@@ -106,11 +106,11 @@ func Run(data commands.Command) {
 	}
 }
 
-func PrintPrompt(data commands.Data) {
+func PrintPrompt(data *commands.Data) {
 	connected := ""
 	username := ""
 	if data.IsLoggedIn() {
-		username = data.User.User.Username
+		username = data.GetUser().User.Username
 	}
 
 	if !data.IsConnected() {
@@ -185,7 +185,7 @@ func printMessage(reciv spec.Command, decryptedText string, cmd commands.Command
 	// Removes prompt line and rings bell
 	fmt.Print("\r\033[K\a")
 	fmt.Printf("\033[36m[%s] \033[32m%s\033[0m: %s\n", stamp.String(), reciv.Args[0], decryptedText)
-	PrintPrompt(*cmd.Data)
+	PrintPrompt(cmd.Data)
 }
 
 // Prints a received hook in the shell
@@ -193,5 +193,5 @@ func printHook(hook spec.Command, cmd commands.Command) {
 	// Removes prompt line and rings bell
 	fmt.Print("\r\033[K\a")
 	fmt.Printf("\033[0;35m[HOOK] \033[32mHook received\033[0m: Code %d (%s)\n", hook.HD.Info, spec.HookString(spec.Hook(hook.HD.Info)))
-	PrintPrompt(*cmd.Data)
+	PrintPrompt(cmd.Data)
 }

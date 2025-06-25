@@ -339,8 +339,8 @@ func Import(cmd Command, username, pass, dir string) error {
 		string(username),
 		string(hashPass),
 		string(enc),
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if insertErr != nil {
 		return insertErr
@@ -359,8 +359,8 @@ func Export(cmd Command, username, pass string) error {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if existsErr != nil {
 		return existsErr
@@ -372,8 +372,8 @@ func Export(cmd Command, username, pass string) error {
 	localUser, localUserErr := db.GetLocalUser(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if localUserErr != nil {
 		return localUserErr
@@ -432,7 +432,7 @@ func TLS(cmd Command, server *db.Server, on bool) error {
 
 		return nil
 	} else {
-		cmd.Data.Server.TLS = false
+		cmd.Data.GetServer().TLS = false
 		err := db.ChangeServerTLS(
 			cmd.Static.DB,
 			server.Address,
@@ -482,7 +482,7 @@ func Conn(cmd Command, server db.Server, noverify bool) error {
 		return err
 	}
 
-	cmd.Data.Conn = con
+	cmd.Data.SetConn(con)
 
 	cmd.Output("listening for incoming packets...", INFO)
 	return nil
@@ -497,8 +497,8 @@ func Reg(ctx context.Context, cmd Command, username, pass string) error {
 	exists, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		string(username),
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if existsErr != nil {
 		return existsErr
@@ -544,7 +544,7 @@ func Reg(ctx context.Context, cmd Command, username, pass string) error {
 	}
 
 	// Sends the packet
-	_, wErr := cmd.Data.Conn.Write(pct)
+	_, wErr := cmd.Data.GetConn().Write(pct)
 	if wErr != nil {
 		return wErr
 	}
@@ -575,8 +575,8 @@ func Reg(ctx context.Context, cmd Command, username, pass string) error {
 		string(username),
 		string(hashPass),
 		string(enc),
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if insertErr != nil {
 		return insertErr
@@ -602,8 +602,8 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if existsErr != nil {
 		return existsErr
@@ -616,8 +616,8 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 	localUser, localUserErr := db.GetLocalUser(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if localUserErr != nil {
 		return localUserErr
@@ -640,7 +640,7 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 		packetPrint(pct, cmd)
 	}
 
-	_, wErr := cmd.Data.Conn.Write(pct)
+	_, wErr := cmd.Data.GetConn().Write(pct)
 	if wErr != nil {
 		return wErr
 	}
@@ -656,12 +656,12 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 		return spec.ErrorCodeToError(reply.HD.Info)
 	}
 
-	dbErr := db.DeleteLocalUser(cmd.Static.DB, username, cmd.Data.Server.Address, cmd.Data.Server.Port)
+	dbErr := db.DeleteLocalUser(cmd.Static.DB, username, cmd.Data.GetServer().Address, cmd.Data.GetServer().Port)
 	if dbErr != nil {
 		return dbErr
 	}
 
-	cmd.Data.Waitlist.Cancel(cmd.Data.Logout)
+	cmd.Data.Waitlist.Cancel(cmd.Data.GetLogout())
 	cmd.Output(fmt.Sprintf("user %s deregistered correctly", username), RESULT)
 	return nil
 }
@@ -679,8 +679,8 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if existsErr != nil {
 		return existsErr
@@ -693,8 +693,8 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	localUser, localUserErr := db.GetLocalUser(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if localUserErr != nil {
 		return localUserErr
@@ -727,7 +727,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	}
 
 	// Try to login with a reusable token
-	if cmd.Data.Server.TLS && cmd.Data.Token != "" {
+	if cmd.Data.GetServer().TLS && cmd.Data.GetToken() != "" {
 		err := tokenLogin(ctx, cmd, username)
 		if err == nil {
 			str := fmt.Sprintf(
@@ -736,7 +736,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 			)
 			cmd.Output(str, RESULT)
 
-			cmd.Data.User = &localUser
+			cmd.Data.SetUser(&localUser)
 			getPerms()
 			return nil
 		}
@@ -761,7 +761,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	}
 
 	// Sends the packet
-	_, loginWErr := cmd.Data.Conn.Write(loginPct)
+	_, loginWErr := cmd.Data.GetConn().Write(loginPct)
 	if loginWErr != nil {
 		return loginWErr
 	}
@@ -807,7 +807,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	}
 
 	// Sends the packet
-	_, verifWErr := cmd.Data.Conn.Write(verifPct)
+	_, verifWErr := cmd.Data.GetConn().Write(verifPct)
 	if verifWErr != nil {
 		return verifWErr
 	}
@@ -826,13 +826,13 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	}
 	verbosePrint("verification successful", cmd)
 	// Assigns the logged in user to Data
-	cmd.Data.User = &localUser
+	cmd.Data.SetUser(&localUser)
 
 	cmd.Output(fmt.Sprintf("login successful!\nWelcome, %s", username), RESULT)
 	getPerms()
 
-	if cmd.Data.Server.TLS {
-		cmd.Data.Token = string(decrypted)
+	if cmd.Data.GetServer().TLS {
+		cmd.Data.SetToken(string(decrypted))
 	}
 
 	return nil
@@ -858,7 +858,7 @@ func Logout(ctx context.Context, cmd Command) error {
 	}
 
 	// Sends the packet
-	_, pctWErr := cmd.Data.Conn.Write(pct)
+	_, pctWErr := cmd.Data.GetConn().Write(pct)
 	if pctWErr != nil {
 		return pctWErr
 	}
@@ -877,9 +877,9 @@ func Logout(ctx context.Context, cmd Command) error {
 	}
 
 	// Empties the user value in Data
-	cmd.Data.User = nil
+	cmd.Data.SetUser(nil)
 
-	cmd.Data.Waitlist.Cancel(cmd.Data.Logout)
+	cmd.Data.Waitlist.Cancel(cmd.Data.GetLogout())
 	cmd.Output("logged out", RESULT)
 	return nil
 }
@@ -890,15 +890,15 @@ func Discn(cmd Command) error {
 		return ErrorNotConnected
 	}
 
-	err := cmd.Data.Conn.Close()
+	err := cmd.Data.GetConn().Close()
 	if err != nil {
 		return err
 	}
 
 	// Closes the shell client session
-	cmd.Data.Conn = nil
-	cmd.Data.User = nil
-	cmd.Data.Waitlist.Cancel(cmd.Data.Logout)
+	cmd.Data.SetConn(nil)
+	cmd.Data.SetUser(nil)
+	cmd.Data.Waitlist.Cancel(cmd.Data.GetLogout())
 	cmd.Data.Waitlist.Clear()
 	cmd.Output("sucessfully disconnected from the server", RESULT)
 
@@ -922,8 +922,8 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 	found, existsErr := db.ExternalUserExists(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if existsErr != nil {
 		return existsErr
@@ -935,8 +935,8 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 	externalUser, externalUserErr := db.GetExternalUser(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if externalUserErr != nil {
 		return externalUserErr
@@ -970,7 +970,7 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 	}
 
 	// Sends the packet
-	_, wErr := cmd.Data.Conn.Write(pct)
+	_, wErr := cmd.Data.GetConn().Write(pct)
 	if wErr != nil {
 		return wErr
 	}
@@ -991,9 +991,9 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 	cmd.Output("message sent correctly", RESULT)
 	src, srcErr := db.GetUser(
 		cmd.Static.DB,
-		cmd.Data.User.User.Username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetUser().User.Username,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if srcErr != nil {
 		return srcErr
@@ -1002,8 +1002,8 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 	dst, dstErr := db.GetUser(
 		cmd.Static.DB,
 		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if dstErr != nil {
 		return dstErr
@@ -1013,8 +1013,8 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 		cmd.Static.DB,
 		src.Username,
 		dst.Username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 		string(plainMessage),
 		stamp,
 	)
@@ -1038,7 +1038,7 @@ func Reciv(ctx context.Context, cmd Command) error {
 		packetPrint(pct, cmd)
 	}
 
-	_, wErr := cmd.Data.Conn.Write(pct)
+	_, wErr := cmd.Data.GetConn().Write(pct)
 	if wErr != nil {
 		return wErr
 	}
@@ -1101,7 +1101,7 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 	}
 
 	// Sends the packet
-	_, wErr := cmd.Data.Conn.Write(pct)
+	_, wErr := cmd.Data.GetConn().Write(pct)
 	if wErr != nil {
 		return nil, wErr
 	}
@@ -1149,7 +1149,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 		return nil, ErrorNotConnected
 	}
 
-	if username == cmd.Data.User.User.Username {
+	if username == cmd.Data.GetUser().User.Username {
 		return nil, ErrorRequestToSelf
 	}
 
@@ -1166,7 +1166,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 		packetPrint(pct, cmd)
 	}
 
-	_, wErr := cmd.Data.Conn.Write(pct)
+	_, wErr := cmd.Data.GetConn().Write(pct)
 	if wErr != nil {
 		return nil, wErr
 	}
@@ -1188,8 +1188,8 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 		cmd.Static.DB,
 		string(reply.Args[0]),
 		string(reply.Args[1]),
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
+		cmd.Data.GetServer().Address,
+		cmd.Data.GetServer().Port,
 	)
 	if dbErr != nil {
 		return nil, dbErr
@@ -1266,7 +1266,7 @@ func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) error {
 		packetPrint(pct, cmd)
 	}
 
-	_, wErr := cmd.Data.Conn.Write(pct)
+	_, wErr := cmd.Data.GetConn().Write(pct)
 	if wErr != nil {
 		return wErr
 	}
@@ -1321,7 +1321,7 @@ func Sub(ctx context.Context, cmd Command, name string) error {
 		packetPrint(hookPct, cmd)
 	}
 
-	_, hookWErr := cmd.Data.Conn.Write(hookPct)
+	_, hookWErr := cmd.Data.GetConn().Write(hookPct)
 	if hookWErr != nil {
 		return hookWErr
 	}
@@ -1372,7 +1372,7 @@ func Unsub(ctx context.Context, cmd Command, name string) error {
 		packetPrint(hookPct, cmd)
 	}
 
-	_, hookWErr := cmd.Data.Conn.Write(hookPct)
+	_, hookWErr := cmd.Data.GetConn().Write(hookPct)
 	if hookWErr != nil {
 		return hookWErr
 	}

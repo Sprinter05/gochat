@@ -437,7 +437,7 @@ func updateServerTexts(t *TUI) {
 			i, v.Name(),
 			tlsText(
 				v.Source(),
-				data.Server.TLS,
+				data.GetServer().TLS,
 			),
 		)
 	}
