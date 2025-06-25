@@ -73,6 +73,14 @@ const CommandHelp string = `
 	- Those that have been hidden will also be displayed
 	
 [yellow::b]/clear[-::-]: Clears all system messages in the current buffer
+
+[yellow::b]/config[-::-]: Shows all current configuration options
+	- It will display both the name and value of the option
+	- It will only display those available in the current server
+
+[yellow::b]/set[-::-] [green]<option>[-] [green]<value>[-]: Updates a value in the configuration
+	- The option name is case sensitive
+	- The option name must follow the same format as the configuration shows
 	
 [yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
 

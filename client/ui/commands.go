@@ -130,7 +130,7 @@ var commands map[string]operation = map[string]operation{
 	"set": {
 		fun:    setConfig,
 		nArgs:  2,
-		format: "/set <target> <value>",
+		format: "/set <option> <value>",
 	},
 }
 

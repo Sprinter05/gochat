@@ -110,15 +110,26 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 
 // Tries to convert a string into any of the primitive values
 func stringToValue(val string, ref reflect.Value) any {
-	bits := 0
 	kind := ref.Kind()
 
-	// We check if it can be parsed as a number
-	if kind >= reflect.Int && kind <= reflect.Float64 {
-		// We get the amount of bits if its a numeric
-		bits = ref.Type().Bits()
+	// Parse as string (returning the value)
+	if kind == reflect.String {
+		return val
+	}
 
-		// Now we try to parse as an unsigned integer
+	// Parse as boolean
+	if kind == reflect.Bool {
+		asBool, err := strconv.ParseBool(val)
+		if err == nil {
+			return asBool
+		}
+	}
+
+	// We get the amount of bits if its a numeric
+	bits := ref.Type().Bits()
+
+	// Parse as unsigned integer
+	if kind >= reflect.Uint && kind <= reflect.Uint64 {
 		asUint, err := strconv.ParseUint(val, 10, bits)
 		if err == nil {
 			// We need this or it will fail when setting
@@ -130,25 +141,29 @@ func stringToValue(val string, ref reflect.Value) any {
 			case 32:
 				return uint32(asUint)
 			}
-			return uint(asUint)
+			return uint(asUint) // Ignore uint64
 		}
+	}
 
-		// Now we try to parse as an integer
+	// Parse as signed integer
+	if kind >= reflect.Int && kind <= reflect.Int64 {
 		asInt, err := strconv.ParseInt(val, 10, bits)
 		if err == nil {
 			// We need this or it will fail when setting
 			switch bits {
 			case 8:
-				return int8(asUint)
+				return int8(asInt)
 			case 16:
-				return int16(asUint)
+				return int16(asInt)
 			case 32:
-				return int32(asUint)
+				return int32(asInt)
 			}
-			return int(asInt)
+			return int(asInt) // Ignore int64
 		}
+	}
 
-		// Now we try to parse as a float
+	// Parse as floating point number
+	if kind >= reflect.Float32 && kind <= reflect.Float64 {
 		asFloat, err := strconv.ParseFloat(val, bits)
 		if err == nil {
 			// We need this or it will fail when setting
@@ -159,14 +174,8 @@ func stringToValue(val string, ref reflect.Value) any {
 		}
 	}
 
-	// Finally we try as a boolean
-	asBool, err := strconv.ParseBool(val)
-	if err == nil {
-		return asBool
-	}
-
-	// If its none of the others then its just a normal string
-	return val
+	// If its none of the others then we return nil
+	return nil
 }
 
 // Tries to log in using a reusable token if applicable
@@ -225,33 +234,40 @@ func setStructConfig(target any, field, value string) (any, func(), error) {
 	}
 
 	// Make sure we are given a pointer
-	ptr := reflect.TypeOf(target)
-	if ptr.Kind() != reflect.Pointer {
+	objPtr := reflect.TypeOf(target)
+	if objPtr.Kind() != reflect.Pointer {
 		return nil, nil, ErrorInvalidTarget
 	}
 
 	// Make sure what we dereference is a struct
-	t := ptr.Elem()
-	if t.Kind() != reflect.Struct {
+	objType := objPtr.Elem()
+	if objType.Kind() != reflect.Struct {
 		return nil, nil, ErrorInvalidTarget
 	}
 
 	// Get the struct
-	s := reflect.ValueOf(target).Elem()
+	objVal := reflect.ValueOf(target).Elem()
 
-	// Apply recursion
+	// Apply recursion if necessary
 	prefix, suffix, ok := strings.Cut(field, ".")
 	if ok {
-		// We obtain the value of the struct
-		object := s.FieldByName(prefix)
-		ref := object.Addr().Interface()
+		// We check if the child field even exists
+		_, ok := objType.FieldByName(prefix)
+		if !ok {
+			return nil, nil, ErrorInvalidField
+		}
 
-		if object.Kind() != reflect.Struct {
+		// We obtain the value of the child struct
+		child := objVal.FieldByName(prefix)
+		childPtr := child.Addr().Interface()
+
+		// To apply recursion it must be a struct
+		if child.Kind() != reflect.Struct {
 			return nil, nil, ErrorInvalidField
 		}
 
 		// We pass the pointer to allow modification
-		val, rollback, err := setStructConfig(ref, suffix, value)
+		val, rollback, err := setStructConfig(childPtr, suffix, value)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -259,41 +275,48 @@ func setStructConfig(target any, field, value string) (any, func(), error) {
 		return val, rollback, nil
 	}
 
-	// Get the struct fieVld
-	change := s.FieldByName(field)
+	// Check the field's type
+	fieldType, ok := objType.FieldByName(field)
+	if !ok {
+		// Not found in the struct
+		return nil, nil, ErrorInvalidField
+	}
 
-	// Check the tag
-	tag, ok := t.FieldByName(field)
-	if ok {
-		// Make sure we dont allow modifying foreign keys
-		check, ok := tag.Tag.Lookup("gorm")
-		if ok && strings.Contains(check, "foreignKey") {
-			return nil, nil, ErrorInvalidField
-		}
+	// Get the struct value
+	fieldVal := objVal.FieldByName(field)
+
+	// Make sure we dont allow modifying foreign keys
+	check, ok := fieldType.Tag.Lookup("gorm")
+	if ok && strings.Contains(check, "foreignKey") {
+		return nil, nil, ErrorInvalidField
 	}
 
 	// Not settable
-	if !change.CanSet() {
+	if !fieldVal.CanSet() {
 		return nil, nil, ErrorCannotSet
 	}
 
 	// Get the value from the string
-	val := stringToValue(value, change)
+	val := stringToValue(value, fieldVal)
+	if val == nil {
+		return nil, nil, ErrorCannotSet
+	}
+
 	ref := reflect.ValueOf(val)
 
 	// Used to rollback
-	tmp := change.Interface()
+	tmp := fieldVal.Interface()
 	rollback := func() {
-		change.Set(reflect.ValueOf(tmp))
+		fieldVal.Set(reflect.ValueOf(tmp))
 	}
 
 	// This check is necessary to avoid panics
-	if ref.Kind() != change.Kind() {
+	if ref.Kind() != fieldVal.Kind() {
 		return nil, nil, ErrorCannotSet
 	}
 
 	// We set the value and return
-	change.Set(ref)
+	fieldVal.Set(ref)
 	return val, rollback, nil
 }
 
@@ -304,26 +327,29 @@ func getStructConfig(obj any, prefix string) ([][]byte, error) {
 	buf := make([][]byte, 0)
 
 	// Get the type and values about the server struct
-	t := reflect.TypeOf(obj)
-	s := reflect.ValueOf(obj)
+	objType := reflect.TypeOf(obj)
+	objVal := reflect.ValueOf(obj)
 
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem()
-		s = s.Elem()
+	// We dereference if necessary
+	if objType.Kind() == reflect.Pointer {
+		objType = objType.Elem()
+		objVal = objVal.Elem()
 	}
 
-	if t.Kind() != reflect.Struct {
+	// We cannot show values if not a struct
+	if objType.Kind() != reflect.Struct {
 		return nil, ErrorInvalidTarget
 	}
 
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		v := s.Field(i)
+	// Show all values of the struct
+	for i := 0; i < objType.NumField(); i++ {
+		fieldType := objType.Field(i)
+		fieldVal := objVal.Field(i)
 
-		// Recursion
-		if v.Kind() == reflect.Struct {
-			concat := prefix + "." + f.Name
-			recursion, err := getStructConfig(v.Interface(), concat)
+		// Apply recursion if necessary
+		if fieldVal.Kind() == reflect.Struct {
+			concat := prefix + "." + fieldType.Name
+			recursion, err := getStructConfig(fieldVal.Interface(), concat)
 			if err == nil {
 				buf = append(buf, recursion...)
 			}
@@ -332,18 +358,18 @@ func getStructConfig(obj any, prefix string) ([][]byte, error) {
 		}
 
 		// We do not show internal IDs
-		if strings.Contains(f.Name, "ID") {
+		if strings.Contains(fieldType.Name, "ID") {
 			continue
 		}
 
 		// We also skip foreign keys
-		check, ok := f.Tag.Lookup("gorm")
+		check, ok := fieldType.Tag.Lookup("gorm")
 		if ok && strings.Contains(check, "foreignKey") {
 			continue
 		}
 
 		// Add the information to the list
-		str := fmt.Sprintf("%s.%s = %v", prefix, f.Name, v)
+		str := fmt.Sprintf("%s.%s = %v", prefix, fieldType.Name, fieldVal)
 		buf = append(buf, []byte(str))
 	}
 
