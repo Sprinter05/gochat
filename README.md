@@ -12,9 +12,9 @@ This repository includes:
     - The [implementation](https://github.com/Sprinter05/gochat/blob/main/doc/IMPLEMENTATION.md) details.
 
 ## Stack
-### Client stack:
+### Client stack
 The client's local database is a [SQLite](https://www.sqlite.org/) database handled by [GORM](https://gorm.io/index.html). The client **TUI** is made possible thanks to [tview](https://github.com/rivo/tview).
-### Server stack:
+### Server stack
 The server database runs under [MariaDB](https://mariadb.org/), also handled by with [GORM](https://gorm.io/index.html).
 
 ## Packages
