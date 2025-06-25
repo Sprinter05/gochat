@@ -26,17 +26,19 @@ const Logo string = `
 `
 
 const (
-	tuiVersion      float32 = 0.1       // Current client TUI version
+	tuiVersion      float32 = 0.2       // Current client TUI version
 	selfSender      string  = "You"     // Self sender of a message
 	systemBuffer    string  = "System"  // System buffer name
 	debugBuffer     string  = "Debug"   // Buffer where packets will be shown
 	defaultBuffer   string  = "Default" // Default server system buffer
 	localServer     string  = "Local"   // Local server name
 	defaultLabel    string  = " > "     // Default prompt
-	defaultUserlist string  = "(Empty)" // Default userlist content
-	inputSize       int     = 4         // size in the TUI of the input bar
-	errorSize       int     = 1         // size of the erro bar
-	notifSize       int     = 2         // size of the notif bar
+	defaultUserlist string  = "(Empty)" // Default userlist text
+	inputSize       int     = 4         // size of the text input bar (fixed)
+	errorSize       int     = 1         // size of the error bar (fixed)
+	notifSize       int     = 2         // size of the notif bar (fixed)
+	buflistSize     int     = 2         // size of the buffer list bar (relative)
+	userlistSize    int     = 1         // size of the user list bar (fixed)
 	textSize        int     = 30        // Size of the text window
 	errorMessage    uint    = 3         // seconds
 	asciiNumbers    int     = 0x30      // Start of ASCII for number 1
@@ -161,7 +163,7 @@ func setupStyle(t *TUI) {
 	t.comp.users.
 		SetDynamicColors(true).
 		SetWrap(true).
-		SetWordWrap(true).
+		SetWordWrap(false).
 		SetScrollable(true).
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
@@ -275,11 +277,6 @@ func setupHandlers(t *TUI) {
 		}
 		return event
 	})
-
-	// // Forces a redraw when new text shows up
-	// t.comp.servers.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-	// 	t.app.Draw()
-	// })
 
 	// Forces a redraw when new text shows up
 	t.comp.text.SetChangedFunc(func() {

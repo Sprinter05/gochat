@@ -201,6 +201,24 @@ func askForNewPassword(t *TUI) (string, error) {
 	return pswd, nil
 }
 
+func configList(s Server) []cmds.ConfigObj {
+	data, _ := s.Online()
+
+	return []cmds.ConfigObj{
+		{
+			Prefix: "Server",
+			Object: data.Server,
+			Precondition: func() error {
+				if data.IsConnected() {
+					return ErrorOffline
+				}
+				return nil
+			},
+			Update: db.UpdateServer,
+		},
+	}
+}
+
 // COMMANDS
 
 func setConfig(t *TUI, cmd Command) {
@@ -215,7 +233,8 @@ func setConfig(t *TUI, cmd Command) {
 	extra := args[1:]
 	extended := strings.Join(extra, " ")
 
-	err := cmds.Set(c, data.Server, args[0], extended)
+	objs := configList(cmd.serv)
+	err := cmds.Set(c, args[0], extended, objs...)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
@@ -231,7 +250,13 @@ func showConfig(t *TUI, cmd Command) {
 		return
 	}
 
-	list := cmds.Config(*data.Server)
+	objs := configList(cmd.serv)
+	list := cmds.Config(objs...)
+
+	if len(list) == 0 {
+		cmd.print("No configuration options to show", cmds.RESULT)
+		return
+	}
 
 	var str strings.Builder
 	str.WriteString("Showing configuration options:")

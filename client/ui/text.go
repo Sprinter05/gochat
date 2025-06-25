@@ -407,7 +407,7 @@ func (t *TUI) toggleHelp() {
 // Displays an error in the error bar temporarily.
 func (t *TUI) showError(err error) {
 	t.comp.errors.Clear()
-	t.area.bottom.ResizeItem(t.comp.errors, 0, errorSize)
+	t.area.bottom.ResizeItem(t.comp.errors, errorSize, 0)
 	fmt.Fprintf(t.comp.errors, " [red]Error: %s![-:-]", err)
 
 	go func() {

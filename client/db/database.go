@@ -5,6 +5,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -47,6 +48,12 @@ func GetDBLogger(logLevel uint8, logPath string) logger.Interface {
 	}
 	return dbLog
 }
+
+/* ERRORS */
+
+var (
+	ErrorInvalidObject error = fmt.Errorf("provided object is not of the correct type")
+)
 
 /* MODELS */
 

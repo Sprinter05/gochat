@@ -17,6 +17,7 @@ import (
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 /* CUSTOM TYPES */
@@ -52,6 +53,17 @@ const (
 	LOCAL_ALL    USRSType = 5 // All local users
 	REQUESTED    USRSType = 6 // All external users whose public key has been saved
 )
+
+// Represents a function to update an object on the database
+type ConfigUpdate func(db *gorm.DB, obj any, column string, val any) error
+
+// Represents a config struct to be passed to modify
+type ConfigObj struct {
+	Prefix       string       // Should start with capital letter
+	Object       any          // Can be or not a pointer (read the function precondition)
+	Precondition func() error // Condition needed for it to run
+	Update       ConfigUpdate // Called to update values on the database
+}
 
 /* ERRORS AND CONSTANTS */
 
@@ -105,8 +117,9 @@ var adminList = map[string]spec.Admin{
 
 /* CLIENT COMMANDS */
 
-// Sets a server variable as configuration.
-func Set(cmd Command, server *db.Server, target, value string) error {
+// Sets a variable on an object as configuration.
+// Passed objects must be pointers.
+func Set(cmd Command, target, value string, objs ...ConfigObj) error {
 	// We remove the original "Server."
 	prefix, actual, ok := strings.Cut(target, ".")
 	if !ok {
@@ -116,23 +129,41 @@ func Set(cmd Command, server *db.Server, target, value string) error {
 	// Used to modify the database
 	column := strings.ToLower(actual)
 
-	switch prefix {
-	case "Server":
-		if cmd.Data.IsConnected() {
-			return ErrorOfflineRequired
+	found := false
+	for _, v := range objs {
+		// Invalid prefix
+		if prefix != v.Prefix {
+			continue
 		}
 
-		val, rollback, err := setStructConfig(server, actual, value)
+		// Check that the function can run
+		if v.Precondition != nil {
+			err := v.Precondition()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Set the value in the struct
+		val, rollback, err := setStructConfig(v.Object, actual, value)
 		if err != nil {
 			return err
 		}
 
-		err = db.UpdateServer(cmd.Static.DB, *server, column, val)
-		if err != nil {
-			rollback()
-			return err
+		// Modify the database if applicable
+		if v.Update != nil {
+			err := v.Update(cmd.Static.DB, v.Object, column, val)
+			if err != nil {
+				rollback()
+				return err
+			}
 		}
-	default:
+
+		// Completed
+		found = true
+	}
+
+	if !found {
 		return ErrorInvalidField
 	}
 
@@ -145,12 +176,17 @@ func Set(cmd Command, server *db.Server, target, value string) error {
 	return nil
 }
 
-// Returns the current configuration values for the structs
-func Config(server db.Server) [][]byte {
+// Returns the current configuration values for the
+// given objects. Only needs the object and prefix.
+// Passed objects as "any" can or not be pointers
+func Config(objs ...ConfigObj) [][]byte {
 	buf := make([][]byte, 0)
-	serverConfig, err := getStructConfig(server, "Server")
-	if err == nil {
-		buf = append(buf, serverConfig...)
+
+	for _, v := range objs {
+		config, err := getStructConfig(v.Object, v.Prefix)
+		if err == nil {
+			buf = append(buf, config...)
+		}
 	}
 
 	return buf

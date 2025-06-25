@@ -123,10 +123,16 @@ func ServerExistsByName(db *gorm.DB, name string) (bool, error) {
 	return found, result.Error
 }
 
-// Update information about a server using its internal ID
-func UpdateServer(db *gorm.DB, data Server, column string, value any) error {
+// Update information about a server using its internal ID.
+// Values provided as "any" must be a pointer
+func UpdateServer(db *gorm.DB, data any, column string, value any) error {
+	server, ok := data.(*Server)
+	if !ok {
+		return ErrorInvalidObject
+	}
+
 	result := db.Model(&Server{}).
-		Where("server_id = ?", data.ServerID).
+		Where("server_id = ?", server.ServerID).
 		Update(
 			column, value,
 		)

@@ -400,7 +400,7 @@ func toggleBufList(t *TUI) {
 		t.area.main.ResizeItem(t.area.left, 0, 0)
 		t.status.showingBufs = false
 	} else {
-		t.area.main.ResizeItem(t.area.left, 0, 2)
+		t.area.main.ResizeItem(t.area.left, 0, buflistSize)
 		t.status.showingBufs = true
 	}
 }
@@ -410,7 +410,7 @@ func toggleUserlist(t *TUI) {
 		t.area.main.ResizeItem(t.comp.users, 0, 0)
 		t.status.showingUsers = false
 	} else {
-		t.area.main.ResizeItem(t.comp.users, 0, 1)
+		t.area.main.ResizeItem(t.comp.users, 0, userlistSize)
 		t.status.showingUsers = true
 	}
 }
@@ -437,6 +437,11 @@ func updateServers(t *TUI) {
 		if name != v {
 			t.servers.Remove(v)
 			t.servers.Add(name, s)
+
+			// Update the focus
+			if t.focus == v {
+				t.focus = name
+			}
 		}
 
 		// Get the TUI object

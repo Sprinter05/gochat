@@ -277,13 +277,18 @@ func setStructConfig(target any, field, value string) (any, func(), error) {
 
 // Gets the config parameters of a struct and a boolean indicating
 // if it was possible to retrieve the configuration. The passed
-// parameter must NOT be a pointer
+// parameter can or not be a pointer
 func getStructConfig(obj any, prefix string) ([][]byte, error) {
 	buf := make([][]byte, 0)
 
 	// Get the type and values about the server struct
 	t := reflect.TypeOf(obj)
 	s := reflect.ValueOf(obj)
+
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+		s = s.Elem()
+	}
 
 	if t.Kind() != reflect.Struct {
 		return nil, ErrorInvalidTarget
