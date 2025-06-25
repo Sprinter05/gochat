@@ -80,6 +80,7 @@ var (
 	ErrorRecoveryPassword      error = fmt.Errorf("could not recover during password checking")     // could not recover during password checking
 	ErrorInvalidField          error = fmt.Errorf("provided field is non-existant")                 // provided field is non-existant
 	ErrorCannotSet             error = fmt.Errorf("failed to set a value on the given field")       // failed to set a value on the given field
+	ErrorNoReusableToken       error = fmt.Errorf("reusable token is empty")                        // reusable token is empty
 )
 
 /* LOOKUP TABLES */
@@ -734,7 +735,8 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	}
 
 	// Try to login with a reusable token
-	if cmd.Data.Server.TLS && cmd.Data.GetToken() != "" {
+	_, validToken := cmd.Data.GetToken()
+	if cmd.Data.Server.TLS && validToken {
 		err := tokenLogin(ctx, cmd, username)
 		if err == nil {
 			str := fmt.Sprintf(

@@ -44,16 +44,25 @@ type Command struct {
 	Data   *Data       // Modifiable Data
 }
 
-func (d *Data) GetToken() string {
+// Gets a reusable token if it exists
+func (d *Data) GetToken() (string, bool) {
 	d.mut.RLock()
 	defer d.mut.RUnlock()
-	return d.token
+	return d.token, d.token != ""
 }
 
+// Sets a new reusable token
 func (d *Data) SetToken(t string) {
 	d.mut.Lock()
 	defer d.mut.Unlock()
 	d.token = t
+}
+
+// Empties the reusabke token
+func (d *Data) ClearToken() {
+	d.mut.Lock()
+	defer d.mut.Unlock()
+	d.token = ""
 }
 
 // Creates a new empty but initialised struct for Data

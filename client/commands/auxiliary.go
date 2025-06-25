@@ -161,11 +161,17 @@ func stringToValue(val string, bits int) any {
 // Tries to log in using a reusable token if applicable
 func tokenLogin(ctx context.Context, cmd Command, username string) error {
 	id := cmd.Data.NextID()
+
+	token, ok := cmd.Data.GetToken()
+	if !ok {
+		return ErrorNoReusableToken
+	}
+
 	pct, err := spec.NewPacket(
 		spec.LOGIN, id,
 		spec.EmptyInfo,
 		[]byte(username),
-		[]byte(cmd.Data.GetToken()),
+		[]byte(token),
 	)
 	if err != nil {
 		return err
@@ -189,7 +195,7 @@ func tokenLogin(ctx context.Context, cmd Command, username string) error {
 	}
 
 	if reply.HD.Op == spec.ERR {
-		cmd.Data.SetToken("")
+		cmd.Data.ClearToken()
 		return spec.ErrorCodeToError(reply.HD.Info)
 	}
 
