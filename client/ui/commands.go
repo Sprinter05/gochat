@@ -201,11 +201,12 @@ func askForNewPassword(t *TUI) (string, error) {
 	return pswd, nil
 }
 
-func configList(s Server) []cmds.ConfigObj {
+func configList(t *TUI, s Server) []cmds.ConfigObj {
 	data, _ := s.Online()
+	list := make([]cmds.ConfigObj, 0)
 
-	return []cmds.ConfigObj{
-		{
+	if data != nil {
+		list = append(list, cmds.ConfigObj{
 			Prefix: "Server",
 			Object: data.Server,
 			Precondition: func() error {
@@ -215,42 +216,50 @@ func configList(s Server) []cmds.ConfigObj {
 				return nil
 			},
 			Update: db.UpdateServer,
-		},
+		})
 	}
+
+	list = append(list, cmds.ConfigObj{
+		Prefix: "TUI",
+		Object: &t.sizes,
+	})
+
+	return list
 }
 
 // COMMANDS
 
 func setConfig(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
-	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
 	c, args := cmd.createCmd(t, data)
 
 	extra := args[1:]
 	extended := strings.Join(extra, " ")
 
-	objs := configList(cmd.serv)
+	objs := configList(t, cmd.serv)
 	err := cmds.Set(c, args[0], extended, objs...)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
-	go updateServers(t)
-}
-
-func showConfig(t *TUI, cmd Command) {
-	data, _ := cmd.serv.Online()
-	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+	prefix, _, ok := strings.Cut(args[0], ".")
+	if !ok {
 		return
 	}
 
-	objs := configList(cmd.serv)
+	// Update anything that might be necessary
+	switch prefix {
+	case "Server":
+		go updateServers(t)
+	case "TUI":
+		go renderBuflist(t)
+		go renderUserlist(t)
+	}
+}
+
+func showConfig(t *TUI, cmd Command) {
+	objs := configList(t, cmd.serv)
 	list := cmds.Config(objs...)
 
 	if len(list) == 0 {

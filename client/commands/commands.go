@@ -118,9 +118,10 @@ var adminList = map[string]spec.Admin{
 /* CLIENT COMMANDS */
 
 // Sets a variable on an object as configuration.
-// Passed objects must be pointers.
+// Passed objects must be pointers. Does not require
+// a Data struct in "Command"
 func Set(cmd Command, target, value string, objs ...ConfigObj) error {
-	// We remove the original "Server."
+	// We get the initial prefix
 	prefix, actual, ok := strings.Cut(target, ".")
 	if !ok {
 		return ErrorInvalidField
@@ -131,7 +132,7 @@ func Set(cmd Command, target, value string, objs ...ConfigObj) error {
 
 	found := false
 	for _, v := range objs {
-		// Invalid prefix
+		// Not the object we are looking for
 		if prefix != v.Prefix {
 			continue
 		}

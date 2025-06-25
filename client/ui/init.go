@@ -37,8 +37,6 @@ const (
 	inputSize       int     = 4         // size of the text input bar (fixed)
 	errorSize       int     = 1         // size of the error bar (fixed)
 	notifSize       int     = 2         // size of the notif bar (fixed)
-	buflistSize     int     = 2         // size of the buffer list bar (relative)
-	userlistSize    int     = 1         // size of the user list bar (fixed)
 	textSize        int     = 30        // Size of the text window
 	errorMessage    uint    = 3         // seconds
 	asciiNumbers    int     = 0x30      // Start of ASCII for number 1
@@ -95,6 +93,20 @@ type components struct {
 	users *tview.TextView // list of users
 }
 
+// Returns the default sizes for the layout
+func defaultSizes() Sizes {
+	return Sizes{
+		Buflist: ComponentSize{
+			Relative: true,
+			Size:     2,
+		},
+		Userlist: ComponentSize{
+			Relative: true,
+			Size:     1,
+		},
+	}
+}
+
 // Creates all components and assigns them to each area.
 func setupLayout() (areas, components) {
 	comps := components{
@@ -122,7 +134,7 @@ func setupLayout() (areas, components) {
 	left.SetBackgroundColor(tcell.ColorDefault)
 
 	main := tview.NewFlex().
-		AddItem(left, 0, 2, false).
+		AddItem(left, 0, 0, false).
 		AddItem(bottom, 0, 6, true).
 		AddItem(comps.users, 0, 0, false)
 	main.SetBackgroundColor(tcell.ColorDefault)
@@ -484,6 +496,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 		servers: models.NewTable[string, Server](0),
 		comp:    comps,
 		area:    areas,
+		sizes:   defaultSizes(),
 		status: state{
 			showingUsers:   false,
 			showingBufs:    true,
@@ -505,6 +518,9 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 		SetRoot(t.area.main, true).
 		SetFocus(t.area.main)
 	t.app = app
+
+	renderBuflist(t)
+	renderUserlist(t)
 
 	setupKeybinds(t)
 	setupHandlers(t)

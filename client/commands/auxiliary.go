@@ -110,60 +110,59 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 
 // Tries to convert a string into any of the primitive values
 func stringToValue(val string, ref reflect.Value) any {
-	// First we try as a boolean
+	bits := 0
+	kind := ref.Kind()
+
+	// We check if it can be parsed as a number
+	if kind >= reflect.Int && kind <= reflect.Float64 {
+		// We get the amount of bits if its a numeric
+		bits = ref.Type().Bits()
+
+		// Now we try to parse as an unsigned integer
+		asUint, err := strconv.ParseUint(val, 10, bits)
+		if err == nil {
+			// We need this or it will fail when setting
+			switch bits {
+			case 8:
+				return uint8(asUint)
+			case 16:
+				return uint16(asUint)
+			case 32:
+				return uint32(asUint)
+			}
+			return uint(asUint)
+		}
+
+		// Now we try to parse as an integer
+		asInt, err := strconv.ParseInt(val, 10, bits)
+		if err == nil {
+			// We need this or it will fail when setting
+			switch bits {
+			case 8:
+				return int8(asUint)
+			case 16:
+				return int16(asUint)
+			case 32:
+				return int32(asUint)
+			}
+			return int(asInt)
+		}
+
+		// Now we try to parse as a float
+		asFloat, err := strconv.ParseFloat(val, bits)
+		if err == nil {
+			// We need this or it will fail when setting
+			if bits == 32 {
+				return float32(asFloat)
+			}
+			return asFloat
+		}
+	}
+
+	// Finally we try as a boolean
 	asBool, err := strconv.ParseBool(val)
 	if err == nil {
 		return asBool
-	}
-
-	bits := 0
-	kind := ref.Kind()
-	// We get the amount of bits if its a numeric
-	if kind >= reflect.Int && kind <= reflect.Float64 {
-		bits = ref.Type().Bits()
-	} else {
-		// Not a number, we return the string
-		return val
-	}
-
-	// Now we try to parse as an unsigned integer
-	asUint, err := strconv.ParseUint(val, 10, bits)
-	if err == nil {
-		// We need this or it will fail when setting
-		switch bits {
-		case 8:
-			return uint8(asUint)
-		case 16:
-			return uint16(asUint)
-		case 32:
-			return uint32(asUint)
-		}
-		return uint(asUint)
-	}
-
-	// Now we try to parse as an integer
-	asInt, err := strconv.ParseInt(val, 10, bits)
-	if err == nil {
-		// We need this or it will fail when setting
-		switch bits {
-		case 8:
-			return int8(asUint)
-		case 16:
-			return int16(asUint)
-		case 32:
-			return int32(asUint)
-		}
-		return int(asInt)
-	}
-
-	// Now we try to parse as a float
-	asFloat, err := strconv.ParseFloat(val, bits)
-	if err == nil {
-		// We need this or it will fail when setting
-		if bits == 32 {
-			return float32(asFloat)
-		}
-		return asFloat
 	}
 
 	// If its none of the others then its just a normal string
@@ -237,10 +236,33 @@ func setStructConfig(target any, field, value string) (any, func(), error) {
 		return nil, nil, ErrorInvalidTarget
 	}
 
-	// Get the value
+	// Get the struct
 	s := reflect.ValueOf(target).Elem()
 
+	// Apply recursion
+	prefix, suffix, ok := strings.Cut(field, ".")
+	if ok {
+		// We obtain the value of the struct
+		object := s.FieldByName(prefix)
+		ref := object.Addr().Interface()
+
+		if object.Kind() != reflect.Struct {
+			return nil, nil, ErrorInvalidField
+		}
+
+		// We pass the pointer to allow modification
+		val, rollback, err := setStructConfig(ref, suffix, value)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return val, rollback, nil
+	}
+
+	// Get the struct fieVld
 	change := s.FieldByName(field)
+
+	// Check the tag
 	tag, ok := t.FieldByName(field)
 	if ok {
 		// Make sure we dont allow modifying foreign keys
@@ -297,6 +319,17 @@ func getStructConfig(obj any, prefix string) ([][]byte, error) {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		v := s.Field(i)
+
+		// Recursion
+		if v.Kind() == reflect.Struct {
+			concat := prefix + "." + f.Name
+			recursion, err := getStructConfig(v.Interface(), concat)
+			if err == nil {
+				buf = append(buf, recursion...)
+			}
+
+			continue
+		}
 
 		// We do not show internal IDs
 		if strings.Contains(f.Name, "ID") {

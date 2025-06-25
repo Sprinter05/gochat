@@ -17,9 +17,10 @@ import (
 
 /* TUI */
 
+// Struct representing a user shown in the userlist
 type userlistUser struct {
-	name  string
-	perms uint
+	name  string // Name of the user
+	perms uint   // Permission level of the user
 }
 
 // Identifies conditions that may in any moment
@@ -44,6 +45,20 @@ type state struct {
 	lastMsg  time.Time // last message sent
 }
 
+// Used to change size of a specific component
+type ComponentSize struct {
+	Size     uint // Specifies the size of the component
+	Relative bool // Specifies whether its relative to the other components
+}
+
+// Used to modify the sizes of the components
+// in the TUI for its configuration.
+// Must be exported for external modification
+type Sizes struct {
+	Buflist  ComponentSize // Size of left bar
+	Userlist ComponentSize // Size of right bar
+}
+
 // Identifies the main TUI with all its
 // components and data.
 type TUI struct {
@@ -51,6 +66,7 @@ type TUI struct {
 	comp components         // Actual tview components
 	app  *tview.Application // App that runs
 
+	sizes  Sizes           // Size of the different components
 	status state           // Identifies rendering states
 	data   cmds.StaticData // Identifies command data
 
@@ -395,24 +411,56 @@ func deleteBufWindow(t *TUI) {
 
 /* BARS */
 
-func toggleBufList(t *TUI) {
+func renderBuflist(t *TUI) {
 	if t.status.showingBufs {
-		t.area.main.ResizeItem(t.area.left, 0, 0)
-		t.status.showingBufs = false
-	} else {
-		t.area.main.ResizeItem(t.area.left, 0, buflistSize)
-		t.status.showingBufs = true
+		if t.sizes.Buflist.Relative {
+			t.area.main.ResizeItem(
+				t.area.left,
+				0,
+				int(t.sizes.Buflist.Size),
+			)
+		} else {
+			t.area.main.ResizeItem(
+				t.area.left,
+				int(t.sizes.Buflist.Size),
+				0,
+			)
+		}
+		return
 	}
+
+	t.area.main.ResizeItem(t.area.left, 0, 0)
+}
+
+func renderUserlist(t *TUI) {
+	if t.status.showingUsers {
+		if t.sizes.Userlist.Relative {
+			t.area.main.ResizeItem(
+				t.comp.users,
+				0,
+				int(t.sizes.Userlist.Size),
+			)
+		} else {
+			t.area.main.ResizeItem(
+				t.comp.users,
+				int(t.sizes.Userlist.Size),
+				0,
+			)
+		}
+		return
+	}
+
+	t.area.main.ResizeItem(t.comp.users, 0, 0)
+}
+
+func toggleBufList(t *TUI) {
+	t.status.showingBufs = !t.status.showingBufs
+	renderBuflist(t)
 }
 
 func toggleUserlist(t *TUI) {
-	if t.status.showingUsers {
-		t.area.main.ResizeItem(t.comp.users, 0, 0)
-		t.status.showingUsers = false
-	} else {
-		t.area.main.ResizeItem(t.comp.users, 0, userlistSize)
-		t.status.showingUsers = true
-	}
+	t.status.showingUsers = !t.status.showingUsers
+	renderUserlist(t)
 }
 
 /* RENDER FUNCTIONS */
