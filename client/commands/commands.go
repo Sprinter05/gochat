@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -78,6 +77,7 @@ var (
 	ErrorUnknownHookOption     error = fmt.Errorf("invalid hook provided")                          // invalid hook provided
 	ErrorInvalidAdminOperation error = fmt.Errorf("invalid admin operation")                        // invalid admin operation
 	ErrorRecoveryPassword      error = fmt.Errorf("could not recover during password checking")     // could not recover during password checking
+	ErrorInvalidTarget         error = fmt.Errorf("provided object is not an appropiate type")      // provided object is not an appropiate type
 	ErrorInvalidField          error = fmt.Errorf("provided field is non-existant")                 // provided field is non-existant
 	ErrorCannotSet             error = fmt.Errorf("failed to set a value on the given field")       // failed to set a value on the given field
 	ErrorNoReusableToken       error = fmt.Errorf("reusable token is empty")                        // reusable token is empty
@@ -107,67 +107,40 @@ var adminList = map[string]spec.Admin{
 
 // Sets a server variable as configuration.
 func Set(cmd Command, server *db.Server, target, value string) error {
-	if cmd.Data.IsConnected() {
-		return ErrorOfflineRequired
-	}
-
-	// We dereference the pointer
-	s := reflect.ValueOf(server).Elem()
-	t := reflect.TypeOf(server).Elem()
-
 	// We remove the original "Server."
-	_, actual, ok := strings.Cut(target, ".")
+	prefix, actual, ok := strings.Cut(target, ".")
 	if !ok {
 		return ErrorInvalidField
 	}
 
-	// Allowing ID modification would be too dangerous
-	if strings.Contains(actual, "ID") {
+	// Used to modify the database
+	column := strings.ToLower(actual)
+
+	switch prefix {
+	case "Server":
+		if cmd.Data.IsConnected() {
+			return ErrorOfflineRequired
+		}
+
+		val, rollback, err := setStructConfig(server, actual, value)
+		if err != nil {
+			return err
+		}
+
+		err = db.UpdateServer(cmd.Static.DB, *server, column, val)
+		if err != nil {
+			rollback()
+			return err
+		}
+	default:
 		return ErrorInvalidField
 	}
 
-	change := s.FieldByName(actual)
-	tag, ok := t.FieldByName(actual)
-	if ok {
-		// Make sure we dont allow modifying foreign keys
-		check, ok := tag.Tag.Lookup("gorm")
-		if ok && strings.Contains(check, "foreignKey") {
-			return ErrorInvalidField
-		}
-	}
-
-	// Not settable
-	if !change.CanSet() {
-		return ErrorCannotSet
-	}
-
-	bits := 0
-	kind := change.Kind()
-	// We get the amount of bits if its a numeric
-	if kind >= reflect.Int && kind <= reflect.Float64 {
-		bits = change.Type().Bits()
-	}
-
-	// We turn the integer into an interface
-	val := stringToValue(value, bits)
-	ref := reflect.ValueOf(val)
-
-	// Used to rollback
-	tmp := change.Interface()
-
-	// This check is necessary to avoid panics
-	if ref.Kind() != change.Kind() {
-		return ErrorCannotSet
-	}
-
-	// We set the value and update the database
-	change.Set(ref)
-	column := strings.ToLower(actual)
-	err := db.UpdateServer(cmd.Static.DB, *server, column, val)
-	if err != nil {
-		change.Set(reflect.ValueOf(tmp))
-		return err
-	}
+	str := fmt.Sprintf(
+		"succesfully changed %s to %s",
+		target, value,
+	)
+	cmd.Output(str, RESULT)
 
 	return nil
 }
@@ -175,28 +148,9 @@ func Set(cmd Command, server *db.Server, target, value string) error {
 // Returns the current configuration values for the structs
 func Config(server db.Server) [][]byte {
 	buf := make([][]byte, 0)
-
-	// Get the type and values about the server struct
-	t := reflect.TypeOf(server)
-	s := reflect.ValueOf(server)
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		v := s.Field(i)
-
-		// We do not show internal IDs
-		if strings.Contains(f.Name, "ID") {
-			continue
-		}
-
-		// We also skip foreign keys
-		check, ok := f.Tag.Lookup("gorm")
-		if ok && strings.Contains(check, "foreignKey") {
-			continue
-		}
-
-		// Add the information to the list
-		str := fmt.Sprintf("Server.%s = %v", f.Name, v)
-		buf = append(buf, []byte(str))
+	serverConfig, err := getStructConfig(server, "Server")
+	if err == nil {
+		buf = append(buf, serverConfig...)
 	}
 
 	return buf

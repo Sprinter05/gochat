@@ -221,13 +221,7 @@ func setConfig(t *TUI, cmd Command) {
 		return
 	}
 
-	go updateServerTexts(t)
-
-	str := fmt.Sprintf(
-		"succesfully changed %s to %s",
-		args[0], extended,
-	)
-	cmd.print(str, cmds.RESULT)
+	go updateServers(t)
 }
 
 func showConfig(t *TUI, cmd Command) {
@@ -686,7 +680,7 @@ func listUsers(t *TUI, cmd Command) {
 	}
 
 	var list strings.Builder
-	mode := fmt.Sprintf("%s %s", args[0], args[1])
+	mode := fmt.Sprintf("%s %s", args[1], args[0])
 	if queryPerms {
 		list.WriteString("Showing " + mode + " users with permissions:\n")
 	} else {

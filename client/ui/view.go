@@ -417,26 +417,39 @@ func toggleUserlist(t *TUI) {
 
 /* RENDER FUNCTIONS */
 
-func updateServerTexts(t *TUI) {
-	list := t.servers.GetAll()
+func updateServers(t *TUI) {
+	list := t.servers.Indexes()
 
 	for _, v := range list {
-		data, _ := v.Online()
+		s, _ := t.servers.Get(v)
+
+		// Update the data
+		s.Update()
+
+		// Ignore local servers
+		data, _ := s.Online()
 		if data == nil {
 			continue
 		}
 
-		i, ok := t.findServer(v.Name())
+		// Remap it with the right index
+		name := s.Name()
+		if name != v {
+			t.servers.Remove(v)
+			t.servers.Add(name, s)
+		}
+
+		// Get the TUI object
+		i, ok := t.findServer(v)
 		if !ok {
 			continue
 		}
 
-		v.Update()
-
+		// Modify the name in the TUI
 		t.comp.servers.SetItemText(
-			i, v.Name(),
+			i, name,
 			tlsText(
-				v.Source(),
+				s.Source(),
 				data.Server.TLS,
 			),
 		)
