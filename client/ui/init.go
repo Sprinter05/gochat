@@ -320,9 +320,21 @@ func setupInput(t *TUI) {
 		}
 	})
 
+	t.comp.text.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyESC: // Scroll to the end
+			t.comp.text.ScrollToEnd()
+		case tcell.KeyCtrlA: // Scroll to beggining
+			t.comp.text.ScrollToBeginning()
+		}
+		return event
+	})
+
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyEscape:
+		case tcell.KeyCtrlU: // Override
+			return nil
+		case tcell.KeyESC:
 			t.comp.input.SetText("", false)
 			t.next = 0
 			return nil
@@ -410,10 +422,6 @@ func setupKeybinds(t *TUI) {
 			toggleUserlist(t)
 		case tcell.KeyCtrlB: // Show/Hide buffer list
 			toggleBufList(t)
-		case tcell.KeyESC: // Scroll to the end
-			if !t.status.blockCond() {
-				t.comp.text.ScrollToEnd()
-			}
 		case tcell.KeyCtrlT: // Changes input between messages and inpit
 			if t.status.blockCond() {
 				break

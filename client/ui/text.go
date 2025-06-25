@@ -16,11 +16,14 @@ const KeybindHelp string = `
 [-::u]Keybinds Manual:[-::-]
 
 [yellow::b]Ctrl-Alt-H/Ctrl-Shift-H[-::-]: Show/Hide help window
+	- Keybinds for the [-::b]chat window[-::-] also apply in here
 
 [yellow::b]Ctrl-Q[-::-]: Exit program
 
 [yellow::b]Ctrl-T[-::-]: Focus chat/input window
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
+	- In the [-::b]chat window[-::-] use [green]Escape[-::-] to scroll down to the end
+	- In the [-::b]chat window[-::-] use [green]Ctrl-A[-::-] to scroll up to the beggining
 	- In the [-::b]input window[-::-] use [green]Escape[-::-] to clear the text
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
 	- In the [-::b]input window[-::-] use [green]Up[-::-] to browse through the history of commands ran.
