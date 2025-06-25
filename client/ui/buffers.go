@@ -188,7 +188,7 @@ func (t *TUI) addBuffer(name string, system bool) {
 			return
 		}
 
-		if name == data.GetUser().User.Username {
+		if name == data.LocalUser.User.Username {
 			t.showError(ErrorMessageSelf)
 			return
 		}

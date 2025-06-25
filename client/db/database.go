@@ -60,7 +60,8 @@ type User struct {
 	UserID   uint   `gorm:"autoIncrement:false;not null"`
 	ServerID uint   `gorm:"primaryKey;autoIncrement:false;not null"`
 	Username string `gorm:"primaryKey;not null"`
-	Server   Server `gorm:"foreignKey:ServerID;references:ServerID;constraint:OnDelete:CASCADE"`
+
+	Server Server `gorm:"foreignKey:ServerID;references:ServerID;constraint:OnDelete:CASCADE"`
 }
 
 // User extension dedicated to locally created users.
@@ -71,7 +72,8 @@ type LocalUser struct {
 	Password string         `gorm:"not null"`
 	Config   map[string]any `gorm:"serializer:json"`
 	PrvKey   string
-	User     User `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
+
+	User User `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
 }
 
 // User extension dedicated to REQ'd users. Only
@@ -80,16 +82,18 @@ type LocalUser struct {
 type ExternalUser struct {
 	UserID uint   `gorm:"primaryKey;not null"`
 	PubKey string `gorm:"not null"`
-	User   User   `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
+
+	User User `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
 }
 
 // Holds message data.
 type Message struct {
-	MessageID       uint `gorm:"primaryKey;autoincrement;not null"`
-	SourceID        uint
-	DestinationID   uint
-	Stamp           time.Time
-	Text            string
+	MessageID     uint `gorm:"primaryKey;autoincrement;not null"`
+	SourceID      uint
+	DestinationID uint
+	Stamp         time.Time
+	Text          string
+
 	SourceUser      User `gorm:"foreignKey:SourceID;references:UserID;OnDelete:RESTRICT"`
 	DestinationUser User `gorm:"foreignKey:DestinationID;references:UserID;OnDelete:RESTRICT"`
 }

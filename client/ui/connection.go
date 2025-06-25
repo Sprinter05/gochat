@@ -165,7 +165,7 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 	if err != nil {
 		return err
 	}
-	s.data.SetServer(&serv)
+	s.data.Server = &serv
 
 	t.servers.Add(name, s)
 	num := t.servers.Len()
@@ -207,7 +207,7 @@ func (t *TUI) showServer(name string) error {
 		notifs: models.NewTable[string, uint](0),
 	}
 
-	s.data.SetServer(&serv)
+	s.data.Server = &serv
 
 	t.servers.Add(name, s)
 	num := t.servers.Len()
@@ -348,7 +348,7 @@ func (t *TUI) renderServer(name string) {
 	if online {
 		t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 		if data.IsLoggedIn() {
-			uname := data.GetUser().User.Username
+			uname := data.LocalUser.User.Username
 			t.comp.input.SetLabel(unameLabel(uname))
 		} else {
 			t.comp.input.SetLabel(defaultLabel)
@@ -478,10 +478,10 @@ func (s *RemoteServer) Notifications() Notifications {
 }
 
 func (s *RemoteServer) Update() {
-	s.name = s.data.GetServer().Name
+	s.name = s.data.Server.Name
 	s.addr = Source{
-		Address: s.data.GetServer().Address,
-		Port:    s.data.GetServer().Port,
+		Address: s.data.Server.Address,
+		Port:    s.data.Server.Port,
 	}
 }
 

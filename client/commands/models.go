@@ -16,14 +16,18 @@ import (
 // Requires fields may change between commands
 // Commands may alter the data if necessary
 type Data struct {
-	conn     net.Conn                      // Specifies the connection to the server
-	server   *db.Server                    // Specifies the database server
-	user     *db.LocalUser                 // Specifies the logged in user
-	logout   context.CancelFunc            // Specifies the function to call on a logout for context propagation
-	Waitlist models.Waitlist[spec.Command] // Stores all commands to be retrieved later
-	token    string                        // Reusable token in case of TLS usage
-	next     spec.ID                       // Specifies the next ID that should be used when sending a packet
-	mut      sync.RWMutex
+	Conn     net.Conn                      // Specifies the connection to the server
+	Logout   context.CancelFunc            // Specifies the function to call on a logout for context propagation
+	Waitlist models.Waitlist[spec.Command] // Stores all packets to be retrieved later
+
+	// Using pointers so that "nil" can be used
+	Server    *db.Server    // Specifies the database server
+	LocalUser *db.LocalUser // Specifies the logged in user
+
+	token string  // Reusable token in case of TLS usage
+	next  spec.ID // Specifies the next ID that should be used when sending a packet
+
+	mut sync.RWMutex // Specifies the mutex protecting token and next
 }
 
 // Static data that should only be assigned
@@ -40,45 +44,9 @@ type Command struct {
 	Data   *Data       // Modifiable Data
 }
 
-func (d *Data) GetConn() net.Conn {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	return d.conn
-}
-
-func (d *Data) SetConn(c net.Conn) {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	d.conn = c
-}
-
-func (d *Data) GetServer() *db.Server {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	return d.server
-}
-
-func (d *Data) SetServer(s *db.Server) {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	d.server = s
-}
-
-func (d *Data) GetUser() *db.LocalUser {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	return d.user
-}
-
-func (d *Data) SetUser(u *db.LocalUser) {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	d.user = u
-}
-
 func (d *Data) GetToken() string {
-	d.mut.Lock()
-	defer d.mut.Unlock()
+	d.mut.RLock()
+	defer d.mut.RUnlock()
 	return d.token
 }
 
@@ -88,31 +56,21 @@ func (d *Data) SetToken(t string) {
 	d.token = t
 }
 
-func (d *Data) GetLogout() context.CancelFunc {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	return d.logout
-}
-
-func (d *Data) SetLogout(l context.CancelFunc) {
-	d.mut.Lock()
-	defer d.mut.Unlock()
-	d.logout = l
-}
-
 // Creates a new empty but initialised struct for Data
 func NewEmptyData() Data {
 	initial := mrand.IntN(int(spec.MaxID))
 
 	return Data{
 		Waitlist: DefaultWaitlist(),
+		Logout:   func() {},
 		next:     spec.ID(initial),
-		logout:   func() {},
 	}
 }
 
 // Incremenents the next ID to be used and returns it
 func (data *Data) NextID() spec.ID {
+	data.mut.Lock()
+	defer data.mut.Unlock()
 	data.next = (data.next + 1) % spec.MaxID
 	if data.next == spec.NullID {
 		data.next += 1
@@ -122,10 +80,10 @@ func (data *Data) NextID() spec.ID {
 
 // Whether the connection is logged in or not
 func (data *Data) IsLoggedIn() bool {
-	return data.user != nil && data.user.User.Username != "" && data.IsConnected()
+	return data.LocalUser != nil && data.LocalUser.User.Username != "" && data.IsConnected()
 }
 
 // Whether the connection is or not established
 func (data *Data) IsConnected() bool {
-	return data.conn != nil
+	return data.Conn != nil
 }

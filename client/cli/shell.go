@@ -40,8 +40,8 @@ func New(static commands.StaticData, conn net.Conn, server db.Server) commands.C
 	}
 
 	// Assign data variables
-	data.SetConn(conn)
-	data.SetServer(&server)
+	data.Conn = conn
+	data.Server = &server
 
 	if static.Verbose {
 		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
@@ -110,7 +110,7 @@ func PrintPrompt(data *commands.Data) {
 	connected := ""
 	username := ""
 	if data.IsLoggedIn() {
-		username = data.GetUser().User.Username
+		username = data.LocalUser.User.Username
 	}
 
 	if !data.IsConnected() {

@@ -26,7 +26,7 @@ func GetPermissions(ctx context.Context, cmd Command, uname string) (uint, error
 		return 0, err
 	}
 
-	_, err = cmd.Data.GetConn().Write(packet)
+	_, err = cmd.Data.Conn.Write(packet)
 	if err != nil {
 		return 0, err
 	}
@@ -58,8 +58,8 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 	src, err := db.GetUser(
 		cmd.Static.DB,
 		string(reciv.Args[0]),
-		cmd.Data.GetServer().Address,
-		cmd.Data.GetServer().Port,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 	if err != nil {
 		// The user most likely has not been found, so a REQ is required
@@ -69,7 +69,7 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 		}
 	}
 
-	prvKey, pemErr := spec.PEMToPrivkey([]byte(cmd.Data.GetUser().PrvKey))
+	prvKey, pemErr := spec.PEMToPrivkey([]byte(cmd.Data.LocalUser.PrvKey))
 	if pemErr != nil {
 		return Message{}, pemErr
 	}
@@ -87,9 +87,9 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 	_, insertErr := db.StoreMessage(
 		cmd.Static.DB,
 		src.Username,
-		cmd.Data.GetUser().User.Username,
-		cmd.Data.GetServer().Address,
-		cmd.Data.GetServer().Port,
+		cmd.Data.LocalUser.User.Username,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 		string(decrypted),
 		stamp,
 	)
@@ -175,7 +175,7 @@ func tokenLogin(ctx context.Context, cmd Command, username string) error {
 		packetPrint(pct, cmd)
 	}
 
-	_, err = cmd.Data.GetConn().Write(pct)
+	_, err = cmd.Data.Conn.Write(pct)
 	if err != nil {
 		return err
 	}
@@ -203,8 +203,8 @@ func tokenLogin(ctx context.Context, cmd Command, username string) error {
 func printServerLocalUsers(cmd Command) ([][]byte, error) {
 	localUsers, err := db.GetServerLocalUsers(
 		cmd.Static.DB,
-		cmd.Data.GetServer().Address,
-		cmd.Data.GetServer().Port,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 
 	if err != nil {
@@ -213,9 +213,9 @@ func printServerLocalUsers(cmd Command) ([][]byte, error) {
 
 	users := make([][]byte, 0, len(localUsers))
 	cmd.Output(fmt.Sprintf("local users from %s - %s:%d:",
-		cmd.Data.GetServer().Name,
-		cmd.Data.GetServer().Address,
-		cmd.Data.GetServer().Port),
+		cmd.Data.Server.Name,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port),
 		USRS,
 	)
 

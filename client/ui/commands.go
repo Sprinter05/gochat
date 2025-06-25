@@ -215,7 +215,7 @@ func setConfig(t *TUI, cmd Command) {
 	extra := args[1:]
 	extended := strings.Join(extra, " ")
 
-	err := cmds.Set(c, data.GetServer(), args[0], extended)
+	err := cmds.Set(c, data.Server, args[0], extended)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
@@ -237,7 +237,7 @@ func showConfig(t *TUI, cmd Command) {
 		return
 	}
 
-	list := cmds.Config(*data.GetServer())
+	list := cmds.Config(*data.Server)
 
 	var str strings.Builder
 	str.WriteString("Showing configuration options:")
@@ -490,7 +490,7 @@ func toggleTLS(t *TUI, cmd Command) {
 		return
 	}
 
-	err := cmds.TLS(c, c.Data.GetServer(), useTLS)
+	err := cmds.TLS(c, c.Data.Server, useTLS)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -596,14 +596,14 @@ func loginUser(t *TUI, cmd Command) {
 		return
 	}
 
-	uname := data.GetUser().User.Username
+	uname := data.LocalUser.User.Username
 	t.comp.input.SetLabel(unameLabel(uname))
 	if !t.status.showingUsers {
 		toggleUserlist(t)
 	}
 
 	ctx, cancel := context.WithCancel(cmd.serv.Context().Get())
-	data.SetLogout(cancel)
+	data.Logout = cancel
 
 	go t.receiveMessages(ctx, cmd.serv)
 	go t.receiveHooks(ctx, cmd.serv)
@@ -770,7 +770,7 @@ func connectServer(t *TUI, cmd Command) {
 	}
 
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
-	err := cmds.Conn(c, *c.Data.GetServer(), noVerify)
+	err := cmds.Conn(c, *c.Data.Server, noVerify)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -783,7 +783,7 @@ func connectServer(t *TUI, cmd Command) {
 	c.Output = t.systemMessage("", defaultBuffer)
 	go cmds.ListenPackets(c, func() {
 		cmd.serv.Buffers().Offline()
-		c.Data.Waitlist.Cancel(data.GetLogout())
+		c.Data.Waitlist.Cancel(data.Logout)
 		c.Data.Waitlist.Cancel(cmd.serv.Context().Cancel)
 
 		t.comp.input.SetLabel(defaultLabel)

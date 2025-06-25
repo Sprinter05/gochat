@@ -88,7 +88,12 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 		return ErrorNotLoggedIn
 	}
 
-	ok, err := db.ExternalUserExists(t.data.DB, name, data.GetServer().Address, data.GetServer().Port)
+	ok, err := db.ExternalUserExists(
+		t.data.DB,
+		name,
+		data.Server.Address,
+		data.Server.Port,
+	)
 	if err != nil {
 		return err
 	}
@@ -307,7 +312,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 		s.Notifications().Notify(msg.Sender)
 		t.updateNotifications()
 
-		if msg.Sender == data.GetUser().User.Username {
+		if msg.Sender == data.LocalUser.User.Username {
 			print(ErrorMessageFromSelf.Error())
 		}
 
@@ -407,7 +412,7 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 			uname := string(cmd.Args[0])
 			perms, _ := spec.BytesToPermission(cmd.Args[1])
 
-			if uname == data.GetUser().User.Username {
+			if uname == data.LocalUser.User.Username {
 				str := fmt.Sprintf(
 					"Your permission level in the server has changed to %d!",
 					perms,

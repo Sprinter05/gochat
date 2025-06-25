@@ -175,7 +175,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if connErr != nil {
 		return connErr
 	}
-	cmd.Data.SetServer(&server)
+	cmd.Data.Server = &server
 	go commands.ListenPackets(cmd, func() {})
 	return nil
 }
@@ -185,7 +185,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 // Arguments: none
 func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	discnErr := commands.Discn(cmd)
-	cmd.Data.SetServer(nil)
+	cmd.Data.Server = nil
 	return discnErr
 }
 
@@ -228,8 +228,8 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 	exists, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		string(username),
-		cmd.Data.GetServer().Address,
-		cmd.Data.GetServer().Port,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 
 	if existsErr != nil {
@@ -270,7 +270,7 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ",
-		cmd.Data.GetUser().User.Username),
+		cmd.Data.LocalUser.User.Username),
 		commands.PROMPT,
 	)
 
@@ -282,12 +282,11 @@ func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	}
 	cmd.Output("\n", commands.PROMPT)
 
-	deregErr := commands.Dereg(ctx, cmd, cmd.Data.GetUser().User.Username, string(pass))
+	deregErr := commands.Dereg(ctx, cmd, cmd.Data.LocalUser.User.Username, string(pass))
 	if deregErr != nil {
 		return deregErr
 	}
-	// Empties the user value in Data
-	cmd.Data.SetUser(nil)
+
 	return nil
 }
 
@@ -311,8 +310,8 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	username := string(args[0])
 	exists, _ := db.LocalUserExists(cmd.Static.DB,
 		username,
-		cmd.Data.GetServer().Address,
-		cmd.Data.GetServer().Port,
+		cmd.Data.Server.Address,
+		cmd.Data.Server.Port,
 	)
 	if !exists {
 		return commands.ErrorUserNotFound
