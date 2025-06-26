@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -53,8 +54,10 @@ func New(static commands.StaticData, conn net.Conn, server db.Server) commands.C
 	}
 	go commands.ListenPackets(cmds, func() {})
 
+	// Starts specific command handlers to listen on the background
 	go RECIVHandler(cmds)
 	go HOOKHandler(cmds)
+	go SHTDWNHandler(cmds)
 
 	return cmds
 }
@@ -165,7 +168,7 @@ func RECIVHandler(cmd commands.Command) {
 	}
 }
 
-// Shell-specific HOOL handler. Listens
+// Shell-specific HOOK handler. Listens
 // constantly for incoming HOOK packets
 // and performs the necessary shell
 // operations.
@@ -176,6 +179,26 @@ func HOOKHandler(cmd commands.Command) {
 			commands.Find(0, spec.HOOK),
 		)
 		printHook(hook, cmd)
+	}
+}
+
+// Shell-specific SHTDWN handler. Listens
+// constantly for incoming SHTDWN packets
+// and prints a notice about them
+func SHTDWNHandler(cmd commands.Command) {
+	for {
+		shtdwn, _ := cmd.Data.Waitlist.Get(
+			context.Background(),
+			commands.Find(0, spec.SHTDWN),
+		)
+
+		stamp, _ := spec.BytesToUnixStamp(shtdwn.Args[0])
+		diff := time.Until(stamp)
+		printShutdown(int(diff), cmd)
+
+		time.Sleep(diff)
+		cmd.Output("Server shutdown incoming. Disconnecting...", commands.INFO)
+		commands.Discn(cmd)
 	}
 }
 
@@ -192,6 +215,20 @@ func printMessage(reciv spec.Command, decryptedText string, cmd commands.Command
 func printHook(hook spec.Command, cmd commands.Command) {
 	// Removes prompt line and rings bell
 	fmt.Print("\r\033[K\a")
-	fmt.Printf("\033[0;35m[HOOK] \033[32mHook received\033[0m: Code %d (%s)\n", hook.HD.Info, spec.HookString(spec.Hook(hook.HD.Info)))
+	fmt.Printf("\033[0;35m[HOOK] \033[32mHook received\033[0m: Code %d (%s)\n",
+		hook.HD.Info,
+		spec.HookString(spec.Hook(hook.HD.Info)),
+	)
+	PrintPrompt(cmd.Data)
+}
+
+// Prints a shutdown notice
+func printShutdown(count int, cmd commands.Command) {
+	// Removes prompt line and rings bell
+	fmt.Print("\r\033[K\a")
+
+	fmt.Printf("\033[0;31m[SHTDWN] \033[0mNotice: Server %s will shutdown in %d seconds\n",
+		cmd.Data.Server.Name, count)
+
 	PrintPrompt(cmd.Data)
 }
