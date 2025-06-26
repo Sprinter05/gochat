@@ -52,7 +52,7 @@ const (
 
 // JSON config names
 const (
-	bufferList string = "buffer_list" // Must be []string
+	bufferLayout string = "BufferLayout" // Must be []string
 )
 
 var (

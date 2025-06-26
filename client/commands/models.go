@@ -113,11 +113,65 @@ type ConfigUpdate func(db *gorm.DB, obj any, column string, val any) error
 type ConfigObj struct {
 	Prefix       string       // Should start with capital letter
 	Object       any          // Can be or not a pointer (read the function precondition)
-	Precondition func() error // Condition needed for it to run
+	Precondition func() error // Condition needed for it to be able to set a value
 	Update       ConfigUpdate // Called to update values on the database
+	Finish       func()       // Run a function once it has been updated
 }
 
 /* AUXILIARY CONFIG FUNCTIONS */
+
+// Gets the child object on a struct. It is addressable.
+func getStructChild(prefix string, objVal reflect.Value) (reflect.Value, bool) {
+	objType := objVal.Type()
+	zero := reflect.Zero(objType)
+
+	// Check that its a struct
+	if objVal.Kind() != reflect.Struct {
+		return zero, false
+	}
+
+	// We check if the child field even exists
+	fieldType, ok := objType.FieldByName(prefix)
+	if !ok {
+		return zero, false
+	}
+
+	// Make sure we dont allow modifying foreign keys
+	check, ok := fieldType.Tag.Lookup("gorm")
+	if ok && strings.Contains(check, "foreignKey") {
+		return zero, false
+	}
+
+	// We obtain the value of the child struct
+	childVal := objVal.FieldByName(prefix)
+	return childVal, true
+}
+
+// Gets the child object on a map. It is NOT addressable.
+func getMapChild(prefix string, objVal reflect.Value) (reflect.Value, bool) {
+	objType := objVal.Type()
+	zero := reflect.Zero(objType)
+
+	// Check that its a map
+	if objVal.Kind() != reflect.Map {
+		return zero, false
+	}
+
+	// Check that its key is a string
+	if objType.Key().Kind() != reflect.String {
+		return zero, false
+	}
+
+	// We try to get the value
+	field := objVal.MapIndex(reflect.ValueOf(prefix))
+	if field.Equal(zero) {
+		return zero, false
+	}
+
+	return field.Elem(), true
+}
+
+/* CONFIG LOOPS */
 
 // Assumes the value passed is a map[string]any (dereferenced)
 func loopGetMap(objVal reflect.Value, prefix string) [][]byte {
@@ -146,6 +200,7 @@ func loopGetMap(objVal reflect.Value, prefix string) [][]byte {
 			continue
 		}
 
+		// Add the information to the list
 		str := fmt.Sprintf("%s.%s = %v", prefix, fieldName, fieldVal)
 		buf = append(buf, []byte(str))
 	}
@@ -196,6 +251,60 @@ func loopGetStruct(objType reflect.Type, objVal reflect.Value, prefix string) []
 
 /* CONFIG FUNCTIONS */
 
+// Sets the value of a map[string]any, it does not allow for recursion.
+// Everything else works the same as the default setConfig.
+func setMapConfig(target any, field, value string) (any, func(), error) {
+	// Make sure we are given a pointer
+	objPtr := reflect.TypeOf(target)
+	if objPtr.Kind() != reflect.Pointer {
+		return nil, nil, ErrorInvalidTarget
+	}
+
+	// Make sure what we dereference is a struct or map
+	objType := objPtr.Elem()
+	if objType.Kind() != reflect.Map {
+		return nil, nil, ErrorInvalidTarget
+	}
+
+	// Get the object
+	objVal := reflect.ValueOf(target).Elem()
+
+	// Get the field in the map
+	fieldVal, ok := getMapChild(field, objVal)
+	if !ok {
+		return nil, nil, ErrorInvalidField
+	}
+
+	// Check the map is settable
+	if !objVal.CanSet() {
+		return nil, nil, ErrorCannotSet
+	}
+
+	// Get the value from the string
+	val := stringToValue(value, fieldVal)
+	if val == nil {
+		return nil, nil, ErrorCannotSet
+	}
+
+	// We get the reference to set and the field as a reflect value
+	name := reflect.ValueOf(field)
+	ref := reflect.ValueOf(val)
+
+	// Used to rollback
+	tmp := fieldVal.Interface()
+	rollback := func() {
+		objVal.SetMapIndex(name, reflect.ValueOf(tmp))
+	}
+
+	// This check is necessary to avoid panics
+	if ref.Kind() != fieldVal.Kind() {
+		return nil, nil, ErrorCannotSet
+	}
+
+	objVal.SetMapIndex(name, ref)
+	return val, rollback, nil
+}
+
 // Sets the value of a configuration struct and returns an error if it failed
 // and a rollback function to restore the field to its original value with the
 // new value of the field. Also works for map[string]any
@@ -211,26 +320,29 @@ func setConfig(target any, field, value string) (any, func(), error) {
 		return nil, nil, ErrorInvalidTarget
 	}
 
-	// Make sure what we dereference is a struct
+	// Make sure what we dereference is a struct or map
 	objType := objPtr.Elem()
 	if objType.Kind() != reflect.Struct {
+		if objType.Kind() == reflect.Map {
+			return setMapConfig(target, field, value)
+		}
+
 		return nil, nil, ErrorInvalidTarget
 	}
 
-	// Get the struct
+	// Get the object
 	objVal := reflect.ValueOf(target).Elem()
 
 	// Apply recursion if necessary
 	prefix, suffix, ok := strings.Cut(field, ".")
 	if ok {
-		// We check if the child field even exists
-		_, ok := objType.FieldByName(prefix)
+		// We get the child
+		child, ok := getStructChild(prefix, objVal)
 		if !ok {
 			return nil, nil, ErrorInvalidField
 		}
 
-		// We obtain the value of the child struct
-		child := objVal.FieldByName(prefix)
+		// Get its address
 		childPtr := child.Addr().Interface()
 
 		// To apply recursion it must be a struct
@@ -247,19 +359,9 @@ func setConfig(target any, field, value string) (any, func(), error) {
 		return val, rollback, nil
 	}
 
-	// Check the field's type
-	fieldType, ok := objType.FieldByName(field)
+	// Attempt to get the field
+	fieldVal, ok := getStructChild(prefix, objVal)
 	if !ok {
-		// Not found in the struct
-		return nil, nil, ErrorInvalidField
-	}
-
-	// Get the struct value
-	fieldVal := objVal.FieldByName(field)
-
-	// Make sure we dont allow modifying foreign keys
-	check, ok := fieldType.Tag.Lookup("gorm")
-	if ok && strings.Contains(check, "foreignKey") {
 		return nil, nil, ErrorInvalidField
 	}
 
@@ -298,7 +400,7 @@ func setConfig(target any, field, value string) (any, func(), error) {
 func getConfig(obj any, prefix string) ([][]byte, error) {
 	buf := make([][]byte, 0)
 
-	// Get the type and values about the server struct
+	// Get the type and values about the object
 	objType := reflect.TypeOf(obj)
 	objVal := reflect.ValueOf(obj)
 

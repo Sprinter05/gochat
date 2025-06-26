@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
@@ -125,7 +126,10 @@ func stringToValue(val string, ref reflect.Value) any {
 	}
 
 	// We get the amount of bits if its a numeric
-	bits := ref.Type().Bits()
+	bits := 0
+	if kind >= reflect.Int && kind <= reflect.Float64 {
+		bits = ref.Type().Bits()
+	}
 
 	// Parse as unsigned integer
 	if kind >= reflect.Uint && kind <= reflect.Uint64 {
@@ -171,6 +175,19 @@ func stringToValue(val string, ref reflect.Value) any {
 			}
 			return asFloat
 		}
+	}
+
+	// Format for slice if applicable
+	l := len(val)
+	if val[0] == '[' && val[l-1] == ']' {
+		nospaces := strings.TrimSpace(val[1 : l-1])
+		list := strings.Split(nospaces, ",")
+
+		// Remove spaces
+		for i, v := range list {
+			list[i] = strings.TrimSpace(v)
+		}
+		return list
 	}
 
 	// If its none of the others then we return nil

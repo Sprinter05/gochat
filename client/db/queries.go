@@ -330,17 +330,15 @@ func DeleteLocalUser(db *gorm.DB, username string, address string, port uint16) 
 	return nil
 }
 
-// Updates the configuration of a local user. Object
-// passed as "any" must be a pointer to a local user.
-// The passed "json" must be a valid tag.
-func UpdateUserConfig(db *gorm.DB, data any, json string, value any) error {
-	user, ok := data.(*LocalUser)
-	if !ok {
-		return ErrorInvalidObject
-	}
-
-	user.Config[json] = value
-	result := db.Save(user)
+// Updates the configuration of a local user. It loads
+// the json in the object to the database.
+func UpdateUserConfig(db *gorm.DB, user LocalUser) error {
+	result := db.Model(&LocalUser{}).
+		Where("user_id = ?", user.UserID).
+		Update(
+			"config",
+			user.Config,
+		)
 
 	return result.Error
 }

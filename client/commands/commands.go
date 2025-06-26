@@ -115,9 +115,6 @@ func Set(cmd Command, target, value string, objs ...ConfigObj) error {
 		return ErrorInvalidField
 	}
 
-	// Used to modify the database
-	column := strings.ToLower(actual)
-
 	found := false
 	for _, v := range objs {
 		// Not the object we are looking for
@@ -141,11 +138,19 @@ func Set(cmd Command, target, value string, objs ...ConfigObj) error {
 
 		// Modify the database if applicable
 		if v.Update != nil {
+			// Used to modify the database
+			column := strings.ToLower(actual)
+
 			err := v.Update(cmd.Static.DB, v.Object, column, val)
 			if err != nil {
 				rollback()
 				return err
 			}
+		}
+
+		// Run any post hooks
+		if v.Finish != nil {
+			go v.Finish()
 		}
 
 		// Completed

@@ -23,7 +23,7 @@
             "mode": "debug",
             "args": [
                 "--config",
-                "./config/client.json",
+                "./config/altclient.json",
             ],
             "program": "${workspaceFolder}/client",
             "cwd": "${workspaceFolder}",
