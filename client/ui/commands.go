@@ -67,11 +67,15 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/version",
 	},
-	"tls": {
-		fun:    toggleTLS,
-		nArgs:  1,
-		format: "/tls <on/off>",
-	},
+
+	/*
+		"tls": {
+			fun:    toggleTLS,
+			nArgs:  1,
+			format: "/tls <on/off>",
+		},
+	*/
+
 	"request": {
 		fun:    userRequest,
 		nArgs:  0,
@@ -498,6 +502,8 @@ func userRequest(t *TUI, cmd Command) {
 	}
 }
 
+/* OBSOLETE
+
 func toggleTLS(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
 	if data == nil {
@@ -541,6 +547,7 @@ func toggleTLS(t *TUI, cmd Command) {
 		cmd.print("TLS is now disabled", cmds.RESULT)
 	}
 }
+*/
 
 func showVersion(t *TUI, cmd Command) {
 	str := fmt.Sprintf(

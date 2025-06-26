@@ -403,6 +403,10 @@ func Export(cmd Command, username, pass string) error {
 	return nil
 }
 
+/* OBSOLETE
+
+	TLS command. Now obsolete.
+
 // Changes the state of how TLS will be handled for a server.
 func TLS(cmd Command, server *db.Server, on bool) error {
 	if cmd.Data.IsConnected() {
@@ -438,6 +442,7 @@ func TLS(cmd Command, server *db.Server, on bool) error {
 		return nil
 	}
 }
+*/
 
 // Starts a connection with a server. If noverify is set,
 // in case of TLS connections, certificate origins wont be checked.

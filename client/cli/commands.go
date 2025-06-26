@@ -74,10 +74,12 @@ var shCommands = map[string]ShellCommand{
 			"Usage: RECIV",
 	},
 
-	"TLS": {changeTLS,
-		"- TLS: Toggles on/off the TLS mode of the specified server.\n" +
-			"Usage: TLS <on/off> <server name>",
-	},
+	/*
+		"TLS": {changeTLS,
+			"- TLS: Toggles on/off the TLS mode of the specified server.\n" +
+				"Usage: TLS <on/off> <server name>",
+		},
+	*/
 
 	"IMPORT": {importKey,
 		". IMPORT: Imports a user to the client database provided the path of its previously-exported key.\n" +
@@ -493,6 +495,10 @@ func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	return exportErr
 }
 
+/* OBSOLETE
+
+	Calls the obsolete TLS command function
+
 // Calls TLS in order to switch on/off.
 // Arguments after <on/off> are used to select the server to switch its mode of
 //
@@ -541,6 +547,8 @@ func changeTLS(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	cmd.Output(fmt.Sprintf("TLS mode turned %s for %s server", onString, server.Name), commands.RESULT)
 	return nil
 }
+
+*/
 
 /* SHELL-EXCLUSIVE COMMANDS */
 
