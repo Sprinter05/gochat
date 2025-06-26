@@ -298,7 +298,6 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 		UserID:   user.UserID,
 		PrvKey:   prvKeyPEM,
 		Password: hashPass,
-		Config:   map[string]any{},
 	}
 
 	result := db.Create(&localUser)
@@ -328,19 +327,6 @@ func DeleteLocalUser(db *gorm.DB, username string, address string, port uint16) 
 	}
 
 	return nil
-}
-
-// Updates the configuration of a local user. It loads
-// the json in the object to the database.
-func UpdateUserConfig(db *gorm.DB, user LocalUser) error {
-	result := db.Model(&LocalUser{}).
-		Where("user_id = ?", user.UserID).
-		Update(
-			"config",
-			user.Config,
-		)
-
-	return result.Error
 }
 
 // Adds a local user autoincrementally

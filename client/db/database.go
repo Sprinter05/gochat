@@ -69,9 +69,8 @@ type User struct {
 // The passwords should be hashed and the private
 // keys need to be stored in PEM format.
 type LocalUser struct {
-	UserID   uint           `gorm:"primaryKey;not null;autoIncrement:false"`
-	Password string         `gorm:"not null"`
-	Config   map[string]any `gorm:"serializer:json"`
+	UserID   uint   `gorm:"primaryKey;not null;autoIncrement:false"`
+	Password string `gorm:"not null"`
 	PrvKey   string
 
 	User User `gorm:"foreignKey:UserID;OnDelete:CASCADE"`

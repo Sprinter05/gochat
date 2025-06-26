@@ -205,29 +205,6 @@ func askForNewPassword(t *TUI) (string, error) {
 	return pswd, nil
 }
 
-func registerConfig(cmd cmds.Command, username string) error {
-	user, err := db.GetLocalUser(
-		cmd.Static.DB,
-		username,
-		cmd.Data.Server.Address,
-		cmd.Data.Server.Port,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	// Set buffer list
-	empty := make([]string, 0)
-	user.Config[bufferLayout] = empty
-	err = db.UpdateUserConfig(cmd.Static.DB, user)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func configList(t *TUI, s Server) []cmds.ConfigObj {
 	data, _ := s.Online()
 	list := make([]cmds.ConfigObj, 0)
@@ -256,27 +233,6 @@ func configList(t *TUI, s Server) []cmds.ConfigObj {
 				updateServers(t)
 			},
 		})
-
-		if data.IsLoggedIn() {
-			list = append(list, cmds.ConfigObj{
-				Prefix: "User",
-				Object: &data.LocalUser.Config,
-				Precondition: func() error {
-					if !data.IsConnected() {
-						return ErrorOffline
-					}
-
-					if !data.IsLoggedIn() {
-						return ErrorNotLoggedIn
-					}
-
-					return nil
-				},
-				Finish: func() {
-					db.UpdateUserConfig(t.data.DB, *data.LocalUser)
-				},
-			})
-		}
 	}
 
 	return list
@@ -702,12 +658,6 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	defaultSubscribe(t, cmd.serv, output)
-
-	cmd.print("restoring buffers...", cmds.INTERMEDIATE)
-	ok = loadBuffers(t, cmd.serv)
-	if !ok {
-		cmd.print("failed to restore buffers", cmds.ERROR)
-	}
 }
 
 func listUsers(t *TUI, cmd Command) {
@@ -823,14 +773,6 @@ func registerUser(t *TUI, cmd Command) {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
-
-	// Set default user config
-	err = registerConfig(c, args[0])
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-
 }
 
 func connectServer(t *TUI, cmd Command) {
