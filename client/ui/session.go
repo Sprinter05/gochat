@@ -64,6 +64,30 @@ func cleanupSession(t *TUI, s Server) {
 
 /* USERS */
 
+// Loads all buffers from the configuration if applicable
+func loadBuffers(t *TUI, s Server) {
+	data, _ := s.Online()
+	if data == nil {
+		return
+	}
+
+	list, ok := data.LocalUser.Config[bufferList]
+	if !ok {
+		return
+	}
+
+	arr, ok := list.([]string)
+	if !ok {
+		return
+	}
+
+	for _, v := range arr {
+		t.addBuffer(v, false)
+	}
+
+	t.changeBuffer(int(rootBuffer))
+}
+
 // Requests a user's key on buffer connection
 func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 	tab, exists := s.Buffers().tabs.Get(name)

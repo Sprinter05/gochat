@@ -25,6 +25,8 @@ const Logo string = `
 
 `
 
+// TODO quickswitcher
+
 const (
 	tuiVersion      float32 = 0.2       // Current client TUI version
 	selfSender      string  = "You"     // Self sender of a message
@@ -45,6 +47,12 @@ const (
 	maxServers      uint    = 9         // Maximum amount of allowed servers
 	cmdTimeout      uint    = 30        // Max seconds to wait for a command to finish
 	msgDelay        uint    = 500       // miliseconds between msgs
+	rootBuffer      uint    = 0         // number of the root buffer
+)
+
+// JSON config names
+const (
+	bufferList string = "buffer_list" // Must be []string
 )
 
 var (
@@ -561,7 +569,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	}
 
 	t.comp.users.SetText(defaultUserlist)
-	t.changeBuffer(0) // System buffer
+	t.changeBuffer(int(rootBuffer)) // System buffer
 	t.restoreSession()
 	t.renderServer(localServer)
 
@@ -576,6 +584,7 @@ func (t *TUI) restoreSession() {
 		panic(fmt.Sprintf("Failed to restore session! %s", err))
 	}
 
+	// Add all database servers
 	for _, v := range list {
 		err := t.addServer(v.Name, v.Address, v.Port, v.TLS)
 		if err != nil {

@@ -17,7 +17,6 @@ import (
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 /* CUSTOM TYPES */
@@ -53,17 +52,6 @@ const (
 	LOCAL_ALL    USRSType = 5 // All local users
 	REQUESTED    USRSType = 6 // All external users whose public key has been saved
 )
-
-// Represents a function to update an object on the database
-type ConfigUpdate func(db *gorm.DB, obj any, column string, val any) error
-
-// Represents a config struct to be passed to modify
-type ConfigObj struct {
-	Prefix       string       // Should start with capital letter
-	Object       any          // Can be or not a pointer (read the function precondition)
-	Precondition func() error // Condition needed for it to run
-	Update       ConfigUpdate // Called to update values on the database
-}
 
 /* ERRORS AND CONSTANTS */
 
@@ -146,7 +134,7 @@ func Set(cmd Command, target, value string, objs ...ConfigObj) error {
 		}
 
 		// Set the value in the struct
-		val, rollback, err := setStructConfig(v.Object, actual, value)
+		val, rollback, err := setConfig(v.Object, actual, value)
 		if err != nil {
 			return err
 		}
@@ -184,7 +172,7 @@ func Config(objs ...ConfigObj) [][]byte {
 	buf := make([][]byte, 0)
 
 	for _, v := range objs {
-		config, err := getStructConfig(v.Object, v.Prefix)
+		config, err := getConfig(v.Object, v.Prefix)
 		if err == nil {
 			buf = append(buf, config...)
 		}

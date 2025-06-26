@@ -298,6 +298,7 @@ func AddLocalUser(db *gorm.DB, username string, hashPass string, prvKeyPEM strin
 		UserID:   user.UserID,
 		PrvKey:   prvKeyPEM,
 		Password: hashPass,
+		Config:   map[string]any{},
 	}
 
 	result := db.Create(&localUser)
@@ -327,6 +328,21 @@ func DeleteLocalUser(db *gorm.DB, username string, address string, port uint16) 
 	}
 
 	return nil
+}
+
+// Updates the configuration of a local user. Object
+// passed as "any" must be a pointer to a local user.
+// The passed "json" must be a valid tag.
+func UpdateUserConfig(db *gorm.DB, data any, json string, value any) error {
+	user, ok := data.(*LocalUser)
+	if !ok {
+		return ErrorInvalidObject
+	}
+
+	user.Config[json] = value
+	result := db.Save(user)
+
+	return result.Error
 }
 
 // Adds a local user autoincrementally

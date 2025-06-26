@@ -4,7 +4,6 @@ package db
 // The database used for the client is SQLite, connected with GORM.
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -56,11 +55,6 @@ var (
 )
 
 /* MODELS */
-
-// Per-user configuration
-type UserConfig struct {
-	Buffers []string `json:"buffer_list"`
-}
 
 // Generic user table that defines the columns every user shares.
 type User struct {
@@ -135,24 +129,6 @@ func OpenDatabase(path string, logger logger.Interface) *gorm.DB {
 var tableToID = map[string]string{
 	"servers": "server_id",
 	"users":   "user_id",
-}
-
-/* CONFIG FUNCTIONS */
-
-// Parses the map from the config to the actual struct
-// This function may be unnecessary but this is the ORM way I guess
-func (lu LocalUser) GetConfig() (cfg UserConfig, err error) {
-	fromMap, err := json.Marshal(lu.Config)
-	if err != nil {
-		return cfg, err
-	}
-
-	err = json.Unmarshal(fromMap, &cfg)
-	if err != nil {
-		return cfg, err
-	}
-
-	return cfg, nil
 }
 
 /* AUXILIARY FUNCTIONS */

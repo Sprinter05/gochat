@@ -206,14 +206,20 @@ func (t *TUI) addBuffer(name string, system bool) {
 		return
 	}
 
-	t.comp.buffers.AddItem(name, "", r, nil)
-	reqErr := t.requestUser(s, name, func(string, cmds.OutputType) {})
-	t.changeBuffer(i)
+	empty := func(string, cmds.OutputType) {}
 
+	t.comp.buffers.AddItem(name, "", r, nil)
+	reqErr := t.requestUser(s, name, empty)
 	if reqErr != nil {
 		print := t.systemMessage("request")
 		print(reqErr.Error(), cmds.ERROR)
+
+		t.hideBuffer(name)
+		t.removeBuffer(name)
+		return
 	}
+
+	t.changeBuffer(i)
 }
 
 // Changes the TUI component according to the internal
@@ -244,7 +250,8 @@ func (t *TUI) findBuffer(name string) (int, bool) {
 // Hides a buffer from the TUI component and changes to
 // the previous buffer unless the position was at the top,
 // in which case it changes to the next buffer. This does
-// not delete the buffer data.
+// not delete the buffer data. It will not change position
+// if that buffer wasnt the targeted one.
 func (t *TUI) hideBuffer(name string) {
 	err := t.Active().Buffers().Hide(name)
 	if err != nil {
@@ -252,17 +259,19 @@ func (t *TUI) hideBuffer(name string) {
 		return
 	}
 
-	count := t.comp.buffers.GetItemCount()
-	if count == 1 {
-		// All buffers have been deleted
-		t.comp.text.Clear()
-		t.Active().Buffers().current = ""
-	} else {
-		curr := t.comp.buffers.GetCurrentItem()
-		if curr == 0 {
-			t.changeBuffer(curr + 1)
+	if t.Buffer() == name {
+		count := t.comp.buffers.GetItemCount()
+		if count == 1 {
+			// All buffers have been deleted
+			t.comp.text.Clear()
+			t.Active().Buffers().current = ""
 		} else {
-			t.changeBuffer(curr - 1)
+			curr := t.comp.buffers.GetCurrentItem()
+			if curr == 0 {
+				t.changeBuffer(curr + 1)
+			} else {
+				t.changeBuffer(curr - 1)
+			}
 		}
 	}
 

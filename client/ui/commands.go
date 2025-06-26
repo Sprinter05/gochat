@@ -665,6 +665,9 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	defaultSubscribe(t, cmd.serv, output)
+
+	cmd.print("restoring buffers...", cmds.INTERMEDIATE)
+	loadBuffers(t, cmd.serv)
 }
 
 func listUsers(t *TUI, cmd Command) {
