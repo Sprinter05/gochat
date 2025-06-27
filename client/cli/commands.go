@@ -123,6 +123,10 @@ var shCommands = map[string]ShellCommand{
 	"ADMIN": {sendAdminCommand,
 		"- ADMIN: Sends an administrator command to the server. The user must have permissions to do so.\n" +
 			"Usage: ADMIN <shtdwn/dereg/brdcast/chperms/kick> <args>"},
+
+	"PERMS": {getUserPerms,
+		"- PERMS: Prints out the permission level of a user.\n" +
+			"Usage: PERMS <username>"},
 }
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -625,6 +629,21 @@ func servers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		fmt.Printf("- %s (%s:%d)\n", v.Name, v.Address, v.Port)
 	}
 
+	return nil
+}
+
+func getUserPerms(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+	username := string(args[0])
+
+	level, permErr := commands.GetPermissions(ctx, cmd, username)
+	if permErr != nil {
+		return permErr
+	}
+
+	fmt.Printf("%s: Permission level %d\n", username, level)
 	return nil
 }
 
