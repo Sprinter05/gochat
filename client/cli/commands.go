@@ -386,8 +386,6 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 }
 
 // Calls MSG, to send a message to a user.
-// TODO: in order to send more complex messages,
-// some sort of prompt should be used.
 //
 // Arguments: <dest. username> <unencyrpted text message>
 func sendMessage(ctx context.Context, cmd commands.Command, args ...[]byte) error {

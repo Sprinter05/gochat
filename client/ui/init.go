@@ -396,7 +396,7 @@ func setupInput(t *TUI) {
 			}
 
 			s := t.Active()
-			t.SendMessage(Message{
+			t.sendMessage(Message{
 				Sender:    selfSender,
 				Buffer:    t.Buffer(),
 				Content:   text,

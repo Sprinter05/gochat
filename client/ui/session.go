@@ -316,7 +316,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			print(ErrorMessageFromSelf.Error())
 		}
 
-		t.SendMessage(Message{
+		t.sendMessage(Message{
 			Buffer:    msg.Sender,
 			Sender:    msg.Sender,
 			Content:   msg.Content,

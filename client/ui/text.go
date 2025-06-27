@@ -188,7 +188,7 @@ func welcomeMessage(t *TUI) {
 		"Use [yellow]/connect[-] to establish connection to the server.\n" +
 		"You may then use [yellow]/register[-] or [yellow]/login[-] to use an account."
 
-	t.SendMessage(Message{
+	t.sendMessage(Message{
 		Buffer:    defaultBuffer,
 		Sender:    "System",
 		Content:   text,
@@ -200,7 +200,7 @@ func welcomeMessage(t *TUI) {
 // Sends a packet to the debug channel
 func (t *TUI) debugPacket(content string) {
 	l := len(content)
-	t.SendMessage(Message{
+	t.sendMessage(Message{
 		Buffer:    debugBuffer,
 		Sender:    "System",
 		Content:   content[:l-1],
@@ -243,7 +243,7 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 			// 	prompt = ""
 			// }
 
-			t.SendMessage(Message{
+			t.sendMessage(Message{
 				Buffer:    buffer,
 				Sender:    "System",
 				Content:   prompt + s,
@@ -290,7 +290,7 @@ func getOldMessages(t *TUI, s Server, username string) {
 			sender = selfSender
 		}
 
-		t.SendMessage(Message{
+		t.sendMessage(Message{
 			Buffer:    username,
 			Sender:    sender,
 			Content:   v.Text,
@@ -304,7 +304,7 @@ func getOldMessages(t *TUI, s Server, username string) {
 // It sends the message to all servers assuming only
 // the corresponding one will do something with it by
 // checking the source of the messages.
-func (t *TUI) SendMessage(msg Message) {
+func (t *TUI) sendMessage(msg Message) {
 	list := t.servers.GetAll()
 	for _, v := range list {
 		// Send message to all servers
