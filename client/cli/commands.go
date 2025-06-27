@@ -274,6 +274,10 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 //
 // Arguments: <username to be deregistered>
 func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if !cmd.Data.IsLoggedIn() {
+		return commands.ErrorNotLoggedIn
+	}
+
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ",
 		cmd.Data.LocalUser.User.Username),
