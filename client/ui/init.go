@@ -25,8 +25,6 @@ const Logo string = `
 
 `
 
-// TODO quickswitcher
-
 const (
 	tuiVersion      float32 = 0.2       // Current client TUI version
 	selfSender      string  = "You"     // Self sender of a message
@@ -48,11 +46,6 @@ const (
 	cmdTimeout      uint    = 30        // Max seconds to wait for a command to finish
 	msgDelay        uint    = 500       // miliseconds between msgs
 	rootBuffer      uint    = 0         // number of the root buffer
-)
-
-// JSON config names
-const (
-	bufferLayout string = "BufferLayout" // Must be []string
 )
 
 var (
@@ -331,9 +324,12 @@ func setupInput(t *TUI) {
 	t.comp.text.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyESC: // Scroll to the end
-			t.comp.text.ScrollToEnd()
-		case tcell.KeyCtrlA: // Scroll to beggining
-			t.comp.text.ScrollToBeginning()
+			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt ||
+				event.Modifiers()&tcell.ModShift == tcell.ModShift {
+				t.comp.text.ScrollToBeginning()
+			} else {
+				t.comp.text.ScrollToEnd()
+			}
 		}
 		return event
 	})
@@ -451,7 +447,7 @@ func setupKeybinds(t *TUI) {
 				t.app.SetFocus(t.comp.servers)
 				return nil
 			}
-		case tcell.KeyCtrlH: // Show help
+		case tcell.KeyCtrlL: // Show help
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
 				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				t.app.SetFocus(t.comp.text)
@@ -459,6 +455,10 @@ func setupKeybinds(t *TUI) {
 				if !t.status.showingHelp {
 					t.app.SetFocus(t.comp.input)
 				}
+			}
+		case tcell.KeyCtrlG: // Quick switcher
+			if !t.status.blockCond() {
+				newQuickSwitchPopup(t)
 			}
 		case tcell.KeyCtrlK: // Choose a buffer
 			if t.status.blockCond() {
@@ -558,7 +558,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	// Welcome messages
 	print := t.systemMessage()
 	print("Welcome to gochat!", cmds.INFO)
-	print("Press [green]Ctrl-Alt-H/Ctrl-Shift-H[-] to show help!", cmds.INFO)
+	print("Press [green]Ctrl-Alt-L/Ctrl-Shift-L[-] to show help!", cmds.INFO)
 	// print("Restoring previous session...", cmds.INFO)
 
 	// Debug buffer if necessary

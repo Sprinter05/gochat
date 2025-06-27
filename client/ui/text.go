@@ -15,21 +15,21 @@ import (
 const KeybindHelp string = `
 [-::u]Keybinds Manual:[-::-]
 
-[yellow::b]Ctrl-Alt-H/Ctrl-Shift-H[-::-]: Show/Hide help window
+[yellow::b]Ctrl-Alt-L/Ctrl-Shift-L[-::-]: Show/Hide help window
 	- Keybinds for the [-::b]chat window[-::-] also apply in here
 
 [yellow::b]Ctrl-Q[-::-]: Exit program
 
 [yellow::b]Ctrl-T[-::-]: Focus chat/input window
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
-	- In the [-::b]chat window[-::-] use [green]Escape[-::-] to scroll down to the end
-	- In the [-::b]chat window[-::-] use [green]Ctrl-A[-::-] to scroll up to the beggining
-	- In the [-::b]input window[-::-] use [green]Escape[-::-] to clear the text
+	- In the [-::b]chat window[-::-] use [green]ESC[-::-] to scroll down to the end
+	- In the [-::b]chat window[-::-] use [green]Shift-ESC/Alt-ESC[-::-] to scroll up to the beggining
+	- In the [-::b]input window[-::-] use [green]ESC[-::-] to clear the text
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
 	- In the [-::b]input window[-::-] use [green]Up[-::-] to browse through the history of commands ran.
 
 [yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
-	- [green]Esc[-::-] to cancel
+	- [green]ESC[-::-] to cancel
 	- [green]Enter[-::-] to confirm
 
 [yellow::b]Ctrl-K + Ctrl-W/Ctrl-H[-::-]: Hide currently focused buffer
@@ -38,10 +38,10 @@ const KeybindHelp string = `
 [yellow::b]Ctrl-K + Ctrl-X[-::-]: Delete currently focused buffer
 
 [yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
-	- Press [green]Esc[-::-] to cancel the jump
+	- Press [green]ESC[-::-] to cancel the jump
 
 [yellow::b]Ctrl-S + Ctrl-N[-::-]: Create a new server
-	- [green]Esc[-::-] to cancel
+	- [green]ESC[-::-] to cancel
 	- [green]Enter[-::-] to confirm the different steps
 	
 [yellow::b]Ctrl-S + Ctrl-W/Ctrl-H[-::-]: Hide currently focused server
@@ -52,7 +52,11 @@ const KeybindHelp string = `
 	- Users registered in the deleted server will become "dangling" as they are no longer asocciated to a server
 
 [yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
-	- Press [green]Esc[-::-] to cancel the jump
+	- Press [green]ESC[-::-] to cancel the jump
+	
+[yellow::b]Ctrl-G[-::-]: Open the Quick Switcher
+	- This will allow you to jump to a desired buffer by typing its name
+	- It includes an autocomplete that you can fill using [green]Tab[-::-]
 	
 [yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
 

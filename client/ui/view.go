@@ -30,10 +30,11 @@ type state struct {
 	showingUsers bool // Showing user list component
 	showingBufs  bool // Showing buffer list component
 
-	creatingBuf    bool // Creating a new buffer
-	creatingServer bool // Creating a new server
-	typingPassword bool // Inputting a password
-	showingHelp    bool // Showing the help window
+	creatingBuf        bool // Creating a new buffer
+	creatingServer     bool // Creating a new server
+	typingPassword     bool // Inputting a password
+	showingHelp        bool // Showing the help window
+	showingQuickswitch bool // Showing the quickswitch input
 
 	deletingServer bool // Currently choosing to delete server
 	deletingBuffer bool // Currently choosing to delete buffer
@@ -85,7 +86,8 @@ func (s *state) blockCond() bool {
 		s.showingHelp ||
 		s.typingPassword ||
 		s.deletingServer ||
-		s.deletingBuffer
+		s.deletingBuffer ||
+		s.showingQuickswitch
 }
 
 /* USERLIST */
@@ -338,6 +340,55 @@ func newLoginPopup(t *TUI, text string) (pswd string, err error) {
 
 	cond.Wait()
 	return pswd, err
+}
+
+// Creates a popup to quickly switch to any buffer
+func newQuickSwitchPopup(t *TUI) {
+	input, exit := createPopup(t, &t.status.showingQuickswitch, "Go to...")
+	input.SetAutocompleteFunc(func(currentText string) []string {
+		if len(currentText) == 0 {
+			return nil
+		}
+
+		list := t.Active().Buffers().GetAll()
+		ret := make([]string, 0, len(list))
+		for _, v := range list {
+			target := strings.ToLower(v)
+			curr := strings.ToLower(currentText)
+
+			if strings.HasPrefix(target, curr) {
+				ret = append(ret, v)
+			}
+		}
+
+		if len(ret) == 0 {
+			return nil
+		}
+
+		return ret
+	})
+
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			exit()
+			return
+		}
+
+		text := input.GetText()
+		if text == "" {
+			t.showError(ErrorNoText)
+			return
+		}
+
+		i, ok := t.findBuffer(text)
+		if !ok {
+			t.showError(ErrorNoText)
+			return
+		}
+
+		t.changeBuffer(i)
+		exit()
+	})
 }
 
 /* CONFIRMATION WINDOWS */
