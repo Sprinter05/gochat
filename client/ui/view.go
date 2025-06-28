@@ -526,7 +526,7 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 
 	ctx, cancel := timeout(s, data)
 	defer data.Waitlist.Cancel(cancel)
-	reply, err := cmds.Usrs(ctx, cmd, cmds.ONLINEPERMS)
+	reply, err := cmds.USRS(ctx, cmd, cmds.ONLINEPERMS)
 
 	if err != nil {
 		output(err.Error(), cmds.ERROR)

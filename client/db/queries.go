@@ -1,5 +1,7 @@
 package db
 
+// Contains the queries needed to complete command functionality
+
 import (
 	"fmt"
 	"time"

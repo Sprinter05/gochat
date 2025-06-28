@@ -1,6 +1,6 @@
 package cli
 
-// This package includes the core functionality of the gochat client shell
+// Includes core shell functionality functions
 
 import (
 	"bufio"
@@ -17,7 +17,8 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-// Given a string containing a command name, returns its execution function.
+// Given a string containing a command name, returns its
+// execution function.
 func fetchCommand(op string, cmd commands.Command) ShellCommand {
 	v, ok := shCommands[strings.ToUpper(op)]
 	if !ok {
@@ -31,7 +32,7 @@ func fetchCommand(op string, cmd commands.Command) ShellCommand {
 	return v
 }
 
-// Creates a new shell and an option connection and server
+// Creates a new shell and an option connection and server.
 func New(static commands.StaticData, conn net.Conn, server db.Server) commands.Command {
 	data := commands.NewEmptyData()
 	cmds := commands.Command{
@@ -62,8 +63,10 @@ func New(static commands.StaticData, conn net.Conn, server db.Server) commands.C
 	return cmds
 }
 
-// Starts a shell that allows the client to send packets
-// to the gochat server, along with other functionalities.
+// Starts a shell that allows
+// the client to send packets
+// to the gochat server, along
+// with other functionalities.
 func Run(data commands.Command) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
@@ -198,7 +201,7 @@ func SHTDWNHandler(cmd commands.Command) {
 
 		time.Sleep(diff)
 		cmd.Output("Server shutdown incoming. Disconnecting...", commands.INFO)
-		commands.Discn(cmd)
+		commands.DISCN(cmd)
 	}
 }
 

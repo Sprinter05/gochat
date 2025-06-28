@@ -1,5 +1,7 @@
 package commands
 
+// Contains structs that help with command implementation
+
 import (
 	"context"
 	mrand "math/rand/v2"

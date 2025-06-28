@@ -288,7 +288,7 @@ func (t *TUI) hideServer(name string) {
 	// Cleanup resources and wait a bit
 	data, connected := s.Online()
 	if connected {
-		err := cmds.Discn(
+		err := cmds.DISCN(
 			cmds.Command{
 				Output: t.systemMessage(),
 				Data:   data,

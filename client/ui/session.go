@@ -24,7 +24,7 @@ func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
 	for _, v := range hooks {
 		ctx, cancel := timeout(s, data)
 		defer data.Waitlist.Cancel(cancel)
-		err := cmds.Sub(ctx, cmds.Command{
+		err := cmds.SUB(ctx, cmds.Command{
 			Output: output,
 			Static: &t.data,
 			Data:   data,
@@ -115,7 +115,7 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 
 	ctx, cancel := timeout(s, cmd.Data)
 	defer data.Waitlist.Cancel(cancel)
-	_, err = cmds.Req(ctx, cmd, tab.name)
+	_, err = cmds.REQ(ctx, cmd, tab.name)
 	if err != nil {
 		ret := fmt.Errorf(
 			"failed to request user data due to %s",
@@ -255,7 +255,7 @@ func (t *TUI) remoteMessage(content string) {
 
 	ctx, cancel := timeout(s, cmd.Data)
 	defer cmd.Data.Waitlist.Cancel(cancel)
-	err := cmds.Msg(ctx, cmd, tab.name, content)
+	err := cmds.MSG(ctx, cmd, tab.name, content)
 	if err != nil {
 		print("failed to send message: "+err.Error(), cmds.ERROR)
 	}

@@ -8,6 +8,7 @@ config/*
 
 # File types
 *.key
+*.json
 *.pem
 *.crt
 *.env
