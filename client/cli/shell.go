@@ -17,6 +17,8 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
+const ShellVersion = 1
+
 // Given a string containing a command name, returns its
 // execution function.
 func fetchCommand(op string, cmd commands.Command) ShellCommand {
