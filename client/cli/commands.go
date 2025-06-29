@@ -539,6 +539,13 @@ func ver(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 			spec.ProtocolVersion,
 		), commands.PLAIN,
 	)
+
+	cmd.Output(
+		fmt.Sprintf(
+			"shell version %d",
+			ShellVersion,
+		), commands.PLAIN,
+	)
 	return nil
 }
 
