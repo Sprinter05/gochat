@@ -38,6 +38,7 @@ const (
 	USRSRESPONSE                   // Specific for user printing
 	COLOR                          // Special output for shell colors
 	PLAIN                          // Output type that should be printed as-is, with no prefix
+	SECONDARY                      // Optional text to show after the result
 )
 
 // Represents the function that will be called
@@ -500,9 +501,7 @@ func REG(ctx context.Context, cmd Command, username, pass string) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, wErr := cmd.Data.Conn.Write(pct)
@@ -597,9 +596,7 @@ func DEREG(ctx context.Context, cmd Command, username, pass string) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -725,9 +722,7 @@ func LOGIN(ctx context.Context, cmd Command, username, pass string) error {
 		return loginPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(loginPct, cmd)
-	}
+	packetPrint(loginPct, cmd)
 
 	// Sends the packet
 	_, loginWErr := cmd.Data.Conn.Write(loginPct)
@@ -771,9 +766,7 @@ func LOGIN(ctx context.Context, cmd Command, username, pass string) error {
 		return verifPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(verifPct, cmd)
-	}
+	packetPrint(verifPct, cmd)
 
 	// Sends the packet
 	_, verifWErr := cmd.Data.Conn.Write(verifPct)
@@ -822,9 +815,7 @@ func LOGOUT(ctx context.Context, cmd Command) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, pctWErr := cmd.Data.Conn.Write(pct)
@@ -934,9 +925,7 @@ func MSG(ctx context.Context, cmd Command, username, message string) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, wErr := cmd.Data.Conn.Write(pct)
@@ -1003,9 +992,7 @@ func RECIV(ctx context.Context, cmd Command) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -1065,9 +1052,7 @@ func USRS(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 		return nil, pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, wErr := cmd.Data.Conn.Write(pct)
@@ -1131,9 +1116,7 @@ func REQ(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 		return nil, pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -1231,9 +1214,7 @@ func ADMIN(ctx context.Context, cmd Command, op string, args ...[]byte) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -1286,9 +1267,7 @@ func SUB(ctx context.Context, cmd Command, name string) error {
 		return hookPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(hookPct, cmd)
-	}
+	packetPrint(hookPct, cmd)
 
 	_, hookWErr := cmd.Data.Conn.Write(hookPct)
 	if hookWErr != nil {
@@ -1337,9 +1316,7 @@ func UNSUB(ctx context.Context, cmd Command, name string) error {
 		return hookPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(hookPct, cmd)
-	}
+	packetPrint(hookPct, cmd)
 
 	_, hookWErr := cmd.Data.Conn.Write(hookPct)
 	if hookWErr != nil {

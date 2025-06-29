@@ -350,6 +350,7 @@ func (t *TUI) waitShutdown(ctx context.Context, s Server) {
 
 	print := func(msg string) {
 		if t.params.Verbose {
+			// We wait some miliseconds to prevent race condition
 			<-time.After(50 * time.Millisecond)
 			output(msg, cmds.ERROR)
 		}
@@ -388,9 +389,11 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 
 	data, _ := s.Online()
 	output := t.systemMessage("hook", defaultBuffer)
+	info := t.systemMessage() // For information
 
 	print := func(msg string) {
 		if t.params.Verbose {
+			// We wait some miliseconds to prevent race condition
 			<-time.After(50 * time.Millisecond)
 			output(msg, cmds.ERROR)
 		}
@@ -436,7 +439,7 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 					perms,
 				)
 
-				output(str, cmds.INFO)
+				info(str, cmds.INFO)
 			}
 
 			t.status.userlistChange(uname, perms)
@@ -446,7 +449,7 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 				string(cmd.Args[0]),
 			)
 
-			output(str, cmds.INFO)
+			info(str, cmds.INFO)
 		case spec.HookNewLogin: // New user logged into the server
 			perms, err := strconv.Atoi(string(cmd.Args[1]))
 			if err != nil {

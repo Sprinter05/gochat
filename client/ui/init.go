@@ -26,7 +26,7 @@ const Logo string = `
 `
 
 const (
-	tuiVersion      float32 = 0.2       // Current client TUI version
+	tuiVersion      float32 = 0.3       // Current client TUI version
 	selfSender      string  = "You"     // Self sender of a message
 	systemBuffer    string  = "System"  // System buffer name
 	debugBuffer     string  = "Debug"   // Buffer where packets will be shown
@@ -582,7 +582,6 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	// Debug buffer if necessary
 	if debug {
 		t.addBuffer(debugBuffer, true)
-		print := t.systemMessage()
 		print("Packets between client and server will be shown here.", cmds.INFO)
 	}
 

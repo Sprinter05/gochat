@@ -201,9 +201,7 @@ func tokenLogin(ctx context.Context, cmd Command, username string) error {
 		return err
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, err = cmd.Data.Conn.Write(pct)
 	if err != nil {
@@ -322,6 +320,10 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 
 // Prints a packet.
 func packetPrint(pct []byte, cmd Command) {
+	if !cmd.Static.Verbose {
+		return
+	}
+
 	pctCmd := spec.ParsePacket(pct)
 	str := fmt.Sprintf(
 		"Client packet to be sent:\n%s",

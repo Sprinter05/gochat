@@ -440,9 +440,7 @@ func connectServer(t *TUI, cmd Command) error {
 
 	// Prevent idle
 	if slices.Contains(args, "-noidle") {
-		if t.params.Verbose {
-			cmd.print("running hook to prevent idle disconnection", cmds.RESULT)
-		}
+		cmd.print("running hook to prevent idle disconnection", cmds.SECONDARY)
 
 		go cmds.PreventIdle(
 			cmd.serv.Context().Get(),

@@ -234,7 +234,8 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 		case cmds.PACKET:
 			t.debugPacket(s)
 		default:
-			if out == cmds.INTERMEDIATE && !t.params.Verbose {
+			needVerbose := out == cmds.INTERMEDIATE || out == cmds.SECONDARY
+			if needVerbose && !t.params.Verbose {
 				return
 			}
 
