@@ -17,6 +17,20 @@ import (
 	"gorm.io/gorm"
 )
 
+/* VERSION */
+
+// Specifies the build code
+var BuildCode string
+
+// Returns the full version string
+func Version(major float32) string {
+	return fmt.Sprintf(
+		"%.1f.%s",
+		major,
+		BuildCode,
+	)
+}
+
 /* DATA */
 
 // Struct that contains all the data necessary to run a command

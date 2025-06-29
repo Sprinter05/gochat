@@ -20,8 +20,22 @@ import (
 	"github.com/Sprinter05/gochat/server/hubs"
 )
 
-// Server version
+/* VERSIONING */
+
+// Static version
 const serverVersion float32 = 1.1
+
+// Build version
+var serverBuild string
+
+// Returns the full version string
+func version() string {
+	return fmt.Sprintf(
+		"%.1f.%s",
+		serverVersion,
+		serverBuild,
+	)
+}
 
 /* CONFIG */
 
@@ -127,10 +141,10 @@ func setupLog(config Config) (file *os.File) {
 	}
 	now := time.Now()
 	fmt.Printf(
-		"-> Logging at %s with log level %s on server version %f and protocol version %d\n",
+		"-> Logging at %s with log level %s on server version %s and protocol version %d\n",
 		now.Format(time.RFC822),
 		lv,
-		serverVersion,
+		version(),
 		spec.ProtocolVersion,
 	)
 

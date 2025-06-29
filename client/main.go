@@ -18,6 +18,11 @@ import (
 	"gorm.io/gorm"
 )
 
+/* VERSIONING */
+
+// Sets the build version of the client
+var clientBuild string
+
 /* CONFIG */
 
 // Specifies the configuration JSON file for
@@ -93,6 +98,8 @@ var (
 
 // Function that is ran every time the program is started
 func init() {
+	commands.BuildCode = clientBuild
+
 	flag.StringVar(&configFile, "config", "config.json", "Configuration file to use. Must be in JSON format.")
 	flag.BoolVar(&useShell, "shell", false, "Whether to use a shell instead of a TUI.")
 	flag.BoolVar(&verbosePrint, "verbose", false, "Whether or not to print verbose output information.")

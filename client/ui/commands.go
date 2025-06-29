@@ -250,8 +250,8 @@ func configList(t *TUI, s Server) []cmds.ConfigObj {
 
 func showVersion(t *TUI, cmd Command) error {
 	str := fmt.Sprintf(
-		"\n* Client TUI version: [orange::i]v%.1f[-::-]\n* Protocol version: [orange::i]v%d[-::-]",
-		tuiVersion,
+		"\n* Client TUI version: [orange::i]%s[-::-]\n* Protocol version: [orange::i]v%d[-::-]",
+		cmds.Version(tuiVersion),
 		spec.ProtocolVersion,
 	)
 	cmd.print(str, cmds.RESULT)
