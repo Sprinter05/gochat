@@ -535,15 +535,15 @@ func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 func ver(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	cmd.Output(
 		fmt.Sprintf(
-			"gochat version %d",
+			"gochat protocol version %d",
 			spec.ProtocolVersion,
 		), commands.PLAIN,
 	)
 
 	cmd.Output(
 		fmt.Sprintf(
-			"shell version %d",
-			ShellVersion,
+			"gochat shell version %s",
+			commands.Version(ShellVersion),
 		), commands.PLAIN,
 	)
 	return nil

@@ -17,7 +17,7 @@ import (
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-const ShellVersion = 1
+const ShellVersion float32 = 1.0
 
 // Given a string containing a command name, returns its
 // execution function.

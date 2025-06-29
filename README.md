@@ -1,5 +1,6 @@
 # gochat
 gochat is a light, **TCP**-based, client-server, **E2E** (end-to-end) chat protocol. Said protocol is detailed in the [Specification](doc/SPECIFICATION.md).
+![Banner](images/gochat_banner_transparent.png)
 
 ## Content
 This repository includes:
