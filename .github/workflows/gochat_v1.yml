@@ -76,7 +76,6 @@ jobs:
       with:
         body_path: RELEASE.txt
         preserve_order: true
-        overwrite_files: true
         make_latest: true
         files: |
           gochat-client_windows-amd64.tar.gz

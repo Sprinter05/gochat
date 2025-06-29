@@ -7,7 +7,7 @@ RUN apk add --no-cache make
 # Copy the source code and compile
 WORKDIR /src
 COPY . .
-RUN make server
+RUN make server OS=linux ARCH=amd64
 
 # Setup configuration files
 WORKDIR /config
