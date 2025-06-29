@@ -25,11 +25,14 @@ type Command struct {
 	print cmds.OutputFunc // Printing function
 }
 
+// Defines the function of the command to run
+type operationFunc func(*TUI, Command) error
+
 // Struct to define operations in the shell
 type operation struct {
-	fun    func(*TUI, Command) // Function to be ran
-	nArgs  uint                // Number of arguments needed
-	format string              // Format of the command
+	fun    operationFunc // Function to be ran
+	nArgs  uint          // Number of arguments needed
+	format string        // Format of the command
 }
 
 // List of commands that can be ran
@@ -175,7 +178,12 @@ func (t *TUI) parseCommand(text string) {
 	}
 
 	// Run concurrently
-	go op.fun(t, cmd)
+	go func() {
+		err := op.fun(t, cmd)
+		if err != nil {
+			cmd.print(err.Error(), cmds.ERROR)
+		}
+	}()
 }
 
 /* AUXILIARY */
@@ -245,20 +253,21 @@ func configList(t *TUI, s Server) []cmds.ConfigObj {
 
 /* COMMANDS */
 
-func showVersion(t *TUI, cmd Command) {
+func showVersion(t *TUI, cmd Command) error {
 	str := fmt.Sprintf(
 		"\n* Client TUI version: [orange::i]v%.1f[-::-]\n* Protocol version: [orange::i]v%d[-::-]",
 		tuiVersion,
 		spec.ProtocolVersion,
 	)
 	cmd.print(str, cmds.RESULT)
+	return nil
 }
 
-func listServers(t *TUI, cmd Command) {
+func listServers(t *TUI, cmd Command) error {
 	var list strings.Builder
 	servs, err := db.GetAllServers(t.db)
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
+		return err
 	}
 
 	for _, v := range servs {
@@ -283,12 +292,18 @@ func listServers(t *TUI, cmd Command) {
 
 	content := list.String()
 	cmd.print(content, cmds.RESULT)
+	return nil
 }
 
-func listBuffers(t *TUI, cmd Command) {
+func listBuffers(t *TUI, cmd Command) error {
 	var list strings.Builder
 	bufs := cmd.serv.Buffers()
 	l := bufs.tabs.GetAll()
+
+	if len(l) == 0 {
+		cmd.print("no buffers to show", cmds.RESULT)
+		return nil
+	}
 
 	list.WriteString("showing active server buffers: ")
 	for i, v := range l {
@@ -307,9 +322,10 @@ func listBuffers(t *TUI, cmd Command) {
 
 	content := list.String()
 	cmd.print(content, cmds.RESULT)
+	return nil
 }
 
-func clearSystem(t *TUI, cmd Command) {
+func clearSystem(t *TUI, cmd Command) error {
 	buf := cmd.serv.Buffers().current
 	tab, ok := cmd.serv.Buffers().tabs.Get(buf)
 	if !ok {
@@ -332,15 +348,17 @@ func clearSystem(t *TUI, cmd Command) {
 			count,
 		), cmds.RESULT)
 	}
+
+	return nil
 }
 
-func showConfig(t *TUI, cmd Command) {
+func showConfig(t *TUI, cmd Command) error {
 	objs := configList(t, cmd.serv)
 	list := cmds.CONFIG(objs...)
 
 	if len(list) == 0 {
 		cmd.print("No configuration options to show", cmds.RESULT)
-		return
+		return nil
 	}
 
 	var str strings.Builder
@@ -356,9 +374,10 @@ func showConfig(t *TUI, cmd Command) {
 	}
 
 	cmd.print(str.String(), cmds.RESULT)
+	return nil
 }
 
-func setConfig(t *TUI, cmd Command) {
+func setConfig(t *TUI, cmd Command) error {
 	data, _ := cmd.serv.Online()
 	c, args := cmd.createCmd(t, data)
 
@@ -368,22 +387,21 @@ func setConfig(t *TUI, cmd Command) {
 	objs := configList(t, cmd.serv)
 	err := cmds.SET(c, args[0], extended, objs...)
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func connectServer(t *TUI, cmd Command) {
+func connectServer(t *TUI, cmd Command) error {
 	addr := cmd.serv.Source()
 	if addr == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	data, ok := cmd.serv.Online()
 	if ok {
-		cmd.print(ErrorAlreadyOnline.Error(), cmds.ERROR)
-		return
+		return ErrorAlreadyOnline
 	}
 
 	c, args := cmd.createCmd(t, data)
@@ -397,10 +415,8 @@ func connectServer(t *TUI, cmd Command) {
 
 	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
 	err := cmds.CONN(c, *c.Data.Server, noVerify)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	cmd.serv.Context().Create(context.Background())
@@ -422,6 +438,7 @@ func connectServer(t *TUI, cmd Command) {
 		discn("You are no longer connected to this server!", cmds.INFO)
 	})
 
+	// Prevent idle
 	if slices.Contains(args, "-noidle") {
 		if t.params.Verbose {
 			cmd.print("running hook to prevent idle disconnection", cmds.RESULT)
@@ -433,141 +450,127 @@ func connectServer(t *TUI, cmd Command) {
 			time.Duration(spec.ReadTimeout-1)*time.Minute,
 		)
 	}
+
+	return nil
 }
 
-func registerUser(t *TUI, cmd Command) {
+func registerUser(t *TUI, cmd Command) error {
 	data, ok := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
-		return
+		return ErrorOffline
 	}
 
 	pswd, err := askForNewPassword(t)
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	err = cmds.REG(ctx, c, args[0], pswd)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func deregisterUser(t *TUI, cmd Command) {
+func deregisterUser(t *TUI, cmd Command) error {
 	data, ok := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
-		return
+		return ErrorOffline
 	}
 
 	pswd, err := newPasswordPopup(t, "Enter the account's password...")
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	err = cmds.DEREG(ctx, c, args[0], pswd)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func importKey(t *TUI, cmd Command) {
+func importKey(t *TUI, cmd Command) error {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	pswd, err := askForNewPassword(t)
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	c, args := cmd.createCmd(t, data)
 	err = cmds.IMPORT(c, args[0], pswd, args[1])
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func exportKey(t *TUI, cmd Command) {
+func exportKey(t *TUI, cmd Command) error {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	pswd, err := newPasswordPopup(t, "Enter the account's password...")
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	c, args := cmd.createCmd(t, data)
 	err = cmds.EXPORT(c, args[0], pswd)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func loginUser(t *TUI, cmd Command) {
+func loginUser(t *TUI, cmd Command) error {
 	data, ok := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	if data.IsLoggedIn() {
-		cmd.print(ErrorLoggedIn.Error(), cmds.ERROR)
-		return
+		return ErrorLoggedIn
 	}
 
 	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
-		return
+		return ErrorOffline
 	}
 
 	pswd, err := newPasswordPopup(t, "Enter the account's password...")
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	c, args := cmd.createCmd(t, data)
 	lCtx, lCancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(lCancel)
 	err = cmds.LOGIN(lCtx, c, args[0], pswd)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	uname := data.LocalUser.User.Username
@@ -591,8 +594,7 @@ func loginUser(t *TUI, cmd Command) {
 		if errors.Is(err, spec.ErrorEmpty) {
 			cmd.print("no new messages have been received", cmds.RESULT)
 		} else {
-			cmd.print(err.Error(), cmds.ERROR)
-			return
+			return err
 		}
 	}
 
@@ -604,54 +606,53 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	defaultSubscribe(t, cmd.serv, output)
+
+	return nil
 }
 
-func logoutUser(t *TUI, cmd Command) {
+func logoutUser(t *TUI, cmd Command) error {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	c, _ := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	err := cmds.LOGOUT(ctx, c)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	t.comp.input.SetLabel(defaultLabel)
 	cleanupSession(t, cmd.serv)
+
+	return nil
 }
 
-func disconnectServer(t *TUI, cmd Command) {
+func disconnectServer(t *TUI, cmd Command) error {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	c, _ := cmd.createCmd(t, data)
 	err := cmds.DISCN(c)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	t.comp.input.SetLabel(defaultLabel)
 	t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+
+	return nil
 }
 
-func listUsers(t *TUI, cmd Command) {
+func listUsers(t *TUI, cmd Command) error {
 	data, _ := cmd.serv.Online()
 	opt := cmd.Arguments[0] + "|" + cmd.Arguments[1]
 	if data == nil && opt != "local|all" {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	c, args := cmd.createCmd(t, data)
@@ -682,8 +683,7 @@ func listUsers(t *TUI, cmd Command) {
 	case "local|server":
 		usrs = cmds.LOCAL_SERVER
 	default:
-		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
-		return
+		return ErrorInvalidArgument
 	}
 
 	ctx := context.Background()
@@ -693,10 +693,8 @@ func listUsers(t *TUI, cmd Command) {
 		defer c.Data.Waitlist.Cancel(cancel)
 	}
 	reply, err := cmds.USRS(ctx, c, usrs)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	var list strings.Builder
@@ -730,80 +728,77 @@ func listUsers(t *TUI, cmd Command) {
 
 	l := list.Len()
 	cmd.print(list.String()[:l-1], cmds.RESULT)
+
+	return nil
 }
 
-func userRequest(t *TUI, cmd Command) {
+func userRequest(t *TUI, cmd Command) error {
 	buf := cmd.serv.Buffers().current
 	data, _ := cmd.serv.Online()
 	tab, exists := cmd.serv.Buffers().tabs.Get(buf)
 
 	if data == nil {
-		cmd.print("cannot request on a local server!", cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	if exists && tab.system {
-		cmd.print("cannot request on a system buffer!", cmds.ERROR)
-		return
+		return ErrorSystemBuf
 	}
 
 	err := t.requestUser(cmd.serv, buf, cmd.print)
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
+		return err
 	}
+
+	return nil
 }
 
-func subEvent(t *TUI, cmd Command) {
+func subEvent(t *TUI, cmd Command) error {
 	data, ok := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
-		return
+		return ErrorOffline
 	}
 
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	err := cmds.SUB(ctx, c, args[0])
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func unsubEvent(t *TUI, cmd Command) {
+func unsubEvent(t *TUI, cmd Command) error {
 	data, ok := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
-		return
+		return ErrorOffline
 	}
 
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	err := cmds.UNSUB(ctx, c, args[0])
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
+
+	return nil
 }
 
-func adminOperation(t *TUI, cmd Command) {
+func adminOperation(t *TUI, cmd Command) error {
 	data, _ := cmd.serv.Online()
 	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
+		return ErrorLocalServer
 	}
 
 	c, args := cmd.createCmd(t, data)
@@ -818,18 +813,18 @@ func adminOperation(t *TUI, cmd Command) {
 	}
 
 	err := cmds.ADMIN(ctx, c, args[0], extra...)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
+		return err
 	}
+
+	return nil
 }
 
-func recoverData(t *TUI, cmd Command) {
+func recoverData(t *TUI, cmd Command) error {
 	uname := cmd.Arguments[0]
 	pswd, err := newPasswordPopup(t, "Please enter the account's password...")
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	cleanup := false
@@ -841,11 +836,11 @@ func recoverData(t *TUI, cmd Command) {
 		Static: t.static(),
 		Output: cmd.print,
 	}, uname, pswd, cleanup)
-
 	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
+		return err
 	}
 
 	cmd.print("data succesfully recovered!", cmds.RESULT)
+
+	return nil
 }
