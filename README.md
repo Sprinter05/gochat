@@ -65,7 +65,7 @@ We have chosen to create our own server instance that you can connect to, hosted
 
 ## Running the server
 ### Running under Docker
-This repository provides a full **Compose** stack to run the server. You just need to manually compile the *Docker image* through the provided **Dockerfile** first using the following command (ran in the root directory):
+This repository provides a full **Compose** stack to run the server. The *Docker image* will be automatically pulled from `ghcr.io/sprinter05/gochat:latest`. But you can also manually compile it through the provided **Dockerfile** by using the following command (ran in the root directory):
 
 ```bash
 docker build -t Sprinter05/gochat:latest .
@@ -76,6 +76,8 @@ After that you will need to run the compose stack using the file found in `docke
 ```bash
 docker compose up -d
 ```
+
+> Note: If you compiled the image manually make sure to change the image name in the gochat service inside the `compose.yml` file.
 
 Once the stack has been initialised you will find *3 new folders* created in the same directory used to run the stack. The `config` folder contains the `server.json` configuration file which can be used to modify the behaviour of the server (restart is required after changes to the configuration file), the `logs` folder contains all the relevant server logs, and the `certs` folder is an empty folder that must be used if you want the **TLS** functionality (you must provide both the private key and certificate in said folder, making sure the names are correct in the configuration file).
 
