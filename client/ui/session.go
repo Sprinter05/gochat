@@ -26,7 +26,7 @@ func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
 		defer data.Waitlist.Cancel(cancel)
 		err := cmds.SUB(ctx, cmds.Command{
 			Output: output,
-			Static: &t.data,
+			Static: t.static(),
 			Data:   data,
 		}, v)
 		if err != nil {
@@ -91,7 +91,7 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 
 	// First we see if its already in the database
 	ok, err := db.ExternalUserExists(
-		t.data.DB,
+		t.db,
 		name,
 		data.Server.Address,
 		data.Server.Port,
@@ -109,7 +109,7 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 
 	cmd := cmds.Command{
 		Output: output,
-		Static: &t.data,
+		Static: t.static(),
 		Data:   data,
 	}
 
@@ -259,7 +259,7 @@ func (t *TUI) remoteMessage(content string) {
 	empty := func(text string, outputType cmds.OutputType) {}
 	cmd := cmds.Command{
 		Output: empty,
-		Static: &t.data,
+		Static: t.static(),
 		Data:   data,
 	}
 
@@ -283,7 +283,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 	output := t.systemMessage("reciv", defaultBuffer)
 
 	print := func(msg string) {
-		if t.data.Verbose {
+		if t.params.Verbose {
 			// We wait some miliseconds to prevent race condition
 			<-time.After(50 * time.Millisecond)
 			output(msg, cmds.ERROR)
@@ -311,7 +311,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			rCtx, cmd,
 			cmds.Command{
 				Output: func(string, cmds.OutputType) {},
-				Static: &t.data,
+				Static: t.static(),
 				Data:   data,
 			},
 		)
@@ -349,7 +349,7 @@ func (t *TUI) waitShutdown(ctx context.Context, s Server) {
 	output := t.systemMessage("shutdown", defaultBuffer)
 
 	print := func(msg string) {
-		if t.data.Verbose {
+		if t.params.Verbose {
 			<-time.After(50 * time.Millisecond)
 			output(msg, cmds.ERROR)
 		}
@@ -390,7 +390,7 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 	output := t.systemMessage("hook", defaultBuffer)
 
 	print := func(msg string) {
-		if t.data.Verbose {
+		if t.params.Verbose {
 			<-time.After(50 * time.Millisecond)
 			output(msg, cmds.ERROR)
 		}

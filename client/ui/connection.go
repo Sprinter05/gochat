@@ -147,7 +147,7 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 	s := NewRemoteServer(name, source)
 
 	serv, err := db.AddServer(
-		t.data.DB,
+		t.db,
 		addr,
 		port,
 		name,
@@ -175,7 +175,7 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 
 // Adds a server from the database that already existed
 func (t *TUI) showServer(name string) error {
-	serv, err := db.GetServerByName(t.data.DB, name)
+	serv, err := db.GetServerByName(t.db, name)
 	if err != nil {
 		return err
 	}
@@ -271,7 +271,7 @@ func (t *TUI) hideServer(name string) {
 			cmds.Command{
 				Output: t.systemMessage(),
 				Data:   data,
-				Static: &t.data,
+				Static: t.static(),
 			},
 		)
 
@@ -305,7 +305,7 @@ func (t *TUI) removeServer(s Server) {
 		return
 	}
 
-	db.RemoveServer(t.data.DB, source.Address, source.Port)
+	db.RemoveServer(t.db, source.Address, source.Port)
 }
 
 // Changes to a server specified by its name and updates all

@@ -13,6 +13,7 @@ import (
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"gorm.io/gorm"
 )
 
 /* TUI */
@@ -55,9 +56,10 @@ type ComponentSize struct {
 // Used to modify the sizes of the components
 // in the TUI for its configuration.
 // Must be exported for external modification
-type Sizes struct {
+type Parameters struct {
 	Buflist  ComponentSize // Size of left bar
 	Userlist ComponentSize // Size of right bar
+	Verbose  bool          // Whether to print verbose or not
 }
 
 // Identifies the main TUI with all its
@@ -67,15 +69,23 @@ type TUI struct {
 	comp components         // Actual tview components
 	app  *tview.Application // App that runs
 
-	sizes  Sizes           // Size of the different components
-	status state           // Identifies rendering states
-	data   cmds.StaticData // Identifies command data
+	params Parameters // Size of the different components
+	status state      // Identifies rendering states
+	db     *gorm.DB   // Identifies the database to be used
 
 	history models.Slice[string] // Stores previously ran commands
 	next    uint                 // Last history
 
 	servers models.Table[string, Server] // Table storing servers
 	focus   string                       // Currently active server
+}
+
+// Returns a static data for use on a comamdn
+func (t *TUI) static() *cmds.StaticData {
+	return &cmds.StaticData{
+		DB:      t.db,
+		Verbose: t.params.Verbose,
+	}
 }
 
 // Condition that prevents another operation from being performed
@@ -239,7 +249,7 @@ func newServerPopup(t *TUI) {
 			return
 		}
 
-		exists, err := db.ServerExistsByName(t.data.DB, name)
+		exists, err := db.ServerExistsByName(t.db, name)
 		if err != nil {
 			t.showError(err)
 			return
@@ -469,16 +479,16 @@ func deleteBufWindow(t *TUI) {
 // Renders the bufferlist depending on the size and mode
 func renderBuflist(t *TUI) {
 	if t.status.showingBufs {
-		if t.sizes.Buflist.Relative {
+		if t.params.Buflist.Relative {
 			t.area.main.ResizeItem(
 				t.area.left,
 				0,
-				int(t.sizes.Buflist.Size),
+				int(t.params.Buflist.Size),
 			)
 		} else {
 			t.area.main.ResizeItem(
 				t.area.left,
-				int(t.sizes.Buflist.Size),
+				int(t.params.Buflist.Size),
 				0,
 			)
 		}
@@ -491,16 +501,16 @@ func renderBuflist(t *TUI) {
 // Renders the userlist depending on the size and mode
 func renderUserlist(t *TUI) {
 	if t.status.showingUsers {
-		if t.sizes.Userlist.Relative {
+		if t.params.Userlist.Relative {
 			t.area.main.ResizeItem(
 				t.comp.users,
 				0,
-				int(t.sizes.Userlist.Size),
+				int(t.params.Userlist.Size),
 			)
 		} else {
 			t.area.main.ResizeItem(
 				t.comp.users,
-				int(t.sizes.Userlist.Size),
+				int(t.params.Userlist.Size),
 				0,
 			)
 		}
@@ -581,7 +591,7 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 
 	cmd := cmds.Command{
 		Output: output,
-		Static: &t.data,
+		Static: t.static(),
 		Data:   data,
 	}
 

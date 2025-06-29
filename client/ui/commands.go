@@ -184,7 +184,7 @@ func (t *TUI) parseCommand(text string) {
 func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, []string) {
 	return cmds.Command{
 		Data:   d,
-		Static: &t.data,
+		Static: t.static(),
 		Output: c.print,
 	}, c.Arguments
 }
@@ -216,7 +216,7 @@ func configList(t *TUI, s Server) []cmds.ConfigObj {
 
 	list = append(list, cmds.ConfigObj{
 		Prefix: "TUI",
-		Object: &t.sizes,
+		Object: &t.params,
 		Finish: func() {
 			renderBuflist(t)
 			renderUserlist(t)
@@ -256,7 +256,7 @@ func showVersion(t *TUI, cmd Command) {
 
 func listServers(t *TUI, cmd Command) {
 	var list strings.Builder
-	servs, err := db.GetAllServers(t.data.DB)
+	servs, err := db.GetAllServers(t.db)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 	}
@@ -423,7 +423,7 @@ func connectServer(t *TUI, cmd Command) {
 	})
 
 	if slices.Contains(args, "-noidle") {
-		if t.data.Verbose {
+		if t.params.Verbose {
 			cmd.print("running hook to prevent idle disconnection", cmds.RESULT)
 		}
 
@@ -599,7 +599,7 @@ func loginUser(t *TUI, cmd Command) {
 	cmd.print("subscribing to relevant events...", cmds.INTERMEDIATE)
 
 	output := cmd.print
-	if !t.data.Verbose {
+	if !t.params.Verbose {
 		output = func(string, cmds.OutputType) {}
 	}
 
@@ -838,7 +838,7 @@ func recoverData(t *TUI, cmd Command) {
 	}
 
 	err = cmds.RECOVER(cmds.Command{
-		Static: &t.data,
+		Static: t.static(),
 		Output: cmd.print,
 	}, uname, pswd, cleanup)
 

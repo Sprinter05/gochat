@@ -95,8 +95,9 @@ type components struct {
 }
 
 // Returns the default sizes for the layout
-func defaultSizes() Sizes {
-	return Sizes{
+// in the parameters struct
+func defaultParams() Parameters {
+	return Parameters{
 		Buflist: ComponentSize{
 			Relative: true,
 			Size:     2,
@@ -524,7 +525,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 		servers: models.NewTable[string, Server](0),
 		comp:    comps,
 		area:    areas,
-		sizes:   defaultSizes(),
+		params:  defaultParams(),
 		status: state{
 			showingUsers:   false,
 			showingBufs:    true,
@@ -538,9 +539,11 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 			lastDate:       time.Now(),
 			lastMsg:        time.Now(),
 		},
-		data:    static,
+		db:      static.DB,
 		history: models.NewSlice[string](0),
 	}
+
+	t.params.Verbose = static.Verbose
 
 	// Create the tview application
 	app := tview.NewApplication().
@@ -597,7 +600,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 // Restores all database server entries that are relevant.
 func (t *TUI) restoreSession() {
 	// Restore servers
-	list, err := db.GetAllServers(t.data.DB)
+	list, err := db.GetAllServers(t.db)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to restore session! %s", err))
 	}

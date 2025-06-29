@@ -229,12 +229,12 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 
 	fun := func(s string, out cmds.OutputType) {
 		switch out {
-		case cmds.PROMPT, cmds.USRSRESPONSE, cmds.COLOR:
+		case cmds.PROMPT, cmds.USRSRESPONSE, cmds.COLOR, cmds.PLAIN:
 			return // Ignore these
 		case cmds.PACKET:
 			t.debugPacket(s)
 		default:
-			if out == cmds.INTERMEDIATE && !t.data.Verbose {
+			if out == cmds.INTERMEDIATE && !t.params.Verbose {
 				return
 			}
 
@@ -258,7 +258,7 @@ func getOldMessages(t *TUI, s Server, username string) {
 
 	data, _ := s.Online()
 	user, err := db.GetExternalUser(
-		t.data.DB,
+		t.db,
 		username,
 		data.Server.Address,
 		data.Server.Port,
@@ -268,7 +268,7 @@ func getOldMessages(t *TUI, s Server, username string) {
 	}
 
 	msgs, err := db.GetAllUsersMessages(
-		t.data.DB,
+		t.db,
 		data.LocalUser.User.Username,
 		user.User.Username,
 		data.Server.Address,
