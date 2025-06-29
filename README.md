@@ -65,7 +65,7 @@ We have chosen to create our own server instance that you can connect to, hosted
 
 ## Running the server
 ### Running under Docker
-This repository provides a full **Compose** stack to run the server. The *Docker image* will be automatically pulled from `ghcr.io/sprinter05/gochat:latest`. But you can also manually compile it through the provided **Dockerfile** by using the following command (ran in the root directory):
+This repository provides a full **Compose** stack to run the server. The *Docker image* will be automatically pulled from `ghcr.io/sprinter05/gochat:latest` (`v1` also works as a version). But you can also manually compile it through the provided **Dockerfile** by using the following command (ran in the root directory):
 
 ```bash
 docker build -t Sprinter05/gochat:latest .
