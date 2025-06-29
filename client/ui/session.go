@@ -15,10 +15,10 @@ import (
 
 /* SESSION */
 
-// Subscribes to the default hooks of the server
+// Subscribes to all relevant hooks of the server
 // and updates the userlist once
 func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
-	hooks := []string{"all"}
+	hooks := []string{"all"} // Array so it can be modified
 	data, _ := s.Online()
 
 	for _, v := range hooks {
@@ -39,7 +39,7 @@ func defaultSubscribe(t *TUI, s Server, output cmds.OutputFunc) {
 	updateOnlineUsers(t, s, empty)
 }
 
-// Returns to default buffer and delets all others.
+// Returns to default buffer and deletes all others.
 // Also hides notifications
 func cleanupSession(t *TUI, s Server) {
 	i, _ := t.findBuffer(defaultBuffer)
@@ -64,11 +64,12 @@ func cleanupSession(t *TUI, s Server) {
 
 /* USERS */
 
-// Requests a user's key on buffer connection
+// Requests a user's public key on buffer connection
 func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 	tab, exists := s.Buffers().tabs.Get(name)
 	data, ok := s.Online()
 
+	// Function to run to get all old messages
 	connected := func() {
 		if !tab.connected {
 			getOldMessages(t, s, name)
@@ -88,6 +89,7 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 		return ErrorNotLoggedIn
 	}
 
+	// First we see if its already in the database
 	ok, err := db.ExternalUserExists(
 		t.data.DB,
 		name,
@@ -105,14 +107,13 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 		return nil
 	}
 
-	// output("attempting to get user data...", cmds.INTERMEDIATE)
-
 	cmd := cmds.Command{
 		Output: output,
 		Static: &t.data,
 		Data:   data,
 	}
 
+	// Now we try to request it to the server
 	ctx, cancel := timeout(s, cmd.Data)
 	defer data.Waitlist.Cancel(cancel)
 	_, err = cmds.REQ(ctx, cmd, tab.name)
@@ -130,10 +131,12 @@ func (t *TUI) requestUser(s Server, name string, output cmds.OutputFunc) error {
 
 /* NOTIFICATIONS */
 
+// Struct that specifies the notification system
 type Notifications struct {
-	data *models.Table[string, uint]
+	data *models.Table[string, uint] // Pairs a buffer with its amount of notifications
 }
 
+// Add +1 to the notifications of a user
 func (n Notifications) Notify(user string) {
 	if n.data == nil {
 		return
@@ -143,6 +146,7 @@ func (n Notifications) Notify(user string) {
 	n.data.Add(user, v+1)
 }
 
+// Get all users with notifications
 func (n Notifications) Users() []string {
 	if n.data == nil {
 		return make([]string, 0)
@@ -151,6 +155,7 @@ func (n Notifications) Users() []string {
 	return n.data.Indexes()
 }
 
+// Query the amount of notifications of a user
 func (n Notifications) Query(user string) uint {
 	if n.data == nil {
 		return 0
@@ -164,6 +169,7 @@ func (n Notifications) Query(user string) uint {
 	return v
 }
 
+// Clears all notifications of a user
 func (n Notifications) Zero(user string) {
 	if n.data == nil {
 		return
@@ -172,6 +178,7 @@ func (n Notifications) Zero(user string) {
 	n.data.Add(user, 0)
 }
 
+// Clears all notifications
 func (n Notifications) Clear() {
 	if n.data == nil {
 		return
@@ -187,6 +194,8 @@ func (t *TUI) updateNotifications() {
 	notifs := s.Notifications()
 	peding := notifs.Users()
 
+	// Remove the notification bar if we are not
+	// connected to the server
 	_, ok := s.Online()
 	if !ok {
 		t.area.bottom.ResizeItem(t.comp.notifs, 0, 0)
@@ -247,8 +256,9 @@ func (t *TUI) remoteMessage(content string) {
 		return
 	}
 
+	empty := func(text string, outputType cmds.OutputType) {}
 	cmd := cmds.Command{
-		Output: func(text string, outputType cmds.OutputType) {},
+		Output: empty,
 		Static: &t.data,
 		Data:   data,
 	}
@@ -261,9 +271,10 @@ func (t *TUI) remoteMessage(content string) {
 	}
 }
 
-// Waits for new messages to be sent to that user
+// Waits for new messages to be sent to the logged in user
 func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 	defer func() {
+		// Clear session buffers and notifications
 		s.Buffers().Offline()
 		s.Notifications().Clear()
 	}()
@@ -273,6 +284,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 
 	print := func(msg string) {
 		if t.data.Verbose {
+			// We wait some miliseconds to prevent race condition
 			<-time.After(50 * time.Millisecond)
 			output(msg, cmds.ERROR)
 		}
@@ -293,6 +305,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			continue
 		}
 
+		// Save message in database
 		rCtx, cancel := timeout(s, data)
 		msg, err := cmds.StoreMessage(
 			rCtx, cmd,
@@ -309,6 +322,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			continue
 		}
 
+		// Update notifications
 		s.Notifications().Notify(msg.Sender)
 		t.updateNotifications()
 
@@ -328,6 +342,8 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 
 /* OTHER LISTENERS */
 
+// Waits for a server to send a shutdown message
+// in case it ever sends it
 func (t *TUI) waitShutdown(ctx context.Context, s Server) {
 	data, _ := s.Online()
 	output := t.systemMessage("shutdown", defaultBuffer)
@@ -339,6 +355,7 @@ func (t *TUI) waitShutdown(ctx context.Context, s Server) {
 		}
 	}
 
+	// We only wait for the packet once
 	cmd, err := data.Waitlist.Get(
 		ctx, cmds.Find(spec.NullID, spec.SHTDWN),
 	)
@@ -395,20 +412,21 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 
 		hook := spec.Hook(cmd.HD.Info)
 
+		// Check if the hook exists
 		min := spec.HookArgs(hook)
-
 		if min == -1 {
 			print("invalid hook received, ignoring")
 			continue
 		}
 
+		// Check if it has enough arguments
 		if int(cmd.HD.Args) < min {
 			print("hook with invalid arguments received, ignoring")
 			continue
 		}
 
 		switch hook {
-		case spec.HookPermsChange:
+		case spec.HookPermsChange: // User permissions changed
 			uname := string(cmd.Args[0])
 			perms, _ := spec.BytesToPermission(cmd.Args[1])
 
@@ -422,14 +440,14 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 			}
 
 			t.status.userlistChange(uname, perms)
-		case spec.HookDuplicateSession:
+		case spec.HookDuplicateSession: // Someone tried to log in from somewhere else
 			str := fmt.Sprintf(
 				"Someone has tried to log in with your account from %s!",
 				string(cmd.Args[0]),
 			)
 
 			output(str, cmds.INFO)
-		case spec.HookNewLogin:
+		case spec.HookNewLogin: // New user logged into the server
 			perms, err := strconv.Atoi(string(cmd.Args[1]))
 			if err != nil {
 				perms = 0
@@ -439,13 +457,13 @@ func (t *TUI) receiveHooks(ctx context.Context, s Server) {
 				string(cmd.Args[0]),
 				uint(perms),
 			)
-		case spec.HookNewLogout:
+		case spec.HookNewLogout: // Someone logged out from the server
 			t.status.userlistRemove(
 				string(cmd.Args[0]),
 			)
 		}
 
-		// Condition to render again and do a USRS
+		// Condition to render the userlist again
 		refresh := hook == spec.HookNewLogin ||
 			hook == spec.HookNewLogout ||
 			hook == spec.HookPermsChange

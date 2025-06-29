@@ -144,19 +144,7 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 		return ErrorExists
 	}
 
-	s := &RemoteServer{
-		addr: source,
-		name: name,
-		conn: Connection{
-			ctx:    context.Background(),
-			cancel: func() {},
-		},
-		bufs: Buffers{
-			tabs: models.NewTable[string, *tab](0),
-		},
-		data:   cmds.NewEmptyData(),
-		notifs: models.NewTable[string, uint](0),
-	}
+	s := NewRemoteServer(name, source)
 
 	serv, err := db.AddServer(
 		t.data.DB,
@@ -172,6 +160,8 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 
 	t.servers.Add(name, s)
 	num := t.servers.Len()
+
+	// We check if there are any available indexes for the server
 	indexes := len(t.status.serverIndexes)
 	if indexes > 0 {
 		num = t.status.serverIndexes[0] + 1
@@ -179,7 +169,6 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 	}
 
 	t.comp.servers.AddItem(name, tlsText(source, tls), ascii(num), nil)
-
 	t.renderServer(name)
 	return nil
 }
@@ -196,28 +185,15 @@ func (t *TUI) showServer(name string) error {
 		Port:    serv.Port,
 	}
 
-	s := &RemoteServer{
-		addr: source,
-		name: name,
-		conn: Connection{
-			ctx:    context.Background(),
-			cancel: func() {},
-		},
-		bufs: Buffers{
-			tabs: models.NewTable[string, *tab](0),
-		},
-		data:   cmds.NewEmptyData(),
-		notifs: models.NewTable[string, uint](0),
-	}
-
+	s := NewRemoteServer(name, source)
 	s.data.Server = &serv
 
 	t.servers.Add(name, s)
 	num := t.servers.Len()
 	indexes := len(t.status.serverIndexes)
 	if indexes > 0 {
-		num = t.status.serverIndexes[0] + 1
-		t.status.serverIndexes = t.status.serverIndexes[1:]
+		num = t.status.serverIndexes[0] + 1                 // FIFO
+		t.status.serverIndexes = t.status.serverIndexes[1:] // Remove
 	}
 
 	t.comp.servers.AddItem(name, tlsText(source, serv.TLS), ascii(num), nil)
@@ -305,6 +281,7 @@ func (t *TUI) hideServer(name string) {
 		}
 	}
 
+	// Gives time for deletion to happen
 	<-time.After(100 * time.Millisecond)
 
 	t.servers.Remove(name)
@@ -370,6 +347,7 @@ func (t *TUI) renderServer(name string) {
 		return
 	}
 
+	// Sort buffers before showing them
 	tabs := s.Buffers().tabs.GetAll()
 	slices.SortFunc(tabs, func(a, b *tab) int {
 		if a.creation < b.creation {
@@ -397,15 +375,33 @@ func (t *TUI) renderServer(name string) {
 
 /* REMOTE SERVER */
 
+// Specifies a remote server
 type RemoteServer struct {
-	addr Source
-	name string
+	addr Source // Implements net.Addr
+	name string // Name of the server
 
-	conn Connection
+	conn Connection // Used for context propagation
 
-	bufs   Buffers
-	data   cmds.Data
-	notifs models.Table[string, uint]
+	bufs   Buffers                    // Buffer data
+	data   cmds.Data                  // Commands data
+	notifs models.Table[string, uint] // Notifications
+}
+
+// Creates a new empty remote server with the given data
+func NewRemoteServer(name string, addr Source) *RemoteServer {
+	return &RemoteServer{
+		addr: addr,
+		name: name,
+		conn: Connection{
+			ctx:    context.Background(),
+			cancel: func() {},
+		},
+		bufs: Buffers{
+			tabs: models.NewTable[string, *tab](0),
+		},
+		data:   cmds.NewEmptyData(),
+		notifs: models.NewTable[string, uint](0),
+	}
 }
 
 func (s *RemoteServer) Messages(name string) []Message {
@@ -439,7 +435,7 @@ func (s *RemoteServer) Receive(msg Message) (bool, error) {
 		return false, nil
 	}
 
-	check := strings.Replace(msg.Content, "\n", "", -1)
+	check := strings.ReplaceAll(msg.Content, "\n", "")
 	if check == "" {
 		// Empty content
 		return false, ErrorNoText
@@ -490,9 +486,11 @@ func (s *RemoteServer) Update() {
 
 /* LOCAL SERVER */
 
+// Specifies a local server that is not connected
+// to any remote endpoint
 type LocalServer struct {
-	name string
-	bufs Buffers
+	name string  // Name of the server
+	bufs Buffers // Buffer data
 }
 
 func (l *LocalServer) Messages(name string) []Message {

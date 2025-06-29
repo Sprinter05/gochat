@@ -232,17 +232,13 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 	fun := func(s string, out cmds.OutputType) {
 		switch out {
 		case cmds.PROMPT, cmds.USRSRESPONSE, cmds.COLOR:
-			return
+			return // Ignore these
 		case cmds.PACKET:
 			t.debugPacket(s)
 		default:
 			if out == cmds.INTERMEDIATE && !t.data.Verbose {
 				return
 			}
-
-			// if out == cmds.INFO {
-			// 	prompt = ""
-			// }
 
 			t.sendMessage(Message{
 				Buffer:    buffer,
@@ -258,7 +254,7 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 }
 
 // Gets all the old messages that are stored in the database and
-// prints them to the buffer. Uses the login time as a threshold.
+// prints them to the buffer.
 func getOldMessages(t *TUI, s Server, username string) {
 	print := t.systemMessage()
 
@@ -326,6 +322,7 @@ func (t *TUI) sendMessage(msg Message) {
 
 /* RENDERING */
 
+// Returns the text input label with username or not
 func unameLabel(uname string) string {
 	if uname == "" {
 		return defaultLabel

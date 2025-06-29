@@ -834,7 +834,7 @@ func connectServer(t *TUI, cmd Command) {
 		go cmds.PreventIdle(
 			cmd.serv.Context().Get(),
 			c.Data,
-			time.Duration(spec.ReadTimeout-1),
+			time.Duration(spec.ReadTimeout-1)*time.Minute,
 		)
 	}
 }

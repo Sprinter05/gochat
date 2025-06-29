@@ -92,6 +92,7 @@ func (s *state) blockCond() bool {
 
 /* USERLIST */
 
+// Renders the userlist of whatever is saved as the current state
 func (s *state) userlistRender() string {
 	var list strings.Builder
 
@@ -99,6 +100,7 @@ func (s *state) userlistRender() string {
 		return ""
 	}
 
+	// Sort by perms
 	copy := s.userlist.Copy(0)
 	slices.SortFunc(copy, func(a, b userlistUser) int {
 		if a.perms < b.perms {
@@ -123,6 +125,7 @@ func (s *state) userlistRender() string {
 	return ret[:l-1]
 }
 
+// Change the permissing level of a user in the userlist
 func (s *state) userlistChange(name string, perms uint) {
 	val, ok := s.userlist.Find(func(uu userlistUser) bool {
 		return uu.name == name
@@ -140,6 +143,7 @@ func (s *state) userlistChange(name string, perms uint) {
 	})
 }
 
+// Remove a user from the userlist
 func (s *state) userlistRemove(name string) {
 	val, ok := s.userlist.Find(func(uu userlistUser) bool {
 		return uu.name == name
@@ -261,7 +265,7 @@ func newServerPopup(t *TUI) {
 			"Enter server address and port as 'address:port':",
 		)
 
-		// Asks for address
+		// Asks for address and port
 		pInput.SetDoneFunc(func(key tcell.Key) {
 			if key == tcell.KeyEscape {
 				pExit()
@@ -353,6 +357,7 @@ func newQuickSwitchPopup(t *TUI) {
 		list := t.Active().Buffers().GetAll()
 		ret := make([]string, 0, len(list))
 		for _, v := range list {
+			// Autocomplete entries on text change
 			target := strings.ToLower(v)
 			curr := strings.ToLower(currentText)
 
@@ -438,7 +443,6 @@ func deleteServWindow(t *TUI) {
 }
 
 // Confirmation window to delete a buffer from the TUI
-// and also all related messages from the database.
 func deleteBufWindow(t *TUI) {
 	window, exit := createConfirmWindow(t,
 		&t.status.deletingBuffer,
@@ -462,6 +466,7 @@ func deleteBufWindow(t *TUI) {
 
 /* BARS */
 
+// Renders the bufferlist depending on the size and mode
 func renderBuflist(t *TUI) {
 	if t.status.showingBufs {
 		if t.sizes.Buflist.Relative {
@@ -483,6 +488,7 @@ func renderBuflist(t *TUI) {
 	t.area.main.ResizeItem(t.area.left, 0, 0)
 }
 
+// Renders the userlist depending on the size and mode
 func renderUserlist(t *TUI) {
 	if t.status.showingUsers {
 		if t.sizes.Userlist.Relative {
@@ -504,11 +510,13 @@ func renderUserlist(t *TUI) {
 	t.area.main.ResizeItem(t.comp.users, 0, 0)
 }
 
+// Enables or disables the buffer list
 func toggleBufList(t *TUI) {
 	t.status.showingBufs = !t.status.showingBufs
 	renderBuflist(t)
 }
 
+// Enables or disables the user list
 func toggleUserlist(t *TUI) {
 	t.status.showingUsers = !t.status.showingUsers
 	renderUserlist(t)
@@ -516,6 +524,7 @@ func toggleUserlist(t *TUI) {
 
 /* RENDER FUNCTIONS */
 
+// Update the text of all servers showing up on the list
 func updateServers(t *TUI) {
 	list := t.servers.Indexes()
 
@@ -560,6 +569,7 @@ func updateServers(t *TUI) {
 	}
 }
 
+// Updates the list of online users when connected to a server
 func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 	data, ok := s.Online()
 	t.status.userlist.Clear()
