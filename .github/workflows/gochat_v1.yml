@@ -1,7 +1,7 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Gochat v1
+name: Build Gochat v1
 
 on:
   push:
@@ -10,7 +10,29 @@ on:
     branches: [ "v1" ]
 
 jobs:
-  setup:
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23.5'
+    - name: Install CGO
+      run: apt install gcc-mingw-w64
+    - name: Build all
+      run: make all OS=windows ARCH=amd64 -j$(nproc)
+    - name: Publish server
+      uses: actions/upload-artifact@v4
+      with:
+        name: gochat-server_windows-amd64
+        path: build/gochat-server
+    - name: Publish client
+      uses: actions/upload-artifact@v4
+      with:
+        name: gochat-client_windows-amd64
+        path: build/gochat-client
+  linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -19,14 +41,14 @@ jobs:
       with:
         go-version: '1.23.5'
     - name: Build all
-      run: make all -j$(nproc)
+      run: make all OS=linux ARCH=amd64 -j$(nproc)
     - name: Publish server
       uses: actions/upload-artifact@v4
       with:
-        name: server
+        name: gochat-server_linux-amd64
         path: build/gochat-server
     - name: Publish client
       uses: actions/upload-artifact@v4
       with:
-        name: client
+        name: gochat-client_linux-amd64
         path: build/gochat-client
