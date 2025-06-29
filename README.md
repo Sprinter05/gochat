@@ -12,6 +12,9 @@ This repository includes:
     - The **source code**
     - The [implementation](doc/IMPLEMENTATION.md) details.
 
+## Download
+You can download the executables for both the **Client** and **Server** for both `Windows x86_64` and `Linux x86_64` in the [Releases](https://github.com/Sprinter05/gochat/releases/latest) page
+
 ## Stack
 ### Client stack
 The client's local database is a [SQLite](https://www.sqlite.org/) database handled by [GORM](https://gorm.io/index.html). The client **TUI** is made possible thanks to [tview](https://github.com/rivo/tview).

@@ -62,16 +62,16 @@ jobs:
     steps:
     - name: Prepare repository
       uses: actions/checkout@v4
+    - name: Move to another folder
+      run: mkdir releasing && cd releasing
     - name: Prepare folder and script
-      run: mkdir artifacts && mv .github/workflows/create_release.sh create.sh && chmod +x create.sh
+      run: mkdir artifacts && mv ../.github/workflows/create_release.sh create.sh && chmod +x create.sh
     - name: Download Artifacts
       uses: actions/download-artifact@v4
       with:
         path: artifacts
     - name: Create release file
       run: ./create.sh
-    - name: List files
-      run: find .
     - name: Release
       uses: softprops/action-gh-release@v2 
       if: github.ref_type == 'tag'
