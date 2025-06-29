@@ -49,11 +49,13 @@ func New(static commands.StaticData, conn net.Conn, server db.Server) commands.C
 		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
 	}
 
-	commands.WaitConnect(cmds, conn, server)
-	if static.Verbose {
-		cmds.Output("listening for incoming packets...", commands.INFO)
+	if conn != nil {
+		commands.WaitConnect(cmds, conn, server)
+		if static.Verbose {
+			cmds.Output("listening for incoming packets...", commands.INFO)
+		}
+		go commands.ListenPackets(cmds, func() {})
 	}
-	go commands.ListenPackets(cmds, func() {})
 
 	// Starts specific command handlers to listen on the background
 	go RECIVHandler(cmds)
