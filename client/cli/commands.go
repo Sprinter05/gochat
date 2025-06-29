@@ -124,6 +124,12 @@ var shCommands = map[string]ShellCommand{
 	"PERMS": {getUserPerms,
 		"- PERMS: Prints out the permission level of a user.\n" +
 			"Usage: PERMS <username>"},
+
+	"SERVERCONFIG": {getConfigObjs,
+		"- SERVERCONFIG: Prints out the available config objets"},
+
+	"SETSERVER": {setConfig,
+		"- SETSERVER: Changes the value of a config object"},
 }
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -620,4 +626,65 @@ func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte)
 
 	adminErr := commands.ADMIN(ctx, cmd, opStr, args[1:]...)
 	return adminErr
+}
+
+func getConfigObjs(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	name := string(args[0])
+
+	obj, svErr := getServerConfigObj(cmd, name)
+	if svErr != nil {
+		return svErr
+	}
+
+	configList := commands.CONFIG(obj)
+	fmt.Println("Available configuration objects:")
+	for _, v := range configList {
+		fmt.Printf("%s\n", v)
+	}
+	return nil
+}
+
+func setConfig(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 3 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	name := string(args[0])
+
+	target := string(args[1])
+	extra := args[2:]
+	value := bytes.Join(extra, []byte(" "))
+
+	sv, svErr := getServerConfigObj(cmd, name)
+	if svErr != nil {
+		return svErr
+	}
+
+	setErr := commands.SET(cmd, target, string(value), sv)
+	return setErr
+}
+
+// AUX:
+func getServerConfigObj(cmd commands.Command, name string) (commands.ConfigObj, error) {
+	sv, svErr := db.GetServerByName(cmd.Static.DB, name)
+	if svErr != nil {
+		return commands.ConfigObj{}, svErr
+	}
+
+	obj := commands.ConfigObj{Prefix: "Server",
+		Object: &sv,
+		Precondition: func() error {
+			if cmd.Data.IsConnected() {
+				return commands.ErrorOfflineRequired
+			}
+			return nil
+		},
+		Update: db.UpdateServer,
+	}
+
+	return obj, nil
 }
