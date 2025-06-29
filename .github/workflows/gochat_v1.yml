@@ -8,6 +8,9 @@ on:
     tags:
       - "v1.*"
 
+permissions:
+  contents: write
+
 jobs:
   windows:
     runs-on: ubuntu-latest
@@ -67,6 +70,8 @@ jobs:
         path: artifacts
     - name: Create release file
       run: ./create.sh
+    - name: List files
+      run: find .
     - name: Release
       uses: softprops/action-gh-release@v2 
       if: github.ref_type == 'tag'
@@ -76,7 +81,7 @@ jobs:
         overwrite_files: true
         make_latest: true
         files: |
-          artifacts/gocha-client_windows-amd64.tar.gz
-          artifacts/gocha-client_linux-amd64.tar.gz
-          artifacts/gocha-server_windows-amd64.tar.gz
-          artifacts/gocha-server_linux-amd64.tar.gz
+          gochat-client_windows-amd64.tar.gz
+          gochat-client_linux-amd64.tar.gz
+          gochat-server_windows-amd64.tar.gz
+          gochat-server_linux-amd64.tar.gz
