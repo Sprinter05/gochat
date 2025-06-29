@@ -1,6 +1,9 @@
 package commands
 
+// Includes the necessary functions to establish connections and read packets
+
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -92,7 +95,7 @@ func WaitConnect(data Command, endpoint net.Conn, server db.Server) error {
 	}
 
 	str := fmt.Sprintf(
-		"server MOTD (message of the day):\n%s",
+		"Server MOTD (message of the day):\n%s",
 		motd,
 	)
 	data.Output(str, INFO)
@@ -126,10 +129,38 @@ func closeError(cmd Command) error {
 	return nil
 }
 
+// Sends a KEEP packet every x time
+func PreventIdle(ctx context.Context, data *Data, d time.Duration) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(d):
+			if data.Conn == nil {
+				return
+			}
+
+			id := data.NextID()
+			pak, err := spec.NewPacket(spec.KEEP, id, spec.EmptyInfo)
+			if err != nil {
+				return
+			}
+
+			data.Conn.Write(pak)
+		}
+	}
+}
+
 // Listens for incoming server packets. When a packet
 // is received, it is stored in the packet waitlist
 // A cleanup function that cleans up resources can be passed.
 func ListenPackets(cmd Command, cleanup func()) {
+	info := func(text string) {
+		if cmd.Static.Verbose {
+			cmd.Output(text, INFO)
+		}
+	}
+
 	defer func() {
 		if cmd.Data.Conn != nil {
 			cmd.Data.Conn.Close()
@@ -139,13 +170,13 @@ func ListenPackets(cmd Command, cleanup func()) {
 		cmd.Data.LocalUser = nil
 		cmd.Data.ClearToken()
 
-		cmd.Output("No longer listening for packets", INFO)
+		info("No longer listening for packets")
 		cleanup()
 	}()
 
 	exit := func(prompt string, err error) {
 		if errors.Is(err, spec.ErrorDisconnected) {
-			cmd.Output("Connection manually closed", INFO)
+			info("Connection manually closed")
 			return
 		}
 

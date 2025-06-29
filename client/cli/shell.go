@@ -1,6 +1,6 @@
 package cli
 
-// This package includes the core functionality of the gochat client shell
+// Includes core shell functionality functions
 
 import (
 	"bufio"
@@ -10,13 +10,15 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/spec"
 )
 
-// Given a string containing a command name, returns its execution function.
+// Given a string containing a command name, returns its
+// execution function.
 func fetchCommand(op string, cmd commands.Command) ShellCommand {
 	v, ok := shCommands[strings.ToUpper(op)]
 	if !ok {
@@ -30,7 +32,7 @@ func fetchCommand(op string, cmd commands.Command) ShellCommand {
 	return v
 }
 
-// Creates a new shell and an option connection and server
+// Creates a new shell and an option connection and server.
 func New(static commands.StaticData, conn net.Conn, server db.Server) commands.Command {
 	data := commands.NewEmptyData()
 	cmds := commands.Command{
@@ -47,20 +49,26 @@ func New(static commands.StaticData, conn net.Conn, server db.Server) commands.C
 		fmt.Println("\033[36mgochat\033[0m shell - type HELP [command] for help")
 	}
 
-	commands.WaitConnect(cmds, conn, server)
-	if static.Verbose {
-		cmds.Output("listening for incoming packets...", commands.INFO)
+	if conn != nil {
+		commands.WaitConnect(cmds, conn, server)
+		if static.Verbose {
+			cmds.Output("listening for incoming packets...", commands.INFO)
+		}
+		go commands.ListenPackets(cmds, func() {})
 	}
-	go commands.ListenPackets(cmds, func() {})
 
+	// Starts specific command handlers to listen on the background
 	go RECIVHandler(cmds)
 	go HOOKHandler(cmds)
+	go SHTDWNHandler(cmds)
 
 	return cmds
 }
 
-// Starts a shell that allows the client to send packets
-// to the gochat server, along with other functionalities.
+// Starts a shell that allows
+// the client to send packets
+// to the gochat server, along
+// with other functionalities.
 func Run(data commands.Command) {
 	rd := bufio.NewReader(os.Stdin)
 	for {
@@ -165,7 +173,7 @@ func RECIVHandler(cmd commands.Command) {
 	}
 }
 
-// Shell-specific HOOL handler. Listens
+// Shell-specific HOOK handler. Listens
 // constantly for incoming HOOK packets
 // and performs the necessary shell
 // operations.
@@ -176,6 +184,26 @@ func HOOKHandler(cmd commands.Command) {
 			commands.Find(0, spec.HOOK),
 		)
 		printHook(hook, cmd)
+	}
+}
+
+// Shell-specific SHTDWN handler. Listens
+// constantly for incoming SHTDWN packets
+// and prints a notice about them
+func SHTDWNHandler(cmd commands.Command) {
+	for {
+		shtdwn, _ := cmd.Data.Waitlist.Get(
+			context.Background(),
+			commands.Find(0, spec.SHTDWN),
+		)
+
+		stamp, _ := spec.BytesToUnixStamp(shtdwn.Args[0])
+		diff := time.Until(stamp)
+		printShutdown(int(diff), cmd)
+
+		time.Sleep(diff)
+		cmd.Output("Server shutdown incoming. Disconnecting...", commands.INFO)
+		commands.DISCN(cmd)
 	}
 }
 
@@ -192,6 +220,20 @@ func printMessage(reciv spec.Command, decryptedText string, cmd commands.Command
 func printHook(hook spec.Command, cmd commands.Command) {
 	// Removes prompt line and rings bell
 	fmt.Print("\r\033[K\a")
-	fmt.Printf("\033[0;35m[HOOK] \033[32mHook received\033[0m: Code %d (%s)\n", hook.HD.Info, spec.HookString(spec.Hook(hook.HD.Info)))
+	fmt.Printf("\033[0;35m[HOOK] \033[32mHook received\033[0m: Code %d (%s)\n",
+		hook.HD.Info,
+		spec.HookString(spec.Hook(hook.HD.Info)),
+	)
+	PrintPrompt(cmd.Data)
+}
+
+// Prints a shutdown notice
+func printShutdown(count int, cmd commands.Command) {
+	// Removes prompt line and rings bell
+	fmt.Print("\r\033[K\a")
+
+	fmt.Printf("\033[0;31m[SHTDWN] \033[0mNotice: Server %s will shutdown in %d seconds\n",
+		cmd.Data.Server.Name, count)
+
 	PrintPrompt(cmd.Data)
 }

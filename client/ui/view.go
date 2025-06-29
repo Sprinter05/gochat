@@ -13,13 +13,15 @@ import (
 	"github.com/Sprinter05/gochat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"gorm.io/gorm"
 )
 
 /* TUI */
 
+// Struct representing a user shown in the userlist
 type userlistUser struct {
-	name  string
-	perms uint
+	name  string // Name of the user
+	perms uint   // Permission level of the user
 }
 
 // Identifies conditions that may in any moment
@@ -29,10 +31,11 @@ type state struct {
 	showingUsers bool // Showing user list component
 	showingBufs  bool // Showing buffer list component
 
-	creatingBuf    bool // Creating a new buffer
-	creatingServer bool // Creating a new server
-	typingPassword bool // Inputting a password
-	showingHelp    bool // Showing the help window
+	creatingBuf        bool // Creating a new buffer
+	creatingServer     bool // Creating a new server
+	typingPassword     bool // Inputting a password
+	showingHelp        bool // Showing the help window
+	showingQuickswitch bool // Showing the quickswitch input
 
 	deletingServer bool // Currently choosing to delete server
 	deletingBuffer bool // Currently choosing to delete buffer
@@ -44,6 +47,21 @@ type state struct {
 	lastMsg  time.Time // last message sent
 }
 
+// Used to change size of a specific component
+type ComponentSize struct {
+	Size     uint // Specifies the size of the component
+	Relative bool // Specifies whether its relative to the other components
+}
+
+// Used to modify the sizes of the components
+// in the TUI for its configuration.
+// Must be exported for external modification
+type Parameters struct {
+	Buflist  ComponentSize // Size of left bar
+	Userlist ComponentSize // Size of right bar
+	Verbose  bool          // Whether to print verbose or not
+}
+
 // Identifies the main TUI with all its
 // components and data.
 type TUI struct {
@@ -51,14 +69,23 @@ type TUI struct {
 	comp components         // Actual tview components
 	app  *tview.Application // App that runs
 
-	status state           // Identifies rendering states
-	data   cmds.StaticData // Identifies command data
+	params Parameters // Size of the different components
+	status state      // Identifies rendering states
+	db     *gorm.DB   // Identifies the database to be used
 
 	history models.Slice[string] // Stores previously ran commands
 	next    uint                 // Last history
 
 	servers models.Table[string, Server] // Table storing servers
 	focus   string                       // Currently active server
+}
+
+// Returns a static data for use on a command
+func (t *TUI) static() *cmds.StaticData {
+	return &cmds.StaticData{
+		DB:      t.db,
+		Verbose: t.params.Verbose,
+	}
 }
 
 // Condition that prevents another operation from being performed
@@ -69,11 +96,13 @@ func (s *state) blockCond() bool {
 		s.showingHelp ||
 		s.typingPassword ||
 		s.deletingServer ||
-		s.deletingBuffer
+		s.deletingBuffer ||
+		s.showingQuickswitch
 }
 
 /* USERLIST */
 
+// Renders the userlist of whatever is saved as the current state
 func (s *state) userlistRender() string {
 	var list strings.Builder
 
@@ -81,6 +110,7 @@ func (s *state) userlistRender() string {
 		return ""
 	}
 
+	// Sort by perms
 	copy := s.userlist.Copy(0)
 	slices.SortFunc(copy, func(a, b userlistUser) int {
 		if a.perms < b.perms {
@@ -105,6 +135,7 @@ func (s *state) userlistRender() string {
 	return ret[:l-1]
 }
 
+// Change the permissing level of a user in the userlist
 func (s *state) userlistChange(name string, perms uint) {
 	val, ok := s.userlist.Find(func(uu userlistUser) bool {
 		return uu.name == name
@@ -122,6 +153,7 @@ func (s *state) userlistChange(name string, perms uint) {
 	})
 }
 
+// Remove a user from the userlist
 func (s *state) userlistRemove(name string) {
 	val, ok := s.userlist.Find(func(uu userlistUser) bool {
 		return uu.name == name
@@ -217,7 +249,7 @@ func newServerPopup(t *TUI) {
 			return
 		}
 
-		exists, err := db.ServerExistsByName(t.data.DB, name)
+		exists, err := db.ServerExistsByName(t.db, name)
 		if err != nil {
 			t.showError(err)
 			return
@@ -243,7 +275,7 @@ func newServerPopup(t *TUI) {
 			"Enter server address and port as 'address:port':",
 		)
 
-		// Asks for address
+		// Asks for address and port
 		pInput.SetDoneFunc(func(key tcell.Key) {
 			if key == tcell.KeyEscape {
 				pExit()
@@ -286,7 +318,7 @@ func newServerPopup(t *TUI) {
 // that until the popup exits the function itself will not exit.
 // Therefore this shouldn't run in the main thread as it will
 // block all other components.
-func newLoginPopup(t *TUI, text string) (pswd string, err error) {
+func newPasswordPopup(t *TUI, text string) (pswd string, err error) {
 	cond := sync.NewCond(new(sync.Mutex))
 	cond.L.Lock()
 	defer cond.L.Unlock()
@@ -322,6 +354,56 @@ func newLoginPopup(t *TUI, text string) (pswd string, err error) {
 
 	cond.Wait()
 	return pswd, err
+}
+
+// Creates a popup to quickly switch to any buffer
+func newQuickSwitchPopup(t *TUI) {
+	input, exit := createPopup(t, &t.status.showingQuickswitch, "Go to...")
+	input.SetAutocompleteFunc(func(currentText string) []string {
+		if len(currentText) == 0 {
+			return nil
+		}
+
+		list := t.Active().Buffers().GetAll()
+		ret := make([]string, 0, len(list))
+		for _, v := range list {
+			// Autocomplete entries on text change
+			target := strings.ToLower(v)
+			curr := strings.ToLower(currentText)
+
+			if strings.HasPrefix(target, curr) {
+				ret = append(ret, v)
+			}
+		}
+
+		if len(ret) == 0 {
+			return nil
+		}
+
+		return ret
+	})
+
+	input.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			exit()
+			return
+		}
+
+		text := input.GetText()
+		if text == "" {
+			t.showError(ErrorNoText)
+			return
+		}
+
+		i, ok := t.findBuffer(text)
+		if !ok {
+			t.showError(ErrorNoText)
+			return
+		}
+
+		t.changeBuffer(i)
+		exit()
+	})
 }
 
 /* CONFIRMATION WINDOWS */
@@ -371,7 +453,6 @@ func deleteServWindow(t *TUI) {
 }
 
 // Confirmation window to delete a buffer from the TUI
-// and also all related messages from the database.
 func deleteBufWindow(t *TUI) {
 	window, exit := createConfirmWindow(t,
 		&t.status.deletingBuffer,
@@ -395,28 +476,65 @@ func deleteBufWindow(t *TUI) {
 
 /* BARS */
 
-func toggleBufList(t *TUI) {
+// Renders the bufferlist depending on the size and mode
+func renderBuflist(t *TUI) {
 	if t.status.showingBufs {
-		t.area.main.ResizeItem(t.area.left, 0, 0)
-		t.status.showingBufs = false
-	} else {
-		t.area.main.ResizeItem(t.area.left, 0, 2)
-		t.status.showingBufs = true
+		if t.params.Buflist.Relative {
+			t.area.main.ResizeItem(
+				t.area.left,
+				0,
+				int(t.params.Buflist.Size),
+			)
+		} else {
+			t.area.main.ResizeItem(
+				t.area.left,
+				int(t.params.Buflist.Size),
+				0,
+			)
+		}
+		return
 	}
+
+	t.area.main.ResizeItem(t.area.left, 0, 0)
 }
 
-func toggleUserlist(t *TUI) {
+// Renders the userlist depending on the size and mode
+func renderUserlist(t *TUI) {
 	if t.status.showingUsers {
-		t.area.main.ResizeItem(t.comp.users, 0, 0)
-		t.status.showingUsers = false
-	} else {
-		t.area.main.ResizeItem(t.comp.users, 0, 1)
-		t.status.showingUsers = true
+		if t.params.Userlist.Relative {
+			t.area.main.ResizeItem(
+				t.comp.users,
+				0,
+				int(t.params.Userlist.Size),
+			)
+		} else {
+			t.area.main.ResizeItem(
+				t.comp.users,
+				int(t.params.Userlist.Size),
+				0,
+			)
+		}
+		return
 	}
+
+	t.area.main.ResizeItem(t.comp.users, 0, 0)
+}
+
+// Enables or disables the buffer list
+func toggleBufList(t *TUI) {
+	t.status.showingBufs = !t.status.showingBufs
+	renderBuflist(t)
+}
+
+// Enables or disables the user list
+func toggleUserlist(t *TUI) {
+	t.status.showingUsers = !t.status.showingUsers
+	renderUserlist(t)
 }
 
 /* RENDER FUNCTIONS */
 
+// Update the text of all servers showing up on the list
 func updateServers(t *TUI) {
 	list := t.servers.Indexes()
 
@@ -437,6 +555,11 @@ func updateServers(t *TUI) {
 		if name != v {
 			t.servers.Remove(v)
 			t.servers.Add(name, s)
+
+			// Update the focus
+			if t.focus == v {
+				t.focus = name
+			}
 		}
 
 		// Get the TUI object
@@ -456,6 +579,7 @@ func updateServers(t *TUI) {
 	}
 }
 
+// Updates the list of online users when connected to a server
 func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 	data, ok := s.Online()
 	t.status.userlist.Clear()
@@ -467,13 +591,13 @@ func updateOnlineUsers(t *TUI, s Server, output cmds.OutputFunc) {
 
 	cmd := cmds.Command{
 		Output: output,
-		Static: &t.data,
+		Static: t.static(),
 		Data:   data,
 	}
 
 	ctx, cancel := timeout(s, data)
 	defer data.Waitlist.Cancel(cancel)
-	reply, err := cmds.Usrs(ctx, cmd, cmds.ONLINEPERMS)
+	reply, err := cmds.USRS(ctx, cmd, cmds.ONLINEPERMS)
 
 	if err != nil {
 		output(err.Error(), cmds.ERROR)

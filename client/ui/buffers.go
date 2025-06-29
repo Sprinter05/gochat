@@ -121,6 +121,9 @@ func (b *Buffers) Show(name string) (int, rune) {
 
 	b.open += 1
 	t.index = b.open
+
+	// We check if theres an available index
+	// left by another buffer
 	l := len(b.indexes)
 	if l > 0 {
 		t.index = b.indexes[0]    // FIFO
@@ -181,6 +184,9 @@ func (t *TUI) addBuffer(name string, system bool) {
 		return
 	}
 
+	// If we are in a remote server we have to check
+	// that we are online and that we are requesting
+	// a user that is not the logged in user
 	data, online := s.Online()
 	if data != nil && name != defaultBuffer {
 		if !online || !data.IsLoggedIn() {
@@ -205,15 +211,21 @@ func (t *TUI) addBuffer(name string, system bool) {
 	if i == -1 {
 		return
 	}
-
 	t.comp.buffers.AddItem(name, "", r, nil)
-	reqErr := t.requestUser(s, name, func(string, cmds.OutputType) {})
-	t.changeBuffer(i)
 
+	// We try to request the user first
+	empty := func(string, cmds.OutputType) {}
+	reqErr := t.requestUser(s, name, empty)
 	if reqErr != nil {
 		print := t.systemMessage("request")
 		print(reqErr.Error(), cmds.ERROR)
+
+		t.hideBuffer(name)
+		t.removeBuffer(name)
+		return
 	}
+
+	t.changeBuffer(i)
 }
 
 // Changes the TUI component according to the internal
@@ -244,7 +256,8 @@ func (t *TUI) findBuffer(name string) (int, bool) {
 // Hides a buffer from the TUI component and changes to
 // the previous buffer unless the position was at the top,
 // in which case it changes to the next buffer. This does
-// not delete the buffer data.
+// not delete the buffer data. It will not change position
+// if that buffer wasnt the targeted one.
 func (t *TUI) hideBuffer(name string) {
 	err := t.Active().Buffers().Hide(name)
 	if err != nil {
@@ -252,17 +265,21 @@ func (t *TUI) hideBuffer(name string) {
 		return
 	}
 
-	count := t.comp.buffers.GetItemCount()
-	if count == 1 {
-		// All buffers have been deleted
-		t.comp.text.Clear()
-		t.Active().Buffers().current = ""
-	} else {
-		curr := t.comp.buffers.GetCurrentItem()
-		if curr == 0 {
-			t.changeBuffer(curr + 1)
+	// If the hidden buffer is the one we are targeting
+	// we change to another buffer
+	if t.Buffer() == name {
+		count := t.comp.buffers.GetItemCount()
+		if count == 1 {
+			// All buffers have been deleted
+			t.comp.text.Clear()
+			t.Active().Buffers().current = ""
 		} else {
-			t.changeBuffer(curr - 1)
+			curr := t.comp.buffers.GetCurrentItem()
+			if curr == 0 {
+				t.changeBuffer(curr + 1)
+			} else {
+				t.changeBuffer(curr - 1)
+			}
 		}
 	}
 
@@ -306,16 +323,12 @@ func (t *TUI) renderBuffer(buf string) {
 		return
 	}
 
-	/* 	if b.connected && b.messages.Len() == 0 {
-	   		print := t.systemMessage()
-	   		print("This is the beggining of your conversation with "+buf, cmds.INFO)
-	   	}
-	*/
-
+	// Render text
 	t.status.lastDate = time.Now()
 	t.comp.text.Clear()
 	msgs := s.Messages(buf)
 
+	// Render notifications
 	l := len(msgs)
 	pending := s.Notifications().Query(buf)
 	unread := l - int(pending)

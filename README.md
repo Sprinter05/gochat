@@ -1,15 +1,15 @@
 # gochat
-gochat is a light, **TCP**-based, client-server, **E2E** (end-to-end) chat protocol. Said protocol is detailed in the [Specification](https://github.com/Sprinter05/gochat/blob/main/doc/SPECIFICATION.md).
+gochat is a light, **TCP**-based, client-server, **E2E** (end-to-end) chat protocol. Said protocol is detailed in the [Specification](doc/SPECIFICATION.md).
 
 ## Content
 This repository includes:
-- The protocol [documentation](https://github.com/Sprinter05/gochat/blob/main/doc/SPECIFICATION.md)
+- The protocol [documentation](doc/SPECIFICATION.md)
 - A client application with:
     - A **TUI** (terminal user interface)
     - A **shell** interface
 - A **server** implementation with:
     - The **source code**
-    - The [implementation](https://github.com/Sprinter05/gochat/blob/main/doc/IMPLEMENTATION.md) details.
+    - The [implementation](doc/IMPLEMENTATION.md) details.
 
 ## Stack
 ### Client stack
@@ -35,7 +35,7 @@ gochat is made up of the following packets:
 ## Protocol
 The gochat protocol is made to run underneath a **TCP** connection. The protocol also supports **TLS**, **RSA-encrypted** communication between clients, **administrative commands** and subscription-based **hooks** (also called events).
 
-For more information on the protocol, be sure to read the [Specification](https://github.com/Sprinter05/gochat/blob/main/doc/SPECIFICATION.md) and [Implementation](https://github.com/Sprinter05/gochat/blob/main/doc/IMPLEMENTATION.md).
+For more information on the protocol, be sure to read the [Specification](doc/SPECIFICATION.md) and [Implementation](doc/IMPLEMENTATION.md).
 
 ## Build
 ### Compiling
@@ -52,6 +52,12 @@ Executing any of these commands will generate a `build/` directory if it wasn't 
 ### Running
 Both client and server provide a `--help` argument to see the available parameters for the program. The configuration file will be loaded automatically if it exists in the current directory and is named `config.json`.
  
+## Running a client instance
+The client application can be ran by just using the executable. Necessary files will be created automatically by the application. We recommend reading the **Quickstart Guides** for the [TUI](doc/TUI.md) and [Shell](doc/SHELL.md).
+
+### Where can I connect?
+We have chosen to create our own server instance that you can connect to, hosted at `gochat.sprintervps.party` on port `8037` (TLS) and port `9037` (No TLS).
+
 ## Running the server
 ### Running under Docker
 This repository provides a full **Compose** stack to run the server. You just need to manually compile the *Docker image* through the provided **Dockerfile** first using the following command (ran in the root directory):
@@ -74,7 +80,4 @@ To run manually you must use a **MariaDB** database and modify the server's conf
 ### Creating TLS certificates
 You may run the server with a **TLS** port by creating the required **TLS** certificates. It is recommended to use `certbot` for creating your certificates, following the instructions of your domain provider. The required files generated using `certbot` will be `fullchain.pem` (`cert_file`) and `privkey.pem` (`key_file`). Other methods should also work, but are not documented here. Please note that *self-signed* certificates are also supported, but not recommended.
 
-> Note: When connecting to the server through the TLS port you must use the `domain:port` combination instead of using `ip:port` or the TLS certificate will fail to load.
-
-## Running a client instance
-The client application can be ran by just using the executable. Necessary files will be created automatically by the application. We recommend reading the [Quickstart Guide]() (***TODO***) to familiarise yourself with the usage of the client application.
+> Note: When connecting to the server through the TLS port you must use the domain and port combination instead of using ip and port or the TLS certificate will fail to load.

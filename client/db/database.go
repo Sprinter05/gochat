@@ -4,7 +4,7 @@ package db
 // The database used for the client is SQLite, connected with GORM.
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -48,64 +48,11 @@ func GetDBLogger(logLevel uint8, logPath string) logger.Interface {
 	return dbLog
 }
 
-/* MODELS */
+/* ERRORS */
 
-// Per-user configuration
-type UserConfig struct {
-	Buffers []string `json:"buffer_list"`
-}
-
-// Generic user table that defines the columns every user shares.
-type User struct {
-	UserID   uint   `gorm:"autoIncrement:false;not null"`
-	ServerID uint   `gorm:"primaryKey;autoIncrement:false;not null"`
-	Username string `gorm:"primaryKey;not null"`
-
-	Server Server `gorm:"foreignKey:ServerID;references:ServerID;constraint:OnDelete:CASCADE"`
-}
-
-// User extension dedicated to locally created users.
-// The passwords should be hashed and the private
-// keys need to be stored in PEM format.
-type LocalUser struct {
-	UserID   uint           `gorm:"primaryKey;not null;autoIncrement:false"`
-	Password string         `gorm:"not null"`
-	Config   map[string]any `gorm:"serializer:json"`
-	PrvKey   string
-
-	User User `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
-}
-
-// User extension dedicated to REQ'd users. Only
-// their public key is needed to encrypt messages
-// to them.
-type ExternalUser struct {
-	UserID uint   `gorm:"primaryKey;not null"`
-	PubKey string `gorm:"not null"`
-
-	User User `gorm:"foreignKey:UserID;OnDelete:CASCADE"`
-}
-
-// Holds message data.
-type Message struct {
-	MessageID     uint `gorm:"primaryKey;autoincrement;not null"`
-	SourceID      uint
-	DestinationID uint
-	Stamp         time.Time
-	Text          string
-
-	SourceUser      User `gorm:"foreignKey:SourceID;references:UserID;OnDelete:RESTRICT"`
-	DestinationUser User `gorm:"foreignKey:DestinationID;references:UserID;OnDelete:RESTRICT"`
-}
-
-// Server indentifier that allows a multi-server platform.
-type Server struct {
-	Address  string `gorm:"primaryKey;autoIncrement:false;not null"`
-	Port     uint16 `gorm:"primaryKey;autoIncrement:false;not null"`
-	TLS      bool   `gorm:"not null"`
-	ServerID uint   `gorm:"autoIncrement:false;not null"`
-	Name     string `gorm:"unique;not null"`
-}
+var (
+	ErrorInvalidObject error = fmt.Errorf("provided object is not of the correct type")
+)
 
 /* CONNECTION */
 
@@ -128,24 +75,6 @@ func OpenDatabase(path string, logger logger.Interface) *gorm.DB {
 var tableToID = map[string]string{
 	"servers": "server_id",
 	"users":   "user_id",
-}
-
-/* CONFIG FUNCTIONS */
-
-// Parses the map from the config to the actual struct
-// This function may be unnecessary but this is the ORM way I guess
-func (lu LocalUser) GetConfig() (cfg UserConfig, err error) {
-	fromMap, err := json.Marshal(lu.Config)
-	if err != nil {
-		return cfg, err
-	}
-
-	err = json.Unmarshal(fromMap, &cfg)
-	if err != nil {
-		return cfg, err
-	}
-
-	return cfg, nil
 }
 
 /* AUXILIARY FUNCTIONS */

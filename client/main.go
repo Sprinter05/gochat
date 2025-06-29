@@ -1,5 +1,7 @@
 package main
 
+// Main gochat client package
+
 import (
 	"encoding/json"
 	"errors"
@@ -93,7 +95,7 @@ var (
 func init() {
 	flag.StringVar(&configFile, "config", "config.json", "Configuration file to use. Must be in JSON format.")
 	flag.BoolVar(&useShell, "shell", false, "Whether to use a shell instead of a TUI.")
-	flag.BoolVar(&verbosePrint, "verbose", true, "Whether or not to print verbose output information.")
+	flag.BoolVar(&verbosePrint, "verbose", false, "Whether or not to print verbose output information.")
 	flag.Parse()
 
 	folders := []string{

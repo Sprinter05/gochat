@@ -15,18 +15,20 @@ import (
 const KeybindHelp string = `
 [-::u]Keybinds Manual:[-::-]
 
-[yellow::b]Ctrl-Alt-H/Ctrl-Shift-H[-::-]: Show/Hide help window
+[yellow::b]Ctrl-Alt-L/Ctrl-Shift-L[-::-]: Show/Hide help window
 
 [yellow::b]Ctrl-Q[-::-]: Exit program
 
 [yellow::b]Ctrl-T[-::-]: Focus chat/input window
 	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
-	- In the [-::b]input window[-::-] use [green]Escape[-::-] to clear the text
+	- In the [-::b]chat window[-::-] use [green]ESC[-::-] to scroll down to the end
+	- In the [-::b]chat window[-::-] use [green]Shift-ESC/Alt-ESC[-::-] to scroll up to the beggining
+	- In the [-::b]input window[-::-] use [green]ESC[-::-] to clear the text
 	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
 	- In the [-::b]input window[-::-] use [green]Up[-::-] to browse through the history of commands ran.
 
 [yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
-	- [green]Esc[-::-] to cancel
+	- [green]ESC[-::-] to cancel
 	- [green]Enter[-::-] to confirm
 
 [yellow::b]Ctrl-K + Ctrl-W/Ctrl-H[-::-]: Hide currently focused buffer
@@ -35,10 +37,10 @@ const KeybindHelp string = `
 [yellow::b]Ctrl-K + Ctrl-X[-::-]: Delete currently focused buffer
 
 [yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
-	- Press [green]Esc[-::-] to cancel the jump
+	- Press [green]ESC[-::-] to cancel the jump
 
 [yellow::b]Ctrl-S + Ctrl-N[-::-]: Create a new server
-	- [green]Esc[-::-] to cancel
+	- [green]ESC[-::-] to cancel
 	- [green]Enter[-::-] to confirm the different steps
 	
 [yellow::b]Ctrl-S + Ctrl-W/Ctrl-H[-::-]: Hide currently focused server
@@ -49,7 +51,11 @@ const KeybindHelp string = `
 	- Users registered in the deleted server will become "dangling" as they are no longer asocciated to a server
 
 [yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
-	- Press [green]Esc[-::-] to cancel the jump
+	- Press [green]ESC[-::-] to cancel the jump
+	
+[yellow::b]Ctrl-G[-::-]: Open the Quick Switcher
+	- This will allow you to jump to a desired buffer by typing its name
+	- It includes an autocomplete that you can fill using [green]Tab[-::-]
 	
 [yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
 
@@ -73,12 +79,19 @@ const CommandHelp string = `
 	- Those that have been hidden will also be displayed
 	
 [yellow::b]/clear[-::-]: Clears all system messages in the current buffer
-	
-[yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
 
-[yellow::b]/connect[-::-] [blue](-noverify)[-]: Connects to the currently active server using its address
+[yellow::b]/config[-::-]: Shows all current configuration options
+	- It will display both the name and value of the option
+	- It will only display those available in the current server
+
+[yellow::b]/set[-::-] [green]<option>[-] [green]<value>[-]: Updates a value in the configuration
+	- The option name is case sensitive
+	- The option name must follow the same format as the configuration shows
+	
+[yellow::b]/connect[-::-] [blue](-noverify)[-] [blue](-noidle)[-]: Connects to the currently active server using its address
 	- This will fail if the server is local
-	- If the connection is TLS and noverify is used, certificates will not be checked
+	- If the connection is TLS and "-noverify" is used, certificates will not be checked
+	- If "-noidle" is used, the client will try to avoid being disconnected for inactivity
 
 [yellow::b]/register[-::-] [green]<username>[-]: Creates a new account in the currently active server
 	- A popup asking for a password to register will show up when creating a new account
@@ -117,9 +130,6 @@ const CommandHelp string = `
 	- [cyan]"local server"[-] will display all local accounts for that server
 	- For the [cyan]"remote"[-] options you can optionally pass "-perms" to show permission levels
 	
-[yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
-	- This process is already done automatically if connected and logged in
-
 [yellow::b]/subscribe[-::-] [green]<hook>[-]: Subscribes to a specific event in the server
 	- [cyan]"new_login"[-] will update the userlist whenever a new user logs in
 	- [cyan]"new_logout"[-] will update the userlist whenever a user logs out
@@ -142,7 +152,7 @@ const CommandHelp string = `
 	- If a user has become dangling (server is "Unknown"), this can be used to recover its data
 	- This command will only work with dangling users
 	- A popup asking for the password of the account to recover will appear
-	- If cleanup is used, the user will be deleted from the database after recovery
+	- If "-cleanup" is used, the user will be deleted from the database after recovery
 `
 
 /* MESSAGES */
@@ -153,7 +163,7 @@ type Message struct {
 	Sender    string    // Who sends it
 	Content   string    // Message text
 	Timestamp time.Time // Time when it occurred
-	Source    net.Addr  // Destination server
+	Source    string    // Destination name
 }
 
 // Returns the TLS secondary text for servers
@@ -173,24 +183,24 @@ func welcomeMessage(t *TUI) {
 		"Use [yellow]/connect[-] to establish connection to the server.\n" +
 		"You may then use [yellow]/register[-] or [yellow]/login[-] to use an account."
 
-	t.SendMessage(Message{
+	t.sendMessage(Message{
 		Buffer:    defaultBuffer,
 		Sender:    "System",
 		Content:   text,
 		Timestamp: time.Now(),
-		Source:    s.Source(),
+		Source:    s.Name(),
 	})
 }
 
 // Sends a packet to the debug channel
 func (t *TUI) debugPacket(content string) {
 	l := len(content)
-	t.SendMessage(Message{
+	t.sendMessage(Message{
 		Buffer:    debugBuffer,
 		Sender:    "System",
 		Content:   content[:l-1],
 		Timestamp: time.Now(),
-		Source:    nil, // Local server
+		Source:    localServer, // Local server
 	})
 }
 
@@ -199,7 +209,7 @@ func (t *TUI) debugPacket(content string) {
 // An optional prompt params[0] and buffer params[1] can be given
 func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 	buffer := t.Buffer()
-	server := t.Active().Source()
+	server := t.Active()
 
 	var prompt string
 	if len(params) > 0 && params[0] != "" {
@@ -215,25 +225,26 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 
 	fun := func(s string, out cmds.OutputType) {
 		switch out {
-		case cmds.PROMPT, cmds.USRS, cmds.COLOR:
-			return
+		case cmds.PROMPT, cmds.USRSRESPONSE, cmds.COLOR, cmds.PLAIN:
+			return // Ignore these
 		case cmds.PACKET:
 			t.debugPacket(s)
 		default:
-			if out == cmds.INTERMEDIATE && !t.data.Verbose {
+			needVerbose := out == cmds.INTERMEDIATE || out == cmds.SECONDARY
+			if needVerbose && !t.params.Verbose {
 				return
 			}
 
-			// if out == cmds.INFO {
-			// 	prompt = ""
-			// }
+			if out == cmds.INFO {
+				prompt = ""
+			}
 
-			t.SendMessage(Message{
+			t.sendMessage(Message{
 				Buffer:    buffer,
 				Sender:    "System",
 				Content:   prompt + s,
 				Timestamp: time.Now(),
-				Source:    server,
+				Source:    server.Name(),
 			})
 		}
 	}
@@ -242,13 +253,13 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 }
 
 // Gets all the old messages that are stored in the database and
-// prints them to the buffer. Uses the login time as a threshold.
+// prints them to the buffer.
 func getOldMessages(t *TUI, s Server, username string) {
 	print := t.systemMessage()
 
 	data, _ := s.Online()
 	user, err := db.GetExternalUser(
-		t.data.DB,
+		t.db,
 		username,
 		data.Server.Address,
 		data.Server.Port,
@@ -258,7 +269,7 @@ func getOldMessages(t *TUI, s Server, username string) {
 	}
 
 	msgs, err := db.GetAllUsersMessages(
-		t.data.DB,
+		t.db,
 		data.LocalUser.User.Username,
 		user.User.Username,
 		data.Server.Address,
@@ -268,6 +279,21 @@ func getOldMessages(t *TUI, s Server, username string) {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
 	}
 
+	if len(msgs) == 0 {
+		str := fmt.Sprintf(
+			"This is the beggining of your conversation with %s!",
+			username,
+		)
+
+		t.sendMessage(Message{
+			Buffer:    username,
+			Sender:    "System",
+			Content:   str,
+			Timestamp: time.Now(),
+			Source:    s.Name(),
+		})
+	}
+
 	uname := data.LocalUser.User.Username
 	for _, v := range msgs {
 		sender := v.SourceUser.Username
@@ -275,41 +301,41 @@ func getOldMessages(t *TUI, s Server, username string) {
 			sender = selfSender
 		}
 
-		t.SendMessage(Message{
+		t.sendMessage(Message{
 			Buffer:    username,
 			Sender:    sender,
 			Content:   v.Text,
 			Timestamp: v.Stamp,
-			Source:    s.Source(),
+			Source:    s.Name(),
 		})
 	}
 }
 
 // Wrapper function for sending messages to the TUI.
-// It sends the message to all servers assuming only
-// the corresponding one will do something with it by
-// checking the source of the messages.
-func (t *TUI) SendMessage(msg Message) {
-	list := t.servers.GetAll()
-	for _, v := range list {
-		// Send message to all servers
-		ok, err := v.Receive(msg)
-		if err != nil && msg.Sender == selfSender {
-			t.showError(err)
-			return
-		}
+// It sends the message to the server by the name of the destination
+func (t *TUI) sendMessage(msg Message) {
+	s, ok := t.servers.Get(msg.Source)
+	if !ok {
+		return
+	}
 
-		// If the server received it and we are
-		// in the destionation buffer we render it
-		if ok && t.Buffer() == msg.Buffer {
-			t.renderMsg(msg)
-			break
-		}
+	ok, err := s.Receive(msg)
+	// Error on a message we sent ourselves
+	if err != nil && msg.Sender == selfSender {
+		t.showError(err)
+		return
+	}
+
+	// If the server received it and we are
+	// in the destionation buffer we render it
+	if ok && t.Buffer() == msg.Buffer {
+		t.renderMsg(msg)
 	}
 }
 
 /* RENDERING */
 
+// Returns the text input label with username or not
 func unameLabel(uname string) string {
 	if uname == "" {
 		return defaultLabel
@@ -387,27 +413,21 @@ func (t *TUI) renderMsg(msg Message) {
 func (t *TUI) toggleHelp() {
 	if !t.status.showingHelp {
 		t.status.showingHelp = true
-		t.comp.text.Clear()
 		t.area.bottom.ResizeItem(t.comp.input, 0, 0)
-		t.comp.text.SetTitle("Help")
-
-		fmt.Fprint(t.comp.text, KeybindHelp[1:])
-		fmt.Fprint(t.comp.text, "\n")
-		fmt.Fprint(t.comp.text, CommandHelp[1:])
-
-		t.comp.text.ScrollToBeginning()
+		t.comp.pages.SwitchToPage(helpPage)
+		t.app.SetFocus(t.comp.help)
 	} else {
 		t.status.showingHelp = false
 		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
-		t.comp.text.SetTitle("Messages")
-		t.renderBuffer(t.Active().Buffers().current)
+		t.comp.pages.SwitchToPage(textPage)
+		t.app.SetFocus(t.comp.input)
 	}
 }
 
 // Displays an error in the error bar temporarily.
 func (t *TUI) showError(err error) {
 	t.comp.errors.Clear()
-	t.area.bottom.ResizeItem(t.comp.errors, 0, errorSize)
+	t.area.bottom.ResizeItem(t.comp.errors, errorSize, 0)
 	fmt.Fprintf(t.comp.errors, " [red]Error: %s![-:-]", err)
 
 	go func() {

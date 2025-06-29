@@ -1,5 +1,7 @@
 package db
 
+// Contains the queries needed to complete command functionality
+
 import (
 	"fmt"
 	"time"
@@ -74,9 +76,20 @@ func GetServerByName(db *gorm.DB, name string) (Server, error) {
 	return server, result.Error
 }
 
-// Deletes a server from the database.
+// Deletes a server from the database given its socket.
 func RemoveServer(db *gorm.DB, address string, port uint16) error {
 	sv, err := GetServer(db, address, port)
+	if err != nil {
+		return err
+	}
+
+	result := db.Delete(&sv)
+	return result.Error
+}
+
+// Deletes a server from the database given its name.
+func RemoveServerByName(db *gorm.DB, name string) error {
+	sv, err := GetServerByName(db, name)
 	if err != nil {
 		return err
 	}
@@ -123,10 +136,16 @@ func ServerExistsByName(db *gorm.DB, name string) (bool, error) {
 	return found, result.Error
 }
 
-// Update information about a server using its internal ID
-func UpdateServer(db *gorm.DB, data Server, column string, value any) error {
+// Update information about a server using its internal ID.
+// Values provided as "any" must be a pointer
+func UpdateServer(db *gorm.DB, data any, column string, value any) error {
+	server, ok := data.(*Server)
+	if !ok {
+		return ErrorInvalidObject
+	}
+
 	result := db.Model(&Server{}).
-		Where("server_id = ?", data.ServerID).
+		Where("server_id = ?", server.ServerID).
 		Update(
 			column, value,
 		)

@@ -1,12 +1,13 @@
 package commands
 
+// Contains auxiliary functions that make certain commands work
+
 import (
 	"context"
 	"fmt"
 	"reflect"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/Sprinter05/gochat/client/db"
 	"github.com/Sprinter05/gochat/internal/models"
@@ -65,7 +66,7 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 	)
 	if err != nil {
 		// The user most likely has not been found, so a REQ is required
-		_, reqErr := Req(ctx, cmd, string(reciv.Args[0]))
+		_, reqErr := REQ(ctx, cmd, string(reciv.Args[0]))
 		if reqErr != nil {
 			return Message{}, reqErr
 		}
@@ -110,64 +111,75 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 
 // Tries to convert a string into any of the primitive values
 func stringToValue(val string, ref reflect.Value) any {
-	// First we try as a boolean
-	asBool, err := strconv.ParseBool(val)
-	if err == nil {
-		return asBool
-	}
-
-	bits := 0
 	kind := ref.Kind()
-	// We get the amount of bits if its a numeric
-	if kind >= reflect.Int && kind <= reflect.Float64 {
-		bits = ref.Type().Bits()
-	} else {
-		// Not a number, we return the string
+
+	// Parse as string (returning the value)
+	if kind == reflect.String {
 		return val
 	}
 
-	// Now we try to parse as an unsigned integer
-	asUint, err := strconv.ParseUint(val, 10, bits)
-	if err == nil {
-		// We need this or it will fail when setting
-		switch bits {
-		case 8:
-			return uint8(asUint)
-		case 16:
-			return uint16(asUint)
-		case 32:
-			return uint32(asUint)
+	// Parse as boolean
+	if kind == reflect.Bool {
+		asBool, err := strconv.ParseBool(val)
+		if err == nil {
+			return asBool
 		}
-		return uint(asUint)
 	}
 
-	// Now we try to parse as an integer
-	asInt, err := strconv.ParseInt(val, 10, bits)
-	if err == nil {
-		// We need this or it will fail when setting
-		switch bits {
-		case 8:
-			return int8(asUint)
-		case 16:
-			return int16(asUint)
-		case 32:
-			return int32(asUint)
-		}
-		return int(asInt)
+	// We get the amount of bits if its a numeric
+	bits := 0
+	if kind >= reflect.Int && kind <= reflect.Float64 {
+		bits = ref.Type().Bits()
 	}
 
-	// Now we try to parse as a float
-	asFloat, err := strconv.ParseFloat(val, bits)
-	if err == nil {
-		// We need this or it will fail when setting
-		if bits == 32 {
-			return float32(asFloat)
+	// Parse as unsigned integer
+	if kind >= reflect.Uint && kind <= reflect.Uint64 {
+		asUint, err := strconv.ParseUint(val, 10, bits)
+		if err == nil {
+			// We need this or it will fail when setting
+			switch bits {
+			case 8:
+				return uint8(asUint)
+			case 16:
+				return uint16(asUint)
+			case 32:
+				return uint32(asUint)
+			}
+			return uint(asUint) // Ignore uint64
 		}
-		return asFloat
 	}
 
-	// If its none of the others then its just a normal string
-	return val
+	// Parse as signed integer
+	if kind >= reflect.Int && kind <= reflect.Int64 {
+		asInt, err := strconv.ParseInt(val, 10, bits)
+		if err == nil {
+			// We need this or it will fail when setting
+			switch bits {
+			case 8:
+				return int8(asInt)
+			case 16:
+				return int16(asInt)
+			case 32:
+				return int32(asInt)
+			}
+			return int(asInt) // Ignore int64
+		}
+	}
+
+	// Parse as floating point number
+	if kind >= reflect.Float32 && kind <= reflect.Float64 {
+		asFloat, err := strconv.ParseFloat(val, bits)
+		if err == nil {
+			// We need this or it will fail when setting
+			if bits == 32 {
+				return float32(asFloat)
+			}
+			return asFloat
+		}
+	}
+
+	// If its none of the others then we return nil
+	return nil
 }
 
 // Tries to log in using a reusable token if applicable
@@ -189,9 +201,7 @@ func tokenLogin(ctx context.Context, cmd Command, username string) error {
 		return err
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, err = cmd.Data.Conn.Write(pct)
 	if err != nil {
@@ -214,104 +224,6 @@ func tokenLogin(ctx context.Context, cmd Command, username string) error {
 	return nil
 }
 
-/* CONFIG FUNCTIONS */
-
-// Sets the value of a configuration struct and returns an error if it failed
-// and a rollback function to restore the field to its original value with the
-// new value of the field
-func setStructConfig(target any, field, value string) (any, func(), error) {
-	// Allowing ID modification would be too dangerous
-	if strings.Contains(field, "ID") {
-		return nil, nil, ErrorInvalidField
-	}
-
-	// Make sure we are given a pointer
-	ptr := reflect.TypeOf(target)
-	if ptr.Kind() != reflect.Pointer {
-		return nil, nil, ErrorInvalidTarget
-	}
-
-	// Make sure what we dereference is a struct
-	t := ptr.Elem()
-	if t.Kind() != reflect.Struct {
-		return nil, nil, ErrorInvalidTarget
-	}
-
-	// Get the value
-	s := reflect.ValueOf(target).Elem()
-
-	change := s.FieldByName(field)
-	tag, ok := t.FieldByName(field)
-	if ok {
-		// Make sure we dont allow modifying foreign keys
-		check, ok := tag.Tag.Lookup("gorm")
-		if ok && strings.Contains(check, "foreignKey") {
-			return nil, nil, ErrorInvalidField
-		}
-	}
-
-	// Not settable
-	if !change.CanSet() {
-		return nil, nil, ErrorCannotSet
-	}
-
-	// Get the value from the string
-	val := stringToValue(value, change)
-	ref := reflect.ValueOf(val)
-
-	// Used to rollback
-	tmp := change.Interface()
-	rollback := func() {
-		change.Set(reflect.ValueOf(tmp))
-	}
-
-	// This check is necessary to avoid panics
-	if ref.Kind() != change.Kind() {
-		return nil, nil, ErrorCannotSet
-	}
-
-	// We set the value and return
-	change.Set(ref)
-	return val, rollback, nil
-}
-
-// Gets the config parameters of a struct and a boolean indicating
-// if it was possible to retrieve the configuration. The passed
-// parameter must NOT be a pointer
-func getStructConfig(obj any, prefix string) ([][]byte, error) {
-	buf := make([][]byte, 0)
-
-	// Get the type and values about the server struct
-	t := reflect.TypeOf(obj)
-	s := reflect.ValueOf(obj)
-
-	if t.Kind() != reflect.Struct {
-		return nil, ErrorInvalidTarget
-	}
-
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		v := s.Field(i)
-
-		// We do not show internal IDs
-		if strings.Contains(f.Name, "ID") {
-			continue
-		}
-
-		// We also skip foreign keys
-		check, ok := f.Tag.Lookup("gorm")
-		if ok && strings.Contains(check, "foreignKey") {
-			continue
-		}
-
-		// Add the information to the list
-		str := fmt.Sprintf("%s.%s = %v", prefix, f.Name, v)
-		buf = append(buf, []byte(str))
-	}
-
-	return buf, nil
-}
-
 /* PRINTING FUNCTIONS */
 
 // Prints out all local users on the current server and
@@ -332,12 +244,12 @@ func printServerLocalUsers(cmd Command) ([][]byte, error) {
 		cmd.Data.Server.Name,
 		cmd.Data.Server.Address,
 		cmd.Data.Server.Port),
-		USRS,
+		USRSRESPONSE,
 	)
 
 	for _, v := range localUsers {
 		users = append(users, []byte(v.User.Username))
-		cmd.Output(v.User.Username, USRS)
+		cmd.Output(v.User.Username, USRSRESPONSE)
 	}
 
 	return users, nil
@@ -353,7 +265,7 @@ func printExternalUsers(cmd Command) ([][]byte, error) {
 	}
 
 	users := make([][]byte, 0, len(externalUsers))
-	cmd.Output("all external users:", USRS)
+	cmd.Output("all external users:", USRSRESPONSE)
 
 	for _, v := range externalUsers {
 		users = append(users, []byte(v.User.Username))
@@ -362,7 +274,7 @@ func printExternalUsers(cmd Command) ([][]byte, error) {
 			v.User.Server.Name,
 			v.User.Server.Address,
 			v.User.Server.Port),
-			USRS,
+			USRSRESPONSE,
 		)
 	}
 
@@ -381,7 +293,7 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 	}
 
 	users := make([][]byte, 0, len(localUsers))
-	cmd.Output("all local users:", USRS)
+	cmd.Output("all local users:", USRSRESPONSE)
 
 	for _, v := range localUsers {
 		addr := "(Unknown)"
@@ -400,7 +312,7 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 			addr,
 		)
 		users = append(users, []byte(str))
-		cmd.Output(str, USRS)
+		cmd.Output(str, USRSRESPONSE)
 	}
 
 	return users, nil
@@ -408,6 +320,10 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 
 // Prints a packet.
 func packetPrint(pct []byte, cmd Command) {
+	if !cmd.Static.Verbose {
+		return
+	}
+
 	pctCmd := spec.ParsePacket(pct)
 	str := fmt.Sprintf(
 		"Client packet to be sent:\n%s",

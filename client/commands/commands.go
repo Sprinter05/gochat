@@ -1,5 +1,8 @@
 package commands
 
+// Implements the client-side functionality needed to execute requests to a gochat
+// server and reacts accordinly to every server response
+
 import (
 	"bytes"
 	"context"
@@ -32,12 +35,14 @@ const (
 	RESULT                         // Messages that show the result of a command
 	ERROR                          // Error messages that may be printed additionaly in error cases
 	INFO                           // Message that representes generic info not asocciated to a command
-	USRS                           // Specific for user printing
+	USRSRESPONSE                   // Specific for user printing
 	COLOR                          // Special output for shell colors
 	PLAIN                          // Output type that should be printed as-is, with no prefix
+	SECONDARY                      // Optional text to show after the result
 )
 
-// Represents the function that will be called when outputting info
+// Represents the function that will be called
+// when outputting information
 type OutputFunc func(text string, outputType OutputType)
 
 // Represents the different USRS command types
@@ -54,9 +59,6 @@ const (
 )
 
 /* ERRORS AND CONSTANTS */
-
-// Default level of permissions that should be used
-const DefaultPerms = 0755
 
 var (
 	ErrorInsuficientArgs       error = fmt.Errorf("not enough arguments")                           // not enough arguments
@@ -83,6 +85,9 @@ var (
 	ErrorNoReusableToken       error = fmt.Errorf("reusable token is empty")                        // reusable token is empty
 )
 
+// Default level of permissions that should be used
+const DefaultPerms = 0755
+
 /* LOOKUP TABLES */
 
 // List of hooks and their names.
@@ -94,6 +99,8 @@ var hooksList = map[string]spec.Hook{
 	"permissions_change": spec.HookPermsChange,
 }
 
+// List of admin operations and their
+// names.
 var adminList = map[string]spec.Admin{
 	"shutdown":  spec.AdminShutdown,
 	"broadcast": spec.AdminBroadcast,
@@ -105,34 +112,65 @@ var adminList = map[string]spec.Admin{
 
 /* CLIENT COMMANDS */
 
-// Sets a server variable as configuration.
-func Set(cmd Command, server *db.Server, target, value string) error {
-	// We remove the original "Server."
+// Sets a variable on an object as configuration.
+// Passed objects must be pointers. Does not require
+// a Data struct in "Command"
+func SET(cmd Command, target, value string, objs ...ConfigObj) error {
+	// We get the initial prefix
 	prefix, actual, ok := strings.Cut(target, ".")
 	if !ok {
 		return ErrorInvalidField
 	}
 
-	// Used to modify the database
-	column := strings.ToLower(actual)
-
-	switch prefix {
-	case "Server":
-		if cmd.Data.IsConnected() {
-			return ErrorOfflineRequired
+	found := false
+	for _, v := range objs {
+		// Not the object we are looking for
+		if prefix != v.Prefix {
+			continue
 		}
 
-		val, rollback, err := setStructConfig(server, actual, value)
+		// Cannot be empty
+		if prefix == "" {
+			continue
+		}
+
+		// Check that the function can run
+		if v.Precondition != nil {
+			err := v.Precondition()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Set the value in the struct
+		val, rollback, err := setConfig(v.Object, actual, value)
 		if err != nil {
 			return err
 		}
 
-		err = db.UpdateServer(cmd.Static.DB, *server, column, val)
-		if err != nil {
-			rollback()
-			return err
+		// Modify the database if applicable
+		if v.Update != nil {
+			// Used to modify the database
+			column := strings.ToLower(actual)
+
+			err := v.Update(cmd.Static.DB, v.Object, column, val)
+			if err != nil {
+				rollback()
+				return err
+			}
 		}
-	default:
+
+		// Run any post hooks
+		if v.Finish != nil {
+			go v.Finish()
+		}
+
+		// Completed
+		found = true
+		break
+	}
+
+	if !found {
 		return ErrorInvalidField
 	}
 
@@ -145,12 +183,17 @@ func Set(cmd Command, server *db.Server, target, value string) error {
 	return nil
 }
 
-// Returns the current configuration values for the structs
-func Config(server db.Server) [][]byte {
+// Returns the current configuration values for the
+// given objects. Only needs the object and prefix.
+// Passed objects as "any" can or not be pointers
+func CONFIG(objs ...ConfigObj) [][]byte {
 	buf := make([][]byte, 0)
-	serverConfig, err := getStructConfig(server, "Server")
-	if err == nil {
-		buf = append(buf, serverConfig...)
+
+	for _, v := range objs {
+		config, err := getConfig(v.Object, v.Prefix)
+		if err == nil {
+			buf = append(buf, config...)
+		}
 	}
 
 	return buf
@@ -158,7 +201,7 @@ func Config(server db.Server) [][]byte {
 
 // Recovers the private key and messages for a specified user
 // Does not require a Data struct in Command
-func Recover(cmd Command, username, pass string, cleanup bool) error {
+func RECOVER(cmd Command, username, pass string, cleanup bool) error {
 	verbosePrint("recovering data...", cmd)
 	users, err := db.RecoverUsers(cmd.Static.DB, username)
 	if err != nil {
@@ -257,7 +300,7 @@ func Recover(cmd Command, username, pass string, cleanup bool) error {
 
 // Imports a private RSA key for a new local user
 // from the "import" directory using the specification PEM format.
-func Import(cmd Command, username, pass, dir string) error {
+func IMPORT(cmd Command, username, pass, dir string) error {
 	// Creates import/ directory if it does not exist
 	if _, err := os.Stat("import"); errors.Is(err, fs.ErrNotExist) {
 		cmd.Output("missing 'import' folder", ERROR)
@@ -310,7 +353,7 @@ func Import(cmd Command, username, pass, dir string) error {
 
 // Exports a local user as a private RSA key
 // in the "export" folder using the spec PEM format.
-func Export(cmd Command, username, pass string) error {
+func EXPORT(cmd Command, username, pass string) error {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		username,
@@ -349,7 +392,7 @@ func Export(cmd Command, username, pass string) error {
 	}
 
 	if _, err := os.Stat("export"); errors.Is(err, fs.ErrNotExist) {
-		cmd.Output("missing 'export' directory", INFO)
+		cmd.Output("missing 'export' directory", ERROR)
 		return err
 	}
 
@@ -366,46 +409,10 @@ func Export(cmd Command, username, pass string) error {
 	return nil
 }
 
-// Changes the state of how TLS will be handled for a server.
-func TLS(cmd Command, server *db.Server, on bool) error {
-	if cmd.Data.IsConnected() {
-		return ErrorOfflineRequired
-	}
-
-	if on {
-		server.TLS = true
-		err := db.ChangeServerTLS(
-			cmd.Static.DB,
-			server.Address,
-			server.Port,
-			true,
-		)
-
-		if err != nil {
-			return err
-		}
-
-		return nil
-	} else {
-		cmd.Data.Server.TLS = false
-		err := db.ChangeServerTLS(
-			cmd.Static.DB,
-			server.Address,
-			server.Port,
-			false,
-		)
-
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-}
-
 // Starts a connection with a server. If noverify is set,
 // in case of TLS connections, certificate origins wont be checked.
 // This command does not spawn a listening thread.
-func Conn(cmd Command, server db.Server, noverify bool) error {
+func CONN(cmd Command, server db.Server, noverify bool) error {
 	if cmd.Data.IsConnected() {
 		return ErrorAlreadyConnected
 	}
@@ -439,12 +446,15 @@ func Conn(cmd Command, server db.Server, noverify bool) error {
 
 	cmd.Data.Conn = conn
 
-	cmd.Output("listening for incoming packets...", INFO)
+	if cmd.Static.Verbose {
+		cmd.Output("Listening for incoming packets...", INFO)
+	}
+
 	return nil
 }
 
 // Registers a user to a server and also adds it to the client database.
-func Reg(ctx context.Context, cmd Command, username, pass string) error {
+func REG(ctx context.Context, cmd Command, username, pass string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -494,9 +504,7 @@ func Reg(ctx context.Context, cmd Command, username, pass string) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, wErr := cmd.Data.Conn.Write(pct)
@@ -545,7 +553,7 @@ func Reg(ctx context.Context, cmd Command, username, pass string) error {
 }
 
 // Deregisters a user from the server and also removes it locally.
-func Dereg(ctx context.Context, cmd Command, username, pass string) error {
+func DEREG(ctx context.Context, cmd Command, username, pass string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -591,9 +599,7 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -629,7 +635,7 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 }
 
 // Logs a user to a server, also performs the verification.
-func Login(ctx context.Context, cmd Command, username, pass string) error {
+func LOGIN(ctx context.Context, cmd Command, username, pass string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -681,10 +687,10 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 		perms, err := GetPermissions(ctx, cmd, localUser.User.Username)
 		if err == nil {
 			str := fmt.Sprintf(
-				"logged in with permission level %d",
+				"Logged in with permission level %d",
 				perms,
 			)
-			cmd.Output(str, RESULT)
+			cmd.Output(str, INFO)
 		}
 	}
 
@@ -719,9 +725,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 		return loginPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(loginPct, cmd)
-	}
+	packetPrint(loginPct, cmd)
 
 	// Sends the packet
 	_, loginWErr := cmd.Data.Conn.Write(loginPct)
@@ -765,9 +769,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 		return verifPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(verifPct, cmd)
-	}
+	packetPrint(verifPct, cmd)
 
 	// Sends the packet
 	_, verifWErr := cmd.Data.Conn.Write(verifPct)
@@ -791,7 +793,8 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 	// Assigns the logged in user to Data
 	cmd.Data.LocalUser = &localUser
 
-	cmd.Output(fmt.Sprintf("login successful!\nWelcome, %s", username), RESULT)
+	cmd.Output("login successful!", RESULT)
+	cmd.Output(fmt.Sprintf("Welcome, %s", username), INFO)
 	getPerms()
 
 	if cmd.Data.Server.TLS {
@@ -802,7 +805,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 }
 
 // Logs out a user from a server.
-func Logout(ctx context.Context, cmd Command) error {
+func LOGOUT(ctx context.Context, cmd Command) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -816,9 +819,7 @@ func Logout(ctx context.Context, cmd Command) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, pctWErr := cmd.Data.Conn.Write(pct)
@@ -848,7 +849,7 @@ func Logout(ctx context.Context, cmd Command) error {
 }
 
 // Disconnects a client from a server.
-func Discn(cmd Command) error {
+func DISCN(cmd Command) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -869,7 +870,7 @@ func Discn(cmd Command) error {
 }
 
 // Sends a message to a user with the current time stamp and stores it in the database.
-func Msg(ctx context.Context, cmd Command, username, message string) error {
+func MSG(ctx context.Context, cmd Command, username, message string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -928,9 +929,7 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, wErr := cmd.Data.Conn.Write(pct)
@@ -990,16 +989,14 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 
 // Asks the server to retrieve all messages while the user was offline.
 // This function is not responsible for receiving the messages, only request them.
-func Reciv(ctx context.Context, cmd Command) error {
+func RECIV(ctx context.Context, cmd Command) error {
 	id := cmd.Data.NextID()
 	pct, pctErr := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo)
 	if pctErr != nil {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -1024,7 +1021,7 @@ func Reciv(ctx context.Context, cmd Command) error {
 // Requests a list of users depending on the type specified, which may or not
 // require an active connection.
 // Returns a the received usernames in an array if the request was correct.
-func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
+func USRS(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
 	// We check for local listing
 	switch usrsType {
 	case LOCAL_ALL:
@@ -1059,9 +1056,7 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 		return nil, pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	// Sends the packet
 	_, wErr := cmd.Data.Conn.Write(pct)
@@ -1094,8 +1089,8 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 		optionString = "online with permissions"
 	}
 
-	cmd.Output(fmt.Sprintf("%s users:", optionString), USRS)
-	cmd.Output(string(reply.Args[0]), USRS)
+	cmd.Output(fmt.Sprintf("%s users:", optionString), USRSRESPONSE)
+	cmd.Output(string(reply.Args[0]), USRSRESPONSE)
 	split := bytes.Split(reply.Args[0], []byte("\n"))
 
 	return split, nil
@@ -1103,7 +1098,7 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 
 // Requests the information of an external user to add it to the client database.
 // Returns the arguments of a REQ as by specification.
-func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
+func REQ(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -1125,9 +1120,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 		return nil, pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -1163,7 +1156,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 }
 
 // Sends an ADMIN packet that performs an specific ADMIN operation.
-func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) error {
+func ADMIN(ctx context.Context, cmd Command, op string, args ...[]byte) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -1225,9 +1218,7 @@ func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) error {
 		return pctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(pct, cmd)
-	}
+	packetPrint(pct, cmd)
 
 	_, wErr := cmd.Data.Conn.Write(pct)
 	if wErr != nil {
@@ -1255,7 +1246,7 @@ func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) error {
 }
 
 // Subscribes to a specific hook to the server.
-func Sub(ctx context.Context, cmd Command, name string) error {
+func SUB(ctx context.Context, cmd Command, name string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -1280,9 +1271,7 @@ func Sub(ctx context.Context, cmd Command, name string) error {
 		return hookPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(hookPct, cmd)
-	}
+	packetPrint(hookPct, cmd)
 
 	_, hookWErr := cmd.Data.Conn.Write(hookPct)
 	if hookWErr != nil {
@@ -1306,7 +1295,7 @@ func Sub(ctx context.Context, cmd Command, name string) error {
 }
 
 // Unsubscribes from a specific hook on the server.
-func Unsub(ctx context.Context, cmd Command, name string) error {
+func UNSUB(ctx context.Context, cmd Command, name string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -1331,9 +1320,7 @@ func Unsub(ctx context.Context, cmd Command, name string) error {
 		return hookPctErr
 	}
 
-	if cmd.Static.Verbose {
-		packetPrint(hookPct, cmd)
-	}
+	packetPrint(hookPct, cmd)
 
 	_, hookWErr := cmd.Data.Conn.Write(hookPct)
 	if hookWErr != nil {

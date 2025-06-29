@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -18,15 +19,19 @@ import (
 	"golang.org/x/term"
 )
 
+// Defines a shell command,
+// including its function
+// and its documentation
 type ShellCommand struct {
 	Run  func(ctx context.Context, cmd commands.Command, args ...[]byte) error
 	Help string
 }
 
+// Map containing every shell command
 var shCommands = map[string]ShellCommand{
 	"CONN": {connect,
-		"- CONN: Connects the client to a gochat server.\n" +
-			"Usage: CONN <server address> <server port> [-noverify] || CONN <server name> [-noverify]",
+		"- CONN: Connects the client to a gochat server. -noverify will avoid a TLS verification and -keep will avoid idle disconnection.\n" +
+			"Usage: CONN <server address> <server port> [-noverify] [-keep] || CONN <server name> [-noverify] [-keep]",
 	},
 
 	"DISCN": {disconnect,
@@ -74,11 +79,6 @@ var shCommands = map[string]ShellCommand{
 			"Usage: RECIV",
 	},
 
-	"TLS": {changeTLS,
-		"- TLS: Toggles on/off the TLS mode of the specified server.\n" +
-			"Usage: TLS <on/off> <server name>",
-	},
-
 	"IMPORT": {importKey,
 		". IMPORT: Imports a user to the client database provided the path of its previously-exported key.\n" +
 			"Usage: IMPORT <username of the new user> <path of the key>",
@@ -114,6 +114,10 @@ var shCommands = map[string]ShellCommand{
 			"Usage: REGSERVER <name> <address> <port> [-tls]",
 	},
 
+	"DELSERVER": {deleteServer,
+		"- DELSERVER: Deletes a server from the client database.\n" +
+			"Usage: DELSERVER <name>"},
+
 	"SERVERS": {servers,
 		"- SERVERS: Prints the registered servers of the client database.\n" +
 			"Usage: SERVERS"},
@@ -121,13 +125,30 @@ var shCommands = map[string]ShellCommand{
 	"ADMIN": {sendAdminCommand,
 		"- ADMIN: Sends an administrator command to the server. The user must have permissions to do so.\n" +
 			"Usage: ADMIN <shtdwn/dereg/brdcast/chperms/kick> <args>"},
+
+	"PERMS": {getUserPerms,
+		"- PERMS: Prints out the permission level of a user.\n" +
+			"Usage: PERMS <username>"},
+
+	"SERVERCONFIG": {getConfigObjs,
+		"- SERVERCONFIG: Prints out the available config objets\n" +
+			"Usage: SERVERCONFIG <name>"},
+
+	"SETSERVER": {setConfig,
+		"- SETSERVER: Changes the value of a config object\n" +
+			"Usage: SETSERVER <name> <target> <value>"},
+
+	"RECOVER": {recoverUser,
+		"- RECOVER: Exports the conversations with a user\n" +
+			"Usage: RECOVER <user> [-cleanup]"},
 }
 
 // Sets up the CONN call depending on how the user specified the server.
 //
-// Arguments: <server address> <server port> [-noverify] || <server name> [-noverify]
+// Arguments: <server address> <server port> [-noverify] [-keep] || <server name> [-noverify]
 func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	noverify := false
+	keep := false
 	var server db.Server
 	var dbErr error
 
@@ -137,6 +158,11 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 
 	if string(args[len(args)-1]) == "-noverify" {
 		noverify = true
+		args = args[:len(args)-1]
+	}
+
+	if string(args[len(args)-1]) == "-keep" {
+		keep = true
 		args = args[:len(args)-1]
 	}
 
@@ -171,12 +197,16 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		}
 	}
 
-	connErr := commands.Conn(cmd, server, noverify)
+	connErr := commands.CONN(cmd, server, noverify)
 	if connErr != nil {
 		return connErr
 	}
 	cmd.Data.Server = &server
 	go commands.ListenPackets(cmd, func() {})
+	if keep {
+		go commands.PreventIdle(ctx, cmd.Data, time.Duration(spec.ReadTimeout-1)*time.Minute)
+	}
+
 	return nil
 }
 
@@ -184,7 +214,7 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 //
 // Arguments: none
 func disconnect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	discnErr := commands.Discn(cmd)
+	discnErr := commands.DISCN(cmd)
 	cmd.Data.Server = nil
 	return discnErr
 }
@@ -197,7 +227,7 @@ func requestUser(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 		return commands.ErrorInsuficientArgs
 	}
 	username := string(args[0])
-	_, reqErr := commands.Req(ctx, cmd, username)
+	_, reqErr := commands.REQ(ctx, cmd, username)
 	return reqErr
 }
 
@@ -225,6 +255,7 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 		return commands.ErrorUsernameEmpty
 	}
 
+	// Checks that the user is new
 	exists, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		string(username),
@@ -260,7 +291,7 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 		return commands.ErrorPasswordsDontMatch
 	}
 
-	regErr := commands.Reg(ctx, cmd, string(username), string(pass1))
+	regErr := commands.REG(ctx, cmd, string(username), string(pass1))
 	return regErr
 }
 
@@ -268,6 +299,10 @@ func registerUser(ctx context.Context, cmd commands.Command, args ...[]byte) err
 //
 // Arguments: <username to be deregistered>
 func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if !cmd.Data.IsLoggedIn() {
+		return commands.ErrorNotLoggedIn
+	}
+
 	// Asks for password
 	cmd.Output(fmt.Sprintf("%s's password: ",
 		cmd.Data.LocalUser.User.Username),
@@ -282,7 +317,7 @@ func deregisterUser(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	}
 	cmd.Output("\n", commands.PROMPT)
 
-	deregErr := commands.Dereg(ctx, cmd, cmd.Data.LocalUser.User.Username, string(pass))
+	deregErr := commands.DEREG(ctx, cmd, cmd.Data.LocalUser.User.Username, string(pass))
 	if deregErr != nil {
 		return deregErr
 	}
@@ -326,7 +361,7 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		return passErr
 	}
 	cmd.Output("\n", commands.PROMPT)
-	loginErr := commands.Login(ctx, cmd, string(username), string(pass))
+	loginErr := commands.LOGIN(ctx, cmd, string(username), string(pass))
 	return loginErr
 }
 
@@ -334,7 +369,7 @@ func loginUser(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 //
 // Arguments: none
 func logoutUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	logoutErr := commands.Logout(ctx, cmd)
+	logoutErr := commands.LOGOUT(ctx, cmd)
 	return logoutErr
 }
 
@@ -379,20 +414,19 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 		return commands.ErrorUnknownUSRSOption
 	}
 
-	_, usrsErr := commands.Usrs(ctx, cmd, option)
+	_, usrsErr := commands.USRS(ctx, cmd, option)
 	return usrsErr
 }
 
 // Calls MSG, to send a message to a user.
-// TODO: in order to send more complex messages,
-// some sort of prompt should be used.
 //
 // Arguments: <dest. username> <unencyrpted text message>
 func sendMessage(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	dstUser := string(args[0])
-	plainText := string(args[1])
+	extra := args[1:]
+	plainText := bytes.Join(extra, []byte(" "))
 
-	msgErr := commands.Msg(ctx, cmd, dstUser, plainText)
+	msgErr := commands.MSG(ctx, cmd, dstUser, string(plainText))
 	return msgErr
 }
 
@@ -400,7 +434,7 @@ func sendMessage(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 //
 // Arguments: none
 func receiveMessages(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	recivErr := commands.Reciv(ctx, cmd)
+	recivErr := commands.RECIV(ctx, cmd)
 	return recivErr
 }
 
@@ -413,7 +447,7 @@ func subscribe(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	}
 
 	hook := string(args[0])
-	subErr := commands.Sub(ctx, cmd, hook)
+	subErr := commands.SUB(ctx, cmd, hook)
 	return subErr
 }
 
@@ -426,7 +460,7 @@ func unsubscribe(ctx context.Context, cmd commands.Command, args ...[]byte) erro
 	}
 
 	hook := string(args[0])
-	unsubErr := commands.Unsub(ctx, cmd, hook)
+	unsubErr := commands.UNSUB(ctx, cmd, hook)
 	return unsubErr
 }
 
@@ -462,7 +496,7 @@ func importKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 		return commands.ErrorPasswordsDontMatch
 	}
 
-	importErr := commands.Import(cmd, username, string(pass1), path)
+	importErr := commands.IMPORT(cmd, username, string(pass1), path)
 	return importErr
 }
 
@@ -489,57 +523,8 @@ func exportKey(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	}
 	cmd.Output("\n", commands.PROMPT)
 
-	exportErr := commands.Export(cmd, username, string(pass))
+	exportErr := commands.EXPORT(cmd, username, string(pass))
 	return exportErr
-}
-
-// Calls TLS in order to switch on/off.
-// Arguments after <on/off> are used to select the server to switch its mode of
-//
-// Arguments: <on/off> <server name> || <on/off> <server address> <port>
-func changeTLS(ctx context.Context, cmd commands.Command, args ...[]byte) error {
-	if len(args) < 2 {
-		return commands.ErrorInsuficientArgs
-	}
-
-	on := false
-	if strings.ToUpper(string(args[0])) == "ON" {
-		on = true
-	}
-
-	var server db.Server
-	var dbErr error
-	if len(args) == 2 {
-		name := string(args[1])
-		server, dbErr = db.GetServerByName(cmd.Static.DB, name)
-		if dbErr != nil {
-			return dbErr
-		}
-	} else {
-		address := string(args[1])
-		port, parseErr := strconv.ParseUint(string(args[2]), 10, 16)
-		if parseErr != nil {
-			return parseErr
-		}
-
-		server, dbErr = db.GetServer(cmd.Static.DB, address, uint16(port))
-		if dbErr != nil {
-			return dbErr
-		}
-	}
-
-	tlsErr := commands.TLS(cmd, &server, on)
-	if tlsErr != nil {
-		return tlsErr
-	}
-
-	onString := "off"
-	if on {
-		onString = "on"
-	}
-
-	cmd.Output(fmt.Sprintf("TLS mode turned %s for %s server", onString, server.Name), commands.RESULT)
-	return nil
 }
 
 /* SHELL-EXCLUSIVE COMMANDS */
@@ -605,6 +590,9 @@ func registerServer(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	return nil
 }
 
+// Prints the client local servers
+//
+// Arguments: none
 func servers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	servers, dbErr := db.GetAllServers(cmd.Static.DB)
 	if dbErr != nil {
@@ -620,6 +608,27 @@ func servers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	return nil
 }
 
+// REQs a user to get its permission level
+//
+// Arguments: <username>
+func getUserPerms(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+	username := string(args[0])
+
+	level, permErr := commands.GetPermissions(ctx, cmd, username)
+	if permErr != nil {
+		return permErr
+	}
+
+	fmt.Printf("%s: Permission level %d\n", username, level)
+	return nil
+}
+
+// Prints command documentation.
+//
+// Arguments: [command name]
 func help(cmd commands.Command, args ...[]byte) error {
 	if len(args) == 0 {
 		fmt.Println("To exit the shell type EXIT")
@@ -638,6 +647,9 @@ func help(cmd commands.Command, args ...[]byte) error {
 	return nil
 }
 
+// Calls ADMIN to send to the server an admin command.
+//
+// Arguments: <operation>
 func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
@@ -645,6 +657,119 @@ func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte)
 
 	opStr := strings.ToLower(string(args[0]))
 
-	adminErr := commands.Admin(ctx, cmd, opStr, args[1:]...)
+	adminErr := commands.ADMIN(ctx, cmd, opStr, args[1:]...)
 	return adminErr
+}
+
+// Gets the configuration object of the specified server.
+//
+// Arguments: <name>
+func getConfigObjs(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	name := string(args[0])
+
+	obj, svErr := getServerConfigObj(cmd, name)
+	if svErr != nil {
+		return svErr
+	}
+
+	configList := commands.CONFIG(obj)
+	fmt.Println("Available configuration objects:")
+	for _, v := range configList {
+		fmt.Printf("%s\n", v)
+	}
+	return nil
+}
+
+// Calls SET to change the value of a server configuration target.
+//
+// Arguments: <name> <target> <value>
+func setConfig(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 3 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	name := string(args[0])
+
+	target := string(args[1])
+	extra := args[2:]
+	value := bytes.Join(extra, []byte(" "))
+
+	sv, svErr := getServerConfigObj(cmd, name)
+	if svErr != nil {
+		return svErr
+	}
+
+	setErr := commands.SET(cmd, target, string(value), sv)
+	return setErr
+}
+
+// Calls RECOVER  to obtain a file with the recovered conversation.
+//
+// Arguments: <user> [-cleanup]
+func recoverUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	cleanup := false
+	if len(args) == 2 && string(args[1]) == "-cleanup" {
+		cleanup = true
+	}
+
+	username := string(args[0])
+
+	// Gets the password
+	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
+	pass, pass1Err := term.ReadPassword(int(os.Stdin.Fd()))
+	if pass1Err != nil {
+		cmd.Output("", commands.PROMPT)
+		return pass1Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	recoverErr := commands.RECOVER(cmd, username, string(pass), cleanup)
+	return recoverErr
+}
+
+// Deletes a server from the local database.
+//
+// Arguments: <server name>
+func deleteServer(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	name := string(args[0])
+	dbErr := db.RemoveServerByName(cmd.Static.DB, name)
+	if dbErr != nil {
+		return dbErr
+	}
+
+	fmt.Printf("server %s deleted successfully\n", name)
+	return nil
+}
+
+// AUX: Returns a server configuration object
+func getServerConfigObj(cmd commands.Command, name string) (commands.ConfigObj, error) {
+	sv, svErr := db.GetServerByName(cmd.Static.DB, name)
+	if svErr != nil {
+		return commands.ConfigObj{}, svErr
+	}
+
+	obj := commands.ConfigObj{Prefix: "Server",
+		Object: &sv,
+		Precondition: func() error {
+			if cmd.Data.IsConnected() {
+				return commands.ErrorOfflineRequired
+			}
+			return nil
+		},
+		Update: db.UpdateServer,
+	}
+
+	return obj, nil
 }

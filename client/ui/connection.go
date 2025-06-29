@@ -23,8 +23,9 @@ type Connection struct {
 	cancel context.CancelFunc
 }
 
-// Sets a new context by cancelling the previous one first
-func (c *Connection) Set(background context.Context) {
+// Sets a new context creating it from the given one
+// by cancelling the previous one first
+func (c *Connection) Create(background context.Context) {
 	c.Cancel()
 	ctx, cancel := context.WithCancel(background)
 	c.ctx = ctx
@@ -64,10 +65,12 @@ type Source struct {
 	Port    uint16
 }
 
+// The network will always be "tcp"
 func (s Source) Network() string {
-	return "tcp4"
+	return "tcp"
 }
 
+// Returns the address and port of the server separated by a colon
 func (s Source) String() string {
 	return fmt.Sprintf("%s:%d", s.Address, s.Port)
 }
@@ -76,7 +79,7 @@ func (s Source) String() string {
 // must fulfill in order to be considered
 // a server by the TUI.
 type Server interface {
-	// Updates the values of the server according to its data
+	// Updates the values of the server according to the database
 	Update()
 
 	// Returns the name of the server and if it is secure
@@ -141,22 +144,10 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 		return ErrorExists
 	}
 
-	s := &RemoteServer{
-		addr: source,
-		name: name,
-		conn: Connection{
-			ctx:    context.Background(),
-			cancel: func() {},
-		},
-		bufs: Buffers{
-			tabs: models.NewTable[string, *tab](0),
-		},
-		data:   cmds.NewEmptyData(),
-		notifs: models.NewTable[string, uint](0),
-	}
+	s := NewRemoteServer(name, source)
 
 	serv, err := db.AddServer(
-		t.data.DB,
+		t.db,
 		addr,
 		port,
 		name,
@@ -169,6 +160,8 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 
 	t.servers.Add(name, s)
 	num := t.servers.Len()
+
+	// We check if there are any available indexes for the server
 	indexes := len(t.status.serverIndexes)
 	if indexes > 0 {
 		num = t.status.serverIndexes[0] + 1
@@ -176,14 +169,13 @@ func (t *TUI) addServer(name string, addr string, port uint16, tls bool) error {
 	}
 
 	t.comp.servers.AddItem(name, tlsText(source, tls), ascii(num), nil)
-
 	t.renderServer(name)
 	return nil
 }
 
 // Adds a server from the database that already existed
 func (t *TUI) showServer(name string) error {
-	serv, err := db.GetServerByName(t.data.DB, name)
+	serv, err := db.GetServerByName(t.db, name)
 	if err != nil {
 		return err
 	}
@@ -193,28 +185,15 @@ func (t *TUI) showServer(name string) error {
 		Port:    serv.Port,
 	}
 
-	s := &RemoteServer{
-		addr: source,
-		name: name,
-		conn: Connection{
-			ctx:    context.Background(),
-			cancel: func() {},
-		},
-		bufs: Buffers{
-			tabs: models.NewTable[string, *tab](0),
-		},
-		data:   cmds.NewEmptyData(),
-		notifs: models.NewTable[string, uint](0),
-	}
-
+	s := NewRemoteServer(name, source)
 	s.data.Server = &serv
 
 	t.servers.Add(name, s)
 	num := t.servers.Len()
 	indexes := len(t.status.serverIndexes)
 	if indexes > 0 {
-		num = t.status.serverIndexes[0] + 1
-		t.status.serverIndexes = t.status.serverIndexes[1:]
+		num = t.status.serverIndexes[0] + 1                 // FIFO
+		t.status.serverIndexes = t.status.serverIndexes[1:] // Remove
 	}
 
 	t.comp.servers.AddItem(name, tlsText(source, serv.TLS), ascii(num), nil)
@@ -288,11 +267,11 @@ func (t *TUI) hideServer(name string) {
 	// Cleanup resources and wait a bit
 	data, connected := s.Online()
 	if connected {
-		err := cmds.Discn(
+		err := cmds.DISCN(
 			cmds.Command{
 				Output: t.systemMessage(),
 				Data:   data,
-				Static: &t.data,
+				Static: t.static(),
 			},
 		)
 
@@ -302,6 +281,7 @@ func (t *TUI) hideServer(name string) {
 		}
 	}
 
+	// Gives time for deletion to happen
 	<-time.After(100 * time.Millisecond)
 
 	t.servers.Remove(name)
@@ -325,7 +305,7 @@ func (t *TUI) removeServer(s Server) {
 		return
 	}
 
-	db.RemoveServer(t.data.DB, source.Address, source.Port)
+	db.RemoveServer(t.db, source.Address, source.Port)
 }
 
 // Changes to a server specified by its name and updates all
@@ -367,6 +347,7 @@ func (t *TUI) renderServer(name string) {
 		return
 	}
 
+	// Sort buffers before showing them
 	tabs := s.Buffers().tabs.GetAll()
 	slices.SortFunc(tabs, func(a, b *tab) int {
 		if a.creation < b.creation {
@@ -394,15 +375,33 @@ func (t *TUI) renderServer(name string) {
 
 /* REMOTE SERVER */
 
+// Specifies a remote server
 type RemoteServer struct {
-	addr Source
-	name string
+	addr Source // Implements net.Addr
+	name string // Name of the server
 
-	conn Connection
+	conn Connection // Used for context propagation
 
-	bufs   Buffers
-	data   cmds.Data
-	notifs models.Table[string, uint]
+	bufs   Buffers                    // Buffer data
+	data   cmds.Data                  // Commands data
+	notifs models.Table[string, uint] // Notifications
+}
+
+// Creates a new empty remote server with the given data
+func NewRemoteServer(name string, addr Source) *RemoteServer {
+	return &RemoteServer{
+		addr: addr,
+		name: name,
+		conn: Connection{
+			ctx:    context.Background(),
+			cancel: func() {},
+		},
+		bufs: Buffers{
+			tabs: models.NewTable[string, *tab](0),
+		},
+		data:   cmds.NewEmptyData(),
+		notifs: models.NewTable[string, uint](0),
+	}
 }
 
 func (s *RemoteServer) Messages(name string) []Message {
@@ -426,17 +425,12 @@ func (s *RemoteServer) Messages(name string) []Message {
 }
 
 func (s *RemoteServer) Receive(msg Message) (bool, error) {
-	if msg.Source == nil {
+	if msg.Source != s.name {
 		// Not this destination
 		return false, nil
 	}
 
-	if msg.Source.String() != s.addr.String() {
-		// Not this destination
-		return false, nil
-	}
-
-	check := strings.Replace(msg.Content, "\n", "", -1)
+	check := strings.ReplaceAll(msg.Content, "\n", "")
 	if check == "" {
 		// Empty content
 		return false, ErrorNoText
@@ -487,9 +481,11 @@ func (s *RemoteServer) Update() {
 
 /* LOCAL SERVER */
 
+// Specifies a local server that is not connected
+// to any remote endpoint
 type LocalServer struct {
-	name string
-	bufs Buffers
+	name string  // Name of the server
+	bufs Buffers // Buffer data
 }
 
 func (l *LocalServer) Messages(name string) []Message {
@@ -513,7 +509,7 @@ func (l *LocalServer) Messages(name string) []Message {
 
 func (l *LocalServer) Receive(msg Message) (bool, error) {
 	// Only local server should be nil
-	if msg.Source != nil {
+	if msg.Source != l.name {
 		// Not for this server
 		return false, nil
 	}
