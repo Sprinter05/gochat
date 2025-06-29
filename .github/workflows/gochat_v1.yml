@@ -13,7 +13,8 @@ jobs:
   windows:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Set up repository
+      uses: actions/checkout@v4
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
@@ -35,7 +36,8 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Set up repository
+      uses: actions/checkout@v4
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
@@ -52,3 +54,11 @@ jobs:
       with:
         name: gochat-client_linux-amd64
         path: build/gochat-client
+  release:
+    runs-on: ubuntu-latest
+    needs: [windows, linux]
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+    - name: Show artifacts
+      run: ls -R
