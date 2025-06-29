@@ -279,6 +279,21 @@ func getOldMessages(t *TUI, s Server, username string) {
 		print("failed to get old messages due to "+err.Error(), cmds.ERROR)
 	}
 
+	if len(msgs) == 0 {
+		str := fmt.Sprintf(
+			"This is the beggining of your conversation with %s!",
+			username,
+		)
+
+		t.sendMessage(Message{
+			Buffer:    username,
+			Sender:    "System",
+			Content:   str,
+			Timestamp: time.Now(),
+			Source:    s.Name(),
+		})
+	}
+
 	uname := data.LocalUser.User.Username
 	for _, v := range msgs {
 		sender := v.SourceUser.Username

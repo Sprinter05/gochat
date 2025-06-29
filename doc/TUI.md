@@ -7,6 +7,8 @@ The gochat client offers a **Terminal User Interface** (TUI for short) designed 
 
 In order to run the program you do not need to provide any additional arguments.
 
+![TUI](images/tui.png)
+
 ## First steps
 
 ### The Local Server
@@ -25,11 +27,15 @@ After connection you must create an account using `/register <username>`. The TU
 
 Once registered you can log in using `/login <username>` which will ask for the password of the given account and log you into the server. If the login is successful you will see that a new bar will appear to the *right side*, showing the list of online users in the server.
 
+![Logged In](images/logged_in.png)
+
 ### Talking to a user
 
 The protocol so far only supports conversations between 2 people. If you wish to talk to a user you can see the list of available users in the server with `/users remote <all/online>`. 
 
 Now, by focusing the buffer list (using `Ctrl-K` as said before) and pressing `Ctrl-N` will allow you to create a new buffer with the given username. If the creation is successful and the given user exists, you will get a new empty buffer where you can start talking to that user. Messages will be saved locally and will persist between sessions.
+
+![Conversation](images/conversation.png)
 
 ## Important Notes
 
