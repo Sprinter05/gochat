@@ -121,6 +121,9 @@ func (b *Buffers) Show(name string) (int, rune) {
 
 	b.open += 1
 	t.index = b.open
+
+	// We check if theres an available index
+	// left by another buffer
 	l := len(b.indexes)
 	if l > 0 {
 		t.index = b.indexes[0]    // FIFO
@@ -181,6 +184,9 @@ func (t *TUI) addBuffer(name string, system bool) {
 		return
 	}
 
+	// If we are in a remote server we have to check
+	// that we are online and that we are requesting
+	// a user that is not the logged in user
 	data, online := s.Online()
 	if data != nil && name != defaultBuffer {
 		if !online || !data.IsLoggedIn() {
@@ -205,10 +211,10 @@ func (t *TUI) addBuffer(name string, system bool) {
 	if i == -1 {
 		return
 	}
-
-	empty := func(string, cmds.OutputType) {}
-
 	t.comp.buffers.AddItem(name, "", r, nil)
+
+	// We try to request the user first
+	empty := func(string, cmds.OutputType) {}
 	reqErr := t.requestUser(s, name, empty)
 	if reqErr != nil {
 		print := t.systemMessage("request")
@@ -259,6 +265,8 @@ func (t *TUI) hideBuffer(name string) {
 		return
 	}
 
+	// If the hidden buffer is the one we are targeting
+	// we change to another buffer
 	if t.Buffer() == name {
 		count := t.comp.buffers.GetItemCount()
 		if count == 1 {
@@ -315,16 +323,12 @@ func (t *TUI) renderBuffer(buf string) {
 		return
 	}
 
-	/* 	if b.connected && b.messages.Len() == 0 {
-	   		print := t.systemMessage()
-	   		print("This is the beggining of your conversation with "+buf, cmds.INFO)
-	   	}
-	*/
-
+	// Render text
 	t.status.lastDate = time.Now()
 	t.comp.text.Clear()
 	msgs := s.Messages(buf)
 
+	// Render notifications
 	l := len(msgs)
 	pending := s.Notifications().Query(buf)
 	unread := l - int(pending)
