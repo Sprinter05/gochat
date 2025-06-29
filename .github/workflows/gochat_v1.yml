@@ -5,9 +5,8 @@ name: Build Gochat v1
 
 on:
   push:
-    branches: [ "v1" ]
-  pull_request:
-    branches: [ "v1" ]
+    tags:
+      - "v1.*"
 
 jobs:
   windows:
@@ -70,6 +69,7 @@ jobs:
       run: ./create.sh
     - name: Release
       uses: softprops/action-gh-release@v2 
+      if: github.ref_type == 'tag'
       with:
         body_path: RELEASE.txt
         preserve_order: true
