@@ -67,7 +67,7 @@ jobs:
       with:
         path: artifacts
     - name: Create release file
-      run: ./create_release.sh
+      run: ./create.sh
     - name: Check files
       run: find .
     - name: Release
