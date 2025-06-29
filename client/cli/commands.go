@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -29,8 +30,8 @@ type ShellCommand struct {
 // Map containing every shell command
 var shCommands = map[string]ShellCommand{
 	"CONN": {connect,
-		"- CONN: Connects the client to a gochat server.\n" +
-			"Usage: CONN <server address> <server port> [-noverify] || CONN <server name> [-noverify]",
+		"- CONN: Connects the client to a gochat server. -noverify will avoid a TLS verification and -keep will avoid idle disconnection.\n" +
+			"Usage: CONN <server address> <server port> [-noverify] [-keep] || CONN <server name> [-noverify] [-keep]",
 	},
 
 	"DISCN": {disconnect,
@@ -144,9 +145,10 @@ var shCommands = map[string]ShellCommand{
 
 // Sets up the CONN call depending on how the user specified the server.
 //
-// Arguments: <server address> <server port> [-noverify] || <server name> [-noverify]
+// Arguments: <server address> <server port> [-noverify] [-keep] || <server name> [-noverify]
 func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	noverify := false
+	keep := false
 	var server db.Server
 	var dbErr error
 
@@ -156,6 +158,11 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 
 	if string(args[len(args)-1]) == "-noverify" {
 		noverify = true
+		args = args[:len(args)-1]
+	}
+
+	if string(args[len(args)-1]) == "-keep" {
+		keep = true
 		args = args[:len(args)-1]
 	}
 
@@ -196,6 +203,10 @@ func connect(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	}
 	cmd.Data.Server = &server
 	go commands.ListenPackets(cmd, func() {})
+	if keep {
+		go commands.PreventIdle(ctx, cmd.Data, time.Duration(spec.ReadTimeout-1)*time.Minute)
+	}
+
 	return nil
 }
 
