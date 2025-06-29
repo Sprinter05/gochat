@@ -16,7 +16,7 @@ services:
         timeout: 5s
         retries: 3
   gochat:
-    image: Sprinter05/gochat:latest
+    image: ghcr.io/sprinter05/gochat:latest
     container_name: gochat
     ports:
       - "8037:8037/tcp"
