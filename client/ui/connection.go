@@ -23,8 +23,9 @@ type Connection struct {
 	cancel context.CancelFunc
 }
 
-// Sets a new context by cancelling the previous one first
-func (c *Connection) Set(background context.Context) {
+// Sets a new context creating it from the given one
+// by cancelling the previous one first
+func (c *Connection) Create(background context.Context) {
 	c.Cancel()
 	ctx, cancel := context.WithCancel(background)
 	c.ctx = ctx
@@ -64,10 +65,12 @@ type Source struct {
 	Port    uint16
 }
 
+// The network will always be "tcp"
 func (s Source) Network() string {
-	return "tcp4"
+	return "tcp"
 }
 
+// Returns the address and port of the server separated by a colon
 func (s Source) String() string {
 	return fmt.Sprintf("%s:%d", s.Address, s.Port)
 }
@@ -76,7 +79,7 @@ func (s Source) String() string {
 // must fulfill in order to be considered
 // a server by the TUI.
 type Server interface {
-	// Updates the values of the server according to its data
+	// Updates the values of the server according to the database
 	Update()
 
 	// Returns the name of the server and if it is secure

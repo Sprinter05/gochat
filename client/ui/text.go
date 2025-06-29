@@ -91,9 +91,10 @@ const CommandHelp string = `
 	
 [yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
 
-[yellow::b]/connect[-::-] [blue](-noverify)[-]: Connects to the currently active server using its address
+[yellow::b]/connect[-::-] [blue](-noverify)[-] [blue](-noidle)[-]: Connects to the currently active server using its address
 	- This will fail if the server is local
-	- If the connection is TLS and noverify is used, certificates will not be checked
+	- If the connection is TLS and "-noverify" is used, certificates will not be checked
+	- If "-noidle" is used, the client will try to avoid being disconnected for inactivity
 
 [yellow::b]/register[-::-] [green]<username>[-]: Creates a new account in the currently active server
 	- A popup asking for a password to register will show up when creating a new account
@@ -157,7 +158,7 @@ const CommandHelp string = `
 	- If a user has become dangling (server is "Unknown"), this can be used to recover its data
 	- This command will only work with dangling users
 	- A popup asking for the password of the account to recover will appear
-	- If cleanup is used, the user will be deleted from the database after recovery
+	- If "-cleanup" is used, the user will be deleted from the database after recovery
 `
 
 /* MESSAGES */

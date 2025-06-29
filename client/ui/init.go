@@ -34,44 +34,44 @@ const (
 	localServer     string  = "Local"   // Local server name
 	defaultLabel    string  = " > "     // Default prompt
 	defaultUserlist string  = "(Empty)" // Default userlist text
-	inputSize       int     = 4         // size of the text input bar (fixed)
-	errorSize       int     = 1         // size of the error bar (fixed)
-	notifSize       int     = 2         // size of the notif bar (fixed)
-	textSize        int     = 30        // Size of the text window
-	errorMessage    uint    = 3         // seconds
+	inputSize       int     = 4         // Default size of the text input bar (fixed)
+	errorSize       int     = 1         // Default size of the error bar (fixed)
+	notifSize       int     = 2         // Default size of the notif bar (fixed)
+	textSize        int     = 30        // Default size of the text window
+	errorMessage    uint    = 3         // Amount of seconds the error text shows up
 	asciiNumbers    int     = 0x30      // Start of ASCII for number 1
 	asciiLowercase  int     = 0x61      // Start of ASCII for lowercase a
 	maxBuffers      uint    = 35        // Maximum amount of allowed buffers in one server
 	maxServers      uint    = 9         // Maximum amount of allowed servers
 	cmdTimeout      uint    = 30        // Max seconds to wait for a command to finish
-	msgDelay        uint    = 500       // miliseconds between msgs
-	rootBuffer      uint    = 0         // number of the root buffer
+	msgDelay        uint    = 500       // Miliseconds between sending messages
+	rootBuffer      uint    = 0         // Number of the root buffer
 )
 
 var (
-	ErrorSystemBuf        = errors.New("performing action on system buffer")
-	ErrorLocalServer      = errors.New("performing action on local server")
-	ErrorNoText           = errors.New("no text has been given")
-	ErrorExists           = errors.New("item already exists")
-	ErrorNotFound         = errors.New("item does not exist")
-	ErrorMaxBufs          = errors.New("maximum amount of buffers reached")
-	ErrorMaxServers       = errors.New("maximum amount of servers reached")
-	ErrorNoBuffers        = errors.New("no buffers in server")
-	ErrorEmptyCmd         = errors.New("empty command given")
-	ErrorInvalidCmd       = errors.New("invalid command given")
-	ErrorAlreadyOnline    = errors.New("connection is already established")
-	ErrorOffline          = errors.New("connection to the server is not established")
-	ErrorArguments        = errors.New("invalid number of arguments")
-	ErrorLoggedIn         = errors.New("you are already logged in")
-	ErrorNoRemoteUser     = errors.New("user is not requested")
-	ErrorDisconnection    = errors.New("connection to the server has been lost")
-	ErrorNotLoggedIn      = errors.New("you are not logged in")
-	ErrorMessageSelf      = errors.New("cannot request to message yourself")
-	ErrorTypingTooFast    = errors.New("you are typing too fast")
-	ErrorPasswordNotMatch = errors.New("passwords do not match")
-	ErrorInvalidArgument  = errors.New("provided argument is incorrect")
-	ErrorMessageFromSelf  = errors.New("received message from self")
-	ErrorInvalidAddress   = errors.New("address of server is not valid")
+	ErrorSystemBuf        = errors.New("performing action on system buffer")          // performing action on system buffer
+	ErrorLocalServer      = errors.New("performing action on local server")           // performing action on local server
+	ErrorNoText           = errors.New("no text has been given")                      // no text has been given
+	ErrorExists           = errors.New("item already exists")                         // item already exists
+	ErrorNotFound         = errors.New("item does not exist")                         // item does not exist
+	ErrorMaxBufs          = errors.New("maximum amount of buffers reached")           // maximum amount of buffers reached
+	ErrorMaxServers       = errors.New("maximum amount of servers reached")           // maximum amount of servers reached
+	ErrorNoBuffers        = errors.New("no buffers in server")                        // no buffers in server
+	ErrorEmptyCmd         = errors.New("empty command given")                         // empty command given
+	ErrorInvalidCmd       = errors.New("invalid command given")                       // invalid command given
+	ErrorAlreadyOnline    = errors.New("connection is already established")           // connection is already established
+	ErrorOffline          = errors.New("connection to the server is not established") // connection to the server is not established
+	ErrorArguments        = errors.New("invalid number of arguments")                 // invalid number of arguments
+	ErrorLoggedIn         = errors.New("you are already logged in")                   // you are already logged in
+	ErrorNoRemoteUser     = errors.New("user is not requested")                       // user is not requested
+	ErrorDisconnection    = errors.New("connection to the server has been lost")      // connection to the server has been lost
+	ErrorNotLoggedIn      = errors.New("you are not logged in")                       // you are not logged in
+	ErrorMessageSelf      = errors.New("cannot request to message yourself")          // cannot request to message yourself
+	ErrorTypingTooFast    = errors.New("you are typing too fast")                     // you are typing too fast
+	ErrorPasswordNotMatch = errors.New("passwords do not match")                      // passwords do not match
+	ErrorInvalidArgument  = errors.New("provided argument is incorrect")              // provided argument is incorrect
+	ErrorMessageFromSelf  = errors.New("received message from self")                  // received message from self
+	ErrorInvalidAddress   = errors.New("address of server is not valid")              // address of server is not valid
 )
 
 // Identifies the areas where components are located.
@@ -314,6 +314,7 @@ func setupHandlers(t *TUI) {
 
 // Sets up main input capture (run command, send text, newline).
 func setupInput(t *TUI) {
+	// Go back to the initial history
 	t.comp.input.SetChangedFunc(func() {
 		text := t.comp.input.GetText()
 		if text == "" {
@@ -321,9 +322,10 @@ func setupInput(t *TUI) {
 		}
 	})
 
+	// Text window keybinds
 	t.comp.text.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyESC: // Scroll to the end
+		case tcell.KeyESC: // Scroll to the bottom/top
 			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt ||
 				event.Modifiers()&tcell.ModShift == tcell.ModShift {
 				t.comp.text.ScrollToBeginning()
@@ -334,15 +336,16 @@ func setupInput(t *TUI) {
 		return event
 	})
 
+	// Input window keybinds
 	t.comp.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlU: // Override
 			return nil
-		case tcell.KeyESC:
+		case tcell.KeyESC: // Clear text and history
 			t.comp.input.SetText("", false)
 			t.next = 0
 			return nil
-		case tcell.KeyUp:
+		case tcell.KeyUp: // Go back in history
 			text := t.comp.input.GetText()
 			if text != "" && t.next == 0 {
 				return event
@@ -362,11 +365,13 @@ func setupInput(t *TUI) {
 
 			t.comp.input.SetText("/"+cmd, true)
 			return nil
-		case tcell.KeyEnter:
+		case tcell.KeyEnter: // Send message or command
 			defer func() {
+				// Reset history
 				t.next = 0
 			}()
 
+			// Newline
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
 				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				return event
@@ -382,12 +387,14 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
+			// Parse as command
 			if text[0] == '/' {
 				t.parseCommand(text[1:])
 				t.comp.input.SetText("", false)
 				return nil
 			}
 
+			// Prevents message spam
 			last := time.Since(t.status.lastMsg)
 			if last < time.Duration(msgDelay)*time.Millisecond {
 				t.showError(ErrorTypingTooFast)
@@ -395,6 +402,7 @@ func setupInput(t *TUI) {
 				return nil
 			}
 
+			// Send the message
 			s := t.Active()
 			t.sendMessage(Message{
 				Sender:    selfSender,
@@ -469,30 +477,34 @@ func setupKeybinds(t *TUI) {
 				t.app.SetFocus(t.comp.buffers)
 				return nil
 			}
-		case tcell.KeyDown: // Go one buffer down
+		case tcell.KeyDown: // Go one buffer/server down
 			if t.status.blockCond() {
 				break
 			}
 
+			// Buffer down
 			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr + 1)
 			}
 
+			// Server down
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
 				curr := t.comp.servers.GetCurrentItem()
 				t.changeServer(curr + 1)
 			}
-		case tcell.KeyUp: // Go one buffer up
+		case tcell.KeyUp: // Go one buffer/server up
 			if t.status.blockCond() {
 				break
 			}
 
+			// Buffer up
 			if event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
 				curr := t.comp.buffers.GetCurrentItem()
 				t.changeBuffer(curr - 1)
 			}
 
+			// Server up
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift {
 				curr := t.comp.servers.GetCurrentItem()
 				t.changeServer(curr - 1)
@@ -529,15 +541,19 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 		data:    static,
 		history: models.NewSlice[string](0),
 	}
+
+	// Create the tview application
 	app := tview.NewApplication().
 		EnableMouse(true).
 		SetRoot(t.area.main, true).
 		SetFocus(t.area.main)
 	t.app = app
 
+	// Render layouts
 	renderBuflist(t)
 	renderUserlist(t)
 
+	// Setup TUI
 	setupKeybinds(t)
 	setupHandlers(t)
 	setupStyle(t)
@@ -559,7 +575,6 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	print := t.systemMessage()
 	print("Welcome to gochat!", cmds.INFO)
 	print("Press [green]Ctrl-Alt-L/Ctrl-Shift-L[-] to show help!", cmds.INFO)
-	// print("Restoring previous session...", cmds.INFO)
 
 	// Debug buffer if necessary
 	if debug {
@@ -568,15 +583,18 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 		print("Packets between client and server will be shown here.", cmds.INFO)
 	}
 
+	// Set userlist
 	t.comp.users.SetText(defaultUserlist)
-	t.changeBuffer(int(rootBuffer)) // System buffer
+
+	// Change to syste, buffer and restore servers
+	t.changeBuffer(int(rootBuffer))
 	t.restoreSession()
 	t.renderServer(localServer)
 
 	return t, app
 }
 
-// Restores all database entries that are relevant.
+// Restores all database server entries that are relevant.
 func (t *TUI) restoreSession() {
 	// Restore servers
 	list, err := db.GetAllServers(t.data.DB)

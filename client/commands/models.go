@@ -282,6 +282,10 @@ func setConfig(target any, field, value string) (any, func(), error) {
 func getConfig(obj any, prefix string) ([][]byte, error) {
 	buf := make([][]byte, 0)
 
+	if prefix == "" {
+		return buf, nil
+	}
+
 	// Get the type and values about the object
 	objType := reflect.TypeOf(obj)
 	objVal := reflect.ValueOf(obj)
