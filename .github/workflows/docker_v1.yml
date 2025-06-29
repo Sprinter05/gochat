@@ -10,7 +10,7 @@ permissions:
   packages: write
   
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
     - name: Setup repository
@@ -28,4 +28,5 @@ jobs:
       with:
         context: .
         push: true
+        platforms: linux/amd64
         tags: ghcr.io/sprinter05/gochat:latest,ghcr.io/sprinter05/gochat:v1
