@@ -80,7 +80,7 @@ type TUI struct {
 	focus   string                       // Currently active server
 }
 
-// Returns a static data for use on a comamdn
+// Returns a static data for use on a command
 func (t *TUI) static() *cmds.StaticData {
 	return &cmds.StaticData{
 		DB:      t.db,

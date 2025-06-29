@@ -585,7 +585,7 @@ func loginUser(t *TUI, cmd Command) error {
 	err = cmds.RECIV(rCtx, c)
 	if err != nil {
 		if errors.Is(err, spec.ErrorEmpty) {
-			cmd.print("no new messages have been received", cmds.RESULT)
+			cmd.print("No new messages have been received", cmds.INFO)
 		} else {
 			return err
 		}

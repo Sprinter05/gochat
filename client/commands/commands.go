@@ -446,7 +446,10 @@ func CONN(cmd Command, server db.Server, noverify bool) error {
 
 	cmd.Data.Conn = conn
 
-	cmd.Output("Listening for incoming packets...", INFO)
+	if cmd.Static.Verbose {
+		cmd.Output("Listening for incoming packets...", INFO)
+	}
+
 	return nil
 }
 
@@ -684,10 +687,10 @@ func LOGIN(ctx context.Context, cmd Command, username, pass string) error {
 		perms, err := GetPermissions(ctx, cmd, localUser.User.Username)
 		if err == nil {
 			str := fmt.Sprintf(
-				"logged in with permission level %d",
+				"Logged in with permission level %d",
 				perms,
 			)
-			cmd.Output(str, RESULT)
+			cmd.Output(str, INFO)
 		}
 	}
 
@@ -790,7 +793,8 @@ func LOGIN(ctx context.Context, cmd Command, username, pass string) error {
 	// Assigns the logged in user to Data
 	cmd.Data.LocalUser = &localUser
 
-	cmd.Output(fmt.Sprintf("login successful!\nWelcome, %s", username), RESULT)
+	cmd.Output("login successful!", RESULT)
+	cmd.Output(fmt.Sprintf("Welcome, %s", username), INFO)
 	getPerms()
 
 	if cmd.Data.Server.TLS {
