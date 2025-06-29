@@ -18,22 +18,8 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.23.5'
-  client:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-    - name: Build client
-      run: make client
-  server:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-    - name: Build server
-      run: make server
-  publish:
-    needs: [client, server]
-    runs-on: ubuntu-latest
-    steps:
+    - name: Build all
+      run: make all -j$(nproc)
     - name: Publish server
       uses: actions/upload-artifact@v4
       with:
