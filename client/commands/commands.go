@@ -128,6 +128,11 @@ func SET(cmd Command, target, value string, objs ...ConfigObj) error {
 			continue
 		}
 
+		// Cannot be empty
+		if prefix == "" {
+			continue
+		}
+
 		// Check that the function can run
 		if v.Precondition != nil {
 			err := v.Precondition()

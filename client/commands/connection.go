@@ -3,6 +3,7 @@ package commands
 // Includes the necessary functions to establish connections and read packets
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -126,6 +127,28 @@ func closeError(cmd Command) error {
 	}
 
 	return nil
+}
+
+// Sends a KEEP packet every x time
+func PreventIdle(ctx context.Context, data *Data, d time.Duration) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(d):
+			if data.Conn == nil {
+				return
+			}
+
+			id := data.NextID()
+			pak, err := spec.NewPacket(spec.KEEP, id, spec.EmptyInfo)
+			if err != nil {
+				return
+			}
+
+			data.Conn.Write(pak)
+		}
+	}
 }
 
 // Listens for incoming server packets. When a packet

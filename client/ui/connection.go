@@ -23,8 +23,9 @@ type Connection struct {
 	cancel context.CancelFunc
 }
 
-// Sets a new context by cancelling the previous one first
-func (c *Connection) Set(background context.Context) {
+// Sets a new context creating it from the given one
+// by cancelling the previous one first
+func (c *Connection) Create(background context.Context) {
 	c.Cancel()
 	ctx, cancel := context.WithCancel(background)
 	c.ctx = ctx

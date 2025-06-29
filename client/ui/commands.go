@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+	"time"
 
 	cmds "github.com/Sprinter05/gochat/client/commands"
 	"github.com/Sprinter05/gochat/client/db"
@@ -35,7 +37,7 @@ var commands map[string]operation = map[string]operation{
 	"connect": {
 		fun:    connectServer,
 		nArgs:  0,
-		format: "/connect (-noverify)",
+		format: "/connect (-noverify) (-noidle)",
 	},
 	"register": {
 		fun:    registerUser,
@@ -288,7 +290,7 @@ func recoverData(t *TUI, cmd Command) {
 	}
 
 	cleanup := false
-	if len(cmd.Arguments) > 1 && cmd.Arguments[1] == "-cleanup" {
+	if slices.Contains(cmd.Arguments[1:], "-cleanup") {
 		cleanup = true
 	}
 
@@ -673,7 +675,7 @@ func listUsers(t *TUI, cmd Command) {
 	queryPerms := false
 	if len(args) > 2 &&
 		args[0] == "remote" &&
-		args[2] == "-perms" {
+		slices.Contains(args[2:], "-perms") {
 		queryPerms = true
 	}
 
@@ -791,7 +793,7 @@ func connectServer(t *TUI, cmd Command) {
 	c, args := cmd.createCmd(t, data)
 
 	var noVerify bool
-	if len(args) >= 1 && args[0] == "-noverify" {
+	if slices.Contains(args, "-noverify") {
 		noVerify = true
 	} else {
 		noVerify = false
@@ -805,7 +807,7 @@ func connectServer(t *TUI, cmd Command) {
 		return
 	}
 
-	cmd.serv.Context().Set(context.Background())
+	cmd.serv.Context().Create(context.Background())
 	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
 
 	c.Output = t.systemMessage("", defaultBuffer)
@@ -823,6 +825,18 @@ func connectServer(t *TUI, cmd Command) {
 		discn := t.systemMessage()
 		discn("You are no longer connected to this server!", cmds.INFO)
 	})
+
+	if slices.Contains(args, "-noidle") {
+		if t.data.Verbose {
+			cmd.print("running hook to prevent idle disconnection", cmds.RESULT)
+		}
+
+		go cmds.PreventIdle(
+			cmd.serv.Context().Get(),
+			c.Data,
+			time.Duration(spec.ReadTimeout-1),
+		)
+	}
 }
 
 func listBuffers(t *TUI, cmd Command) {
