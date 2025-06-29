@@ -1,5 +1,8 @@
 package commands
 
+// Implements the client-side functionality needed to execute requests to a gochat
+// server and reacts accordinly to every server response
+
 import (
 	"bytes"
 	"context"
@@ -32,12 +35,13 @@ const (
 	RESULT                         // Messages that show the result of a command
 	ERROR                          // Error messages that may be printed additionaly in error cases
 	INFO                           // Message that representes generic info not asocciated to a command
-	USRS                           // Specific for user printing
+	USRSRESPONSE                   // Specific for user printing
 	COLOR                          // Special output for shell colors
 	PLAIN                          // Output type that should be printed as-is, with no prefix
 )
 
-// Represents the function that will be called when outputting info
+// Represents the function that will be called
+// when outputting information
 type OutputFunc func(text string, outputType OutputType)
 
 // Represents the different USRS command types
@@ -54,9 +58,6 @@ const (
 )
 
 /* ERRORS AND CONSTANTS */
-
-// Default level of permissions that should be used
-const DefaultPerms = 0755
 
 var (
 	ErrorInsuficientArgs       error = fmt.Errorf("not enough arguments")                           // not enough arguments
@@ -83,6 +84,9 @@ var (
 	ErrorNoReusableToken       error = fmt.Errorf("reusable token is empty")                        // reusable token is empty
 )
 
+// Default level of permissions that should be used
+const DefaultPerms = 0755
+
 /* LOOKUP TABLES */
 
 // List of hooks and their names.
@@ -94,6 +98,8 @@ var hooksList = map[string]spec.Hook{
 	"permissions_change": spec.HookPermsChange,
 }
 
+// List of admin operations and their
+// names.
 var adminList = map[string]spec.Admin{
 	"shutdown":  spec.AdminShutdown,
 	"broadcast": spec.AdminBroadcast,
@@ -108,7 +114,7 @@ var adminList = map[string]spec.Admin{
 // Sets a variable on an object as configuration.
 // Passed objects must be pointers. Does not require
 // a Data struct in "Command"
-func Set(cmd Command, target, value string, objs ...ConfigObj) error {
+func SET(cmd Command, target, value string, objs ...ConfigObj) error {
 	// We get the initial prefix
 	prefix, actual, ok := strings.Cut(target, ".")
 	if !ok {
@@ -174,7 +180,7 @@ func Set(cmd Command, target, value string, objs ...ConfigObj) error {
 // Returns the current configuration values for the
 // given objects. Only needs the object and prefix.
 // Passed objects as "any" can or not be pointers
-func Config(objs ...ConfigObj) [][]byte {
+func CONFIG(objs ...ConfigObj) [][]byte {
 	buf := make([][]byte, 0)
 
 	for _, v := range objs {
@@ -189,7 +195,7 @@ func Config(objs ...ConfigObj) [][]byte {
 
 // Recovers the private key and messages for a specified user
 // Does not require a Data struct in Command
-func Recover(cmd Command, username, pass string, cleanup bool) error {
+func RECOVER(cmd Command, username, pass string, cleanup bool) error {
 	verbosePrint("recovering data...", cmd)
 	users, err := db.RecoverUsers(cmd.Static.DB, username)
 	if err != nil {
@@ -288,7 +294,7 @@ func Recover(cmd Command, username, pass string, cleanup bool) error {
 
 // Imports a private RSA key for a new local user
 // from the "import" directory using the specification PEM format.
-func Import(cmd Command, username, pass, dir string) error {
+func IMPORT(cmd Command, username, pass, dir string) error {
 	// Creates import/ directory if it does not exist
 	if _, err := os.Stat("import"); errors.Is(err, fs.ErrNotExist) {
 		cmd.Output("missing 'import' folder", ERROR)
@@ -341,7 +347,7 @@ func Import(cmd Command, username, pass, dir string) error {
 
 // Exports a local user as a private RSA key
 // in the "export" folder using the spec PEM format.
-func Export(cmd Command, username, pass string) error {
+func EXPORT(cmd Command, username, pass string) error {
 	found, existsErr := db.LocalUserExists(
 		cmd.Static.DB,
 		username,
@@ -397,51 +403,10 @@ func Export(cmd Command, username, pass string) error {
 	return nil
 }
 
-/* OBSOLETE
-
-	TLS command. Now obsolete.
-
-// Changes the state of how TLS will be handled for a server.
-func TLS(cmd Command, server *db.Server, on bool) error {
-	if cmd.Data.IsConnected() {
-		return ErrorOfflineRequired
-	}
-
-	if on {
-		server.TLS = true
-		err := db.ChangeServerTLS(
-			cmd.Static.DB,
-			server.Address,
-			server.Port,
-			true,
-		)
-
-		if err != nil {
-			return err
-		}
-
-		return nil
-	} else {
-		cmd.Data.Server.TLS = false
-		err := db.ChangeServerTLS(
-			cmd.Static.DB,
-			server.Address,
-			server.Port,
-			false,
-		)
-
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-}
-*/
-
 // Starts a connection with a server. If noverify is set,
 // in case of TLS connections, certificate origins wont be checked.
 // This command does not spawn a listening thread.
-func Conn(cmd Command, server db.Server, noverify bool) error {
+func CONN(cmd Command, server db.Server, noverify bool) error {
 	if cmd.Data.IsConnected() {
 		return ErrorAlreadyConnected
 	}
@@ -480,7 +445,7 @@ func Conn(cmd Command, server db.Server, noverify bool) error {
 }
 
 // Registers a user to a server and also adds it to the client database.
-func Reg(ctx context.Context, cmd Command, username, pass string) error {
+func REG(ctx context.Context, cmd Command, username, pass string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -581,7 +546,7 @@ func Reg(ctx context.Context, cmd Command, username, pass string) error {
 }
 
 // Deregisters a user from the server and also removes it locally.
-func Dereg(ctx context.Context, cmd Command, username, pass string) error {
+func DEREG(ctx context.Context, cmd Command, username, pass string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -665,7 +630,7 @@ func Dereg(ctx context.Context, cmd Command, username, pass string) error {
 }
 
 // Logs a user to a server, also performs the verification.
-func Login(ctx context.Context, cmd Command, username, pass string) error {
+func LOGIN(ctx context.Context, cmd Command, username, pass string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -838,7 +803,7 @@ func Login(ctx context.Context, cmd Command, username, pass string) error {
 }
 
 // Logs out a user from a server.
-func Logout(ctx context.Context, cmd Command) error {
+func LOGOUT(ctx context.Context, cmd Command) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -884,7 +849,7 @@ func Logout(ctx context.Context, cmd Command) error {
 }
 
 // Disconnects a client from a server.
-func Discn(cmd Command) error {
+func DISCN(cmd Command) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -905,7 +870,7 @@ func Discn(cmd Command) error {
 }
 
 // Sends a message to a user with the current time stamp and stores it in the database.
-func Msg(ctx context.Context, cmd Command, username, message string) error {
+func MSG(ctx context.Context, cmd Command, username, message string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -1026,7 +991,7 @@ func Msg(ctx context.Context, cmd Command, username, message string) error {
 
 // Asks the server to retrieve all messages while the user was offline.
 // This function is not responsible for receiving the messages, only request them.
-func Reciv(ctx context.Context, cmd Command) error {
+func RECIV(ctx context.Context, cmd Command) error {
 	id := cmd.Data.NextID()
 	pct, pctErr := spec.NewPacket(spec.RECIV, id, spec.EmptyInfo)
 	if pctErr != nil {
@@ -1060,7 +1025,7 @@ func Reciv(ctx context.Context, cmd Command) error {
 // Requests a list of users depending on the type specified, which may or not
 // require an active connection.
 // Returns a the received usernames in an array if the request was correct.
-func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
+func USRS(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error) {
 	// We check for local listing
 	switch usrsType {
 	case LOCAL_ALL:
@@ -1130,8 +1095,8 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 		optionString = "online with permissions"
 	}
 
-	cmd.Output(fmt.Sprintf("%s users:", optionString), USRS)
-	cmd.Output(string(reply.Args[0]), USRS)
+	cmd.Output(fmt.Sprintf("%s users:", optionString), USRSRESPONSE)
+	cmd.Output(string(reply.Args[0]), USRSRESPONSE)
 	split := bytes.Split(reply.Args[0], []byte("\n"))
 
 	return split, nil
@@ -1139,7 +1104,7 @@ func Usrs(ctx context.Context, cmd Command, usrsType USRSType) ([][]byte, error)
 
 // Requests the information of an external user to add it to the client database.
 // Returns the arguments of a REQ as by specification.
-func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
+func REQ(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 	if !cmd.Data.IsConnected() {
 		return nil, ErrorNotConnected
 	}
@@ -1199,7 +1164,7 @@ func Req(ctx context.Context, cmd Command, username string) ([][]byte, error) {
 }
 
 // Sends an ADMIN packet that performs an specific ADMIN operation.
-func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) error {
+func ADMIN(ctx context.Context, cmd Command, op string, args ...[]byte) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -1291,7 +1256,7 @@ func Admin(ctx context.Context, cmd Command, op string, args ...[]byte) error {
 }
 
 // Subscribes to a specific hook to the server.
-func Sub(ctx context.Context, cmd Command, name string) error {
+func SUB(ctx context.Context, cmd Command, name string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}
@@ -1342,7 +1307,7 @@ func Sub(ctx context.Context, cmd Command, name string) error {
 }
 
 // Unsubscribes from a specific hook on the server.
-func Unsub(ctx context.Context, cmd Command, name string) error {
+func UNSUB(ctx context.Context, cmd Command, name string) error {
 	if !cmd.Data.IsConnected() {
 		return ErrorNotConnected
 	}

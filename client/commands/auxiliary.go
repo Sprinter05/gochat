@@ -1,5 +1,7 @@
 package commands
 
+// Contains auxiliary functions that make certain commands work
+
 import (
 	"context"
 	"fmt"
@@ -64,7 +66,7 @@ func StoreMessage(ctx context.Context, reciv spec.Command, cmd Command) (Message
 	)
 	if err != nil {
 		// The user most likely has not been found, so a REQ is required
-		_, reqErr := Req(ctx, cmd, string(reciv.Args[0]))
+		_, reqErr := REQ(ctx, cmd, string(reciv.Args[0]))
 		if reqErr != nil {
 			return Message{}, reqErr
 		}
@@ -244,12 +246,12 @@ func printServerLocalUsers(cmd Command) ([][]byte, error) {
 		cmd.Data.Server.Name,
 		cmd.Data.Server.Address,
 		cmd.Data.Server.Port),
-		USRS,
+		USRSRESPONSE,
 	)
 
 	for _, v := range localUsers {
 		users = append(users, []byte(v.User.Username))
-		cmd.Output(v.User.Username, USRS)
+		cmd.Output(v.User.Username, USRSRESPONSE)
 	}
 
 	return users, nil
@@ -265,7 +267,7 @@ func printExternalUsers(cmd Command) ([][]byte, error) {
 	}
 
 	users := make([][]byte, 0, len(externalUsers))
-	cmd.Output("all external users:", USRS)
+	cmd.Output("all external users:", USRSRESPONSE)
 
 	for _, v := range externalUsers {
 		users = append(users, []byte(v.User.Username))
@@ -274,7 +276,7 @@ func printExternalUsers(cmd Command) ([][]byte, error) {
 			v.User.Server.Name,
 			v.User.Server.Address,
 			v.User.Server.Port),
-			USRS,
+			USRSRESPONSE,
 		)
 	}
 
@@ -293,7 +295,7 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 	}
 
 	users := make([][]byte, 0, len(localUsers))
-	cmd.Output("all local users:", USRS)
+	cmd.Output("all local users:", USRSRESPONSE)
 
 	for _, v := range localUsers {
 		addr := "(Unknown)"
@@ -312,7 +314,7 @@ func printAllLocalUsers(cmd Command) ([][]byte, error) {
 			addr,
 		)
 		users = append(users, []byte(str))
-		cmd.Output(str, USRS)
+		cmd.Output(str, USRSRESPONSE)
 	}
 
 	return users, nil

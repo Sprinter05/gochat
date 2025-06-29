@@ -1,5 +1,7 @@
 package db
 
+// Contains the functions that work with passwords
+
 import (
 	"crypto/aes"
 	"crypto/cipher"

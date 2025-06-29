@@ -1,5 +1,7 @@
 package commands
 
+// Includes the necessary functions to establish connections and read packets
+
 import (
 	"crypto/tls"
 	"errors"

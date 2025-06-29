@@ -1,5 +1,7 @@
 package main
 
+// Main gochat client package
+
 import (
 	"encoding/json"
 	"errors"
