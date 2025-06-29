@@ -27,7 +27,7 @@ This server implements *3 levels* of permissions. The following, exhaustive list
 ## Limits
 
 - **TLS handshakes** have a timeout of *20 seconds*
-- **Inactivity** timeouts are of *10 minutes*
+- **Inactivity** timeouts are of *25 minutes*
 - **Verification handshakes** have a deadline of *2 minutes*
 - **Usernames** cannot be bigger than *32 characters*
 - **Reusable tokens** expire after *30 minutes* and can be used more than once
