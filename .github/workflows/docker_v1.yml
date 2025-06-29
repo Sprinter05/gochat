@@ -28,4 +28,4 @@ jobs:
       with:
         context: .
         push: true
-        tags: ghcr.io/${{ github.repository }}:latest,ghcr.io/${{ github.repository }}:v1
+        tags: ghcr.io/sprinter05/gochat:latest,ghcr.io/sprinter05/gochat:v1
