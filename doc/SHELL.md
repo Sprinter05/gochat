@@ -1,8 +1,9 @@
-# gochat CLI Quickstart Guide
+# gochat Shell Quickstart Guide
+*(Last revision: 27-06-2025)*
 
-gochat offers a simplified Command Line Interface in the form of a client shell that offers a command-driven way of communicating with gochat servers, ideal for command testing.
+The gochat client offers a simplified Command Line Interface in the form of a shell that offers a command-driven way of communicating with gochat servers, ideal for command testing.
 
-### Run
+## Run
 
 In order to run gochat in its CLI mode, run:
 
@@ -16,11 +17,11 @@ This will open a shell:
 (not connected) gochat() >
 ```
 
-### In-shell Documentation
+## In-shell Documentation
 
 You can type "HELP" (commands are not case-sensitive) to get a list of every command and its information and usage. `HELP <command>` will only print information about the specified command.
 
-### Connecting to the server
+## Connecting to the server
 
 Ideally, the shell will automatically connect to the specified server in the configuration file. If that is not the case, you must connect to a server before performing any other operation:
 
@@ -33,7 +34,7 @@ Welcome to the server!
 gochat() > 
 ```
 
-### Registration and login
+## Registration and login
 
 To execute most of the gochat protocol commands, you must be logged in to a user. You may create one with `REG`:
 
@@ -69,7 +70,7 @@ Welcome, alice
 gochat(alice) >
 ```
 
-### Starting communication
+## Starting communication
 
 You may want to know what external users are registered in order to communicate with them. You can do that with `USRS`
 
@@ -97,7 +98,7 @@ gochat(alice) > MSG bob hello!
 [OK] message sent correctly
 ```
 
-### Receiving messages
+## Receiving messages
 
 If someone messages you while you are logged in, the message will be printed automatically:
 

@@ -43,8 +43,8 @@ const (
 	asciiLowercase  int     = 0x61      // Start of ASCII for lowercase a
 	maxBuffers      uint    = 35        // Maximum amount of allowed buffers in one server
 	maxServers      uint    = 9         // Maximum amount of allowed servers
-	cmdTimeout      uint    = 30        // Max seconds to wait for a command to finish
-	msgDelay        uint    = 500       // Miliseconds between sending messages
+	cmdTimeout      uint    = 15        // Max seconds to wait for a command to finish
+	msgDelay        uint    = 300       // Miliseconds between sending messages
 	rootBuffer      uint    = 0         // Number of the root buffer
 )
 
@@ -575,14 +575,14 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	t.comp.servers.AddItem(localServer, "System Server", ascii(l), nil)
 
 	// Welcome messages
-	print := t.systemMessage()
-	print("Welcome to gochat!", cmds.INFO)
-	print("Press [green]Ctrl-Alt-L/Ctrl-Shift-L[-] to show help!", cmds.INFO)
+	info := t.systemMessage()
+	info("Welcome to gochat!", cmds.INFO)
+	info("Press [green]Ctrl-Alt-L/Ctrl-Shift-L[-] to show help!", cmds.INFO)
 
 	// Debug buffer if necessary
 	if debug {
 		t.addBuffer(debugBuffer, true)
-		print("Packets between client and server will be shown here.", cmds.INFO)
+		info("Packets between client and server will be shown here.", cmds.INFO)
 	}
 
 	// Set userlist

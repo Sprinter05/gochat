@@ -226,6 +226,15 @@ func (t *TUI) addBuffer(name string, system bool) {
 	}
 
 	t.changeBuffer(i)
+
+	if data != nil {
+		welcome := t.systemMessage()
+		str := fmt.Sprintf(
+			"This is the beggining of your conversation with %s!",
+			name,
+		)
+		welcome(str, cmds.INFO)
+	}
 }
 
 // Changes the TUI component according to the internal
