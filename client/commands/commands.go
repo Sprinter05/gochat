@@ -392,7 +392,7 @@ func EXPORT(cmd Command, username, pass string) error {
 	}
 
 	if _, err := os.Stat("export"); errors.Is(err, fs.ErrNotExist) {
-		cmd.Output("missing 'export' directory", INFO)
+		cmd.Output("missing 'export' directory", ERROR)
 		return err
 	}
 
@@ -446,7 +446,7 @@ func CONN(cmd Command, server db.Server, noverify bool) error {
 
 	cmd.Data.Conn = conn
 
-	cmd.Output("listening for incoming packets...", INFO)
+	cmd.Output("Listening for incoming packets...", INFO)
 	return nil
 }
 

@@ -239,6 +239,10 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 				return
 			}
 
+			if out == cmds.INFO {
+				prompt = ""
+			}
+
 			t.sendMessage(Message{
 				Buffer:    buffer,
 				Sender:    "System",
