@@ -396,9 +396,10 @@ func getUsers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 // Arguments: <dest. username> <unencyrpted text message>
 func sendMessage(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	dstUser := string(args[0])
-	plainText := string(args[1])
+	extra := args[1:]
+	plainText := bytes.Join(extra, []byte(" "))
 
-	msgErr := commands.MSG(ctx, cmd, dstUser, plainText)
+	msgErr := commands.MSG(ctx, cmd, dstUser, string(plainText))
 	return msgErr
 }
 
