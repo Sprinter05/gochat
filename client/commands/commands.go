@@ -155,6 +155,7 @@ func Set(cmd Command, target, value string, objs ...ConfigObj) error {
 
 		// Completed
 		found = true
+		break
 	}
 
 	if !found {
