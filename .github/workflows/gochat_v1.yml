@@ -26,12 +26,12 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: gochat-server_windows-amd64
-        path: build/gochat-server
+        path: build/gochat-server.exe
     - name: Publish client
       uses: actions/upload-artifact@v4
       with:
         name: gochat-client_windows-amd64
-        path: build/gochat-client
+        path: build/gochat-client.exe
   linux:
     runs-on: ubuntu-latest
     steps:
