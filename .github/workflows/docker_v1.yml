@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Gochat Docker Image v1
 
 on:
   push:
