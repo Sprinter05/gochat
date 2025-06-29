@@ -425,12 +425,7 @@ func (s *RemoteServer) Messages(name string) []Message {
 }
 
 func (s *RemoteServer) Receive(msg Message) (bool, error) {
-	if msg.Source == nil {
-		// Not this destination
-		return false, nil
-	}
-
-	if msg.Source.String() != s.addr.String() {
+	if msg.Source != s.name {
 		// Not this destination
 		return false, nil
 	}
@@ -514,7 +509,7 @@ func (l *LocalServer) Messages(name string) []Message {
 
 func (l *LocalServer) Receive(msg Message) (bool, error) {
 	// Only local server should be nil
-	if msg.Source != nil {
+	if msg.Source != l.name {
 		// Not for this server
 		return false, nil
 	}

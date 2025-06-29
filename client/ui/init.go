@@ -409,7 +409,7 @@ func setupInput(t *TUI) {
 				Buffer:    t.Buffer(),
 				Content:   text,
 				Timestamp: time.Now(),
-				Source:    s.Source(),
+				Source:    s.Name(),
 			})
 
 			go t.remoteMessage(text)

@@ -69,15 +69,6 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/version",
 	},
-
-	/*
-		"tls": {
-			fun:    toggleTLS,
-			nArgs:  1,
-			format: "/tls <on/off>",
-		},
-	*/
-
 	"request": {
 		fun:    userRequest,
 		nArgs:  0,
@@ -496,53 +487,6 @@ func userRequest(t *TUI, cmd Command) {
 		cmd.print(err.Error(), cmds.ERROR)
 	}
 }
-
-/* OBSOLETE
-
-func toggleTLS(t *TUI, cmd Command) {
-	data, _ := cmd.serv.Online()
-	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
-	c, args := cmd.createCmd(t, data)
-
-	var useTLS bool
-	switch args[0] {
-	case "on":
-		useTLS = true
-	case "off":
-		useTLS = false
-	default:
-		cmd.print(ErrorInvalidArgument.Error(), cmds.ERROR)
-		return
-	}
-
-	err := cmds.TLS(c, c.Data.Server, useTLS)
-
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-
-	i := t.comp.servers.GetCurrentItem()
-	addr := cmd.serv.Source()
-	if cmd.Arguments[0] == "on" {
-		t.comp.servers.SetItemText(
-			i, cmd.serv.Name(),
-			addr.String()+" (TLS)",
-		)
-		cmd.print("TLS is now enabled", cmds.RESULT)
-	} else { // off
-		t.comp.servers.SetItemText(
-			i, cmd.serv.Name(),
-			addr.String(),
-		)
-		cmd.print("TLS is now disabled", cmds.RESULT)
-	}
-}
-*/
 
 func showVersion(t *TUI, cmd Command) {
 	str := fmt.Sprintf(

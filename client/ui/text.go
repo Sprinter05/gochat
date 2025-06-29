@@ -169,7 +169,7 @@ type Message struct {
 	Sender    string    // Who sends it
 	Content   string    // Message text
 	Timestamp time.Time // Time when it occurred
-	Source    net.Addr  // Destination server
+	Source    string    // Destination name
 }
 
 // Returns the TLS secondary text for servers
@@ -194,7 +194,7 @@ func welcomeMessage(t *TUI) {
 		Sender:    "System",
 		Content:   text,
 		Timestamp: time.Now(),
-		Source:    s.Source(),
+		Source:    s.Name(),
 	})
 }
 
@@ -206,7 +206,7 @@ func (t *TUI) debugPacket(content string) {
 		Sender:    "System",
 		Content:   content[:l-1],
 		Timestamp: time.Now(),
-		Source:    nil, // Local server
+		Source:    localServer, // Local server
 	})
 }
 
@@ -215,7 +215,7 @@ func (t *TUI) debugPacket(content string) {
 // An optional prompt params[0] and buffer params[1] can be given
 func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 	buffer := t.Buffer()
-	server := t.Active().Source()
+	server := t.Active()
 
 	var prompt string
 	if len(params) > 0 && params[0] != "" {
@@ -245,7 +245,7 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 				Sender:    "System",
 				Content:   prompt + s,
 				Timestamp: time.Now(),
-				Source:    server,
+				Source:    server.Name(),
 			})
 		}
 	}
@@ -292,31 +292,30 @@ func getOldMessages(t *TUI, s Server, username string) {
 			Sender:    sender,
 			Content:   v.Text,
 			Timestamp: v.Stamp,
-			Source:    s.Source(),
+			Source:    s.Name(),
 		})
 	}
 }
 
 // Wrapper function for sending messages to the TUI.
-// It sends the message to all servers assuming only
-// the corresponding one will do something with it by
-// checking the source of the messages.
+// It sends the message to the server by the name of the destination
 func (t *TUI) sendMessage(msg Message) {
-	list := t.servers.GetAll()
-	for _, v := range list {
-		// Send message to all servers
-		ok, err := v.Receive(msg)
-		if err != nil && msg.Sender == selfSender {
-			t.showError(err)
-			return
-		}
+	s, ok := t.servers.Get(msg.Source)
+	if !ok {
+		return
+	}
 
-		// If the server received it and we are
-		// in the destionation buffer we render it
-		if ok && t.Buffer() == msg.Buffer {
-			t.renderMsg(msg)
-			break
-		}
+	ok, err := s.Receive(msg)
+	// Error on a message we sent ourselves
+	if err != nil && msg.Sender == selfSender {
+		t.showError(err)
+		return
+	}
+
+	// If the server received it and we are
+	// in the destionation buffer we render it
+	if ok && t.Buffer() == msg.Buffer {
+		t.renderMsg(msg)
 	}
 }
 

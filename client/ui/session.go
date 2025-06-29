@@ -335,7 +335,7 @@ func (t *TUI) receiveMessages(ctx context.Context, s Server) {
 			Sender:    msg.Sender,
 			Content:   msg.Content,
 			Timestamp: msg.Timestamp,
-			Source:    s.Source(),
+			Source:    s.Name(),
 		})
 	}
 }
