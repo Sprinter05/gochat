@@ -32,6 +32,7 @@ jobs:
       run: make server
   publish:
     needs: [client, server]
+    runs-on: ubuntu-latest
     steps:
     - name: Publish server
       uses: actions/upload-artifact@v4
