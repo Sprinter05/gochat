@@ -46,6 +46,8 @@ const (
 	cmdTimeout      uint    = 15        // Max seconds to wait for a command to finish
 	msgDelay        uint    = 300       // Miliseconds between sending messages
 	rootBuffer      uint    = 0         // Number of the root buffer
+	textPage        string  = "Text"    // Name of the text page
+	helpPage        string  = "Help"    // Name of the help page
 )
 
 var (
@@ -86,8 +88,11 @@ type components struct {
 	buffers *tview.List // list of buffers
 	servers *tview.List // list of servers
 
+	pages *tview.Pages // switch between main window pages
+
 	notifs *tview.TextView // shows notifications
 	text   *tview.TextView // shows messages
+	help   *tview.TextView
 	errors *tview.TextView // shows TUI errors
 	input  *tview.TextArea // input area to type
 
@@ -114,17 +119,22 @@ func setupLayout() (areas, components) {
 	comps := components{
 		buffers: tview.NewList(),
 		servers: tview.NewList(),
+		pages:   tview.NewPages(),
 		notifs:  tview.NewTextView(),
 		text:    tview.NewTextView(),
+		help:    tview.NewTextView(),
 		errors:  tview.NewTextView(),
 		input:   tview.NewTextArea(),
 		users:   tview.NewTextView(),
 	}
 
+	comps.pages.AddPage(textPage, comps.text, true, false)
+	comps.pages.AddPage(helpPage, comps.help, true, false)
+
 	bottom := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(comps.notifs, 0, 0, false).
-		AddItem(comps.text, 0, textSize, false).
+		AddItem(comps.pages, 0, textSize, false).
 		AddItem(comps.errors, 0, 0, false).
 		AddItem(comps.input, inputSize, 0, true)
 	bottom.SetBackgroundColor(tcell.ColorDefault)
@@ -160,6 +170,15 @@ func setupStyle(t *TUI) {
 		SetBackgroundColor(tcell.ColorDefault).
 		SetBorder(true).
 		SetTitle("Messages")
+
+	t.comp.help.
+		SetDynamicColors(true).
+		SetWrap(true).
+		SetWordWrap(true).
+		SetScrollable(true).
+		SetBackgroundColor(tcell.ColorDefault).
+		SetBorder(true).
+		SetTitle("Help")
 
 	t.comp.buffers.
 		SetMainTextStyle(tcell.StyleDefault.
@@ -459,11 +478,7 @@ func setupKeybinds(t *TUI) {
 		case tcell.KeyCtrlL: // Show help
 			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
 				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
-				t.app.SetFocus(t.comp.text)
 				t.toggleHelp()
-				if !t.status.showingHelp {
-					t.app.SetFocus(t.comp.input)
-				}
 			}
 		case tcell.KeyCtrlG: // Quick switcher
 			if !t.status.blockCond() {
@@ -552,6 +567,9 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 		SetFocus(t.area.main)
 	t.app = app
 
+	// Render text view
+	comps.pages.SwitchToPage(textPage)
+
 	// Render layouts
 	renderBuflist(t)
 	renderUserlist(t)
@@ -573,6 +591,12 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	t.addBuffer(systemBuffer, true)
 	l := t.servers.Len()
 	t.comp.servers.AddItem(localServer, "System Server", ascii(l), nil)
+
+	// Render help text
+	fmt.Fprint(t.comp.help, KeybindHelp[1:])
+	fmt.Fprint(t.comp.help, "\n")
+	fmt.Fprint(t.comp.help, CommandHelp[1:])
+	t.comp.help.ScrollToBeginning()
 
 	// Welcome messages
 	info := t.systemMessage()

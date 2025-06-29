@@ -16,7 +16,6 @@ const KeybindHelp string = `
 [-::u]Keybinds Manual:[-::-]
 
 [yellow::b]Ctrl-Alt-L/Ctrl-Shift-L[-::-]: Show/Hide help window
-	- Keybinds for the [-::b]chat window[-::-] also apply in here
 
 [yellow::b]Ctrl-Q[-::-]: Exit program
 
@@ -399,20 +398,14 @@ func (t *TUI) renderMsg(msg Message) {
 func (t *TUI) toggleHelp() {
 	if !t.status.showingHelp {
 		t.status.showingHelp = true
-		t.comp.text.Clear()
 		t.area.bottom.ResizeItem(t.comp.input, 0, 0)
-		t.comp.text.SetTitle("Help")
-
-		fmt.Fprint(t.comp.text, KeybindHelp[1:])
-		fmt.Fprint(t.comp.text, "\n")
-		fmt.Fprint(t.comp.text, CommandHelp[1:])
-
-		t.comp.text.ScrollToBeginning()
+		t.comp.pages.SwitchToPage(helpPage)
+		t.app.SetFocus(t.comp.help)
 	} else {
 		t.status.showingHelp = false
 		t.area.bottom.ResizeItem(t.comp.input, inputSize, 0)
-		t.comp.text.SetTitle("Messages")
-		t.renderBuffer(t.Active().Buffers().current)
+		t.comp.pages.SwitchToPage(textPage)
+		t.app.SetFocus(t.comp.input)
 	}
 }
 
