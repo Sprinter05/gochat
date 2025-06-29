@@ -131,9 +131,6 @@ const CommandHelp string = `
 	- [cyan]"local server"[-] will display all local accounts for that server
 	- For the [cyan]"remote"[-] options you can optionally pass "-perms" to show permission levels
 	
-[yellow::b]/request[-::-]: Attempts to manually obtain user data on the current buffer
-	- This process is already done automatically if connected and logged in
-
 [yellow::b]/subscribe[-::-] [green]<hook>[-]: Subscribes to a specific event in the server
 	- [cyan]"new_login"[-] will update the userlist whenever a new user logs in
 	- [cyan]"new_logout"[-] will update the userlist whenever a user logs out

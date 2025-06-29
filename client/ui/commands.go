@@ -112,11 +112,6 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  2,
 		format: "/users <remote/local> <all/online/server> (-perms)",
 	},
-	"request": {
-		fun:    userRequest,
-		nArgs:  0,
-		format: "/request",
-	},
 	"subscribe": {
 		fun:    subEvent,
 		nArgs:  1,
@@ -726,27 +721,6 @@ func listUsers(t *TUI, cmd Command) error {
 
 	l := list.Len()
 	cmd.print(list.String()[:l-1], cmds.RESULT)
-
-	return nil
-}
-
-func userRequest(t *TUI, cmd Command) error {
-	buf := cmd.serv.Buffers().current
-	data, _ := cmd.serv.Online()
-	tab, exists := cmd.serv.Buffers().tabs.Get(buf)
-
-	if data == nil {
-		return ErrorLocalServer
-	}
-
-	if exists && tab.system {
-		return ErrorSystemBuf
-	}
-
-	err := t.requestUser(cmd.serv, buf, cmd.print)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
