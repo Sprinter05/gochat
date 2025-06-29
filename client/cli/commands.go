@@ -113,6 +113,10 @@ var shCommands = map[string]ShellCommand{
 			"Usage: REGSERVER <name> <address> <port> [-tls]",
 	},
 
+	"DELSERVER": {deleteServer,
+		"- DELSERVER: Deletes a server from the client database.\n" +
+			"Usage: DELSERVER <name>"},
+
 	"SERVERS": {servers,
 		"- SERVERS: Prints the registered servers of the client database.\n" +
 			"Usage: SERVERS"},
@@ -126,10 +130,16 @@ var shCommands = map[string]ShellCommand{
 			"Usage: PERMS <username>"},
 
 	"SERVERCONFIG": {getConfigObjs,
-		"- SERVERCONFIG: Prints out the available config objets"},
+		"- SERVERCONFIG: Prints out the available config objets\n" +
+			"Usage: SERVERCONFIG <name>"},
 
 	"SETSERVER": {setConfig,
-		"- SETSERVER: Changes the value of a config object"},
+		"- SETSERVER: Changes the value of a config object\n" +
+			"Usage: SETSERVER <name> <target> <value>"},
+
+	"RECOVER": {recoverUser,
+		"- RECOVER: Exports the conversations with a user\n" +
+			"Usage: RECOVER <user> [-cleanup]"},
 }
 
 // Sets up the CONN call depending on how the user specified the server.
@@ -569,6 +579,9 @@ func registerServer(ctx context.Context, cmd commands.Command, args ...[]byte) e
 	return nil
 }
 
+// Prints the client local servers
+//
+// Arguments: none
 func servers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	servers, dbErr := db.GetAllServers(cmd.Static.DB)
 	if dbErr != nil {
@@ -584,6 +597,9 @@ func servers(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	return nil
 }
 
+// REQs a user to get its permission level
+//
+// Arguments: <username>
 func getUserPerms(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
@@ -599,6 +615,9 @@ func getUserPerms(ctx context.Context, cmd commands.Command, args ...[]byte) err
 	return nil
 }
 
+// Prints command documentation.
+//
+// Arguments: [command name]
 func help(cmd commands.Command, args ...[]byte) error {
 	if len(args) == 0 {
 		fmt.Println("To exit the shell type EXIT")
@@ -617,6 +636,9 @@ func help(cmd commands.Command, args ...[]byte) error {
 	return nil
 }
 
+// Calls ADMIN to send to the server an admin command.
+//
+// Arguments: <operation>
 func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
@@ -628,6 +650,9 @@ func sendAdminCommand(ctx context.Context, cmd commands.Command, args ...[]byte)
 	return adminErr
 }
 
+// Gets the configuration object of the specified server.
+//
+// Arguments: <name>
 func getConfigObjs(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 1 {
 		return commands.ErrorInsuficientArgs
@@ -648,6 +673,9 @@ func getConfigObjs(ctx context.Context, cmd commands.Command, args ...[]byte) er
 	return nil
 }
 
+// Calls SET to change the value of a server configuration target.
+//
+// Arguments: <name> <target> <value>
 func setConfig(ctx context.Context, cmd commands.Command, args ...[]byte) error {
 	if len(args) < 3 {
 		return commands.ErrorInsuficientArgs
@@ -668,7 +696,53 @@ func setConfig(ctx context.Context, cmd commands.Command, args ...[]byte) error 
 	return setErr
 }
 
-// AUX:
+// Calls RECOVER  to obtain a file with the recovered conversation.
+//
+// Arguments: <user> [-cleanup]
+func recoverUser(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	cleanup := false
+	if len(args) == 2 && string(args[1]) == "-cleanup" {
+		cleanup = true
+	}
+
+	username := string(args[0])
+
+	// Gets the password
+	cmd.Output(fmt.Sprintf("%s's password: ", username), commands.PROMPT)
+	pass, pass1Err := term.ReadPassword(int(os.Stdin.Fd()))
+	if pass1Err != nil {
+		cmd.Output("", commands.PROMPT)
+		return pass1Err
+	}
+	cmd.Output("\n", commands.PROMPT)
+
+	recoverErr := commands.RECOVER(cmd, username, string(pass), cleanup)
+	return recoverErr
+}
+
+// Deletes a server from the local database.
+//
+// Arguments: <server name>
+func deleteServer(ctx context.Context, cmd commands.Command, args ...[]byte) error {
+	if len(args) < 1 {
+		return commands.ErrorInsuficientArgs
+	}
+
+	name := string(args[0])
+	dbErr := db.RemoveServerByName(cmd.Static.DB, name)
+	if dbErr != nil {
+		return dbErr
+	}
+
+	fmt.Printf("server %s deleted successfully\n", name)
+	return nil
+}
+
+// AUX: Returns a server configuration object
 func getServerConfigObj(cmd commands.Command, name string) (commands.ConfigObj, error) {
 	sv, svErr := db.GetServerByName(cmd.Static.DB, name)
 	if svErr != nil {
