@@ -14,25 +14,55 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+/* TYPES */
+
+// Defines a command to be ran in the TUI
 type Command struct {
-	Operation string
-	Arguments []string
+	Operation string   // Name of the command
+	Arguments []string // List of arguments
 
-	serv  Server
-	print cmds.OutputFunc
+	serv  Server          // Target server of the commnd
+	print cmds.OutputFunc // Printing function
 }
 
+// Struct to define operations in the shell
 type operation struct {
-	fun    func(*TUI, Command)
-	nArgs  uint
-	format string
+	fun    func(*TUI, Command) // Function to be ran
+	nArgs  uint                // Number of arguments needed
+	format string              // Format of the command
 }
 
+// List of commands that can be ran
 var commands map[string]operation = map[string]operation{
+	"version": {
+		fun:    showVersion,
+		nArgs:  0,
+		format: "/version",
+	},
+	"servers": {
+		fun:    listServers,
+		nArgs:  0,
+		format: "/servers",
+	},
 	"buffers": {
 		fun:    listBuffers,
 		nArgs:  0,
 		format: "/buffers",
+	},
+	"clear": {
+		fun:    clearSystem,
+		nArgs:  0,
+		format: "/clear",
+	},
+	"config": {
+		fun:    showConfig,
+		nArgs:  0,
+		format: "/config",
+	},
+	"set": {
+		fun:    setConfig,
+		nArgs:  2,
+		format: "/set <option> <value>",
 	},
 	"connect": {
 		fun:    connectServer,
@@ -44,10 +74,20 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  1,
 		format: "/register <username>",
 	},
-	"users": {
-		fun:    listUsers,
+	"deregister": {
+		fun:    deregisterUser,
+		nArgs:  1,
+		format: "/deregister <user>",
+	},
+	"import": {
+		fun:    importKey,
 		nArgs:  2,
-		format: "/users <remote/local> <all/online/server> (-perms)",
+		format: "/import <username> <path>",
+	},
+	"export": {
+		fun:    exportKey,
+		nArgs:  1,
+		format: "/export <username>",
 	},
 	"login": {
 		fun:    loginUser,
@@ -64,30 +104,15 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  0,
 		format: "/disconnect",
 	},
-	"version": {
-		fun:    showVersion,
-		nArgs:  0,
-		format: "/version",
+	"users": {
+		fun:    listUsers,
+		nArgs:  2,
+		format: "/users <remote/local> <all/online/server> (-perms)",
 	},
 	"request": {
 		fun:    userRequest,
 		nArgs:  0,
 		format: "/request",
-	},
-	"clear": {
-		fun:    clearSystem,
-		nArgs:  0,
-		format: "/clear",
-	},
-	"import": {
-		fun:    importKey,
-		nArgs:  2,
-		format: "/import <username> <path>",
-	},
-	"export": {
-		fun:    exportKey,
-		nArgs:  1,
-		format: "/export <username>",
 	},
 	"subscribe": {
 		fun:    subEvent,
@@ -99,38 +124,19 @@ var commands map[string]operation = map[string]operation{
 		nArgs:  1,
 		format: "/unsubscribe <hook>",
 	},
-	"deregister": {
-		fun:    deregisterUser,
-		nArgs:  1,
-		format: "/deregister <user>",
-	},
 	"admin": {
 		fun:    adminOperation,
 		nArgs:  1,
 		format: "/admin <operation> <arg_1> <arg_2> ... <arg_n>",
-	},
-	"servers": {
-		fun:    listServers,
-		nArgs:  0,
-		format: "/servers",
 	},
 	"recover": {
 		fun:    recoverData,
 		nArgs:  1,
 		format: "/recover <username> (-cleanup)",
 	},
-	"config": {
-		fun:    showConfig,
-		nArgs:  0,
-		format: "/config",
-	},
-	"set": {
-		fun:    setConfig,
-		nArgs:  2,
-		format: "/set <option> <value>",
-	},
 }
 
+// Parses a shell command to be ran
 func (t *TUI) parseCommand(text string) {
 	parts := strings.Split(text, " ")
 
@@ -154,6 +160,7 @@ func (t *TUI) parseCommand(text string) {
 		return
 	}
 
+	// If we didnt give enough arguments we print the format
 	if len(cmd.Arguments) < int(op.nArgs) {
 		var builder strings.Builder
 		parts := strings.Split(op.format, " ")
@@ -167,11 +174,13 @@ func (t *TUI) parseCommand(text string) {
 		return
 	}
 
+	// Run concurrently
 	go op.fun(t, cmd)
 }
 
-// AUX
+/* AUXILIARY */
 
+// Creates the structs necessary to use in commands
 func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, []string) {
 	return cmds.Command{
 		Data:   d,
@@ -180,13 +189,15 @@ func (c Command) createCmd(t *TUI, d *cmds.Data) (cmds.Command, []string) {
 	}, c.Arguments
 }
 
+// Asks for a new password by asking for the password
+// and repeating it
 func askForNewPassword(t *TUI) (string, error) {
-	pswd, err := newLoginPopup(t, "Enter a password...")
+	pswd, err := newPasswordPopup(t, "Enter a password...")
 	if err != nil {
 		return "", err
 	}
 
-	check, err := newLoginPopup(t, "Repeat your password...")
+	check, err := newPasswordPopup(t, "Repeat your password...")
 	if err != nil {
 		return "", err
 	}
@@ -198,6 +209,7 @@ func askForNewPassword(t *TUI) (string, error) {
 	return pswd, nil
 }
 
+// Returns the list of structs to be shown in the configuration
 func configList(t *TUI, s Server) []cmds.ConfigObj {
 	data, _ := s.Online()
 	list := make([]cmds.ConfigObj, 0)
@@ -231,20 +243,94 @@ func configList(t *TUI, s Server) []cmds.ConfigObj {
 	return list
 }
 
-// COMMANDS
+/* COMMANDS */
 
-func setConfig(t *TUI, cmd Command) {
-	data, _ := cmd.serv.Online()
-	c, args := cmd.createCmd(t, data)
+func showVersion(t *TUI, cmd Command) {
+	str := fmt.Sprintf(
+		"\n* Client TUI version: [orange::i]v%.1f[-::-]\n* Protocol version: [orange::i]v%d[-::-]",
+		tuiVersion,
+		spec.ProtocolVersion,
+	)
+	cmd.print(str, cmds.RESULT)
+}
 
-	extra := args[1:]
-	extended := strings.Join(extra, " ")
-
-	objs := configList(t, cmd.serv)
-	err := cmds.SET(c, args[0], extended, objs...)
+func listServers(t *TUI, cmd Command) {
+	var list strings.Builder
+	servs, err := db.GetAllServers(t.data.DB)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
-		return
+	}
+
+	for _, v := range servs {
+		hidden := ""
+		_, ok := t.servers.Get(v.Name)
+		if !ok {
+			hidden = " - [gray::i]Hidden[-::-]"
+		}
+
+		addr := Source{
+			Address: v.Address,
+			Port:    v.Port,
+		}
+
+		str := fmt.Sprintf(
+			"\n- [yellow::b]%s[-::-] ([red]%s[-])%s",
+			v.Name, addr.String(), hidden,
+		)
+
+		list.WriteString(str)
+	}
+
+	content := list.String()
+	cmd.print(content, cmds.RESULT)
+}
+
+func listBuffers(t *TUI, cmd Command) {
+	var list strings.Builder
+	bufs := cmd.serv.Buffers()
+	l := bufs.tabs.GetAll()
+
+	list.WriteString("showing active server buffers: ")
+	for i, v := range l {
+		hidden := ""
+		if v.index == -1 {
+			hidden = " - [gray::i]Hidden[-::-]"
+		}
+
+		str := fmt.Sprintf(
+			"\n[green]%d:[-::-] %s%s",
+			i+1, v.name, hidden,
+		)
+
+		list.WriteString(str)
+	}
+
+	content := list.String()
+	cmd.print(content, cmds.RESULT)
+}
+
+func clearSystem(t *TUI, cmd Command) {
+	buf := cmd.serv.Buffers().current
+	tab, ok := cmd.serv.Buffers().tabs.Get(buf)
+	if !ok {
+		panic("missing current buffer")
+	}
+
+	count := 0
+	msgs := tab.messages.Copy(0)
+	for _, v := range msgs {
+		if v.Sender == "System" {
+			tab.messages.Remove(v)
+			count += 1
+		}
+	}
+
+	if count > 0 {
+		t.renderBuffer(buf)
+		cmd.print(fmt.Sprintf(
+			"cleared %d system messages!",
+			count,
+		), cmds.RESULT)
 	}
 }
 
@@ -272,54 +358,109 @@ func showConfig(t *TUI, cmd Command) {
 	cmd.print(str.String(), cmds.RESULT)
 }
 
-func recoverData(t *TUI, cmd Command) {
-	uname := cmd.Arguments[0]
-	pswd, err := newLoginPopup(t, "Please enter the account's password...")
+func setConfig(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	c, args := cmd.createCmd(t, data)
+
+	extra := args[1:]
+	extended := strings.Join(extra, " ")
+
+	objs := configList(t, cmd.serv)
+	err := cmds.SET(c, args[0], extended, objs...)
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
-
-	cleanup := false
-	if slices.Contains(cmd.Arguments[1:], "-cleanup") {
-		cleanup = true
-	}
-
-	err = cmds.RECOVER(cmds.Command{
-		Static: &t.data,
-		Output: cmd.print,
-	}, uname, pswd, cleanup)
-
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-
-	cmd.print("data succesfully recovered!", cmds.RESULT)
 }
 
-func adminOperation(t *TUI, cmd Command) {
-	data, _ := cmd.serv.Online()
-	if data == nil {
+func connectServer(t *TUI, cmd Command) {
+	addr := cmd.serv.Source()
+	if addr == nil {
 		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	data, ok := cmd.serv.Online()
+	if ok {
+		cmd.print(ErrorAlreadyOnline.Error(), cmds.ERROR)
 		return
 	}
 
 	c, args := cmd.createCmd(t, data)
 
-	ctx, cancel := timeout(cmd.serv, c.Data)
-	defer c.Data.Waitlist.Cancel(cancel)
-
-	extra := make([][]byte, 0, len(args)-1)
-	list := args[1:]
-	for _, v := range list {
-		extra = append(extra, []byte(v))
+	var noVerify bool
+	if slices.Contains(args, "-noverify") {
+		noVerify = true
+	} else {
+		noVerify = false
 	}
 
-	err := cmds.ADMIN(ctx, c, args[0], extra...)
+	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
+	err := cmds.CONN(c, *c.Data.Server, noVerify)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	cmd.serv.Context().Create(context.Background())
+	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
+
+	c.Output = t.systemMessage("", defaultBuffer)
+	go cmds.ListenPackets(c, func() {
+		cmd.serv.Buffers().Offline()
+		c.Data.Waitlist.Cancel(data.Logout)
+		c.Data.Waitlist.Cancel(cmd.serv.Context().Cancel)
+
+		t.comp.input.SetLabel(defaultLabel)
+		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
+
+		cleanupSession(t, cmd.serv)
+		cmd.serv.Notifications().Clear()
+
+		discn := t.systemMessage()
+		discn("You are no longer connected to this server!", cmds.INFO)
+	})
+
+	if slices.Contains(args, "-noidle") {
+		if t.data.Verbose {
+			cmd.print("running hook to prevent idle disconnection", cmds.RESULT)
+		}
+
+		go cmds.PreventIdle(
+			cmd.serv.Context().Get(),
+			c.Data,
+			time.Duration(spec.ReadTimeout-1)*time.Minute,
+		)
+	}
+}
+
+func registerUser(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
+		return
+	}
+
+	pswd, err := askForNewPassword(t)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv, c.Data)
+	defer c.Data.Waitlist.Cancel(cancel)
+	err = cmds.REG(ctx, c, args[0], pswd)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
 	}
 }
 
@@ -335,7 +476,7 @@ func deregisterUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := newLoginPopup(t, "Enter the account's password...")
+	pswd, err := newPasswordPopup(t, "Enter the account's password...")
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
@@ -345,74 +486,6 @@ func deregisterUser(t *TUI, cmd Command) {
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
 	err = cmds.DEREG(ctx, c, args[0], pswd)
-
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-}
-
-func unsubEvent(t *TUI, cmd Command) {
-	data, ok := cmd.serv.Online()
-	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
-	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
-		return
-	}
-
-	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv, c.Data)
-	defer c.Data.Waitlist.Cancel(cancel)
-	err := cmds.UNSUB(ctx, c, args[0])
-
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-}
-
-func subEvent(t *TUI, cmd Command) {
-	data, ok := cmd.serv.Online()
-	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
-	if !ok {
-		cmd.print(ErrorOffline.Error(), cmds.ERROR)
-		return
-	}
-
-	c, args := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv, c.Data)
-	defer c.Data.Waitlist.Cancel(cancel)
-	err := cmds.SUB(ctx, c, args[0])
-
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-}
-
-func exportKey(t *TUI, cmd Command) {
-	data, _ := cmd.serv.Online()
-	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
-	pswd, err := newLoginPopup(t, "Enter the account's password...")
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-		return
-	}
-
-	c, args := cmd.createCmd(t, data)
-	err = cmds.EXPORT(c, args[0], pswd)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -442,99 +515,26 @@ func importKey(t *TUI, cmd Command) {
 	}
 }
 
-func clearSystem(t *TUI, cmd Command) {
-	buf := cmd.serv.Buffers().current
-	tab, ok := cmd.serv.Buffers().tabs.Get(buf)
-	if !ok {
-		panic("missing current buffer")
-	}
-
-	count := 0
-	msgs := tab.messages.Copy(0)
-	for _, v := range msgs {
-		if v.Sender == "System" {
-			tab.messages.Remove(v)
-			count += 1
-		}
-	}
-
-	if count > 0 {
-		t.renderBuffer(buf)
-		cmd.print(fmt.Sprintf(
-			"cleared %d system messages!",
-			count,
-		), cmds.RESULT)
-	}
-}
-
-func userRequest(t *TUI, cmd Command) {
-	buf := cmd.serv.Buffers().current
-	data, _ := cmd.serv.Online()
-	tab, exists := cmd.serv.Buffers().tabs.Get(buf)
-
-	if data == nil {
-		cmd.print("cannot request on a local server!", cmds.ERROR)
-		return
-	}
-
-	if exists && tab.system {
-		cmd.print("cannot request on a system buffer!", cmds.ERROR)
-		return
-	}
-
-	err := t.requestUser(cmd.serv, buf, cmd.print)
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-	}
-}
-
-func showVersion(t *TUI, cmd Command) {
-	str := fmt.Sprintf(
-		"\n* Client TUI version: [orange::i]v%.1f[-::-]\n* Protocol version: [orange::i]v%d[-::-]",
-		tuiVersion,
-		spec.ProtocolVersion,
-	)
-	cmd.print(str, cmds.RESULT)
-}
-
-func disconnectServer(t *TUI, cmd Command) {
+func exportKey(t *TUI, cmd Command) {
 	data, _ := cmd.serv.Online()
 	if data == nil {
 		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
 		return
 	}
 
-	c, _ := cmd.createCmd(t, data)
-	err := cmds.DISCN(c)
-
+	pswd, err := newPasswordPopup(t, "Enter the account's password...")
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
-	t.comp.input.SetLabel(defaultLabel)
-	t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
-}
-
-func logoutUser(t *TUI, cmd Command) {
-	data, _ := cmd.serv.Online()
-	if data == nil {
-		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
-	c, _ := cmd.createCmd(t, data)
-	ctx, cancel := timeout(cmd.serv, c.Data)
-	defer c.Data.Waitlist.Cancel(cancel)
-	err := cmds.LOGOUT(ctx, c)
+	c, args := cmd.createCmd(t, data)
+	err = cmds.EXPORT(c, args[0], pswd)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
-
-	t.comp.input.SetLabel(defaultLabel)
-	cleanupSession(t, cmd.serv)
 }
 
 func loginUser(t *TUI, cmd Command) {
@@ -554,7 +554,7 @@ func loginUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := newLoginPopup(t, "Enter the account's password...")
+	pswd, err := newPasswordPopup(t, "Enter the account's password...")
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
@@ -604,6 +604,46 @@ func loginUser(t *TUI, cmd Command) {
 	}
 
 	defaultSubscribe(t, cmd.serv, output)
+}
+
+func logoutUser(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	c, _ := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv, c.Data)
+	defer c.Data.Waitlist.Cancel(cancel)
+	err := cmds.LOGOUT(ctx, c)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	t.comp.input.SetLabel(defaultLabel)
+	cleanupSession(t, cmd.serv)
+}
+
+func disconnectServer(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	c, _ := cmd.createCmd(t, data)
+	err := cmds.DISCN(c)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	t.comp.input.SetLabel(defaultLabel)
+	t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
 }
 
 func listUsers(t *TUI, cmd Command) {
@@ -692,7 +732,28 @@ func listUsers(t *TUI, cmd Command) {
 	cmd.print(list.String()[:l-1], cmds.RESULT)
 }
 
-func registerUser(t *TUI, cmd Command) {
+func userRequest(t *TUI, cmd Command) {
+	buf := cmd.serv.Buffers().current
+	data, _ := cmd.serv.Online()
+	tab, exists := cmd.serv.Buffers().tabs.Get(buf)
+
+	if data == nil {
+		cmd.print("cannot request on a local server!", cmds.ERROR)
+		return
+	}
+
+	if exists && tab.system {
+		cmd.print("cannot request on a system buffer!", cmds.ERROR)
+		return
+	}
+
+	err := t.requestUser(cmd.serv, buf, cmd.print)
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+	}
+}
+
+func subEvent(t *TUI, cmd Command) {
 	data, ok := cmd.serv.Online()
 	if data == nil {
 		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
@@ -704,16 +765,33 @@ func registerUser(t *TUI, cmd Command) {
 		return
 	}
 
-	pswd, err := askForNewPassword(t)
+	c, args := cmd.createCmd(t, data)
+	ctx, cancel := timeout(cmd.serv, c.Data)
+	defer c.Data.Waitlist.Cancel(cancel)
+	err := cmds.SUB(ctx, c, args[0])
+
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+}
+
+func unsubEvent(t *TUI, cmd Command) {
+	data, ok := cmd.serv.Online()
+	if data == nil {
+		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
+		return
+	}
+
+	if !ok {
+		cmd.print(ErrorOffline.Error(), cmds.ERROR)
 		return
 	}
 
 	c, args := cmd.createCmd(t, data)
 	ctx, cancel := timeout(cmd.serv, c.Data)
 	defer c.Data.Waitlist.Cancel(cancel)
-	err = cmds.REG(ctx, c, args[0], pswd)
+	err := cmds.UNSUB(ctx, c, args[0])
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
@@ -721,119 +799,53 @@ func registerUser(t *TUI, cmd Command) {
 	}
 }
 
-func connectServer(t *TUI, cmd Command) {
-	addr := cmd.serv.Source()
-	if addr == nil {
+func adminOperation(t *TUI, cmd Command) {
+	data, _ := cmd.serv.Online()
+	if data == nil {
 		cmd.print(ErrorLocalServer.Error(), cmds.ERROR)
-		return
-	}
-
-	data, ok := cmd.serv.Online()
-	if ok {
-		cmd.print(ErrorAlreadyOnline.Error(), cmds.ERROR)
 		return
 	}
 
 	c, args := cmd.createCmd(t, data)
 
-	var noVerify bool
-	if slices.Contains(args, "-noverify") {
-		noVerify = true
-	} else {
-		noVerify = false
+	ctx, cancel := timeout(cmd.serv, c.Data)
+	defer c.Data.Waitlist.Cancel(cancel)
+
+	extra := make([][]byte, 0, len(args)-1)
+	list := args[1:]
+	for _, v := range list {
+		extra = append(extra, []byte(v))
 	}
 
-	cmd.print("attempting to connect...", cmds.INTERMEDIATE)
-	err := cmds.CONN(c, *c.Data.Server, noVerify)
+	err := cmds.ADMIN(ctx, c, args[0], extra...)
+
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+	}
+}
+
+func recoverData(t *TUI, cmd Command) {
+	uname := cmd.Arguments[0]
+	pswd, err := newPasswordPopup(t, "Please enter the account's password...")
+	if err != nil {
+		cmd.print(err.Error(), cmds.ERROR)
+		return
+	}
+
+	cleanup := false
+	if slices.Contains(cmd.Arguments[1:], "-cleanup") {
+		cleanup = true
+	}
+
+	err = cmds.RECOVER(cmds.Command{
+		Static: &t.data,
+		Output: cmd.print,
+	}, uname, pswd, cleanup)
 
 	if err != nil {
 		cmd.print(err.Error(), cmds.ERROR)
 		return
 	}
 
-	cmd.serv.Context().Create(context.Background())
-	t.comp.servers.SetSelectedTextColor(tcell.ColorGreen)
-
-	c.Output = t.systemMessage("", defaultBuffer)
-	go cmds.ListenPackets(c, func() {
-		cmd.serv.Buffers().Offline()
-		c.Data.Waitlist.Cancel(data.Logout)
-		c.Data.Waitlist.Cancel(cmd.serv.Context().Cancel)
-
-		t.comp.input.SetLabel(defaultLabel)
-		t.comp.servers.SetSelectedTextColor(tcell.ColorPurple)
-
-		cleanupSession(t, cmd.serv)
-		cmd.serv.Notifications().Clear()
-
-		discn := t.systemMessage()
-		discn("You are no longer connected to this server!", cmds.INFO)
-	})
-
-	if slices.Contains(args, "-noidle") {
-		if t.data.Verbose {
-			cmd.print("running hook to prevent idle disconnection", cmds.RESULT)
-		}
-
-		go cmds.PreventIdle(
-			cmd.serv.Context().Get(),
-			c.Data,
-			time.Duration(spec.ReadTimeout-1)*time.Minute,
-		)
-	}
-}
-
-func listBuffers(t *TUI, cmd Command) {
-	var list strings.Builder
-	bufs := cmd.serv.Buffers()
-	l := bufs.tabs.GetAll()
-
-	list.WriteString("showing active server buffers: ")
-	for i, v := range l {
-		hidden := ""
-		if v.index == -1 {
-			hidden = " - [gray::i]Hidden[-::-]"
-		}
-
-		str := fmt.Sprintf(
-			"\n[green]%d:[-::-] %s%s",
-			i+1, v.name, hidden,
-		)
-
-		list.WriteString(str)
-	}
-
-	content := list.String()
-	cmd.print(content, cmds.RESULT)
-}
-
-func listServers(t *TUI, cmd Command) {
-	var list strings.Builder
-	servs, err := db.GetAllServers(t.data.DB)
-	if err != nil {
-		cmd.print(err.Error(), cmds.ERROR)
-	}
-
-	for _, v := range servs {
-		hidden := ""
-		_, ok := t.servers.Get(v.Name)
-		if !ok {
-			hidden = " - [gray::i]Hidden[-::-]"
-		}
-
-		addr := Source{
-			Address: v.Address,
-			Port:    v.Port,
-		}
-
-		str := fmt.Sprintf(
-			"\n- [yellow::b]%s[-::-] ([red]%s[-])%s",
-			v.Name, addr.String(), hidden,
-		)
-
-		list.WriteString(str)
-	}
-
-	content := list.String()
-	cmd.print(content, cmds.RESULT)
+	cmd.print("data succesfully recovered!", cmds.RESULT)
 }

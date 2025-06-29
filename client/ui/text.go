@@ -89,8 +89,6 @@ const CommandHelp string = `
 	- The option name is case sensitive
 	- The option name must follow the same format as the configuration shows
 	
-[yellow::b]/tls[-::-] [green]<on/off>[-]: Enables or disables TLS connections
-
 [yellow::b]/connect[-::-] [blue](-noverify)[-] [blue](-noidle)[-]: Connects to the currently active server using its address
 	- This will fail if the server is local
 	- If the connection is TLS and "-noverify" is used, certificates will not be checked
