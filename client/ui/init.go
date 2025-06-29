@@ -26,7 +26,7 @@ const Logo string = `
 `
 
 const (
-	tuiVersion      float32 = 0.3       // Current client TUI version
+	tuiVersion      float32 = 0.4       // Current client TUI version
 	selfSender      string  = "You"     // Self sender of a message
 	systemBuffer    string  = "System"  // System buffer name
 	debugBuffer     string  = "Debug"   // Buffer where packets will be shown

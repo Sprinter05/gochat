@@ -20,6 +20,9 @@ import (
 	"github.com/Sprinter05/gochat/server/hubs"
 )
 
+// Server version
+const serverVersion float32 = 1.1
+
 /* CONFIG */
 
 // Config struct.
@@ -123,7 +126,13 @@ func setupLog(config Config) (file *os.File) {
 		lv = "FATAL"
 	}
 	now := time.Now()
-	fmt.Printf("-> Logging at %s with log level %s\n", now.Format(time.RFC822), lv)
+	fmt.Printf(
+		"-> Logging at %s with log level %s on server version %f and protocol version %d\n",
+		now.Format(time.RFC822),
+		lv,
+		serverVersion,
+		spec.ProtocolVersion,
+	)
 
 	return file
 }
