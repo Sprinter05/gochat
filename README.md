@@ -20,7 +20,7 @@ You can download the executables for both the **Client** and **Server** for both
 ### Client stack
 The client's local database is a [SQLite](https://www.sqlite.org/) database handled by [GORM](https://gorm.io/index.html). The client **TUI** is made possible thanks to [tview](https://github.com/rivo/tview).
 ### Server stack
-The server database runs under [MariaDB](https://mariadb.org/), also handled by with [GORM](https://gorm.io/index.html).
+The server database runs under [MariaDB](https://mariadb.org/), also handled by [GORM](https://gorm.io/index.html).
 
 ## Packages
 gochat is made up of the following packets:
