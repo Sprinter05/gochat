@@ -13,134 +13,134 @@ import (
 /* TEXT */
 
 const KeybindHelp string = `
-[-::u]Keybinds Manual:[-::-]
+[-::d]Keybinds Manual:[-:-:-:-]
 
-[yellow::b]Ctrl-Alt-L/Ctrl-Shift-L[-::-]: Show/Hide help window
+[yellow::b]Ctrl-J[-:-:-:-]: Show/Hide help window
 
-[yellow::b]Ctrl-Q[-::-]: Exit program
+[yellow::b]Ctrl-Q[-:-:-:-]: Exit program
 
-[yellow::b]Ctrl-T[-::-]: Focus chat/input window
-	- In the [-::b]chat window[-::-] use [green]Up/Down[-::-] to move
-	- In the [-::b]chat window[-::-] use [green]ESC[-::-] to scroll down to the end
-	- In the [-::b]chat window[-::-] use [green]Shift-ESC/Alt-ESC[-::-] to scroll up to the beggining
-	- In the [-::b]input window[-::-] use [green]ESC[-::-] to clear the text
-	- In the [-::b]input window[-::-] use [green]Alt-Enter/Shift-Enter[-::-] to add a newline
-	- In the [-::b]input window[-::-] use [green]Up[-::-] to browse through the history of commands ran.
+[yellow::b]Ctrl-T[-:-:-:-]: Focus chat/input window
+	- In the [-::b]chat window[-:-:-:-] use [green]Up/Down[-:-:-:-] to move
+	- In the [-::b]chat window[-:-:-:-] use [green]ESC[-:-:-:-] to scroll down to the end
+	- In the [-::b]chat window[-:-:-:-] use [green]Shift-ESC/Alt-ESC[-:-:-:-] to scroll up to the beggining
+	- In the [-::b]input window[-:-:-:-] use [green]ESC[-:-:-:-] to clear the text
+	- In the [-::b]input window[-:-:-:-] use [green]Alt-Enter/Shift-Enter[-:-:-:-] to add a newline
+	- In the [-::b]input window[-:-:-:-] use [green]Up[-:-:-:-] to browse through the history of commands ran.
 
-[yellow::b]Ctrl-K + Ctrl-N[-::-]: Create a new buffer
-	- [green]ESC[-::-] to cancel
-	- [green]Enter[-::-] to confirm
+[yellow::b]Ctrl-K + Ctrl-N[-:-:-:-]: Create a new buffer
+	- [green]ESC[-:-:-:-] to cancel
+	- [green]Enter[-:-:-:-] to confirm
 
-[yellow::b]Ctrl-K + Ctrl-W/Ctrl-H[-::-]: Hide currently focused buffer
+[yellow::b]Ctrl-K + Ctrl-W/Ctrl-H[-:-:-:-]: Hide currently focused buffer
 	- It can be shown again by creating a buffer with the same name
 	
-[yellow::b]Ctrl-K + Ctrl-X[-::-]: Delete currently focused buffer
+[yellow::b]Ctrl-K + Ctrl-X[-:-:-:-]: Delete currently focused buffer
 
-[yellow::b]Ctrl-K[-::-] + [green::b]1-z[-::-]: Jump to specific buffer
-	- Press [green]ESC[-::-] to cancel the jump
+[yellow::b]Ctrl-K[-:-:-:-] + [green::b]1-z[-:-:-:-]: Jump to specific buffer
+	- Press [green]ESC[-:-:-:-] to cancel the jump
 
-[yellow::b]Ctrl-S + Ctrl-N[-::-]: Create a new server
-	- [green]ESC[-::-] to cancel
-	- [green]Enter[-::-] to confirm the different steps
+[yellow::b]Ctrl-S + Ctrl-N[-:-:-:-]: Create a new server
+	- [green]ESC[-:-:-:-] to cancel
+	- [green]Enter[-:-:-:-] to confirm the different steps
 	
-[yellow::b]Ctrl-S + Ctrl-W/Ctrl-H[-::-]: Hide currently focused server
+[yellow::b]Ctrl-S + Ctrl-W/Ctrl-H[-:-:-:-]: Hide currently focused server
 	- It can be shown again by typing its name when creating a new server
 
-[yellow::b]Ctrl-S + Ctrl-X[-::-]: Delete currently focused server
+[yellow::b]Ctrl-S + Ctrl-X[-:-:-:-]: Delete currently focused server
 	- This will permanantely delete all asocciated data to the server except users
 	- Users registered in the deleted server will become "dangling" as they are no longer asocciated to a server
 
-[yellow::b]Ctrl-S[-::-] + [green::b]1-9[-::-]: Jump to specific server
-	- Press [green]ESC[-::-] to cancel the jump
+[yellow::b]Ctrl-S[-:-:-:-] + [green::b]1-9[-:-:-:-]: Jump to specific server
+	- Press [green]ESC[-:-:-:-] to cancel the jump
 	
-[yellow::b]Ctrl-G[-::-]: Open the Quick Switcher
+[yellow::b]Ctrl-G[-:-:-:-]: Open the Quick Switcher
 	- This will allow you to jump to a desired buffer by typing its name
-	- It includes an autocomplete that you can fill using [green]Tab[-::-]
+	- It includes an autocomplete that you can fill using [green]Tab[-:-:-:-]
 	
-[yellow::b]Alt-Up/Down[-::-]: Go to next/previous buffer
+[yellow::b]Alt-Up/Down[-:-:-:-]: Go to next/previous buffer
 
-[yellow::b]Shift-Up/Down[-::-]: Go to next/previous server
+[yellow::b]Shift-Up/Down[-:-:-:-]: Go to next/previous server
 
-[yellow::b]Ctrl-B[-::-]: Show/Hide buffer list
+[yellow::b]Ctrl-B[-:-:-:-]: Show/Hide buffer list
 
-[yellow::b]Ctrl-U[-::-]: Show/Hide user list
+[yellow::b]Ctrl-U[-:-:-:-]: Show/Hide user list
 
-[yellow::b]Ctrl-R[-::-]: Redraw screen
+[yellow::b]Ctrl-R[-:-:-:-]: Redraw screen
 `
 
 const CommandHelp string = `
-[-::u]Commands Manual:[-::-]
+[-::d]Commands Manual:[-:-:-:-]
 
-[yellow::b]/version[-::-]: Displays the current version of the client and protocol
+[yellow::b]/version[-:-:-:-]: Displays the current version of the client and protocol
 
-[yellow::b]/servers[-::-]: Displays the list of all servers that are in the database
+[yellow::b]/servers[-:-:-:-]: Displays the list of all servers that are in the database
 
-[yellow::b]/buffers[-::-]: Displays a list of all buffers in the current server
+[yellow::b]/buffers[-:-:-:-]: Displays a list of all buffers in the current server
 	- Those that have been hidden will also be displayed
 	
-[yellow::b]/clear[-::-]: Clears all system messages in the current buffer
+[yellow::b]/clear[-:-:-:-]: Clears all system messages in the current buffer
 
-[yellow::b]/config[-::-]: Shows all current configuration options
+[yellow::b]/config[-:-:-:-]: Shows all current configuration options
 	- It will display both the name and value of the option
 	- It will only display those available in the current server
 
-[yellow::b]/set[-::-] [green]<option>[-] [green]<value>[-]: Updates a value in the configuration
+[yellow::b]/set[-:-:-:-] [green]<option>[-] [green]<value>[-]: Updates a value in the configuration
 	- The option name is case sensitive
 	- The option name must follow the same format as the configuration shows
 	
-[yellow::b]/connect[-::-] [blue](-noverify)[-] [blue](-noidle)[-]: Connects to the currently active server using its address
+[yellow::b]/connect[-:-:-:-] [blue](-noverify)[-] [blue](-noidle)[-]: Connects to the currently active server using its address
 	- This will fail if the server is local
 	- If the connection is TLS and "-noverify" is used, certificates will not be checked
 	- If "-noidle" is used, the client will try to avoid being disconnected for inactivity
 
-[yellow::b]/register[-::-] [green]<username>[-]: Creates a new account in the currently active server
+[yellow::b]/register[-:-:-:-] [green]<username>[-]: Creates a new account in the currently active server
 	- A popup asking for a password to register will show up when creating a new account
 	- No two accounts with the same name can exist in one single server
 	- You need an active connection to use this command
 	
-[yellow::b]/deregister[-::-] [green]<username>[-]: Deletes the specified account	
+[yellow::b]/deregister[-:-:-:-] [green]<username>[-]: Deletes the specified account	
 	- A popup asking for the password asocciated to the account will show up
 	- This will remove the account both in the remote server and local client
 
-[yellow::b]/import[-::-] [green]<username>[-] [green]<path>[-]: Registers a new user from an existing key
+[yellow::b]/import[-:-:-:-] [green]<username>[-] [green]<path>[-]: Registers a new user from an existing key
 	- The path provided must be related to the directory from which the program was ran
 	- The provided private key must be RSA 4096 bits in PEM PKCS1 format
 	- A popup asking for a password for the imported account will show up
 
-[yellow::b]/export[-::-] [green]<username>[-]: Exports the private key of an existing local user
+[yellow::b]/export[-:-:-:-] [green]<username>[-]: Exports the private key of an existing local user
 	- The specified user must be registered on the server on which the command is ran	
 	- A popup asking for the password asocciated to the account will show up
 	- The key will be put in a file in the directory from which the program was ran
 	- The fill will be called <username>.priv and will be in PEM PKCS1 format (RSA 4096 bits)
 
-[yellow::b]/login[-::-] [green]<username>[-]: Tries to login in the server with an account
+[yellow::b]/login[-:-:-:-] [green]<username>[-]: Tries to login in the server with an account
 	- A popup asking for the password asocciated to the account will show up
 	- You need an active connection to use this command
 
-[yellow::b]/logout[-::-]: Logs out of your account in the currently active server
+[yellow::b]/logout[-:-:-:-]: Logs out of your account in the currently active server
 	- You need an active connection to use this command
 
-[yellow::b]/disconnect[-::-]: Interrumps the connection with the currently active server
+[yellow::b]/disconnect[-:-:-:-]: Interrumps the connection with the currently active server
 	- You need an active connection to use this command
 
-[yellow::b]/users[-::-] [green]<remote/local>[-] [green]<all/online/server>[-] [blue](-perms)[-]: Shows a list of users according to the specified filter
+[yellow::b]/users[-:-:-:-] [green]<remote/local>[-] [green]<all/online/server>[-] [blue](-perms)[-]: Shows a list of users according to the specified filter
 	- [cyan]"remote all"[-] will display all users registered on the remote server (requires connection)
 	- [cyan]"remote online"[-] will display all connected accounts in the server (requires connection)
 	- [cyan]"local all"[-] will display accounts created for for all servers on this client
 	- [cyan]"local server"[-] will display all local accounts for that server
 	- For the [cyan]"remote"[-] options you can optionally pass "-perms" to show permission levels
 	
-[yellow::b]/subscribe[-::-] [green]<hook>[-]: Subscribes to a specific event in the server
+[yellow::b]/subscribe[-:-:-:-] [green]<hook>[-]: Subscribes to a specific event in the server
 	- [cyan]"new_login"[-] will update the userlist whenever a new user logs in
 	- [cyan]"new_logout"[-] will update the userlist whenever a user logs out
 	- [cyan]"duplicated_session"[-] will notify whenever someone tries to log in with your account from another place
 	- [cyan]"permissions_change"[-] will notify whenever your permission level changes.
 	- [cyan]"all"[-] subscribes to every hook mentioned before
 	
-[yellow::b]/unsubscribe[-::-] [green]<hook>[-]: Unsubscribes from a specific event in the server
-	- Available options are the same as for [yellow::b]/subscribe[-::-]
+[yellow::b]/unsubscribe[-:-:-:-] [green]<hook>[-]: Unsubscribes from a specific event in the server
+	- Available options are the same as for [yellow::b]/subscribe[-:-:-:-]
 
-[yellow::b]/admin[-::-] [green]<operation>[-] [blue](...)[-]: Performs an administrative operation
+[yellow::b]/admin[-:-:-:-] [green]<operation>[-] [blue](...)[-]: Performs an administrative operation
 	- [cyan]"shutdown <offset>"[-] will perform a shutdown in the current time + offset (in minutes)
 	- [cyan]"broadcast <message>[-] will send a message to all online users of the server
 	- [cyan]"ban <username>"[-] will ban the specified user from the server
@@ -148,7 +148,7 @@ const CommandHelp string = `
 	- [cyan]"setperms <username> <permissions>[-] will set the permission level of the new user
 	- [cyan]"motd <motd>"[-] will set a new MOTD (message of the day) for the server
 
-[yellow::b]/recover[-::-] [green]<user>[-] [blue](-cleanup)[-]: Recovers data from a dangling user
+[yellow::b]/recover[-:-:-:-] [green]<user>[-] [blue](-cleanup)[-]: Recovers data from a dangling user
 	- If a user has become dangling (server is "Unknown"), this can be used to recover its data
 	- This command will only work with dangling users
 	- A popup asking for the password of the account to recover will appear
@@ -214,7 +214,7 @@ func (t *TUI) systemMessage(params ...string) cmds.OutputFunc {
 	var prompt string
 	if len(params) > 0 && params[0] != "" {
 		prompt = fmt.Sprintf(
-			"Running [lightgray::b]%s[-::-]: ",
+			"Running [lightgray::b]%s[-:-:-:-]: ",
 			params[0],
 		)
 	}
@@ -359,7 +359,7 @@ func (t *TUI) renderDate(date time.Time) {
 	fmt.Fprintf(
 		t.comp.text,
 		"--- %s%s%s ---\n",
-		"[green::i]", formatted, "[-::-]",
+		"[green::i]", formatted, "[-:-:-:-]",
 	)
 	t.status.lastDate = date
 }
@@ -395,8 +395,8 @@ func (t *TUI) renderMsg(msg Message) {
 	_, err := fmt.Fprintf(
 		t.comp.text,
 		"[%s%s%s] at %s%07s%s: %s\n",
-		color, msg.Sender, "[-::-]",
-		"[gray::u]", f, "[-::-]",
+		color, msg.Sender, "[-:-:-:-]",
+		"[gray::d]", f, "[-:-:-:-]",
 		content,
 	)
 

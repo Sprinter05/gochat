@@ -475,11 +475,8 @@ func setupKeybinds(t *TUI) {
 				t.app.SetFocus(t.comp.servers)
 				return nil
 			}
-		case tcell.KeyCtrlL: // Show help
-			if event.Modifiers()&tcell.ModShift == tcell.ModShift ||
-				event.Modifiers()&tcell.ModAlt == tcell.ModAlt {
-				t.toggleHelp()
-			}
+		case tcell.KeyCtrlJ: // Show help
+			t.toggleHelp()
 		case tcell.KeyCtrlG: // Quick switcher
 			if !t.status.blockCond() {
 				newQuickSwitchPopup(t)
@@ -601,7 +598,7 @@ func New(static cmds.StaticData, debug bool) (*TUI, *tview.Application) {
 	// Welcome messages
 	info := t.systemMessage()
 	info("Welcome to gochat!", cmds.INFO)
-	info("Press [green]Ctrl-Alt-L/Ctrl-Shift-L[-] to show help!", cmds.INFO)
+	info("Press [green]Ctrl-J[-] to show help!", cmds.INFO)
 
 	// Debug buffer if necessary
 	if debug {

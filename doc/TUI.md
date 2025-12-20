@@ -13,7 +13,7 @@ In order to run the program you do not need to provide any additional arguments.
 
 ### The Local Server
 
-Once you open the program you will be greeted with a welcome message. You can see a help window with an exhaustive list of key combinations and commands using `Ctrl-Shift/Alt-L` If you look at the *bottom left* you will see your server list and in the *top left* the buffer list. The TUI refers to buffers as independent instances for messaging, similar to the concept of "channels". The TUI automatically creates a non-persitant "Local" server for important system messages and basic usage. Anything done in the "Local" server will not persist between sessions, so feel free to experiment!
+Once you open the program you will be greeted with a welcome message. You can see a help window with an exhaustive list of key combinations and commands using `Ctrl-J` If you look at the *bottom left* you will see your server list and in the *top left* the buffer list. The TUI refers to buffers as independent instances for messaging, similar to the concept of "channels". The TUI automatically creates a non-persitant "Local" server for important system messages and basic usage. Anything done in the "Local" server will not persist between sessions, so feel free to experiment!
 
 ### Adding a new server
 

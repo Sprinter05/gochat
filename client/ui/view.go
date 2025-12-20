@@ -124,7 +124,7 @@ func (s *state) userlistRender() string {
 
 	for _, v := range copy {
 		str := fmt.Sprintf(
-			"[[purple::i]%d[-::-]] %s\n",
+			"[[purple::i]%d[-:-:-:-]] %s\n",
 			v.perms, v.name,
 		)
 		list.WriteString(str)

@@ -250,7 +250,7 @@ func configList(t *TUI, s Server) []cmds.ConfigObj {
 
 func showVersion(t *TUI, cmd Command) error {
 	str := fmt.Sprintf(
-		"\n* Client TUI version: [orange::i]%s[-::-]\n* Protocol version: [orange::i]v%d[-::-]",
+		"\n* Client TUI version: [orange::i]%s[-:-:-:-]\n* Protocol version: [orange::i]v%d[-:-:-:-]",
 		cmds.Version(tuiVersion),
 		spec.ProtocolVersion,
 	)
@@ -269,7 +269,7 @@ func listServers(t *TUI, cmd Command) error {
 		hidden := ""
 		_, ok := t.servers.Get(v.Name)
 		if !ok {
-			hidden = " - [gray::i]Hidden[-::-]"
+			hidden = " - [gray::i]Hidden[-:-:-:-]"
 		}
 
 		addr := Source{
@@ -278,7 +278,7 @@ func listServers(t *TUI, cmd Command) error {
 		}
 
 		str := fmt.Sprintf(
-			"\n- [yellow::b]%s[-::-] ([red]%s[-])%s",
+			"\n- [yellow::b]%s[-:-:-:-] ([red]%s[-])%s",
 			v.Name, addr.String(), hidden,
 		)
 
@@ -304,11 +304,11 @@ func listBuffers(t *TUI, cmd Command) error {
 	for i, v := range l {
 		hidden := ""
 		if v.index == -1 {
-			hidden = " - [gray::i]Hidden[-::-]"
+			hidden = " - [gray::i]Hidden[-:-:-:-]"
 		}
 
 		str := fmt.Sprintf(
-			"\n[green]%d:[-::-] %s%s",
+			"\n[green]%d:[-:-:-:-] %s%s",
 			i+1, v.name, hidden,
 		)
 
@@ -362,7 +362,7 @@ func showConfig(t *TUI, cmd Command) error {
 		name, val, _ := strings.Cut(string(v), " = ")
 
 		format := fmt.Sprintf(
-			"\n- [pink::i]%s[-::-] = [blue::b]%s[-::-]",
+			"\n- [pink::i]%s[-:-:-:-] = [blue::b]%s[-:-:-:-]",
 			name, val,
 		)
 		str.WriteString(format)
@@ -707,12 +707,12 @@ func listUsers(t *TUI, cmd Command) error {
 		var str string
 		if !ok {
 			str = fmt.Sprintf(
-				"- [pink::i]%s[-::-]\n",
+				"- [pink::i]%s[-:-:-:-]\n",
 				uname,
 			)
 		} else {
 			str = fmt.Sprintf(
-				"- [pink::i]%s[-::-] | [blue::b]%s[-::-]\n",
+				"- [pink::i]%s[-:-:-:-] | [blue::b]%s[-:-:-:-]\n",
 				uname, extra,
 			)
 		}
