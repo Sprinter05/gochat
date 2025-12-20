@@ -25,8 +25,8 @@ ifeq ($(OS), linux)
 endif
 
 # Executable names
-SERVERNAME=gochat-server$(PREFIX)
-CLIENTNAME=gochat-client$(PREFIX)
+SERVERNAME=gochatd$(PREFIX)
+CLIENTNAME=gochat$(PREFIX)
 
 # Versioning
 VERSION:=$(shell date +%s)
