@@ -9,7 +9,7 @@ RUN make server OS=linux ARCH=amd64
 FROM golang:1.24.0-alpine AS runner
 
 WORKDIR /config
-RUN cp /src/config/server_example.json ./server.json
+COPY --from=builder /src/config/server_example.json ./server.json
 
 WORKDIR /app
 RUN mkdir certs logs
