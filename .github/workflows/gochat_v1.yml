@@ -28,13 +28,13 @@ jobs:
     - name: Publish server
       uses: actions/upload-artifact@v4
       with:
-        name: gochat-server_windows-amd64
-        path: build/gochat-server.exe
+        name: gochatd_windows-amd64
+        path: build/gochatd.exe
     - name: Publish client
       uses: actions/upload-artifact@v4
       with:
-        name: gochat-client_windows-amd64
-        path: build/gochat-client.exe
+        name: gochat_windows-amd64
+        path: build/gochat.exe
   linux:
     runs-on: ubuntu-latest
     steps:
@@ -49,13 +49,13 @@ jobs:
     - name: Publish server
       uses: actions/upload-artifact@v4
       with:
-        name: gochat-server_linux-amd64
-        path: build/gochat-server
+        name: gochatd_linux-amd64
+        path: build/gochatd
     - name: Publish client
       uses: actions/upload-artifact@v4
       with:
-        name: gochat-client_linux-amd64
-        path: build/gochat-client
+        name: gochat_linux-amd64
+        path: build/gochat
   release:
     runs-on: ubuntu-latest
     needs: [windows, linux]
@@ -78,7 +78,7 @@ jobs:
         preserve_order: true
         make_latest: true
         files: |
-          gochat-client_windows-amd64.tar.gz
-          gochat-client_linux-amd64.tar.gz
-          gochat-server_windows-amd64.tar.gz
-          gochat-server_linux-amd64.tar.gz
+          gochat_windows-amd64.tar.gz
+          gochat_linux-amd64.tar.gz
+          gochatd_windows-amd64.tar.gz
+          gochatd_linux-amd64.tar.gz
