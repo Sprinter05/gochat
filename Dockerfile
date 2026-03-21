@@ -1,4 +1,4 @@
-FROM golang:1.24.0-alpine AS builder
+FROM golang:1.25.0-alpine AS builder
 
 RUN apk add --no-cache make
 
@@ -6,7 +6,7 @@ WORKDIR /src
 COPY . .
 RUN make server OS=linux ARCH=amd64
 
-FROM golang:1.24.0-alpine AS runner
+FROM golang:1.25.0-alpine AS runner
 
 WORKDIR /config
 COPY --from=builder /src/config/server_example.json ./server.json
