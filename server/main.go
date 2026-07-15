@@ -23,7 +23,7 @@ import (
 /* VERSIONING */
 
 // Static version
-const serverVersion float32 = 1.1
+const serverVersion float32 = 1.2
 
 // Build version
 var serverBuild string
